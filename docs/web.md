@@ -31,6 +31,14 @@ The sidebar has three groups: **Plan** (Dashboard, Teach me, Today, Standup, Not
 
 On a corporate-role machine, Job hunt, Interviews, Practice, and Library answer 403. The app hides each blocked view from the sidebar, and a group whose every view is blocked (Job search) disappears; it never calls their endpoints, and a direct link shows why. The sidebar waits for the machine role (`/api/overview`) before it shows any group, so a blocked link never flashes and no group pops in and shifts the others. The rule lives in `web/src/router.ts` (`personalOnly`, `navGroups`).
 
+The PM update's cut banner follows the current text in the editor. Restoring a
+known label or its known rename removes the flag while you type. If the text
+uses a form the comparison cannot read, the banner says it cannot verify
+which labels are absent. An omitted label's date comes from its recorded cut
+time when known. An older record can name the update's day or say the date
+is unavailable. The banner stays on this screen, outside the copied or sent
+update.
+
 ## Design
 
 Today and Standup share `feedHealth.tsx`. It reads uncached
@@ -63,6 +71,20 @@ The look follows the Hallmark design skill (task `hallmark-design`, 2026-10-27):
 Every block says what it is (issue #147): a short "What is this?" line under its title opens one or two sentences. The answers live in `ABOUT` in `web/src/order.ts`, keyed by the block ids of `VIEW_BLOCKS`; `web/src/order.test.ts` fails when a block has none, and `web/e2e/inbox.spec.ts` opens every view and fails on a block without the line. An answer renders only while its line is open, so a folded line adds no words to the page.
 
 ### Comfort budget
+
+The crowded Today fixture also checks desktop target sizes and full-length agenda
+project tags (`comfort-targets.spec.ts`, `comfort-tag.spec.ts`). US-59 runs these
+eight cases through the owned geometry runner, using both PM states, phone and
+desktop, light and dark, with reduced motion. The measured repair reduced desktop
+target failures from 28 to zero and phone spill flags from nine to zero. All 29
+rendered controls remain in each scan, including disabled and offscreen controls.
+The complete long label wraps inside its parent; no smaller text or clipping is
+used. These geometry results do not qualify the separate disabled-control or
+root-gradient paint measurements, nor the original PM timing proof.
+The geometry proof admits the same-origin, query-free source-health GET.
+Its boundary test rejects writes, other origins, queries and neighboring paths.
+The owned proof selects the checkout's Python and the installed Playwright
+headless browser. It records their identities before starting the app.
 
 Comfort browser contexts have test-fixture scope. `comfort-fixtures.ts` uses `comfort-screen.ts` to close only the contexts its own screen calls create, including body or new-page failure. The original viewport, media, permission and project options carry over. The final browser-only context-count probe records one numeric value and requires zero; it does not diagnose the original page stall.
 

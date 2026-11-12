@@ -15,6 +15,8 @@ export const TRACE_IN_SANDBOX = /^Blocked script execution in 'about:srcdoc' bec
 // The suite drives the built app served by `careerbrew serve` over a synthetic data root.
 export default defineConfig({
   testDir: "./e2e",
+  // These crowded-state cases run through US-59 with their owned real-app fixture.
+  testIgnore: ["**/comfort-targets.spec.ts", "**/comfort-tag.spec.ts"],
   outputDir: OUT,
   fullyParallel: false,
   workers: 1,

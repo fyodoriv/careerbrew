@@ -95,7 +95,7 @@ def test_edited_sent_bullets_retire_removed_promises_without_reopening_done():
 
 def test_learned_style_cannot_silently_drop_prior_promises(monkeypatch):
     pm_learn.save_sent("2026-10-30", TEXT)
-    monkeypatch.setattr(pm_learn, "rules", lambda: {"days": 3, "cut": {"Yesterday's promise"}, "parts": [], "rename": {}, "order": {}})
+    monkeypatch.setattr(pm_learn, "rules", lambda _rows=None: {"days": 3, "cut": {"Yesterday's promise"}, "parts": [], "rename": {}, "order": {}})
     sample = {"day": "2026-11-02", "done": {"Notes": ["Prototype work"]}, "details": {}}
     assert "Deliver billing export" in "\n".join(log.pm_lines(sample))
     assert "Share hiring notes" in log.pm_report(sample)["draft"]

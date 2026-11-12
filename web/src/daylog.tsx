@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, hhmm, localStamp, pmCopyPayload, webUrl } from "./api";
-import type { DayLogView, InboxGroup, InboxItem, InboxView, RowDetail } from "./api";
+import type { DayLogView, InboxGroup, InboxItem, InboxView, PmCutCandidate, RowDetail } from "./api";
 import { About } from "./about";
 import { useAct } from "./act";
 import { ActStatus } from "./act-status";
@@ -11,7 +11,7 @@ import type { Choice, Sort } from "./pager";
 import { slug } from "./paging";
 import { useData } from "./useData";
 import type { Loadable } from "./useData";
-import { longDay, shortDay } from "./dates";
+import { friendlyDay, longDay, shortDay } from "./dates";
 import { keepDates } from "./text";
 import { CopyResult } from "./copy";
 import { useCopy } from "./useCopy";
@@ -50,6 +50,60 @@ export function PmCopyBar() {
       <About block="copy-update" />
     </div>
   );
+}
+
+function pmCuts(pm: DayLogView["pm"], body: string) {
+  const context = pm.cut_context;
+  if (context?.schema !== 1) {
+    return { cuts: body === pm.body ? (pm.left_out ?? []).map((label) => ({ label, date: null })) : [], unknown: body !== pm.body };
+  }
+  if (context.candidates.length === 0) return { cuts: [], unknown: false };
+
+  const spellings = new Map(context.candidates.flatMap(({ aliases }) => aliases.map(({ spelling, norm }) => [spelling, norm] as const)));
+  const present = new Set<string>();
+  let uncertain = false;
+  let fence = "";
+  for (const raw of body.split(/\r\n?|\n/)) {
+    const content = raw.trim().replace(/^[-•◦ ]+/, "").trim();
+    if (!content) continue;
+    if (fence) {
+      if (content[0] === fence[0] && content.length >= fence.length && [...content].every((char) => char === fence[0])) fence = "";
+      continue;
+    }
+    const marker = content.match(/^(`{3,}|~{3,})/)?.[0];
+    if (marker) {
+      fence = marker;
+      uncertain = true;
+      continue;
+    }
+    const colon = content.indexOf(":");
+    const prefix = colon < 0 ? "" : content.slice(0, colon);
+    const label = prefix.replace(/[*_`]+/g, "").trim();
+    const known = spellings.get(label);
+    if (!label || /^(?:[#>]|\d+[.)]\s)/.test(label) || /[[\]<>|]/.test(prefix)) {
+      uncertain = true;
+    } else if (known !== undefined) {
+      present.add(known);
+    } else if (/^[ -~]+$/.test(label)) {
+      present.add(label.toLowerCase());
+    } else {
+      uncertain = true;
+    }
+  }
+  const absent = context.candidates.filter(({ aliases }) => !aliases.some(({ norm }) => present.has(norm)));
+  return { cuts: uncertain ? [] : absent.map((candidate) => ({ label: candidate.label, date: cutDate(candidate) })), unknown: uncertain && absent.length > 0 };
+}
+
+function cutDate({ date_basis, recorded_at, report_day }: PmCutCandidate): string {
+  if (date_basis === "saved" && recorded_at && /(?:Z|[+-]\d{2}:\d{2})$/i.test(recorded_at) && !Number.isNaN(Date.parse(recorded_at))) {
+    const stamp = localStamp(recorded_at);
+    return `Cut recorded ${friendlyDay(stamp.slice(0, 10))} ${hhmm(stamp)}`;
+  }
+  if (date_basis === "report-day" && report_day) {
+    const day = friendlyDay(report_day);
+    if (day !== report_day) return `Cut in update for ${day} (record time unavailable)`;
+  }
+  return "Date unavailable";
 }
 
 function PmReport({ pm, day }: { pm: DayLogView["pm"]; day: string }) {
@@ -92,6 +146,7 @@ function PmReport({ pm, day }: { pm: DayLogView["pm"]; day: string }) {
     const r = await sendAct.run(() => api.sendPm(`*${pm.subject}*\n${body}`));
     if (r) setSent(`Sent to ${r.sent.to}`);
   };
+  const { cuts, unknown } = pmCuts(pm, body);
   return (
     <Section title="Update for your PM" action={<span className="muted small">a draft: edit it, then copy or send</span>}>
       {/* under the card's title, not above the card: there it stacked under Copy update's own line */}
@@ -109,12 +164,17 @@ function PmReport({ pm, day }: { pm: DayLogView["pm"]; day: string }) {
         {saved && !act.busy && <span className="muted small" role="status">{saved}</span>}
         <ActStatus act={{ busy: act.busy, error: null }} label="Saving…" />
         <ActStatus act={{ busy: sendAct.busy, error: null }} label="Sending…" />
-        {pm.left_out && pm.left_out.length > 0 && (
-          <span className="muted small" data-pm-left-out>Left out because you cut it before: {pm.left_out.join(", ")} (bring one back: <code>careerbrew signals reset cut {pm.left_out[0]}</code>)</span>
-        )}
         {pm.via === "slack" && pm.to && pm.slack_configured === false && <span className="muted small">Connect Slack to send: <code>careerbrew connect slack</code>.</span>}
         {!pm.to && <span className="muted small">{pm.via === "slack" ? <>Set where it goes: <code>careerbrew config set pm_slack #channel-or-member-id</code></> : <>Set your PM's address: <code>careerbrew config set pm_email you@example.com</code></>}, or in Setup (pm_send_via switches Slack or email).</span>}
       </div>
+      {unknown && <p className="muted small pm-cuts">Cannot verify which previously cut labels are absent from this text.</p>}
+      {cuts.length > 0 && (
+        <div className="muted small pm-cuts" data-pm-left-out>
+          <p>Left out because you cut it before:</p>
+          <ul>{cuts.map(({ label, date }) => <li key={label}>{label}{date && <> · <span>{date}</span></>}</li>)}</ul>
+          <p>Bring one back: <code>careerbrew signals reset cut {cuts[0].label}</code></p>
+        </div>
+      )}
       {pm.why && pm.why.length > 0 && (
         <div className="pm-why" data-pm-why>
           <p className="muted small">Why it matters, per line (for you only: never copied or sent)</p>

@@ -103,6 +103,36 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if the journal holds content that cannot be made public, publish the measurement protocol and the step table only, and keep each task's own Details as the step description.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Parnas & Clements 1986 (a rational design process: documents as the product).
 
+- [ ] Keep desktop controls within the 44 px comfort budget
+  - **ID**: web-comfort-desktop-targets
+  - **Details**: The independently reviewed synthetic PM diagnostic found 28 undersized desktop targets in every light/dark and complete/unknown case, before and after issue #373: three buttons at 42.796875 px and 25 summaries at 21.6875 px. The cause is the existing 40 px form minimum and summaries without a desktop target minimum. Register a real-app reproduction before CSS changes. Keep disabled and below-viewport targets in the same denominator.
+  - **Files**: web/src/styles.css, proposed web/e2e/comfort-targets.spec.ts, docs/web.md
+  - **Hypothesis**: a 44 px desktop target floor and bounded summary padding reduce the 28 failing targets to zero without changing actions, text, themes or the already-passing phone target budget.
+  - **Measurement**: first add the proposed real-app spec and record its failing baseline, then run `heavy-run bash -c 'cd web && npx playwright test e2e/comfort-targets.spec.ts'` before and after CSS changes. The proposed spec does not exist yet.
+  - **Success**: zero targets below 44 px on both viewport sizes, both themes and both PM states; zero text below 14 px, new overflow or changed control effects. Keep whole-main scope unchanged.
+  - **Pivot**: any remaining small target or new clipping, overflow or action regression rejects the layout. Do not hide targets or narrow the scan.
+  - **Anchor**: Basili, Caldiera and Rombach 1994 (GQM); the project's 44 px comfort budget is policy.
+
+- [ ] Keep a long project tag inside the phone plan card
+  - **ID**: web-comfort-plan-tag
+  - **Details**: The reviewed phone diagnostic found nine propagated spill flags from one plan project tag. Its nowrap box is 330.078125 px wide inside a 298 px block title. It extends beyond the task and card edges; it is not an intentional scroll container. Scope wrapping to the plan tag and retain the full label.
+  - **Files**: web/src/styles.css, proposed web/e2e/comfort-tag.spec.ts, docs/web.md
+  - **Hypothesis**: scoped wrapping and a parent-width bound reduce nine phone spill flags to zero while preserving the complete tag text, desktop layout and control effects.
+  - **Measurement**: first add the proposed real-app spec and record its failing baseline, then run `heavy-run bash -c 'cd web && npx playwright test e2e/comfort-tag.spec.ts'` before and after CSS changes. The proposed spec does not exist yet.
+  - **Success**: zero whole-main phone spill or clipping flags in both themes and PM states; tag text unchanged and contained by its card; desktop spill count remains zero and text remains at least 14 px.
+  - **Pivot**: any spill, lost label text, smaller type or newly clipped content rejects the change. Do not replace wrapping with ellipsis or hidden overflow.
+  - **Anchor**: Basili, Caldiera and Rombach 1994 (GQM); the project's zero-overflow comfort budget is policy.
+
+- [ ] Measure remaining disabled-control and gradient contrast honestly
+  - **ID**: web-comfort-paint-evidence
+  - **Details**: All 16 reviewed snapshots have one unresolved disabled Send composition. Desktop has seven additional unresolved text-bearing gradient records, for eight text-bearing records; 21 wider gradient records also include containers without their own text. No unresolved record is a pass. Add measurement preparation before any color change. Reuse a maintained browser/accessibility color engine behind a small adapter; preserve the frozen diagnostic and its verified simple-color results.
+  - **Files**: proposed web/e2e/comfort-paint.spec.ts and a browser-page scoped measurement adapter, docs/web.md
+  - **Hypothesis**: a calibrated paint measurement resolves the existing eight desktop and one phone text-bearing unknowns without changing product CSS or classifying unsupported paint as passing.
+  - **Measurement**: preregister fixed group-opacity and gradient controls, then add and run `heavy-run bash -c 'cd web && npx playwright test e2e/comfort-paint.spec.ts'`. The proposed spec and adapter do not exist yet; freeze their model and cases before implementation.
+  - **Success**: every required current text-bearing composition has a supported measured verdict, all fixed controls classify correctly, and no unknown becomes a pass. True ratios below 4.5 remain failures and require a separately registered product correction.
+  - **Pivot**: one misclassified fixed control, an unsupported required composition, changed product colors, or a narrowed record set rejects this measurement approach. Keep the result unresolved rather than inventing a ratio.
+  - **Anchor**: Basili, Caldiera and Rombach 1994 (GQM); the existing 4.5 contrast budget and independent native-color calibration.
+
 - [ ] Rust migration: Build the baseline harness and complete code inventory
   - **ID**: rust-00
   - **PR**: #421 (open in the pre-release repository)

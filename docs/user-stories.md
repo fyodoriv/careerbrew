@@ -1109,6 +1109,7 @@ See [Agent hosts](agent-hosts.md) for runtime, deployment and regression details
   - Given a browser that refuses the clipboard, when I click Copy update, then the text shows selected in a box, so Cmd+C (Ctrl+C) copies it.
   - Given the update, when I look next to Copy update, then it says whether it is the generated draft or my edit, and when it last changed: my last saved edit, or the last change of the kept day log ("updated 15:45") (test: `test_issue_145.py`).
   - Given no-action status text or source-proven draft work presented as complete, `day send` names `no-action` or `draft-state` checks, including explicit text overrides; restricted output hides the line. Generated drafts drop no-action checks and preserve `In draft`. Each changed shown-to-saved line yields a private candidate rule, while automatic style lessons retain their repeat threshold (issue #336, `tests/unit/test_issue_336.py`).
+  - Given a saved edit cut a project, Today shows the cut flag only while the draft on screen still omits the project. Restoring the project in an unsaved edit removes the flag before saving (issue #373, `tests/unit/test_issue_373.py`, `web/issue373/pm-cut.spec.ts`).
 - **Metric**: lines in the PM draft on the 46-row fixture day (`test_issue_68.py`, `us-59-pm-update.sh`), and clicks from opening Today to a Slack-ready update on the clipboard (`web/e2e/pm-copy.spec.ts`). **Target**: one line per project, with 0 ids; 1 click, with no subject line for Slack.
 - **Skill**: `skills/careerbrew-work-companion`
 - **Web views**: Today

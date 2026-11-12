@@ -1,5 +1,4 @@
 path,disposition,task,reason
-tests/unit/test_eval_case_loading.py,port,rust-27,Fixed real eval-loader duplicate-key and document-boundary regression controls
 .cargo/config.toml,keep-native,rust-00,Native migration workspace source or build configuration
 Cargo.lock,keep-native,rust-00,Native migration workspace source or build configuration
 Cargo.toml,keep-native,rust-00,Native migration workspace source or build configuration
@@ -181,7 +180,6 @@ scripts/open-work.sh,port,rust-27,Port each assertion/helper with its domain sli
 scripts/pm-sent-coverage.py,port,rust-27,Port non-UI read-only measurement helper with exact eligibility privacy and aggregate defect controls
 scripts/proof.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/report-html.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-scripts/rust-readiness.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/setup.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/tests_affected.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 src/careerbrew/__init__.py,port,rust-02,Runtime capability; tests port with the capability
@@ -276,7 +274,6 @@ src/careerbrew/work/prd.py,port,rust-12,Runtime capability; tests port with the 
 src/careerbrew/work/priorities.py,port,rust-09,Runtime capability; tests port with the capability
 src/careerbrew/work/project_import.py,port,rust-11,Runtime capability; tests port with the capability
 src/careerbrew/work/project_priority.py,port,rust-09,Runtime capability; tests port with the capability
-src/careerbrew/work/prior_selection.py,port,rust-10,Read-only prior session classification foundation
 src/careerbrew/work/projects.py,port,rust-09,Runtime capability; tests port with the capability
 src/careerbrew/work/promises.py,port,rust-09,Runtime capability; tests port with the capability
 src/careerbrew/work/promo.py,port,rust-18,Runtime capability; tests port with the capability
@@ -304,6 +301,8 @@ src/careerbrew/workday/workflow_check.py,port,rust-07,Runtime capability; tests 
 tests/__init__.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/e2e/fake-judge.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/e2e/lib.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/pm-cut-seed-and-serve.sh,port,rust-27,Port synthetic UI proof setup and checks with the native test harness
+tests/e2e/seed_pm_cut.py,port,rust-27,Port synthetic UI proof setup and checks with the native test harness
 tests/e2e/us-01-setup.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/e2e/us-02-jobs-scan-filter.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/e2e/us-03-want-rate-learn.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -417,8 +416,11 @@ tests/e2e/web_seed.py,port,rust-27,Port each assertion/helper with its domain sl
 tests/fixtures/notifier/fake-notifier.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/fixtures/plugin-acme/bin/tickets.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/fixtures/voice/fake-stt.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/safety/test_issue_327_native.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/safety/test_issue_327_native_cleanup.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/safety/issue373_metadata.py,port,rust-27,Port synthetic UI proof setup and checks with the native test harness
+tests/safety/issue373_server.py,port,rust-27,Port synthetic UI proof setup and checks with the native test harness
+tests/safety/issue373_ui_child.sh,port,rust-27,Port synthetic UI proof setup and checks with the native test harness
+tests/safety/issue373_web_server.sh,port,rust-27,Port synthetic UI proof setup and checks with the native test harness
+tests/safety/run_issue_373_ui.sh,port,rust-27,Port synthetic UI proof setup and checks with the native test harness
 tests/unit/__init__.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/conftest.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_action_parity.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -444,10 +446,8 @@ tests/unit/test_deployed_commands.py,port,rust-27,Port each assertion/helper wit
 tests/unit/test_drill_session_input_ends.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_e2e_lib.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_e2e_results.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_e2e_us52_pipes.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_e2e_runner.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_every_action_has_an_e2e.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_exercise_cache_runtime_probe.py,port,rust-27,Port exercise runtime-cache refusal controls with the gate
 tests/unit/test_exercise_complexity.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_exercise_diagnostics.py,port,rust-27,Port owner-status and content-free diagnostic assertions with the exercise runner
 tests/unit/test_exercises_cache.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -529,7 +529,6 @@ tests/unit/test_issue_314.py,port,rust-27,Port each assertion/helper with its do
 tests/unit/test_issue_315.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_316.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_326.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_issue_327.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_330.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_331.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_333.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -541,6 +540,7 @@ tests/unit/test_issue_339.py,port,rust-27,Port each assertion/helper with its do
 tests/unit/test_issue_366.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_371.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_372.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_373.py,port,rust-27,Port synthetic UI proof setup and checks with the native test harness
 tests/unit/test_issue_374_legacy_feed.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_377_closed_today.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_52.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -576,7 +576,6 @@ tests/unit/test_outlook_connector.py,port,rust-27,Port each assertion/helper wit
 tests/unit/test_ownership_docs.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_pinned_clock.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_platforms.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_region_labels.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_playwright_server.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_plugin_commands.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_plugins_privacy.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -599,7 +598,6 @@ tests/unit/test_regrade.py,port,rust-27,Port each assertion/helper with its doma
 tests/unit/test_regrade_notion.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_repo_health.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_run_pages.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_rust_readiness.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_second_user.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_server.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_slow_start.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -625,23 +623,16 @@ tests/unit/test_web_grader.py,port,rust-27,Port each assertion/helper with its d
 tests/unit/test_web_seed.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_wizard.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_work.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_prior_session_selection.py,port,rust-27,Synthetic prior session classification controls
-tests/unit/test_format_cache_runtime.py,port,rust-27,Synthetic format-cache runtime change and fresh-run controls
-tests/unit/test_lint_cache_runtime.py,port,rust-27,Synthetic lint-cache runtime change and fresh-run controls
-tests/unit/test_live_health_seed.py,port,rust-27,Synthetic source-health fixture time-zone boundary controls
-tests/unit/test_unit_cache_runtime.py,port,rust-27,Synthetic unit-cache runtime change and fresh-run controls
 tests/unit/test_workday.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/watch_gate_child.py,port,rust-27,Port the isolated watch resource measurement helper
 web/e2e/active-now.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 web/e2e/agents.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 web/e2e/app.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 web/e2e/blocks.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/comfort-geometry.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/comfort-tag.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/comfort-targets.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 web/e2e/comfort.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
-web/route-owner-probe/playwright.config.ts,keep-ui,,Keep route-owner error probe configuration
-web/route-owner-probe/probe.spec.ts,keep-ui,,Verify asynchronous route errors remain visible
-web/route-owner-probe/assert-report.cjs,keep-ui,,Verify exact expected probe outcomes
-web/e2e/controls-route-owner.ts,keep-ui,,Own browser-page visit route cleanup for the control inventory
-web/e2e/controls-route-lifecycle.spec.ts,keep-ui,,Exercise delayed route cleanup and next-visit isolation
 web/e2e/controls.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 web/e2e/feed.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 web/e2e/feedback.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
@@ -659,7 +650,11 @@ web/e2e/standup.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate emb
 web/e2e/task-links.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 web/e2e/time-saved.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 web/eslint.config.js,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/issue373/pm-cut-normal.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/issue373/pm-cut.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 web/playwright.config.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/playwright.issue373.config.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/playwright.pm-cut.config.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 web/playwright.visual.config.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 web/src/App.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 web/src/App.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
@@ -778,6 +773,7 @@ web/visual/us-93-prep-readiness.spec.ts,keep-ui,,Keep UI/browser code in TypeScr
 web/visual/us-95-standup-proofs.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 web/visual/us-99-promises.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 web/vite.config.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/vite.issue373.config.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 xtask/Cargo.toml,keep-native,rust-00,Native migration workspace source or build configuration
 xtask/src/baseline_verdict.rs,keep-native,rust-00,Native migration workspace source or build configuration
 xtask/src/capture_actions.rs,keep-native,rust-00,Native observed action catalog capture
@@ -825,73 +821,6 @@ web/e2e/live-source-health.spec.ts,keep-ui,,Shared source notice expiry and dire
 web/src/feedHealth.tsx,keep-ui,,Shared Today and Standup source acquisition notice
 web/src/feedHealth.test.tsx,keep-ui,,Source notice and visible timer boundary assertions
 web/src/useFeedHealth.ts,keep-ui,,Per-mounted-view visible source health refresh lifecycle
-tests/unit/test_issue_422.py,port,rust-27,Port stale connector credential detection controls with workday
-tests/unit/test_issue_423.py,port,rust-27,Port encryption and replay boundary controls with data storage
-tests/unit/test_issue_423_keys.py,port,rust-27,Port key placement boundary controls with encrypted storage
-tests/unit/test_issue_423_bundles.py,port,rust-27,Port backup and sync bundle placement controls with encrypted storage
-tests/unit/test_issue_423_missing_key.py,port,rust-27,Port missing backup key refusal controls with encrypted storage
-tests/unit/test_issue_355_owner_steps.py,port,rust-27,Port owner work-step settings and source boundary controls
-tests/unit/test_setup_story_health_check.py,port,rust-27,Port setup story health assertion controls with test harness
-tests/unit/test_issue_423_eval_output.py,port,rust-27,Port eval data-root boundary and environment restoration controls
-tests/unit/test_issue_423_eval_inputs.py,port,rust-27,Port eval source input boundary controls
-tests/unit/test_issue_412.py,port,rust-27,Port non-interactive encrypted profile update controls
-web/e2e/profile-update.spec.ts,keep-ui,,Keep browser action and comfort controls in TypeScript
-tests/unit/test_issue_409.py,port,rust-27,Port quiet project and notification lifecycle controls
-web/e2e/project-quiet.spec.ts,keep-ui,,Keep quiet project action and comfort controls in TypeScript
-tests/unit/test_issue_356.py,port,rust-27,Port existing issue controls with their domain slice
-tests/unit/test_issue_357_session_claim.py,port,rust-27,Port session claim controls with workday
-tests/unit/test_issue_385.py,port,rust-27,Port project discovery controls with workday
-tests/unit/test_issue_395_skill.py,port,rust-27,Port agent skill controls with their domain slice
-tests/unit/test_issue_423_metrics_output.py,port,rust-27,Port metrics output boundary controls
-tests/unit/test_issue_423_plugin_source.py,port,rust-27,Port plugin source boundary controls
-web/e2e/health-setup.spec.ts,keep-ui,,Keep health setup browser controls in TypeScript
-web/e2e/health-setup.ts,keep-ui,,Keep health setup browser fixture in TypeScript
-tests/unit/test_issue_429.py,port,rust-27,Port approval update kind controls with project records
-tests/unit/test_issue_437.py,port,rust-27,Port project session continuity contract controls
-tests/unit/test_issue_401.py,port,rust-27,Port local draft feedback controls with CLI
-tests/unit/test_judge_completion.py,port,rust-27,Port evaluation completion and cache boundary controls
-tests/unit/test_privacy_index.py,port,rust-27,Port staged privacy scan controls with the privacy boundary
-hooks/lefthook/pre-push/privacy.sh,port,rust-27,Preserve pre-push context and strict scan
-scripts/verify-push-context.py,port,rust-27,Bound and validate pre-push context
-tests/unit/test_push_context.py,port,rust-27,Exercise native push context and strict scan
-tests/unit/test_gate_cache_index.py,port,rust-27,Check staged-tree and revision cache identity
-tests/unit/test_gate_cache_runtime.py,port,rust-27,Check external Rust runtime changes cannot reuse passes
-scripts/benchmark-day-start-discovery.py,port,rust-27,Measure isolated update discovery with owned synthetic checkouts
-tests/unit/test_issue_426.py,port,rust-27,Check invocation-scoped update discovery and Git behavior
-tests/unit/test_issue_423_metadata_temp.py,port,rust-27,Check owned temporary metadata publication and cleanup
-scripts/browser-test-receipts.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/e2e/us-110-pm-promise-outcomes.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_browser_test_receipts.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_e2e_cache_runtime.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_issue_389_baseline.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_issue_389_outcomes.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_issue_389_resolution.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_issue_432.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_issue_438.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_promise_reference_successor.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_rules_reference_successor.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_type_cache_runtime.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_types_cache_safeguard.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_types_command_collision_probe.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-tests/unit/test_web_type_cache_probe.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
-web/e2e/open-asks-refresh-click.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
-web/e2e/project-rules.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
-web/e2e/standup-teardown.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
-web/playwright.promise.config.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
-web/promise-e2e/resolution.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
-web/src/open-asks-response-order.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
-web/visual/us-107-standing-rules.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
-web/visual/us-110-pm-promise-outcomes.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
-experiments/hash/src/main.rs,keep-native,rust-00,Disconnected synthetic Rust hash experiment; no production routing
-tests/unit/test_rust_hash_experiment.py,port,rust-27,Synthetic differential controls for the disconnected Rust hash experiment
-crates/vault/src/lib.rs,keep-native,rust-00,Disconnected Rust vault codec pending interoperability and storage qualification
-crates/vault/src/main.rs,keep-native,rust-00,Synthetic-only vault compatibility test transport
-tests/unit/test_rust_vault_interop.py,port,rust-27,Synthetic Python and Rust vault interoperability controls
-tests/unit/test_rust_vault_base64_parity.py,port,rust-27,Synthetic Python and Rust Base64 decoder parity matrix
-xtask/tests/store_supervisor.rs,keep-native,rust-00,Synthetic store supervisor ownership and pipe controls
-xtask/tests/support/store_supervisor.rs,keep-native,rust-00,Synthetic-only store test supervisor
-xtask/src/bin/store_supervisor_fixture.rs,keep-native,rust-00,Synthetic fixed worker ownership fixture
-scripts/public-readiness.py,port,rust-27,Port the public-readiness surface checks with their count-only output
-scripts/public-readiness.sh,port,rust-27,Port the public-readiness entry point and its private pattern loading
-tests/unit/test_public_readiness.py,port,rust-27,Check each planted public-readiness defect fails its surface
-tests/unit/test_redirect_host_policy.py,port,rust-27,Check a redirect obeys the host policy and keeps a token on its origin
+web/e2e/comfort-health-boundary.ts,keep-ui,,Keep the test-scoped exact source-health request predicate in TypeScript
+web/src/comfort-health-boundary.test.ts,keep-ui,,Keep synthetic source-health request boundary controls in TypeScript
+tests/unit/test_issue_373_portability.py,port,rust-27,Port synthetic alternate-tool and missing-tool proof controls with the harness
