@@ -1,0 +1,7 @@
+{"ok": true, "messages": {"matches": [
+ {"ts": "1792591200.000100", "user": "U0ALEX", "username": "alex", "channel": {"id": "D0ALEX", "name": "U0ALEX", "is_im": true}, "permalink": "https://example.slack.com/archives/D0ALEX/p1792591200000100", "text": "can you review the rollout plan today?"},
+ {"ts": "1792593000.000200", "user": "U0ME", "username": "me", "channel": {"id": "D0ALEX", "name": "U0ALEX", "is_im": true}, "permalink": "https://example.slack.com/archives/D0ALEX/p1792593000000200", "text": "yes, after lunch"},
+ {"ts": "1792594800.000300", "user": "U0SAM", "username": "sam", "channel": {"id": "C0BILL", "name": "eng-billing"}, "permalink": "https://example.slack.com/archives/C0BILL/p1792594800000300", "text": "<@U0ME> is the PROJECTZEBRA migration on track?"},
+ {"ts": "1792595400.000400", "bot_id": "B0ALERT", "username": "monitor", "channel": {"id": "C0ALRT", "name": "alerts-billing"}, "permalink": "https://example.slack.com/archives/C0ALRT/p1792595400000400", "text": "<@U0ME> CPU high on the billing database"},
+ {"ts": "1792596000.000500", "user": "U0ME", "username": "me", "channel": {"id": "D0PAT", "name": "U0PAT", "is_im": true}, "permalink": "https://example.slack.com/archives/D0PAT/p1792596000000500", "text": "leaving for the dentist at 3, back at 5"}
+]}}

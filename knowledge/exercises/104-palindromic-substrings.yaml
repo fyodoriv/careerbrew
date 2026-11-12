@@ -1,0 +1,57 @@
+id: palindromic-substrings
+order: 104
+pattern: 1-d dynamic programming
+difficulty: medium
+title: Count the mirrors
+leetcode: palindromic-substrings
+lesson: 'Expand from each of the 2n-1 centres and count one palindrome per successful step outward. Substrings
+  at different positions count separately even if their text matches.
+
+  '
+statement: 'Given a string `s`, return how many of its contiguous substrings are palindromes. Substrings
+  at different positions count separately.
+
+  '
+function: count_substrings
+signature: 'def count_substrings(s: str) -> int:'
+starter: "def count_substrings(s: str) -> int:\n    pass\n"
+tests:
+- args:
+  - abc
+  expected: 3
+- args:
+  - aaa
+  expected: 6
+  note: overlapping repeats
+- args:
+  - a
+  expected: 1
+  note: single char
+- args:
+  - abba
+  expected: 6
+  note: even centre
+- args:
+  - racecar
+  expected: 10
+scale:
+  generator: "def make(n):\n    return [\"ab\" * (n // 2)]\n"
+  sizes:
+  - 300
+  - 3000
+  expected: O(n^2)
+hints:
+- Each single letter is one palindrome. How do longer ones grow?
+- Expand from every centre, counting while ends match.
+- 'for each centre (i,i) and (i,i+1): while match: count += 1; widen.'
+solution: "def count_substrings(s: str) -> int:\n    count = 0\n    for i in range(len(s)):\n        for\
+  \ l, r in ((i, i), (i, i + 1)):\n            while l >= 0 and r < len(s) and s[l] == s[r]:\n       \
+  \         count += 1\n                l -= 1\n                r += 1\n    return count\n"
+pitfalls:
+  edge-case: Every single character counts, so 'aaa' is 6 (3 singles, 2 pairs, 1 triple), not 3.
+  timeout: Generating all substrings and reversing each is O(n^3); expand around 2n-1 centres and count
+    each successful step for O(n^2).
+  wrong-answer: Counting only odd centres undercounts 'aa'-style palindromes; add the gap centres between
+    neighbours.
+  exception: IndexError when expanding past the ends; test l>=0 and r<len(s) before comparing s[l] and
+    s[r].

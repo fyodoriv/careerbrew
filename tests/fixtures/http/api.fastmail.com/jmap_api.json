@@ -1,0 +1,7 @@
+{"methodResponses": [
+ ["Email/query", {"ids": ["M1", "M2"]}, "0"],
+ ["Email/get", {"list": [
+   {"id": "M1", "messageId": ["<m1@linkedin.com>"], "from": [{"name": "LinkedIn Job Alerts", "email": "jobalerts-noreply@linkedin.com"}], "subject": "\"software engineer\": ZzPlatformCo - Senior Software Engineer and more", "receivedAt": "2026-10-17T12:00:00Z"},
+   {"id": "M2", "messageId": ["<m2@linkedin.com>"], "from": [{"name": "LinkedIn", "email": "jobs-noreply@linkedin.com"}], "subject": "Your application was sent to LakeCo", "receivedAt": "2026-10-17T13:00:00Z"}
+ ]}, "1"]
+]}

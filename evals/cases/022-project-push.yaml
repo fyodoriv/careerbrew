@@ -1,0 +1,62 @@
+id: project-push-one-pass
+suite: regression
+skill: careerbrew-project-push
+should: act
+input: "push the billing project forward"
+expect:
+  - "Runs `careerbrew work project show billing`, reads the memory note, then `careerbrew work project check billing --since`"
+  - "Reads fresh only the sources marked changed, never read, or unknown; skips unchanged ones and never reads a reference"
+  - "Stamps each source it read with `work project check billing <ref> --status`, never `check billing` without a ref, and rewrites the memory note's `## State` block"
+  - "Ends with three lines: the next blocker, its owner, and one action"
+---
+id: project-push-chat-review-ask
+suite: regression
+skill: careerbrew-project-push
+should: act
+input: "push billing forward; the PR got a reviewer reply in #billing-eng asking to drop the retry flag"
+expect:
+  - "Reads the chat thread where the PR was posted and treats the chat ask like a review comment"
+  - "Verifies the claim before changing code, then fixes it on the PR branch with a test"
+  - "Drafts a reply for the chat thread and the PR, and posts nothing until the user says send"
+---
+id: project-push-asks-before-another-repo
+suite: regression
+skill: careerbrew-project-push
+should: ask
+input: "push billing forward; the review fix also needs a change in the shared config repo"
+expect:
+  - "Asks before any change in the other repo, naming the repo, the change, and why"
+  - "Makes no commit in that repo before the user says yes"
+---
+id: project-push-ambiguous
+suite: regression
+skill: careerbrew-project-push
+should: ask
+input: "push my project forward"
+expect:
+  - "Asks exactly one question: which project"
+  - "Reads and changes nothing before the answer"
+---
+id: project-push-refrains-on-explain
+suite: regression
+skill: careerbrew-project-push
+should: refrain
+input: "explain the billing project to me"
+expect:
+  - "Hands off to learn-project instead of fixing review comments or stamping sources"
+---
+id: project-push-refrains-on-day-plan
+suite: regression
+skill: careerbrew-project-push
+should: refrain
+input: "plan my day"
+expect:
+  - "Hands off to work-companion; does not push one project"
+---
+id: project-push-since-cli
+suite: regression
+skill: careerbrew-project-push
+should: act
+setup: ["work", "project", "add", "billing", "--memory", "notes/billing.md"]
+cli: ["work", "project", "check", "billing", "--since"]
+expect_regex: "nothing stamped\\)\\n  never read memory\\s+notes/billing\\.md"

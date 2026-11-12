@@ -1,0 +1,97 @@
+id: validate-binary-search-tree
+order: 56
+pattern: trees
+difficulty: medium
+title: Is the order real?
+leetcode: validate-binary-search-tree
+lesson: 'Comparing a node only with its children is not enough: every node in the left subtree must be
+  smaller than the ancestor, not just the parent. Carry an open interval (low, high) down the recursion
+  and tighten it at each step. An in-order walk that checks values strictly increase is an equivalent
+  O(n) approach.
+
+  '
+statement: 'Given the root of a binary tree, return `True` if it is a valid binary search tree: for every
+  node, all values in its left subtree are strictly smaller and all values in its right subtree are strictly
+  larger. An empty tree is valid.
+
+  '
+function: is_valid_bst
+signature: 'def is_valid_bst(root: Optional[TreeNode]) -> bool:'
+starter: "def is_valid_bst(root: Optional[TreeNode]) -> bool:\n    pass\n"
+tests:
+- args:
+  - tree:
+    - 2
+    - 1
+    - 3
+  expected: true
+- args:
+  - tree:
+    - 5
+    - 1
+    - 4
+    - null
+    - null
+    - 3
+    - 6
+  expected: false
+- args:
+  - tree:
+    - 5
+    - 4
+    - 6
+    - null
+    - null
+    - 3
+    - 7
+  expected: false
+  note: grandchild breaks the ancestor bound
+- args:
+  - tree:
+    - 2
+    - 2
+    - 2
+  expected: false
+  note: duplicates are not allowed
+- args:
+  - tree: []
+  expected: true
+  note: empty tree
+- args:
+  - tree:
+    - 1
+  expected: true
+  note: single node
+- args:
+  - tree:
+    - 3
+    - 2
+    - null
+    - 1
+  expected: true
+  note: skewed tree
+scale:
+  generator: "def make(n):\n    def b(lo, hi):\n        if lo > hi:\n            return None\n       \
+    \ m = (lo + hi) // 2\n        return TreeNode(m, b(lo, m - 1), b(m + 1, hi))\n    return [b(1, n)]\n"
+  sizes:
+  - 10000
+  - 100000
+  expected: O(n)
+hints:
+- Checking each node against its direct children misses some bad trees. Which ones?
+- Pass down the allowed range (low, high); going left lowers high, going right raises low.
+- 'def ok(n, lo, hi): return not n or (lo < n.val < hi and ok(n.left, lo, n.val) and ok(n.right, n.val,
+  hi))'
+solution: "def is_valid_bst(root: Optional[TreeNode]) -> bool:\n    def ok(node, low, high):\n       \
+  \ if not node:\n            return True\n        if not low < node.val < high:\n            return False\n\
+  \        return ok(node.left, low, node.val) and ok(node.right, node.val, high)\n\n    return ok(root,\
+  \ float(\"-inf\"), float(\"inf\"))\n"
+pitfalls:
+  parent_only: Comparing only with the parent accepts trees where a deep node violates an ancestor.
+  edge-case: Equal values are invalid (strict order), and a deep node must respect every ancestor, e.g.
+    5 -> right 6 -> left 4 is invalid.
+  timeout: Finding the min/max of each subtree separately is O(n^2); pass (low, high) bounds down or check
+    an in-order walk is strictly increasing, O(n).
+  wrong-answer: Comparing only with the parent accepts trees where a deep node violates an ancestor.
+  exception: Starting bounds at 0 or a fixed number breaks on large or negative values; use float('-inf')
+    and float('inf') or None.

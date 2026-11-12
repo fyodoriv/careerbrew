@@ -1,0 +1,56 @@
+id: trapping-rain-water
+order: 14
+pattern: two pointers
+difficulty: hard
+title: Rain between the bars
+leetcode: trapping-rain-water
+lesson: |
+  Water above a bar is the smaller of the tallest bar to its left and to its right, minus its own height. With two pointers you always process the side whose running maximum is smaller, because that side's limit is already known. That gives O(n) time and O(1) space.
+statement: |
+  Given a list `height` of non-negative integers describing bars of width 1, return how many units of water stay trapped between the bars after rain.
+function: trap
+signature: "def trap(height: list[int]) -> int:"
+starter: |
+  def trap(height: list[int]) -> int:
+      pass
+tests:
+  - {args: [[0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1]], expected: 6}
+  - {args: [[4, 2, 0, 3, 2, 5]], expected: 9}
+  - {args: [[]], expected: 0, note: empty list}
+  - {args: [[5]], expected: 0, note: single bar}
+  - {args: [[1, 2, 3, 4]], expected: 0, note: rising bars hold nothing}
+  - {args: [[3, 0, 3, 0, 3]], expected: 6, note: equal walls}
+scale:
+  generator: |
+    def make(n):
+        return [[(i * 7919) % 100 for i in range(n)]]
+  sizes: [20000, 200000]
+  expected: O(n)
+hints:
+  - How high can water rise above a single bar? It depends on the tallest bars on both sides.
+  - Keep running maxima from the left and right; move the pointer on the side with the smaller maximum.
+  - "if left_max <= right_max: l += 1; left_max = max(left_max, h[l]); water += left_max - h[l]; else mirror on the right."
+solution: |
+  def trap(height: list[int]) -> int:
+      if not height:
+          return 0
+      l, r = 0, len(height) - 1
+      left_max, right_max = height[l], height[r]
+      water = 0
+      while l < r:
+          if left_max <= right_max:
+              l += 1
+              left_max = max(left_max, height[l])
+              water += left_max - height[l]
+          else:
+              r -= 1
+              right_max = max(right_max, height[r])
+              water += right_max - height[r]
+      return water
+pitfalls:
+  edge-case: 'Fewer than three bars, or a strictly rising or falling list, trap no water: return 0.'
+  timeout: Scanning left and right for every bar is O(n^2); keep running maxima from both sides (or two
+    pointers) for O(n).
+  wrong-answer: Adding negative water when a bar is taller than its bounds; add max(0, min(left_max, right_max)
+    - h) or update the max before subtracting.
+  exception: Guard the empty list before reading height[0] to seed the running maximum.

@@ -1,0 +1,46 @@
+id: day-planner-plans-from-facts
+suite: regression
+skill: careerbrew-day-planner
+should: act
+input: "plan my day"
+expect:
+  - "Runs `careerbrew day plan` and reads back blocks, meetings, and reasons; never invents meetings"
+---
+id: day-planner-refrains-on-career-strategy
+suite: regression
+skill: careerbrew-day-planner
+should: refrain
+input: "which companies should I apply to this season?"
+expect:
+  - "Hands off to job-hunt instead of planning the day"
+---
+id: cli-day-next-after-hours
+suite: regression
+skill: careerbrew-day-planner
+should: act
+env: {CAREERBREW_NOW: "2026-10-19T20:00"}
+cli: ["day", "next"]
+expect_regex: "Work hours are over"
+---
+id: cli-day-plan-reads-back-from-the-run-page
+suite: regression
+skill: careerbrew-day-planner
+should: act
+setup: ["day", "plan"]
+cli: ["report", "latest"]
+expect_regex: "day-plan: \\w+ at [^\\n]*: plan for \\d{4}-\\d{2}-\\d{2}: \\d+ meeting\\(s\\)[^\\n]*\\ndone     Planned \\d{4}-\\d{2}-\\d{2}: "
+---
+id: day-planner-explains-what-decisions-changed
+suite: regression
+skill: careerbrew-day-planner
+should: act
+input: "why does careerbrew keep putting the acme plugin's ideas at the bottom?"
+expect:
+  - "Runs `careerbrew signals` and explains that dismissing acme's suggestions lowered their weight, and that accepting some raises it again; does not invent a reason"
+---
+id: cli-signals-empty
+suite: regression
+skill: careerbrew-day-planner
+should: act
+cli: ["signals"]
+expect_regex: "no decisions yet"

@@ -1,0 +1,18 @@
+id: work-day-late-goal-wrap
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "/work: a goal hook kept the session busy and the wrap-up timer is 8 minutes late; two project sessions are mid-step"
+expect:
+  - "Runs careerbrew day loop catch-up --json at turn start instead of waiting for an idle session cron"
+  - "Sends one graceful note per project session to finish the current step, save work, update drafts, write a handoff and report; waits for a fresh report before session end"
+  - "Offers day wrap --at HH:MM to move automatic wrap-up or day wrap --hold to pause it; explicit day end still means end now"
+---
+id: live-feed-late-recorded-cycle
+suite: regression
+skill: careerbrew-live-feed
+should: act
+input: "The recorded live-feed loop should have run 9 minutes ago but the goal hook kept the session busy"
+expect:
+  - "Runs careerbrew day loop catch-up --json at turn start and keeps one recorded timer"
+  - "Uses the normal pass lock and re-pulls required sources if the cycle reports them missing"

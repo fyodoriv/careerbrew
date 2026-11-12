@@ -1,0 +1,7 @@
+# A synthetic live-feed source config for proactive listening (issue #266): @DIR@ is the scratch folder.
+sources:
+  - name: chat
+    kind: chat
+    required: true
+    adapter: file
+    inbox: "@DIR@/chat.json"

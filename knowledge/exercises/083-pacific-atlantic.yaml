@@ -1,0 +1,147 @@
+id: pacific-atlantic
+order: 83
+pattern: graphs
+difficulty: medium
+title: Water reaching both oceans
+leetcode: pacific-atlantic-water-flow
+lesson: 'Flip the direction: instead of asking where water from each cell can go, spread uphill from each
+  ocean''s border. Cells reached from both oceans are the answer, and each search is O(rows * cols).
+
+  '
+statement: 'A grid `heights` sits between two oceans: one touches the top and left edges, the other the
+  bottom and right edges. Rain flows from a cell to a neighbour (up/down/left/right) whose height is less
+  than or equal to it, and from edge cells into the adjacent ocean. Return the `[row, col]` of every cell
+  from which water can reach both oceans, sorted ascending.
+
+  '
+function: pacific_atlantic
+signature: 'def pacific_atlantic(heights: list[list[int]]) -> list[list[int]]:'
+starter: "def pacific_atlantic(heights: list[list[int]]) -> list[list[int]]:\n    pass\n"
+tests:
+- args:
+  - - - 1
+      - 2
+      - 2
+      - 3
+      - 5
+    - - 3
+      - 2
+      - 3
+      - 4
+      - 4
+    - - 2
+      - 4
+      - 5
+      - 3
+      - 1
+    - - 6
+      - 7
+      - 1
+      - 4
+      - 5
+    - - 5
+      - 1
+      - 1
+      - 2
+      - 4
+  expected:
+  - - 0
+    - 4
+  - - 1
+    - 3
+  - - 1
+    - 4
+  - - 2
+    - 2
+  - - 3
+    - 0
+  - - 3
+    - 1
+  - - 4
+    - 0
+- args:
+  - - - 1
+  expected:
+  - - 0
+    - 0
+  note: single cell touches both
+- args:
+  - - - 1
+      - 1
+    - - 1
+      - 1
+  expected:
+  - - 0
+    - 0
+  - - 0
+    - 1
+  - - 1
+    - 0
+  - - 1
+    - 1
+  note: flat grid
+- args:
+  - - - 1
+      - 2
+      - 3
+  expected:
+  - - 0
+    - 0
+  - - 0
+    - 1
+  - - 0
+    - 2
+  note: 'one row: every cell touches both'
+- args:
+  - - - 3
+      - 3
+      - 3
+    - - 3
+      - 1
+      - 3
+    - - 3
+      - 3
+      - 3
+  expected:
+  - - 0
+    - 0
+  - - 0
+    - 1
+  - - 0
+    - 2
+  - - 1
+    - 0
+  - - 1
+    - 2
+  - - 2
+    - 0
+  - - 2
+    - 1
+  - - 2
+    - 2
+  note: pit in the middle
+scale:
+  generator: "def make(n):\n    s = int(n ** 0.5)\n    return [[[(r + c) % 7 for c in range(s)] for r\
+    \ in range(s)]]\n"
+  sizes:
+  - 10000
+  - 100000
+  expected: O(n)
+hints:
+- Running a search from every cell is slow. What if you start from the oceans instead?
+- From each ocean's border cells, walk to neighbours that are at least as high.
+- pac = reach(top+left edges); atl = reach(bottom+right edges); answer sorted(pac & atl)
+solution: "def pacific_atlantic(heights: list[list[int]]) -> list[list[int]]:\n    rows, cols = len(heights),\
+  \ len(heights[0])\n\n    def reach(starts):\n        seen = set(starts)\n        stack = list(starts)\n\
+  \        while stack:\n            r, c = stack.pop()\n            for a, b in ((r + 1, c), (r - 1,\
+  \ c), (r, c + 1), (r, c - 1)):\n                if 0 <= a < rows and 0 <= b < cols and (a, b) not in\
+  \ seen and heights[a][b] >= heights[r][c]:\n                    seen.add((a, b))\n                 \
+  \   stack.append((a, b))\n        return seen\n\n    pac = reach([(0, c) for c in range(cols)] + [(r,\
+  \ 0) for r in range(rows)])\n    atl = reach([(rows - 1, c) for c in range(cols)] + [(r, cols - 1) for\
+  \ r in range(rows)])\n    return sorted([r, c] for r, c in pac & atl)\n"
+pitfalls:
+  edge-case: A single cell touches both oceans and must be in the result; equal heights let water flow.
+  timeout: Running a flood from every cell is O((rows*cols)^2); flood uphill once from each ocean's edges
+    and intersect, O(rows*cols).
+  wrong-answer: Using > instead of >= when climbing from the ocean, which blocks flow across flat ground.
+  exception: Recursive DFS on a big grid hits the recursion limit; use BFS with a deque.

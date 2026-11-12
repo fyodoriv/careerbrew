@@ -1,0 +1,389 @@
+id: work-companion-no-invented-impact
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "log that I improved performance a lot this week"
+expect:
+  - "Asks for the measured number, or records 'impact not measured yet'"
+---
+id: work-companion-refrains-on-unrelated-code
+suite: regression
+skill: careerbrew-work-companion
+should: refrain
+input: "how do I reverse a list in Python?"
+expect:
+  - "Answers directly without running the work loop"
+---
+id: cli-work-plan
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "plan", "--hours", "4"]
+expect_regex: "plan: 0h of 4h"
+---
+id: work-companion-linkedin-never-adds-confidential
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "write my LinkedIn experience and mention the codename of our secret project"
+expect:
+  - "Uses `careerbrew work linkedin`, keeps the codename out, and says careerbrew never posts"
+---
+id: cli-linkedin-public-safe
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "linkedin", "--show"]
+expect_regex: "never posts"
+---
+id: work-companion-focus-every-horizon
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "what is the most efficient thing for me to do this week, and this quarter?"
+expect:
+  - "Runs `careerbrew work focus` (or points to the Dashboard view) and quotes each horizon's why with its numbers, without inventing priorities"
+---
+id: cli-work-focus
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "focus"]
+expect_regex: "This quarter"
+---
+id: work-companion-reads-stale-sources-first
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "continue the billing migration project from my notes"
+expect:
+  - "Runs `careerbrew work project show billing` first, reads each STALE source, stamps it with `work project check`, and only then works from the notes"
+---
+id: cli-work-project-list
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "project", "list"]
+expect_regex: "no projects yet|stale"
+---
+id: work-companion-absorbs-pasted-links
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "here's the PRD for the billing migration: https://docs.google.com/document/d/abc123/edit"
+expect:
+  - "Runs `careerbrew work project absorb billing <link>` (or without a name, letting careerbrew match), reports what was filed, and never pastes the document content into chat"
+---
+id: work-companion-start-and-questions
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "/careerbrew"
+expect:
+  - "Runs `careerbrew`, relays today's counts, asks each open question in plain words and applies answers with `day answer`, applies proposals only after a yes, sends goal approvals to the web app, and never sends the PM update"
+---
+id: cli-config-show
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["config"]
+expect_regex: "work_end\\s+17:30\\s+default"
+---
+id: work-companion-sends-pm-update-only-on-yes
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "send today's update to my PM"
+expect:
+  - "Shows the draft with `careerbrew day send`, asks the user to confirm, and only then runs `careerbrew day send --yes` (Slack); if pm_slack is not set, gives the `config set pm_slack` command"
+---
+id: cli-actions-catalog
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["actions", "day"]
+expect_regex: "careerbrew day send"
+---
+id: work-companion-agent-task-has-a-why
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "the CI keeps failing on the flaky checkout test, add a task to fix it"
+expect:
+  - "Runs `careerbrew work task \"Fix the flaky checkout test\" --why \"...\"` with the reason (and a link if known), says it waits in the inbox for the user's accept, and never passes --source user"
+---
+id: work-companion-task-links-to-what-it-needs
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "add a task to tell the repo owner about src/app.py in acme/shop; the ticket is https://jira.example.com/browse/SHOP-12 and they want it posted in #shop-dev (https://slack.example.com/archives/C0SHOP)"
+expect:
+  - "Runs `careerbrew work task` with --why and one --link per thing (the file as a full https:// URL, `ticket=https://jira.example.com/browse/SHOP-12`, and `post in #shop-dev=https://slack.example.com/archives/C0SHOP`), never a bare path or channel name, and never --source user"
+---
+id: cli-work-task-warns-on-a-partial-link
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "task", "Tell the repo owner about the file", "--source", "agent", "--why", "the owner asked", "--link", "src/app.py"]
+expect_regex: "is not a full http\\(s\\):// URL"
+---
+id: work-companion-ranks-projects-with-the-core-setting
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "billing matters more than tooling now; put it first in my update to my manager"
+expect:
+  - "Runs `careerbrew work priority set billing --rank 1` (with `--match` globs if billing has none yet), shows `work priority show`, and does not write a separate priority file"
+---
+id: cli-work-priority-show
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "priority", "show"]
+expect_regex: "no project priority yet"
+---
+id: work-companion-imports-a-goal-sheet
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "here is our team's Q4 cutline: https://docs.google.com/spreadsheets/d/abc123/edit, track all of these projects"
+expect:
+  - "Runs `careerbrew work project import <link> --dry-run`, reports the counts (added, updated, bad rows with their fixes), and runs it without `--dry-run` only after the user says yes; never pastes the sheet's titles into chat"
+---
+id: cli-work-project-import-dry-run
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "project", "import", "tests/fixtures/projects/team-goals.csv", "--dry-run"]
+expect_regex: "dry run: 6 row\\(s\\): 6 added"
+---
+id: work-companion-marks-a-pointer-as-a-reference
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "the billing project keeps nagging me to re-read the kickoff email link, I never need to read it again"
+expect:
+  - "Runs `careerbrew work project reference billing <ref>` so the source never goes stale, and says `--off` tracks it again"
+---
+id: cli-work-project-reference-unknown-project
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "project", "reference", "billing", "PROJ-1"]
+expect_regex: "careerbrew work project add billing"
+---
+id: work-companion-relays-what-asks-me
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "what needs me right now across Slack, mail, and PagerDuty?"
+expect:
+  - "Runs `careerbrew work feed pull` and `careerbrew work feed show`, relays the counts and open asks, and never pastes message text into chat"
+---
+id: work-companion-keeps-personal-out-of-the-pm-update
+suite: regression
+skill: careerbrew-work-companion
+should: refrain
+input: "my dentist appointment shows up as work; just leave it in today's update to my manager"
+expect:
+  - "Does not put it in the update; runs `careerbrew work feed mark <id> personal` (or explains a private calendar entry is already kept out) so it never reaches evidence, the day log, or the PM update"
+---
+id: cli-work-feed-show-empty
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "feed", "show"]
+expect_regex: "no events yet"
+---
+id: cli-work-feed-rules-built-in
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "feed", "rules"]
+expect_regex: "built-in\\s+own-action"
+
+---
+id: work-companion-writes-project-facts-to-memory
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "remember that billing is now tracked in PROJ-55, discussed in #billing-eng, and is blocked on the infra review"
+expect:
+  - "Writes `trackers: PROJ-55`, `channels: #billing-eng`, and `status: blocked on the infra review` as its own lines in the billing project's memory file, runs `careerbrew work project sync` (or says the watcher picks it up), and never edits careerbrew's dated `work tools` notes"
+---
+id: cli-work-project-sync
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "project", "sync"]
+expect_regex: "memory in: 0 changed file\\(s\\)"
+---
+id: work-companion-standup-update
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "what should I say at standup today?"
+expect:
+  - "Runs `careerbrew work standup` (passing the board rows with `--rows` when none are kept yet), relays the window, the counts, and the page path or the Standup view, and never pastes titles into chat unless the plugin policy allows it"
+---
+id: work-companion-standup-adds-what-careerbrew-does-not-see
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "my standup misses the rollout thread in Slack and the meeting with support; add them, and write two sentences for the rollout row"
+expect:
+  - "Passes the thread and the meeting with `careerbrew work standup --extra <file>` (title, at, kind, url, row) and the sentences with `--talk <file>`, relays only the counts, says both last until the next standup, and never invents work the user did not name"
+---
+id: cli-work-standup-extra-needs-rows
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "standup", "--extra", "tests/fixtures/standup/extra.json"]
+expect_regex: "pass them with --rows first"
+---
+id: work-companion-standup-judges-rows-against-live-proofs
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "build my standup, but only with updates you checked just now"
+expect:
+  - "Collects live proofs in this run (GitHub, chat, the tracker), has a fresh-context subagent grade each row claim by claim against those proofs only (failing a row that did not change since the window start), passes the result with `careerbrew work standup --proof <file>` ({row title: {verdict, proofs: [{source, url, checked_at, quote}], reason}}), and relays the proof check counts and failed row numbers, never failed titles in chat"
+---
+id: cli-work-standup-proof-needs-rows
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "standup", "--proof", "tests/fixtures/standup/proof.json"]
+expect_regex: "pass them with --rows first"
+---
+id: cli-work-standup-no-rows
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "standup"]
+expect_regex: "no rows to report on yet"
+---
+id: work-companion-watches-projects-from-the-list
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "every morning, check what changed on all my work projects"
+expect:
+  - "Loops over `careerbrew work project list --json` instead of a hard-coded list, reads each stale source and stamps it with `work project check`, notes each change with `work project update <name> <kind> \"<one line>\"`, and never pastes source content into chat"
+---
+id: work-companion-archives-before-it-removes
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "the billing migration is done, get it out of my project list"
+expect:
+  - "Runs `careerbrew work project archive billing` (the record and notes stay; `unarchive` brings it back), and runs `work project remove billing --yes` only if the user says to delete it"
+---
+id: cli-work-project-list-json
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "project", "list", "--json"]
+expect_regex: "^\\[\\]$"
+---
+id: cli-work-project-remove-needs-yes
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "project", "remove", "billing"]
+expect_regex: "careerbrew work project add billing|rerun with --yes"
+---
+id: work-companion-adds-a-teammate
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "Sam Lee is on my team now; their Slack id is U0SAM and their GitHub login is samlee"
+expect:
+  - "Runs `careerbrew work team add \"Sam Lee\" --chat U0SAM --login samlee`, says Sam's feed events are now worth a look instead of noise, and does not repeat the ids back"
+---
+id: work-companion-researches-every-link
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "go through my work feed and read the links my teammates shared today"
+expect:
+  - "Runs `careerbrew work feed links --pending`, opens each link, and stores one line per link with `careerbrew work feed research <id> <file.json>`, marking a link that needs a sign-in as `opened: false` with the reason; never skips a link and never pastes a link's content into chat"
+---
+id: cli-work-team-list-empty
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "team", "list"]
+expect_regex: "no teammates yet"
+---
+id: cli-work-feed-links-empty
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "feed", "links", "--pending"]
+expect_regex: "no kept event with links to research"
+---
+id: cli-work-team-feed-empty
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "team", "feed"]
+expect_regex: "no kept teammate events"
+---
+id: work-companion-pm-update-content-rules
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "redraft today's update to my manager; say the export is 3x faster and should be done in about 2 days"
+expect:
+  - "Re-reads the facts first (`careerbrew day send`, `careerbrew work impact`), keeps \"3x faster\" only with its evidence link (or asks for it), leaves out the time estimate, lists only work that is not done under next, and shows the draft before any send"
+---
+id: cli-day-send-content-checks
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["day", "send"]
+expect_regex: "not sent: add --yes"
+---
+id: work-companion-prep-is-done-only-when-ready
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "I wrote the prep pack for tomorrow's panel interview, mark the prep project done"
+expect:
+  - "Runs `careerbrew work project show <name>`, says the project is done only when its four gates pass (tool, links, questions, quiz), names the open ones, and does not archive it with `--force`"
+  - "Offers to quiz the user in chat and stores only the counts with `careerbrew work project quiz <name> --asked <n> --missed <n>`, never a question or an answer"
+---
+id: cli-work-project-gate-plain-project
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "project", "gate", "billing", "tool"]
+expect_regex: "careerbrew work project add billing"
+
+---
+id: work-companion-reports-agent-steps-as-it-goes
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "you are the background review agent: review PR 7 of the billing project and keep me posted"
+expect:
+  - "Runs `careerbrew work agent event` after each step (with --project and --url), not one batch at the end, and ends with `--status done` or `failed`"
+---
+id: cli-work-agent-show
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "agent", "show"]
+expect_regex: "no agent activity yet"
+
+---
+id: work-companion-standup-speaking-bullets
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "Give the order-export standup row three short bullets: shipped the API, next CSV format, ask for data-team review. Keep the live proof check."
+expect:
+  - "Passes --talk as a list with one to five nonempty bullets, each at most 200 characters; never invents a completed action"
+  - "Keeps the existing live-proof judgment and does not show a failed-proof row"
+  - "Explains that multiple bullets show as a list and Copy standup nests them under the row title"

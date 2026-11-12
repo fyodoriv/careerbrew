@@ -1,0 +1,71 @@
+id: partition-equal-subset-sum
+order: 110
+pattern: 1-d dynamic programming
+difficulty: medium
+title: Split into two equal piles
+leetcode: partition-equal-subset-sum
+lesson: 'Two equal halves exist exactly when some subset sums to total/2. State: reach is the set (or
+  bitmask) of sums buildable so far. Transition: for each number, reach |= reach shifted by that number.
+  Base case: sum 0 is reachable; an odd total fails at once.
+
+  '
+statement: 'Given a list of positive integers `nums`, return `True` if it can be split into two groups
+  with equal sums, else `False`.
+
+  '
+function: can_partition
+signature: 'def can_partition(nums: list[int]) -> bool:'
+starter: "def can_partition(nums: list[int]) -> bool:\n    pass\n"
+tests:
+- args:
+  - - 1
+    - 5
+    - 11
+    - 5
+  expected: true
+- args:
+  - - 1
+    - 2
+    - 3
+    - 5
+  expected: false
+- args:
+  - - 1
+  expected: false
+  note: single element
+- args:
+  - - 2
+    - 2
+  expected: true
+  note: two equal
+- args:
+  - - 1
+    - 2
+    - 5
+  expected: false
+  note: even total but impossible
+- args:
+  - - 100
+    - 100
+    - 100
+    - 100
+    - 100
+    - 100
+    - 100
+    - 100
+  expected: true
+hints:
+- What should one half sum to?
+- Subset-sum to total//2; track reachable sums.
+- 'if total odd: False; bits=1; for x: bits |= bits << x; return bits >> (total//2) & 1'
+solution: "def can_partition(nums: list[int]) -> bool:\n    total = sum(nums)\n    if total % 2:\n   \
+  \     return False\n    bits = 1\n    for x in nums:\n        bits |= bits << x\n    return bool(bits\
+  \ >> (total // 2) & 1)\n"
+pitfalls:
+  edge-case: An odd total can never split, so return False right away; a single element list is always
+    False.
+  timeout: Trying all 2^n subsets times out; a subset-sum boolean dp up to total//2 is O(n * total).
+  wrong-answer: Iterating the target loop upward in a 1D dp reuses the same number twice; loop from target
+    down to num.
+  exception: Indexing dp[total//2] when total is odd and you forgot the early return gives a wrong size
+    array; check parity first.

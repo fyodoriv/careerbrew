@@ -1,0 +1,50 @@
+id: invert-binary-tree
+order: 46
+pattern: trees
+difficulty: easy
+title: Mirror the tree
+leetcode: invert-binary-tree
+lesson: |
+  Many tree problems reduce to "do the same thing to each child, then fix up this node". Here the fix-up is a swap of the two child pointers. Any traversal works, as long as every node is visited once, so the cost is O(n).
+statement: |
+  Given the root of a binary tree, flip it left-to-right so that every node's left and right subtrees trade places. Return the root of the flipped tree.
+function: invert_tree
+signature: "def invert_tree(root: Optional[TreeNode]) -> Optional[TreeNode]:"
+starter: |
+  def invert_tree(root: Optional[TreeNode]) -> Optional[TreeNode]:
+      pass
+tests:
+  - {args: [{tree: [4, 2, 7, 1, 3, 6, 9]}], expected: {tree: [4, 7, 2, 9, 6, 3, 1]}}
+  - {args: [{tree: [2, 1, 3]}], expected: {tree: [2, 3, 1]}}
+  - {args: [{tree: []}], expected: {tree: []}, note: empty tree}
+  - {args: [{tree: [1]}], expected: {tree: [1]}, note: single node}
+  - {args: [{tree: [1, 2, null, 3]}], expected: {tree: [1, null, 2, null, 3]}, note: left-skewed tree becomes right-skewed}
+scale:
+  generator: |
+    def make(n):
+        def b(lo, hi):
+            if lo > hi:
+                return None
+            m = (lo + hi) // 2
+            return TreeNode(m, b(lo, m - 1), b(m + 1, hi))
+        return [b(1, n)]
+  sizes: [10000, 100000]
+  expected: O(n)
+hints:
+  - If the left and right subtrees were already mirrored, what is left to do at the root?
+  - Recurse into both children, then swap root.left and root.right.
+  - "if root: root.left, root.right = invert_tree(root.right), invert_tree(root.left); return root"
+solution: |
+  def invert_tree(root: Optional[TreeNode]) -> Optional[TreeNode]:
+      if root:
+          root.left, root.right = invert_tree(root.right), invert_tree(root.left)
+      return root
+pitfalls:
+  edge-case: An empty tree returns None and a single node returns itself unchanged.
+  timeout: Copying the tree into a list and rebuilding it is extra work; swap children while visiting
+    each node once for O(n).
+  wrong-answer: Returning None instead of the root loses the whole tree; and swapping before recursing
+    with `root.left = invert(root.right)` then `root.right = invert(root.left)` uses the already-changed
+    left, so swap both at once.
+  exception: Reading root.left when root is None raises AttributeError; return None first when root is
+    None.

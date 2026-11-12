@@ -1,0 +1,53 @@
+id: valid-anagram
+order: 2
+pattern: arrays and hashing
+difficulty: easy
+title: Same letters, new order
+leetcode: valid-anagram
+lesson: |
+  Two strings are rearrangements of each other exactly when their letter counts match. Counting with a dictionary (or Counter) is O(n) and beats sorting. Counting frequencies is the hashing pattern's most reused trick.
+statement: |
+  Given two strings `s` and `t`, return `True` if `t` uses exactly the same characters as `s`, each the same number of times (in any order), and `False` otherwise.
+function: is_anagram
+signature: "def is_anagram(s: str, t: str) -> bool:"
+starter: |
+  def is_anagram(s: str, t: str) -> bool:
+      pass
+tests:
+  - {args: ["listen", "silent"], expected: true}
+  - {args: ["rat", "car"], expected: false}
+  - {args: ["", ""], expected: true, note: both empty}
+  - {args: ["a", "ab"], expected: false, note: different lengths}
+  - {args: ["aab", "abb"], expected: false, note: same letters but different counts}
+  - {args: ["x", "x"], expected: true, note: single character}
+scale:
+  generator: |
+    def make(n):
+        s = "".join(chr(97 + i % 26) for i in range(n))
+        return [s, s[::-1]]
+  sizes: [20000, 200000]
+  expected: O(n)
+hints:
+  - What stays the same about a word when you shuffle its letters?
+  - Count how many times each character appears in both strings and compare the counts.
+  - "If lengths differ return False; build counts for s, subtract counts for t, and check nothing goes negative."
+solution: |
+  def is_anagram(s: str, t: str) -> bool:
+      if len(s) != len(t):
+          return False
+      counts = {}
+      for c in s:
+          counts[c] = counts.get(c, 0) + 1
+      for c in t:
+          if counts.get(c, 0) == 0:
+              return False
+          counts[c] -= 1
+      return True
+pitfalls:
+  edge-case: 'Check the lengths first: "aab" and "abb" have the same set of letters but different counts,
+    and two empty strings are anagrams.'
+  timeout: Sorting both strings is O(n log n) and checking s.count(c) for every letter is O(n^2); one
+    Counter or a 26-slot count array is O(n).
+  wrong-answer: Comparing set(s) == set(t) ignores how many times each letter appears; compare full counts.
+  exception: Decrementing counts[c] for a letter of t never seen in s raises KeyError on a plain dict;
+    use Counter or .get(c, 0).

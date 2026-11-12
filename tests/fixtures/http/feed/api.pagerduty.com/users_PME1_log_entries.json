@@ -1,0 +1,5 @@
+{"log_entries": [
+ {"id": "R1ACK", "type": "acknowledge_log_entry", "created_at": "2026-10-21T13:05:00Z", "agent": {"id": "PME1", "type": "user_reference"}, "incident": {"id": "Q1INC", "summary": "Checkout latency over SLO", "html_url": "https://example.pagerduty.com/incidents/Q1INC"}},
+ {"id": "R2RES", "type": "resolve_log_entry", "created_at": "2026-10-20T10:00:00Z", "agent": {"id": "PME1", "type": "user_reference"}, "incident": {"id": "Q0OLD", "summary": "Search index stale", "html_url": "https://example.pagerduty.com/incidents/Q0OLD"}},
+ {"id": "R3ASN", "type": "assign_log_entry", "created_at": "2026-10-21T15:30:00Z", "agent": {"id": "PSVC2", "type": "service_reference"}, "incident": {"id": "Q2INC", "summary": "Billing queue backlog", "html_url": "https://example.pagerduty.com/incidents/Q2INC"}}
+], "limit": 100, "offset": 0, "more": false}

@@ -1,0 +1,53 @@
+id: longest-repeating-character-replacement
+order: 17
+pattern: sliding window
+difficulty: medium
+title: Repaint into one run
+leetcode: longest-repeating-character-replacement
+lesson: |
+  A window is fixable when its length minus the count of its most common letter is at most k. Expand right, and shrink from the left only when that rule breaks. The best count never needs to decrease, because only a larger count can produce a longer answer.
+statement: |
+  Given an uppercase string `s` and an integer `k`, you may change at most `k` characters to any other uppercase letter. Return the length of the longest contiguous piece that can be made of a single repeated letter.
+function: character_replacement
+signature: "def character_replacement(s: str, k: int) -> int:"
+starter: |
+  def character_replacement(s: str, k: int) -> int:
+      pass
+tests:
+  - {args: ["ABAB", 2], expected: 4}
+  - {args: ["AABABBA", 1], expected: 4}
+  - {args: ["", 3], expected: 0, note: empty string}
+  - {args: ["Z", 0], expected: 1, note: single character}
+  - {args: ["ABCD", 0], expected: 1, note: no changes allowed}
+  - {args: ["AAAA", 2], expected: 4, note: k larger than needed}
+scale:
+  generator: |
+    def make(n):
+        return ["".join("ABC"[(i * i) % 3] for i in range(n)), 5]
+  sizes: [20000, 200000]
+  expected: O(n)
+hints:
+  - Inside a window, which letter should you keep, and how many do you have to change?
+  - Track letter counts in the window and the highest count; the window is valid while length - max_count <= k.
+  - "for r: counts[s[r]] += 1; top = max(top, counts[s[r]]); while (r - l + 1) - top > k: counts[s[l]] -= 1; l += 1; best = max(best, r - l + 1)"
+solution: |
+  def character_replacement(s: str, k: int) -> int:
+      counts = {}
+      l = top = best = 0
+      for r, c in enumerate(s):
+          counts[c] = counts.get(c, 0) + 1
+          top = max(top, counts[c])
+          while (r - l + 1) - top > k:
+              counts[s[l]] -= 1
+              l += 1
+          best = max(best, r - l + 1)
+      return best
+pitfalls:
+  edge-case: When k is at least the string length, the whole string is the answer; a single-letter string
+    gives 1.
+  timeout: Recomputing the most common letter from scratch for every window is slow; keep counts as you
+    slide and track the best count seen, which makes it O(n).
+  wrong-answer: 'Shrinking with `if` versus `while` matters less than the condition: the window is valid
+    when length - max_count <= k, not when length <= k.'
+  exception: Indexing counts[ord(c) - ord('a')] breaks if letters are uppercase; the input is uppercase,
+    so subtract ord('A') or use a dict.

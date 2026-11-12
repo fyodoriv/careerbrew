@@ -1,0 +1,209 @@
+id: detect-squares
+order: 143
+pattern: math and geometry
+difficulty: medium
+title: Count axis squares
+leetcode: detect-squares
+lesson: 'Store a count of every point. For a query, each stored point on a diagonal (same distance in
+  x and y, nonzero) fixes a square; multiply the counts of the other two corners. Work is proportional
+  to distinct points.
+
+  '
+statement: 'Build a class `DetectSquares` with `add(point)`, which stores an `[x, y]` point (duplicates
+  allowed), and `count(point)`, which returns how many ways to pick three stored points that form an axis-aligned
+  square of positive area together with the query point.
+
+  '
+function: DetectSquares
+signature: "class DetectSquares:\n    def __init__(self):\n        pass\n\n    def add(self, point: list[int])\
+  \ -> None:\n        pass\n\n    def count(self, point: list[int]) -> int:"
+starter: "class DetectSquares:\n    def __init__(self):\n        pass\n\n    def add(self, point: list[int])\
+  \ -> None:\n        pass\n\n    def count(self, point: list[int]) -> int:\n    pass\n"
+tests:
+- ops:
+  - DetectSquares
+  - add
+  - add
+  - add
+  - count
+  - count
+  - add
+  - count
+  args:
+  - []
+  - - - 3
+      - 10
+  - - - 11
+      - 2
+  - - - 3
+      - 2
+  - - - 11
+      - 10
+  - - - 14
+      - 8
+  - - - 11
+      - 2
+  - - - 11
+      - 10
+  expected:
+  - null
+  - null
+  - null
+  - null
+  - 1
+  - 0
+  - null
+  - 2
+  note: duplicate point doubles the count
+- ops:
+  - DetectSquares
+  - count
+  args:
+  - []
+  - - - 0
+      - 0
+  expected:
+  - null
+  - 0
+  note: empty
+- ops:
+  - DetectSquares
+  - add
+  - add
+  - add
+  - count
+  args:
+  - []
+  - - - 0
+      - 0
+  - - - 0
+      - 0
+  - - - 0
+      - 0
+  - - - 0
+      - 0
+  expected:
+  - null
+  - null
+  - null
+  - null
+  - 0
+  note: zero area does not count
+- ops:
+  - DetectSquares
+  - add
+  - add
+  - add
+  - add
+  - add
+  - add
+  - add
+  - add
+  - count
+  args:
+  - []
+  - - - 1
+      - 1
+  - - - 1
+      - 3
+  - - - 3
+      - 1
+  - - - -1
+      - 1
+  - - - -1
+      - 3
+  - - - 1
+      - -1
+  - - - 3
+      - -1
+  - - - -1
+      - -1
+  - - - 1
+      - 1
+  expected:
+  - null
+  - null
+  - null
+  - null
+  - null
+  - null
+  - null
+  - null
+  - null
+  - 3
+  note: query point is stored too; it never pairs with itself
+- ops:
+  - DetectSquares
+  - add
+  - add
+  - add
+  - add
+  - add
+  - add
+  - count
+  args:
+  - []
+  - - - 0
+      - 2
+  - - - 2
+      - 0
+  - - - 2
+      - 2
+  - - - 0
+      - -2
+  - - - -2
+      - 0
+  - - - -2
+      - -2
+  - - - 0
+      - 0
+  expected:
+  - null
+  - null
+  - null
+  - null
+  - null
+  - null
+  - null
+  - 2
+  note: squares in two quadrants
+- ops:
+  - DetectSquares
+  - add
+  - add
+  - add
+  - count
+  args:
+  - []
+  - - - 0
+      - 1
+  - - - 2
+      - 0
+  - - - 2
+      - 1
+  - - - 0
+      - 0
+  expected:
+  - null
+  - null
+  - null
+  - null
+  - 0
+  note: rectangle is not a square
+hints:
+- Which stored point, together with the query, pins down a whole square?
+- A diagonal partner (x2, y2) with |x2-x| == |y2-y| > 0 fixes the other corners.
+- 'for (px,py),c in counts: if abs(px-x)==abs(py-y)!=0: total += c * counts[(x,py)] * counts[(px,y)].'
+solution: "from collections import Counter\n\nclass DetectSquares:\n    def __init__(self):\n        self.pts\
+  \ = Counter()\n\n    def add(self, point: list[int]) -> None:\n        self.pts[tuple(point)] += 1\n\
+  \n    def count(self, point: list[int]) -> int:\n        x, y = point\n        total = 0\n        for\
+  \ (px, py), c in list(self.pts.items()):\n            if abs(px - x) == abs(py - y) and px != x:\n \
+  \               total += c * self.pts.get((x, py), 0) * self.pts.get((px, y), 0)\n        return total\n"
+pitfalls:
+  edge-case: Duplicate points count separately, and a query point equal to a stored point must not form
+    a zero-size square.
+  timeout: Checking every pair of stored points per count is O(n^2); loop over points sharing the query's
+    x (or diagonal points) with a Counter, O(n) per count.
+  wrong-answer: Forgetting to multiply the counts of the three corner points undercounts when duplicates
+    exist.
+  exception: Reading counts[(x, y)] on a plain dict raises KeyError; use a Counter or defaultdict(int).

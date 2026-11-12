@@ -1,0 +1,56 @@
+id: permutation-in-string
+order: 18
+pattern: sliding window
+difficulty: medium
+title: Hidden rearrangement
+leetcode: permutation-in-string
+lesson: |
+  A rearrangement of `s1` is any window of the same length with the same letter counts. Slide a fixed-size window over `s2`, adding the entering letter and removing the leaving one, and compare counts. Fixed-size windows are the simplest sliding-window shape.
+statement: |
+  Given two lowercase strings `s1` and `s2`, return `True` if some contiguous piece of `s2` is a rearrangement of all the letters of `s1`, and `False` otherwise.
+function: check_inclusion
+signature: "def check_inclusion(s1: str, s2: str) -> bool:"
+starter: |
+  def check_inclusion(s1: str, s2: str) -> bool:
+      pass
+tests:
+  - {args: ["ab", "eidbaooo"], expected: true}
+  - {args: ["ab", "eidboaoo"], expected: false}
+  - {args: ["abc", "ab"], expected: false, note: s1 longer than s2}
+  - {args: ["a", "a"], expected: true, note: single character}
+  - {args: ["aab", "abbb"], expected: false, note: duplicates must match counts}
+  - {args: ["adc", "dcda"], expected: true, note: match at the end}
+scale:
+  generator: |
+    def make(n):
+        return ["zyx", "ab" * (n // 2)]
+  sizes: [20000, 200000]
+  expected: O(n)
+hints:
+  - Any matching piece of s2 must have exactly len(s1) characters.
+  - Keep letter counts for s1 and for a window of that size in s2; update the window one letter at a time.
+  - "Add s2[r] to the window, remove s2[r - len(s1)] once the window is too long, and return True when the two count arrays are equal."
+solution: |
+  def check_inclusion(s1: str, s2: str) -> bool:
+      m = len(s1)
+      if m > len(s2):
+          return False
+      need = [0] * 26
+      have = [0] * 26
+      for c in s1:
+          need[ord(c) - 97] += 1
+      for r, c in enumerate(s2):
+          have[ord(c) - 97] += 1
+          if r >= m:
+              have[ord(s2[r - m]) - 97] -= 1
+          if have == need:
+              return True
+      return False
+pitfalls:
+  edge-case: If s1 is longer than s2 the answer is False; check that before building the first window.
+  timeout: Sorting each window costs O(m log m) per step; keep letter counts and update them as the window
+    slides for O(n).
+  wrong-answer: Forgetting to remove the letter that leaves the window, so counts only grow; add the new
+    letter and subtract the one at i - len(s1).
+  exception: Comparing Counter objects that still hold zero counts can misbehave and indexing s2[i - len(s1)]
+    at i < len(s1) wraps to the end; only drop letters once the window is full.

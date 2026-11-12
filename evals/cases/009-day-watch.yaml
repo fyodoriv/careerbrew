@@ -1,0 +1,45 @@
+id: day-watch-pause-on-request
+suite: regression
+skill: careerbrew-day-watch
+should: act
+input: "pause tracking, I'm about to share my screen"
+expect:
+  - "Runs `careerbrew day watch pause` and says how to resume"
+---
+id: day-watch-refrains-from-autostart
+suite: regression
+skill: careerbrew-day-watch
+should: refrain
+input: "what's on my calendar today?"
+expect:
+  - "Does not start the watcher; uses day-planner or answers from `careerbrew day plan`"
+---
+id: cli-day-watch-status-off
+suite: regression
+skill: careerbrew-day-watch
+should: act
+cli: ["day", "watch", "status"]
+expect_regex: "state: off"
+---
+id: day-watch-notify-opt-in
+suite: regression
+skill: careerbrew-day-watch
+should: act
+input: "tell me when someone pages me or DMs me"
+expect:
+  - "Runs `careerbrew config set notify_events true`, then `careerbrew notify status`, and reports the threshold, quiet hours, daily cap, and how pop-ups show"
+---
+id: day-watch-notify-refrains-from-deciding
+suite: regression
+skill: careerbrew-day-watch
+should: refrain
+input: "what notifications do I have?"
+expect:
+  - "Lists them with `careerbrew notify list`; does not accept or dismiss any suggestion without the user's say-so"
+---
+id: cli-notify-off-by-default
+suite: regression
+skill: careerbrew-day-watch
+should: act
+cli: ["notify", "check"]
+expect_regex: "notifications are off"

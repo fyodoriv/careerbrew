@@ -1,0 +1,93 @@
+id: task-scheduler
+order: 68
+pattern: heap
+difficulty: medium
+title: CPU cooldown schedule
+leetcode: task-scheduler
+lesson: 'Only the most frequent task shapes the schedule: it creates (maxcount - 1) gaps of length n +
+  1, plus a final row of every task tied for the max. If there are more tasks than that frame, no idling
+  is needed and the answer is just the task count.
+
+  '
+statement: 'A CPU runs one task per time unit, or idles. `tasks` is a list of single-letter task labels;
+  the same label must be separated by at least `n` time units. Tasks may run in any order. Return the
+  minimum number of time units needed to finish all tasks.
+
+  '
+function: least_interval
+signature: 'def least_interval(tasks: list[str], n: int) -> int:'
+starter: "def least_interval(tasks: list[str], n: int) -> int:\n    pass\n"
+tests:
+- args:
+  - - A
+    - A
+    - A
+    - B
+    - B
+    - B
+  - 2
+  expected: 8
+- args:
+  - - A
+    - C
+    - A
+    - B
+    - D
+    - B
+  - 1
+  expected: 6
+- args:
+  - - A
+    - A
+    - A
+  - 0
+  expected: 3
+  note: no cooldown
+- args:
+  - - A
+    - A
+    - A
+  - 2
+  expected: 7
+  note: one task type forces idling
+- args:
+  - - A
+  - 5
+  expected: 1
+  note: single task
+- args:
+  - - A
+    - A
+    - A
+    - B
+    - B
+    - B
+    - C
+    - C
+    - D
+    - D
+  - 2
+  expected: 10
+  note: enough variety to fill gaps
+scale:
+  generator: "def make(n):\n    return [[chr(65 + i % 26) for i in range(n)], 3]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- Which task limits how short the schedule can be?
+- Lay out the most frequent task with n slots between each copy; count how many tasks tie for the max.
+- max(len(tasks), (top - 1) * (n + 1) + number_of_tasks_with_count_top)
+solution: "from collections import Counter\n\ndef least_interval(tasks: list[str], n: int) -> int:\n \
+  \   counts = Counter(tasks).values()\n    top = max(counts)\n    ties = sum(1 for c in counts if c ==\
+  \ top)\n    return max(len(tasks), (top - 1) * (n + 1) + ties)\n"
+pitfalls:
+  wrong: 'Forgetting the max with len(tasks): when there are many distinct tasks, there is no idle time.'
+  edge-case: When there are many distinct tasks and n is small, there is no idle time and the answer is
+    len(tasks); n = 0 also gives len(tasks).
+  timeout: Simulating every time unit with a re-sorted list is slow for big inputs; the formula (max_count
+    - 1) * (n + 1) + number_of_tasks_with_max_count is O(n).
+  wrong-answer: 'Forgetting the max with len(tasks): when there are many distinct tasks, there is no idle
+    time.'
+  exception: Calling max() on an empty Counter crashes if tasks is empty; return 0 first.

@@ -1,0 +1,70 @@
+id: maximum-product-subarray
+order: 107
+pattern: 1-d dynamic programming
+difficulty: medium
+title: Biggest product run
+leetcode: maximum-product-subarray
+lesson: 'A negative number flips the biggest product into the smallest and back. Track both the max and
+  the min product ending at each index; a zero resets both. The answer is the best max seen.
+
+  '
+statement: 'Given an integer list `nums`, return the largest product of any non-empty contiguous slice.
+
+  '
+function: max_product
+signature: 'def max_product(nums: list[int]) -> int:'
+starter: "def max_product(nums: list[int]) -> int:\n    pass\n"
+tests:
+- args:
+  - - 2
+    - 3
+    - -2
+    - 4
+  expected: 6
+- args:
+  - - -2
+    - 0
+    - -1
+  expected: 0
+  note: zero splits
+- args:
+  - - -2
+  expected: -2
+  note: single negative
+- args:
+  - - -2
+    - 3
+    - -4
+  expected: 24
+  note: two negatives cancel
+- args:
+  - - 0
+    - 2
+  expected: 2
+- args:
+  - - -1
+    - -1
+    - -1
+  expected: 1
+scale:
+  generator: "def make(n):\n    return [[(-1) ** i for i in range(n)]]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- Why is tracking only the max not enough?
+- Keep both max and min ending here; a negative swaps them.
+- 'hi=lo=best=nums[0]; for x: cands=(x,hi*x,lo*x); hi,lo=max(cands),min(cands); best=max(best,hi)'
+solution: "def max_product(nums: list[int]) -> int:\n    hi = lo = best = nums[0]\n    for x in nums[1:]:\n\
+  \        cands = (x, hi * x, lo * x)\n        hi, lo = max(cands), min(cands)\n        best = max(best,\
+  \ hi)\n    return best\n"
+pitfalls:
+  edge-case: A list with zeros like [-2, 0, -1] must return 0, and a single negative [-3] returns -3,
+    not 0.
+  timeout: Trying every start and end pair is O(n^2); track both the max and min product ending here for
+    O(n).
+  wrong-answer: Keeping only the running max forgets that a big negative times a negative becomes the
+    best; swap max and min when nums[i] is negative.
+  exception: Initializing best to 0 or float('-inf') then multiplying can crash on empty math; start best,
+    cur_max, cur_min all at nums[0].

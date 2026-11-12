@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set +x
+# Repo-local pre-push hook. A global core.hooksPath (dotfiles) delegates here; without one,
+# lefthook installs the same commands from lefthook.yml.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+if command -v lefthook >/dev/null 2>&1; then exec lefthook run pre-push "$@"; fi
+bash hooks/lefthook/pre-push/privacy.sh "$@"
+scripts/check.sh fast

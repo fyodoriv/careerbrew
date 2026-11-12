@@ -1,0 +1,125 @@
+id: rotate-image
+order: 136
+pattern: math and geometry
+difficulty: medium
+title: Quarter turn
+leetcode: rotate-image
+lesson: 'A clockwise quarter turn equals a transpose followed by reversing each row. Both steps work in
+  place, so no second grid is needed.
+
+  '
+statement: 'Rotate the square matrix `matrix` 90 degrees clockwise, in place, and return it.
+
+  '
+function: rotate
+signature: 'def rotate(matrix: list[list[int]]) -> list[list[int]]:'
+starter: "def rotate(matrix: list[list[int]]) -> list[list[int]]:\n    pass\n"
+tests:
+- args:
+  - - - 1
+      - 2
+      - 3
+    - - 4
+      - 5
+      - 6
+    - - 7
+      - 8
+      - 9
+  expected:
+  - - 7
+    - 4
+    - 1
+  - - 8
+    - 5
+    - 2
+  - - 9
+    - 6
+    - 3
+- args:
+  - - - 1
+  expected:
+  - - 1
+  note: 1x1
+- args:
+  - - - 1
+      - 2
+    - - 3
+      - 4
+  expected:
+  - - 3
+    - 1
+  - - 4
+    - 2
+  note: 2x2
+- args:
+  - - - 5
+      - 1
+      - 9
+      - 11
+    - - 2
+      - 4
+      - 8
+      - 10
+    - - 13
+      - 3
+      - 6
+      - 7
+    - - 15
+      - 14
+      - 12
+      - 16
+  expected:
+  - - 15
+    - 13
+    - 2
+    - 5
+  - - 14
+    - 3
+    - 4
+    - 1
+  - - 12
+    - 6
+    - 8
+    - 9
+  - - 16
+    - 7
+    - 10
+    - 11
+  note: 4x4
+- args:
+  - - - 0
+      - 0
+    - - 0
+      - 0
+  expected:
+  - - 0
+    - 0
+  - - 0
+    - 0
+  note: all equal
+- args:
+  - - - -1
+      - 2
+    - - 3
+      - -4
+  expected:
+  - - 3
+    - -1
+  - - -4
+    - 2
+  note: negatives
+hints:
+- Can you decompose a rotation into two simpler flips?
+- Transpose (swap m[i][j] and m[j][i]), then mirror left-right.
+- 'for i: for j in range(i+1, n): swap; then for row: row.reverse(); return matrix.'
+solution: "def rotate(matrix: list[list[int]]) -> list[list[int]]:\n    n = len(matrix)\n    for i in\
+  \ range(n):\n        for j in range(i + 1, n):\n            matrix[i][j], matrix[j][i] = matrix[j][i],\
+  \ matrix[i][j]\n    for row in matrix:\n        row.reverse()\n    return matrix\n"
+pitfalls:
+  edge-case: A 1x1 matrix stays the same; an odd size has a centre cell that must not move.
+  timeout: Building a new matrix is fine for time but breaks the in-place rule; transpose then reverse
+    each row is O(n^2) and in place.
+  wrong-answer: Reversing rows before transposing turns it counter-clockwise; transpose first, then reverse
+    each row.
+  exception: Swapping in the transpose over the full square swaps every pair twice back; only loop j >
+    i.

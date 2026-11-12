@@ -1,0 +1,47 @@
+# Public starter question bank. Synthetic items written for careerbrew; links point to
+# public curricula (see knowledge/README.md). Each item: id, topic, round, prompt,
+# teach (a short lesson shown before the first attempt), and rubric (a rubric id in
+# knowledge/rubrics/). Skill gaps from the job strategy add generated items at runtime.
+items:
+  - id: arrays-two-pointers-1
+    topic: data structures
+    round: coding
+    rubric: coding
+    teach: Two pointers walk a sorted array from both ends (or at two speeds) to find pairs in O(n) instead of O(n^2).
+    prompt: Given a sorted array of integers and a target, return the indices of two numbers that add up to the target. State complexity.
+  - id: hashmap-counting-1
+    topic: data structures
+    round: coding
+    rubric: coding
+    teach: A hash map turns "have I seen X?" into O(1). Count first, then scan.
+    prompt: Return the first non-repeating character in a string, or -1. State complexity and edge cases.
+  - id: graphs-bfs-1
+    topic: data structures
+    round: coding
+    rubric: coding
+    teach: BFS from a source finds shortest paths in unweighted graphs; track visited on enqueue, not dequeue.
+    prompt: Given a grid of 0 (open) and 1 (wall), return the shortest path length from top-left to bottom-right, or -1.
+  - id: sd-url-shortener-1
+    topic: system design
+    round: system-design
+    rubric: system-design
+    teach: Start with requirements and numbers (QPS, storage), then API, data model, high-level design, then deep-dive the bottleneck.
+    prompt: Design a URL shortener for 100M new links per month and 10:1 read/write ratio.
+  - id: sd-rate-limiter-1
+    topic: system design
+    round: system-design
+    rubric: system-design
+    teach: Token bucket allows bursts; sliding window log is exact but costly; distributed limits need a shared store or local approximations.
+    prompt: Design a distributed rate limiter for a public API gateway.
+  - id: beh-conflict-1
+    topic: behavioral
+    round: behavioral
+    rubric: behavioral
+    teach: Use STAR (Situation, Task, Action, Result). Spend most time on your actions and a measurable result; end with what you learned.
+    prompt: Tell me about a time you disagreed with a senior engineer on a technical decision.
+  - id: beh-impact-1
+    topic: behavioral
+    round: behavioral
+    rubric: behavioral
+    teach: Pick the project with the largest scope you personally drove. Quantify the result and name the trade-offs.
+    prompt: Tell me about the project you are proudest of and your specific contribution.

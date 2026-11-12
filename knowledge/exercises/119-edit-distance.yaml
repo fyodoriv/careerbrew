@@ -1,0 +1,67 @@
+id: edit-distance
+order: 119
+pattern: 2-d dynamic programming
+difficulty: medium
+title: Fewest edits between words
+leetcode: edit-distance
+lesson: 'State: dp[i][j] is the edit distance between the first i chars of a and the first j of b. Transition:
+  if the last chars match, dp[i-1][j-1]; else 1 + min of insert, delete, replace neighbours. Base case:
+  dp[i][0] = i and dp[0][j] = j.
+
+  '
+statement: 'Given strings `a` and `b`, return the minimum number of single-character inserts, deletes,
+  or replacements that turn `a` into `b`.
+
+  '
+function: min_distance
+signature: 'def min_distance(a: str, b: str) -> int:'
+starter: "def min_distance(a: str, b: str) -> int:\n    pass\n"
+tests:
+- args:
+  - horse
+  - ros
+  expected: 3
+- args:
+  - intention
+  - execution
+  expected: 5
+- args:
+  - ''
+  - abc
+  expected: 3
+  note: from empty
+- args:
+  - abc
+  - ''
+  expected: 3
+  note: to empty
+- args:
+  - same
+  - same
+  expected: 0
+  note: identical
+- args:
+  - ab
+  - ba
+  expected: 2
+  note: swap costs two
+scale:
+  generator: "def make(n):\n    return [\"ab\" * (n // 2), \"ba\" * (n // 2)]\n"
+  sizes:
+  - 100
+  - 1000
+  expected: O(n^2)
+hints:
+- Think about the last character of each prefix.
+- 'Equal: copy diagonal. Different: 1 + min(left, up, diagonal).'
+- prev = list(range(len(b)+1)); for each char of a build cur from prev.
+solution: "def min_distance(a: str, b: str) -> int:\n    prev = list(range(len(b) + 1))\n    for i, ca\
+  \ in enumerate(a, 1):\n        cur = [i]\n        for j, cb in enumerate(b, 1):\n            if ca ==\
+  \ cb:\n                cur.append(prev[j - 1])\n            else:\n                cur.append(1 + min(prev[j],\
+  \ cur[j - 1], prev[j - 1]))\n        prev = cur\n    return prev[-1]\n"
+pitfalls:
+  edge-case: When one word is empty the answer is the other word's length, so dp[i][0]=i and dp[0][j]=j.
+  timeout: Recursion trying insert, delete and replace without memo is O(3^n); a 2D table is O(m*n).
+  wrong-answer: On equal letters adding 1 instead of copying dp[i-1][j-1] overcounts; matching costs nothing.
+  exception: Indexing a[i] instead of a[i-1] with a 1-based table runs off the end; keep table and string
+    indexes straight.

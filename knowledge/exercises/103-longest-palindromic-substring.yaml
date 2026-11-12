@@ -1,0 +1,65 @@
+id: longest-palindromic-substring
+order: 103
+pattern: 1-d dynamic programming
+difficulty: medium
+title: Longest mirror inside
+leetcode: longest-palindromic-substring
+lesson: 'Every palindrome has a centre, either a character or a gap between two. Expanding outward from
+  each of the 2n-1 centres finds the longest one in O(n^2) time and O(1) space. Updating only on a strictly
+  longer match keeps the first one when lengths tie.
+
+  '
+statement: 'Given a string `s`, return its longest contiguous substring that reads the same forwards and
+  backwards. If several have the maximum length, return the one that starts earliest.
+
+  '
+function: longest_palindrome
+signature: 'def longest_palindrome(s: str) -> str:'
+starter: "def longest_palindrome(s: str) -> str:\n    pass\n"
+tests:
+- args:
+  - babad
+  expected: bab
+  note: 'tie: first wins'
+- args:
+  - cbbd
+  expected: bb
+  note: even length
+- args:
+  - a
+  expected: a
+  note: single char
+- args:
+  - ac
+  expected: a
+  note: 'no repeat: first char'
+- args:
+  - forgeeksskeegfor
+  expected: geeksskeeg
+- args:
+  - aaaa
+  expected: aaaa
+  note: all same
+scale:
+  generator: "def make(n):\n    return [\"ab\" * (n // 2)]\n"
+  sizes:
+  - 300
+  - 3000
+  expected: O(n^2)
+hints:
+- Each palindrome mirrors around a centre.
+- Try all 2n-1 centres and expand while ends match.
+- 'for i: for (l,r) in ((i,i),(i,i+1)): expand; keep if r-l-1 > best length.'
+solution: "def longest_palindrome(s: str) -> str:\n    start, length = 0, 0\n    for i in range(len(s)):\n\
+  \        for l, r in ((i, i), (i, i + 1)):\n            while l >= 0 and r < len(s) and s[l] == s[r]:\n\
+  \                l -= 1\n                r += 1\n            if r - l - 1 > length:\n              \
+  \  start, length = l + 1, r - l - 1\n    return s[start:start + length]\n"
+pitfalls:
+  edge-case: A string of length 1 or with all equal letters like 'aaaa' must return the whole string;
+    also handle even-length centres like 'abba'.
+  timeout: Checking every substring for being a palindrome is O(n^3); expand around each of the 2n-1 centres
+    for O(n^2).
+  wrong-answer: Expanding only around single characters misses even palindromes; also expand between s[i]
+    and s[i+1].
+  exception: Returning s[l:r] after the expand loop overshoots by one on each side; return s[l+1:r] and
+    keep the l>=0 and r<len(s) checks before indexing.

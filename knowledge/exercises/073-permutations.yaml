@@ -1,0 +1,86 @@
+id: permutations
+order: 73
+pattern: backtracking
+difficulty: medium
+title: Every ordering
+leetcode: permutations
+lesson: 'Build an ordering one position at a time, choosing any value not yet used. With n distinct values
+  there are n! results, so the cost is inherent.
+
+  '
+statement: 'Given a list of distinct integers `nums`, return every possible ordering of them. The list
+  of orderings may be in any order.
+
+  '
+function: permute
+signature: 'def permute(nums: list[int]) -> list[list[int]]:'
+starter: "def permute(nums: list[int]) -> list[list[int]]:\n    pass\n"
+compare: sorted
+tests:
+- args:
+  - - 1
+    - 2
+    - 3
+  expected:
+  - - 1
+    - 2
+    - 3
+  - - 1
+    - 3
+    - 2
+  - - 2
+    - 1
+    - 3
+  - - 2
+    - 3
+    - 1
+  - - 3
+    - 1
+    - 2
+  - - 3
+    - 2
+    - 1
+- args:
+  - - 0
+    - 1
+  expected:
+  - - 0
+    - 1
+  - - 1
+    - 0
+- args:
+  - - 5
+  expected:
+  - - 5
+  note: single element
+- args:
+  - []
+  expected:
+  - []
+  note: empty list has one empty ordering
+- args:
+  - - -1
+    - 2
+  expected:
+  - - -1
+    - 2
+  - - 2
+    - -1
+  note: negatives
+hints:
+- How many choices do you have for the first slot? The second?
+- Track which values are already used; recurse until the path is full.
+- 'go(): if full record; for each unused i: mark, append, go(), pop, unmark'
+solution: "def permute(nums: list[int]) -> list[list[int]]:\n    out, path, used = [], [], [False] * len(nums)\n\
+  \n    def go():\n        if len(path) == len(nums):\n            out.append(path[:])\n            return\n\
+  \        for i, x in enumerate(nums):\n            if not used[i]:\n                used[i] = True\n\
+  \                path.append(x)\n                go()\n                path.pop()\n                used[i]\
+  \ = False\n\n    go()\n    return sorted(out)\n"
+pitfalls:
+  wrong: Appending `path` itself instead of a copy leaves every result empty after backtracking.
+  edge-case: A single number returns [[x]] and the empty list returns [[]].
+  timeout: Generating with list.remove and copying whole lists is fine at n! scale; avoid checking membership
+    in path with a list scan by using a used[] array.
+  wrong-answer: Appending `path` itself instead of a copy leaves every result empty after backtracking.
+  exception: Popping from an empty path because the pop is outside the matching append; keep append and
+    pop paired.

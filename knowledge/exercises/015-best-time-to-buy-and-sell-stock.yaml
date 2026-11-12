@@ -1,0 +1,49 @@
+id: best-time-to-buy-and-sell-stock
+order: 15
+pattern: sliding window
+difficulty: easy
+title: One trade, best profit
+leetcode: best-time-to-buy-and-sell-stock
+lesson: |
+  Scan the days once, remembering the cheapest price so far as the left edge of the window. Each day, selling today against that cheapest day is the best trade ending today. Tracking a running minimum turns an all-pairs search into one pass.
+statement: |
+  Given a list `prices` where `prices[i]` is a price on day `i`, choose one day to buy and a later day to sell. Return the largest profit possible, or `0` if no trade makes money.
+function: max_profit
+signature: "def max_profit(prices: list[int]) -> int:"
+starter: |
+  def max_profit(prices: list[int]) -> int:
+      pass
+tests:
+  - {args: [[7, 1, 5, 3, 6, 4]], expected: 5}
+  - {args: [[7, 6, 4, 3, 1]], expected: 0, note: falling prices}
+  - {args: [[]], expected: 0, note: empty list}
+  - {args: [[3]], expected: 0, note: single day}
+  - {args: [[2, 2, 2]], expected: 0, note: flat prices}
+  - {args: [[3, 8, 1, 6]], expected: 5, note: later low does not beat earlier trade}
+scale:
+  generator: |
+    def make(n):
+        return [[(i * 7919) % 1000 for i in range(n)]]
+  sizes: [20000, 200000]
+  expected: O(n)
+hints:
+  - For a sale on a given day, which buy day is best?
+  - Keep the lowest price seen so far and compare today's price against it.
+  - "low = inf; for p in prices: low = min(low, p); best = max(best, p - low)"
+solution: |
+  def max_profit(prices: list[int]) -> int:
+      low = float("inf")
+      best = 0
+      for p in prices:
+          low = min(low, p)
+          best = max(best, p - low)
+      return best
+pitfalls:
+  edge-case: Prices that only fall, like [7, 6, 4, 1], give a profit of 0, not a negative number; a single
+    price also gives 0.
+  timeout: Checking every buy and sell pair is O(n^2); keep the lowest price so far and the best profit
+    in one O(n) pass.
+  wrong-answer: Selling before buying, for example max(prices) - min(prices) when the max comes first;
+    only compare a price with the minimum seen before it.
+  exception: Seeding the minimum with prices[0] crashes on an empty list; start with float('inf') or return
+    0 for empty input.

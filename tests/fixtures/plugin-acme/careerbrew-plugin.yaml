@@ -1,0 +1,18 @@
+# Synthetic corporate plugin used by tests. A real one lives in a private repo (careerbrew-<org>).
+name: acme
+version: 1.0.0
+requires: ">=0.1.0"
+description: Acme Corp (synthetic) ladder, job sources, rubric items, and data policy.
+provides:
+  ladders: ladders/*.yaml
+  job_sources: job-sources.yaml
+  knowledge: knowledge/*.yaml
+  evidence_sources: evidence.yaml
+  rules: rules.md
+sensitive_terms: sensitive-terms.txt
+detect:
+  env: [ACME_SSO_TOKEN]
+policy:
+  allowed_routes: [local]
+  require_encrypted_backup: true
+  agent_may_read_business: false

@@ -1,0 +1,65 @@
+id: longest-common-subsequence
+order: 112
+pattern: 2-d dynamic programming
+difficulty: medium
+title: Shared letters in order
+leetcode: longest-common-subsequence
+lesson: 'State: dp[i][j] is the LCS length of the first i letters of a and the first j of b. Transition:
+  if a[i-1] == b[j-1] then dp[i-1][j-1] + 1, else max(dp[i-1][j], dp[i][j-1]). Base case: an empty prefix
+  gives 0.
+
+  '
+statement: 'Given strings `a` and `b`, return the length of the longest sequence of characters that appears
+  in both in the same order (not necessarily contiguous).
+
+  '
+function: longest_common_subsequence
+signature: 'def longest_common_subsequence(a: str, b: str) -> int:'
+starter: "def longest_common_subsequence(a: str, b: str) -> int:\n    pass\n"
+tests:
+- args:
+  - abcde
+  - ace
+  expected: 3
+- args:
+  - abc
+  - abc
+  expected: 3
+  note: identical
+- args:
+  - abc
+  - def
+  expected: 0
+  note: nothing shared
+- args:
+  - a
+  - a
+  expected: 1
+  note: single char
+- args:
+  - bsbininm
+  - jmjkbkjkv
+  expected: 1
+- args:
+  - abcba
+  - abcbcba
+  expected: 5
+scale:
+  generator: "def make(n):\n    return [\"ab\" * (n // 2), \"ba\" * (n // 2)]\n"
+  sizes:
+  - 100
+  - 1000
+  expected: O(n^2)
+hints:
+- Compare the last characters of both prefixes.
+- 'Match: diagonal + 1; otherwise the better of dropping one char.'
+- Use a (len(a)+1) x (len(b)+1) table, or two rows.
+solution: "def longest_common_subsequence(a: str, b: str) -> int:\n    prev = [0] * (len(b) + 1)\n   \
+  \ for ca in a:\n        cur = [0]\n        for j, cb in enumerate(b):\n            cur.append(prev[j]\
+  \ + 1 if ca == cb else max(prev[j + 1], cur[j]))\n        prev = cur\n    return prev[-1]\n"
+pitfalls:
+  edge-case: If either string is empty the answer is 0; identical strings return their full length.
+  timeout: Recursion on (i, j) without memo is O(2^(m+n)); a (m+1) x (n+1) table is O(m*n).
+  wrong-answer: On a mismatch taking dp[i-1][j-1] instead of max(dp[i-1][j], dp[i][j-1]) loses matches.
+  exception: Building the table as m x n instead of (m+1) x (n+1) causes IndexError on dp[i-1]; add the
+    empty-prefix row and column.

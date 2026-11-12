@@ -1,0 +1,4 @@
+{"incidents": [
+ {"id": "Q1INC", "incident_number": 42, "title": "Checkout latency over SLO", "status": "acknowledged", "urgency": "high", "created_at": "2026-10-21T13:00:00Z", "html_url": "https://example.pagerduty.com/incidents/Q1INC", "service": {"id": "PSVC1", "summary": "checkout-api"}, "assignments": [{"assignee": {"id": "PME1", "type": "user_reference"}}]},
+ {"id": "Q2INC", "incident_number": 43, "title": "Billing queue backlog", "status": "triggered", "urgency": "low", "created_at": "2026-10-21T15:30:00Z", "html_url": "https://example.pagerduty.com/incidents/Q2INC", "service": {"id": "PSVC2", "summary": "billing-worker"}, "assignments": [{"assignee": {"id": "PME1", "type": "user_reference"}}]}
+], "limit": 100, "offset": 0, "more": false}

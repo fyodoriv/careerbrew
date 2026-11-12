@@ -1,0 +1,67 @@
+id: valid-parenthesis-string
+order: 129
+pattern: greedy
+difficulty: medium
+title: Brackets with jokers
+leetcode: valid-parenthesis-string
+lesson: 'Track a range of possible open-bracket counts instead of one count. A star widens the range both
+  ways; clamp the low end at zero and fail if the high end goes negative. Valid when zero is in the final
+  range.
+
+  '
+statement: 'The string `s` has only `(`, `)` and `*`. Each `*` can act as `(`, `)` or nothing. Return
+  `True` if some choice makes the brackets balanced.
+
+  '
+function: check_valid_string
+signature: 'def check_valid_string(s: str) -> bool:'
+starter: "def check_valid_string(s: str) -> bool:\n    pass\n"
+tests:
+- args:
+  - ()
+  expected: true
+- args:
+  - (*)
+  expected: true
+- args:
+  - (*))
+  expected: true
+- args:
+  - ''
+  expected: true
+  note: empty string
+- args:
+  - )(
+  expected: false
+  note: wrong order
+- args:
+  - ((*
+  expected: false
+  note: too many opens
+- args:
+  - '*'
+  expected: true
+  note: lone star
+scale:
+  generator: "def make(n):\n    return ['(*)' * (n // 3)]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- A single counter is not enough because stars are undecided.
+- 'Keep lo and hi: the fewest and most open brackets possible so far.'
+- '''('' -> lo+=1, hi+=1; '')'' -> lo-=1, hi-=1; ''*'' -> lo-=1, hi+=1; fail if hi<0; lo=max(lo,0); return
+  lo==0.'
+solution: "def check_valid_string(s: str) -> bool:\n    lo = hi = 0\n    for c in s:\n        if c ==\
+  \ \"(\":\n            lo, hi = lo + 1, hi + 1\n        elif c == \")\":\n            lo, hi = lo - 1,\
+  \ hi - 1\n        else:\n            lo, hi = lo - 1, hi + 1\n        if hi < 0:\n            return\
+  \ False\n        lo = max(lo, 0)\n    return lo == 0\n"
+pitfalls:
+  edge-case: An empty string is True, and '*' alone or '(*' is True; ')' or '(' alone is False.
+  timeout: Trying all 3^k choices for the stars times out; track a low and high count of open brackets
+    in one O(n) pass.
+  wrong-answer: Not clamping low at zero makes valid strings like '(*)' fail; set low = max(low, 0) after
+    each step.
+  exception: Recursion over the three choices can hit the recursion limit and is exponential; use the
+    greedy counters instead of deep recursion.

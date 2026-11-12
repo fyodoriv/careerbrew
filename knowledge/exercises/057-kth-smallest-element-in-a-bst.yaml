@@ -1,0 +1,90 @@
+id: kth-smallest-element-in-a-bst
+order: 57
+pattern: trees
+difficulty: medium
+title: The k-th in order
+leetcode: kth-smallest-element-in-a-bst
+lesson: 'An in-order traversal of a BST yields values in sorted order. Walk it iteratively with a stack
+  and stop as soon as you pop the k-th node, so the cost is O(h + k) rather than sorting everything.
+
+  '
+statement: 'Given the root of a binary search tree and an integer `k` (1-based, at most the number of
+  nodes), return the k-th smallest value in the tree.
+
+  '
+function: kth_smallest
+signature: 'def kth_smallest(root: TreeNode, k: int) -> int:'
+starter: "def kth_smallest(root: TreeNode, k: int) -> int:\n    pass\n"
+tests:
+- args:
+  - tree:
+    - 3
+    - 1
+    - 4
+    - null
+    - 2
+  - 1
+  expected: 1
+- args:
+  - tree:
+    - 5
+    - 3
+    - 6
+    - 2
+    - 4
+    - null
+    - null
+    - 1
+  - 3
+  expected: 3
+- args:
+  - tree:
+    - 5
+    - 3
+    - 6
+    - 2
+    - 4
+    - null
+    - null
+    - 1
+  - 6
+  expected: 6
+  note: k is the largest
+- args:
+  - tree:
+    - 9
+  - 1
+  expected: 9
+  note: single node
+- args:
+  - tree:
+    - 3
+    - 2
+    - null
+    - 1
+  - 2
+  expected: 2
+  note: left-skewed tree
+scale:
+  generator: "def make(n):\n    def b(lo, hi):\n        if lo > hi:\n            return None\n       \
+    \ m = (lo + hi) // 2\n        return TreeNode(m, b(lo, m - 1), b(m + 1, hi))\n    return [b(1, n),\
+    \ n]\n"
+  sizes:
+  - 10000
+  - 100000
+  expected: O(n)
+hints:
+- Which traversal order visits BST values from smallest to largest?
+- Do an in-order traversal with an explicit stack and count nodes as you pop them.
+- 'while True: while node: stack.append(node); node = node.left; node = stack.pop(); k -= 1; if k == 0:
+  return node.val; node = node.right'
+solution: "def kth_smallest(root: TreeNode, k: int) -> int:\n    stack, node = [], root\n    while True:\n\
+  \        while node:\n            stack.append(node)\n            node = node.left\n        node = stack.pop()\n\
+  \        k -= 1\n        if k == 0:\n            return node.val\n        node = node.right\n"
+pitfalls:
+  edge-case: k equal to the node count asks for the largest value; k=1 is the leftmost node.
+  timeout: Collecting and sorting all values is O(n log n); an in-order walk that stops after k nodes
+    is O(h+k).
+  wrong-answer: Using preorder instead of inorder, or counting from 0 when k is 1-based.
+  exception: A recursive inorder on a long skewed tree can exceed the recursion limit; use an iterative
+    stack.

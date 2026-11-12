@@ -1,0 +1,59 @@
+# Candidate AI-use policies in hiring. Only URLs that were opened are cited.
+# Official company pages are listed first. "(third-party)" marks press, prep sites, or vendors.
+# allowed: yes | no | partial (some rounds only) | unknown
+meta:
+  checked: "2026-10-18"
+  note: "Policies change often and vary by role. Confirm with the recruiter before each round."
+
+shared_patterns:
+  - text: "The most common official rule: AI is fine for preparation and polishing a resume, but not during live interviews or assessments unless the company says so."
+    sources:
+      - {title: "Interviewing at Datadog - AI Guidelines", url: "https://careers.datadoghq.com/candidate-experience/interviewing-at-datadog-ai-guidelines/"}
+      - {title: "GitLab - Using AI in the interview process", url: "https://about.gitlab.com/jobs/ai-interview-process/"}
+  - text: "A growing model is a separate, labeled AI round next to classic no-AI rounds. The candidate is told in advance which round allows AI."
+    sources:
+      - {title: "Interviewing at Datadog - AI Guidelines", url: "https://careers.datadoghq.com/candidate-experience/interviewing-at-datadog-ai-guidelines/"}
+  - text: "Where AI is allowed, companies expect disclosure and want you to explain your prompts, choices, and how you checked the output."
+    sources:
+      - {title: "GitLab - Using AI in the interview process", url: "https://about.gitlab.com/jobs/ai-interview-process/"}
+  - text: "Using AI to invent experience or skills is a disqualifier everywhere it is mentioned."
+    sources:
+      - {title: "GitLab - Using AI in the interview process", url: "https://about.gitlab.com/jobs/ai-interview-process/"}
+      - {title: "Interviewing at Datadog - AI Guidelines", url: "https://careers.datadoghq.com/candidate-experience/interviewing-at-datadog-ai-guidelines/"}
+
+ai_policy:
+  google:
+    allowed: "partial"
+    summary: "(third-party) Business Insider reported a pilot from H2 2026 where junior and mid-level SWE candidates on select US teams may use Gemini in a code comprehension round. Google confirmed Gemini is the approved assistant."
+    sources:
+      - {title: "Yahoo Finance (Business Insider) - Google will let candidates use AI in interviews (2026-05-14)", url: "https://finance.yahoo.com/sectors/technology/articles/asking-kid-math-test-without-151500986.html"}
+    checked: "2026-10-18"
+  amazon:
+    allowed: "partial"
+    summary: "(third-party) Internal guidelines tell candidates not to use GenAI in interviews unless explicitly permitted, and breaking this can disqualify them. (official) Amazon also describes a coding assessment with a built-in interactive AI assistant."
+    rounds: {assessment: "yes"}
+    sources:
+      - {title: "About Amazon - How Amazon uses AI in hiring", url: "https://www.aboutamazon.com/news/workplace/artificial-intelligence-resume-jobs-hiring-amazon"}
+      - {title: "ITPro - Amazon bans AI tools during job interviews (2025-03-14)", url: "https://itpro.com/business/careers-and-training/amazon-bans-ai-tools-during-job-interviews"}
+    checked: "2026-10-18"
+  stripe:
+    allowed: "no"
+    summary: "(official, third-party host) Stripe's engineer team screen guide says that using any AI tool, including AI results in search, to solve interview problems is strictly prohibited."
+    rounds: {live-coding: "no"}
+    sources:
+      - {title: "Stripe - Engineer Team Screen Interview Information (PDF hosted by GreatFrontEnd)", url: "https://www.greatfrontend.com/static/guides/stripe-eng-team-screen-guide.pdf"}
+    checked: "2026-10-18"
+  gitlab:
+    allowed: "partial"
+    summary: "(official) AI is allowed for the resume, take-home research (cite it), and technical assessments (disclose it and explain your prompts). In interviews, do not read AI-produced answers."
+    rounds: {take-home: "yes", assessment: "yes"}
+    sources:
+      - {title: "GitLab - Using AI in the interview process", url: "https://about.gitlab.com/jobs/ai-interview-process/"}
+    checked: "2026-10-18"
+  datadog:
+    allowed: "partial"
+    summary: "(official) AI is fine for the resume. AI is expected only in a labeled AI coding interview. It is banned in live coding, technical assessments, and non-technical interviews unless you are told otherwise."
+    rounds: {live-coding: "no", assessment: "no"}
+    sources:
+      - {title: "Interviewing at Datadog - AI Guidelines (updated 2026-05-13)", url: "https://careers.datadoghq.com/candidate-experience/interviewing-at-datadog-ai-guidelines/"}
+    checked: "2026-10-18"

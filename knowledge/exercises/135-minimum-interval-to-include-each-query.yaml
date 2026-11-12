@@ -1,0 +1,111 @@
+id: minimum-interval-to-include-each-query
+order: 135
+pattern: intervals
+difficulty: hard
+title: Smallest cover per query
+leetcode: minimum-interval-to-include-each-query
+lesson: 'Answer queries offline in sorted order. Push every interval that has started onto a heap keyed
+  by size, pop ones that already ended, and the top is the answer. Each interval enters and leaves the
+  heap once.
+
+  '
+statement: 'Given intervals `[l, r]` (size `r - l + 1`) and a list of integer `queries`, return for each
+  query the size of the smallest interval containing it, or -1 if none does. Answers follow the original
+  query order.
+
+  '
+function: min_interval
+signature: 'def min_interval(intervals: list[list[int]], queries: list[int]) -> list[int]:'
+starter: "def min_interval(intervals: list[list[int]], queries: list[int]) -> list[int]:\n    pass\n"
+tests:
+- args:
+  - - - 1
+      - 4
+    - - 2
+      - 4
+    - - 3
+      - 6
+    - - 4
+      - 4
+  - - 2
+    - 3
+    - 4
+    - 5
+  expected:
+  - 3
+  - 3
+  - 1
+  - 4
+- args:
+  - - - 2
+      - 3
+    - - 2
+      - 5
+    - - 1
+      - 8
+    - - 20
+      - 25
+  - - 2
+    - 19
+    - 5
+    - 22
+  expected:
+  - 2
+  - -1
+  - 4
+  - 6
+- args:
+  - - - 1
+      - 1
+  - - 1
+    - 2
+  expected:
+  - 1
+  - -1
+  note: point interval and a miss
+- args:
+  - []
+  - - 3
+  expected:
+  - -1
+  note: no intervals
+- args:
+  - - - 1
+      - 10
+  - - 5
+    - 5
+  expected:
+  - 10
+  - 10
+  note: duplicate queries
+- args:
+  - - - 5
+      - 6
+  - - 1
+  expected:
+  - -1
+  note: query before everything
+scale:
+  generator: "def make(n):\n    return [[[i, i + 10] for i in range(n)], list(range(n))]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n log n)
+hints:
+- Sorting queries lets you reuse work between them.
+- Sort intervals by left end; as the query grows, add started intervals to a min-heap of (size, right).
+- pop while heap top's right < q; answer is heap top size or -1; store by original index.
+solution: "import heapq\n\ndef min_interval(intervals: list[list[int]], queries: list[int]) -> list[int]:\n\
+  \    iv = sorted(intervals)\n    heap, i, ans = [], 0, {}\n    for q in sorted(set(queries)):\n    \
+  \    while i < len(iv) and iv[i][0] <= q:\n            l, r = iv[i]\n            heapq.heappush(heap,\
+  \ (r - l + 1, r)); i += 1\n        while heap and heap[0][1] < q:\n            heapq.heappop(heap)\n\
+  \        ans[q] = heap[0][0] if heap else -1\n    return [ans[q] for q in queries]\n"
+pitfalls:
+  edge-case: A query no interval covers must give -1, and duplicate queries must each get an answer in
+    input order.
+  timeout: Scanning every interval for every query is O(n*q); sort both, push intervals into a min-heap
+    by size as queries rise, O((n+q) log n).
+  wrong-answer: Answering in sorted query order and returning that list scrambles the order; map each
+    answer back to its original index.
+  exception: heap[0] on an empty heap after popping expired intervals raises IndexError; check before
+    peeking and answer -1.

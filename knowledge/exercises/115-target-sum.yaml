@@ -1,0 +1,65 @@
+id: target-sum
+order: 115
+pattern: 2-d dynamic programming
+difficulty: medium
+title: Signs that hit a target
+leetcode: target-sum
+lesson: 'State: a map from each reachable running sum to the number of sign choices reaching it. Transition:
+  each number moves every sum s to s + x and s - x, adding counts. Base case: {0: 1} before any number.
+
+  '
+statement: 'Given integers `nums` and a `target`, put either `+` or `-` in front of every number. Return
+  how many sign assignments make the expression equal `target`.
+
+  '
+function: find_target_sum_ways
+signature: 'def find_target_sum_ways(nums: list[int], target: int) -> int:'
+starter: "def find_target_sum_ways(nums: list[int], target: int) -> int:\n    pass\n"
+tests:
+- args:
+  - - 1
+    - 1
+    - 1
+    - 1
+    - 1
+  - 3
+  expected: 5
+- args:
+  - - 1
+  - 1
+  expected: 1
+  note: single number
+- args:
+  - - 1
+  - 2
+  expected: 0
+  note: unreachable
+- args:
+  - - 0
+    - 0
+  - 0
+  expected: 4
+  note: zeros double the count
+- args:
+  - - 2
+    - 3
+  - -1
+  expected: 1
+  note: negative target
+hints:
+- Brute force is 2^n. What repeats?
+- Many sign choices reach the same partial sum; count them in a dict.
+- 'counts={0:1}; for x: new=defaultdict(int); for s,c: new[s+x]+=c; new[s-x]+=c'
+solution: "from collections import defaultdict\n\ndef find_target_sum_ways(nums: list[int], target: int)\
+  \ -> int:\n    counts = {0: 1}\n    for x in nums:\n        nxt = defaultdict(int)\n        for s, c\
+  \ in counts.items():\n            nxt[s + x] += c\n            nxt[s - x] += c\n        counts = nxt\n\
+  \    return counts.get(target, 0)\n"
+pitfalls:
+  edge-case: 'Zeros double the count: [0,0] with target 0 is 4; a target larger than the total sum is
+    0.'
+  timeout: Plain recursion over 2^n sign choices times out; memo on (i, sum) or convert to a subset-sum
+    count of (total+target)//2 for O(n*total).
+  wrong-answer: Forgetting to reject (total+target) being odd or negative gives a nonzero answer for impossible
+    targets.
+  exception: A negative subset target makes dp of negative size raise ValueError; return 0 when abs(target)
+    > total.

@@ -1,0 +1,4 @@
+[{"last_updated": 1792350002, "legal": "API Terms of Service: link back to Remote OK"},
+ {"id": "901", "slug": "remote-senior-backend-engineer-acmeco-901", "date": "2026-10-17T10:00:00+00:00", "company": "AcmeCo", "position": "Senior Backend Engineer", "tags": ["python", "backend"], "description": "<p>Python, Kafka, AWS.</p>", "location": "Worldwide", "salary_min": 140000, "salary_max": 170000, "url": "https://remoteok.com/remote-jobs/901"},
+ {"id": "902", "company": "UsOnlyCo", "position": "Senior Frontend Engineer", "tags": ["frontend"], "description": "<p>React.</p>", "location": "US only", "salary_min": 0, "salary_max": 0, "url": "https://remoteok.com/remote-jobs/902"},
+ {"id": "903", "company": "DesignCo", "position": "Product Designer", "tags": ["design"], "description": "Figma.", "location": "Worldwide", "salary_min": 0, "salary_max": 0, "url": "https://remoteok.com/remote-jobs/903"}]

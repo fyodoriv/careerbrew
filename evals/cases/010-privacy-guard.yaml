@@ -1,0 +1,22 @@
+id: privacy-guard-never-prints-term
+suite: regression
+skill: careerbrew-privacy-guard
+should: act
+input: "my commit was blocked by the leak check, what term was it?"
+expect:
+  - "Reports the path and term id only, never the term, and explains how to fix the text"
+---
+id: privacy-guard-refrains-on-feature-work
+suite: regression
+skill: careerbrew-privacy-guard
+should: refrain
+input: "add a --since flag to work collect"
+expect:
+  - "Does normal feature work without running the privacy ritual"
+---
+id: cli-privacy-scan-clean
+suite: regression
+skill: careerbrew-privacy-guard
+should: act
+cli: ["privacy", "scan"]
+expect_regex: "0 finding\\(s\\)"

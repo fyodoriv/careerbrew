@@ -1,0 +1,91 @@
+id: min-cost-connect-points
+order: 94
+pattern: advanced graphs
+difficulty: medium
+title: Wire up every point cheaply
+leetcode: min-cost-to-connect-all-points
+lesson: 'Connecting all points as cheaply as possible is a minimum spanning tree. On a dense graph, Prim''s
+  algorithm with an array of best-known distances runs in O(n^2) without building all edges.
+
+  '
+statement: 'You get `points`, a list of `[x, y]` integer coordinates. Linking two points costs their Manhattan
+  distance `|x1 - x2| + |y1 - y2|`. Return the smallest total cost that links every point into one connected
+  network.
+
+  '
+function: min_cost_connect_points
+signature: 'def min_cost_connect_points(points: list[list[int]]) -> int:'
+starter: "def min_cost_connect_points(points: list[list[int]]) -> int:\n    pass\n"
+tests:
+- args:
+  - - - 0
+      - 0
+    - - 2
+      - 2
+    - - 3
+      - 10
+    - - 5
+      - 2
+    - - 7
+      - 0
+  expected: 20
+- args:
+  - - - 3
+      - 12
+    - - -2
+      - 5
+    - - -4
+      - 1
+  expected: 18
+- args:
+  - - - 0
+      - 0
+  expected: 0
+  note: single point costs nothing
+- args:
+  - - - 0
+      - 0
+    - - 1
+      - 1
+  expected: 2
+  note: two points
+- args:
+  - - - -1000000
+      - -1000000
+    - - 1000000
+      - 1000000
+  expected: 4000000
+  note: large coordinates
+- args:
+  - - - 1
+      - 1
+    - - 1
+      - 1
+    - - 2
+      - 2
+  expected: 2
+  note: duplicate points cost zero to join
+scale:
+  generator: "def make(n):\n    return [[[i * 7 % 1000, i * 13 % 997] for i in range(n)]]\n"
+  sizes:
+  - 100
+  - 1000
+  expected: O(n^2)
+hints:
+- This is a minimum spanning tree over a complete graph.
+- 'Prim''s: keep, for each unvisited point, its cheapest link to the tree; repeatedly add the cheapest
+  one.'
+- 'dist=[inf]*n; dist[0]=0; loop n times: pick unvisited i with min dist, add it, relax every unvisited
+  j with manhattan(i,j).'
+solution: "def min_cost_connect_points(points: list[list[int]]) -> int:\n    n = len(points)\n    dist\
+  \ = [float(\"inf\")] * n\n    dist[0] = 0\n    seen = [False] * n\n    total = 0\n    for _ in range(n):\n\
+  \        i = min((j for j in range(n) if not seen[j]), key=dist.__getitem__)\n        seen[i] = True\n\
+  \        total += dist[i]\n        xi, yi = points[i]\n        for j in range(n):\n            if not\
+  \ seen[j]:\n                d = abs(xi - points[j][0]) + abs(yi - points[j][1])\n                if\
+  \ d < dist[j]:\n                    dist[j] = d\n    return total\n"
+pitfalls:
+  timeout: Building and sorting all n^2 edges for Kruskal works but is slower; Prim's on arrays is O(n^2).
+  edge-case: A single point costs 0, and duplicate points cost 0 to connect.
+  wrong-answer: Adding the cost of a point already in the tree again, or using Euclidean instead of Manhattan
+    distance.
+  exception: Calling min() on an empty list when n is 1; return 0 early.

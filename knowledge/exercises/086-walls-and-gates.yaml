@@ -1,0 +1,104 @@
+id: walls-and-gates
+order: 86
+pattern: graphs
+difficulty: medium
+title: Distance to the nearest exit
+leetcode: walls-and-gates
+lesson: 'Run one breadth-first search starting from every gate at once. The first time BFS reaches a room
+  is along a shortest path, so each room is set once.
+
+  '
+statement: 'A grid holds -1 for a wall, 0 for a gate and 2147483647 for an empty room. Replace each empty
+  room with its distance (number of up/down/left/right steps) to the nearest gate; rooms that cannot reach
+  a gate keep 2147483647. Return the grid.
+
+  '
+function: walls_and_gates
+signature: 'def walls_and_gates(rooms: list[list[int]]) -> list[list[int]]:'
+starter: "def walls_and_gates(rooms: list[list[int]]) -> list[list[int]]:\n    pass\n"
+tests:
+- args:
+  - - - 2147483647
+      - -1
+      - 0
+      - 2147483647
+    - - 2147483647
+      - 2147483647
+      - 2147483647
+      - -1
+    - - 2147483647
+      - -1
+      - 2147483647
+      - -1
+    - - 0
+      - -1
+      - 2147483647
+      - 2147483647
+  expected:
+  - - 3
+    - -1
+    - 0
+    - 1
+  - - 2
+    - 2
+    - 1
+    - -1
+  - - 1
+    - -1
+    - 2
+    - -1
+  - - 0
+    - -1
+    - 3
+    - 4
+- args:
+  - - - -1
+  expected:
+  - - -1
+  note: single wall
+- args:
+  - - - 2147483647
+  expected:
+  - - 2147483647
+  note: no gate
+- args:
+  - - - 0
+      - 2147483647
+      - 2147483647
+  expected:
+  - - 0
+    - 1
+    - 2
+  note: one row
+- args:
+  - - - 2147483647
+      - -1
+      - 0
+  expected:
+  - - 2147483647
+    - -1
+    - 0
+  note: room sealed by a wall
+scale:
+  generator: "def make(n):\n    s = int(n ** 0.5)\n    g = [[2147483647] * s for _ in range(s)]\n    g[0][0]\
+    \ = 0\n    return [g]\n"
+  sizes:
+  - 10000
+  - 100000
+  expected: O(n)
+hints:
+- Searching from every room is slow. Where could the search start instead?
+- Put every gate in the BFS queue at once; neighbours get distance + 1.
+- 'q = all gates; pop; for each empty neighbour: set dist + 1 and enqueue'
+solution: "from collections import deque\n\ndef walls_and_gates(rooms: list[list[int]]) -> list[list[int]]:\n\
+  \    empty = 2147483647\n    rows, cols = len(rooms), len(rooms[0])\n    q = deque((r, c) for r in range(rows)\
+  \ for c in range(cols) if rooms[r][c] == 0)\n    while q:\n        r, c = q.popleft()\n        for a,\
+  \ b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):\n            if 0 <= a < rows and 0 <= b <\
+  \ cols and rooms[a][b] == empty:\n                rooms[a][b] = rooms[r][c] + 1\n                q.append((a,\
+  \ b))\n    return rooms\n"
+pitfalls:
+  edge-case: A grid with no gates leaves every room at 2147483647, and walls must stay -1.
+  timeout: A BFS from each gate separately is O(gates * cells); one multi-source BFS from all gates is
+    O(cells).
+  wrong-answer: Overwriting a room that already has a smaller distance, or treating 0 cells as rooms.
+  exception: An empty grid crashes on rooms[0]; return early.

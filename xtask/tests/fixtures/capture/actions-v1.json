@@ -1,0 +1,7 @@
+{
+  "schema": "careerbrew-action-contract-v1",
+  "argv": ["-B", "-m", "careerbrew", "actions", "--json"],
+  "action_keys": ["agent_note", "args", "command", "confirm", "help", "name", "terminal_only", "ui"],
+  "argument_keys": ["choices", "default", "flag", "help", "kind", "many", "name", "required"],
+  "canary": "CANARY-ACTION-CAPTURE-7Q"
+}

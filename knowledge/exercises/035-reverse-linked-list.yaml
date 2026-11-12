@@ -1,0 +1,91 @@
+id: reverse-linked-list
+order: 35
+pattern: linked list
+difficulty: easy
+title: Flip the chain
+leetcode: reverse-linked-list
+lesson: |
+  Walk the list once, pointing each node back at the one before it. Keep three names: prev, the current node, and the saved next, so you never lose the rest of the list. O(n) time, O(1) space.
+statement: |
+  Given the head of a singly linked list (`ListNode` with `val` and `next`), reverse it and return the new head.
+function: reverse_list
+signature: 'def reverse_list(head: ListNode | None) -> ListNode | None:'
+starter: |
+  def reverse_list(head):
+      pass
+tests:
+- args:
+  - list:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  expected:
+    list:
+    - 5
+    - 4
+    - 3
+    - 2
+    - 1
+- args:
+  - list:
+    - 1
+    - 2
+  expected:
+    list:
+    - 2
+    - 1
+  note: two nodes
+- args:
+  - list: []
+  expected:
+    list: []
+  note: empty list
+- args:
+  - list:
+    - 7
+  expected:
+    list:
+    - 7
+  note: single node
+- args:
+  - list:
+    - 1
+    - 1
+    - 2
+  expected:
+    list:
+    - 2
+    - 1
+    - 1
+  note: duplicates
+scale:
+  generator: |
+    def make(n):
+        head = None
+        for v in range(n, 0, -1):
+            head = ListNode(v, head)
+        return [head]
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- Each node must point to the node that used to come before it.
+- Keep prev = None and walk with cur; save cur.next before you overwrite it.
+- nxt = cur.next; cur.next = prev; prev = cur; cur = nxt. Return prev.
+solution: |
+  def reverse_list(head):
+      prev = None
+      while head:
+          head.next, prev, head = prev, head, head.next
+      return prev
+pitfalls:
+  edge-case: An empty list returns None and a one-node list returns itself; do not read head.next before
+    checking head.
+  timeout: Copying values into a list and rebuilding, or walking to the tail each time, is wasteful or
+    O(n^2); flip one pointer per node in a single O(n) pass.
+  wrong-answer: Overwriting cur.next before saving it loses the rest of the list; save nxt = cur.next,
+    then set cur.next = prev, then advance.
+  exception: Returning cur instead of prev returns None; at the end cur is None and prev is the new head.

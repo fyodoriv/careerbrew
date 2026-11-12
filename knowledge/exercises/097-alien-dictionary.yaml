@@ -1,0 +1,78 @@
+id: alien-dictionary
+order: 97
+pattern: advanced graphs
+difficulty: hard
+title: Recover a strange alphabet
+leetcode: alien-dictionary
+lesson: 'Each adjacent pair of words reveals at most one ordering rule: the first differing letter. Those
+  rules form a graph, and a topological sort orders the letters. Using a min-heap for the ready letters
+  (Kahn''s algorithm) makes the order the alphabetically smallest valid one; a cycle, or a word followed
+  by its own prefix, means no order exists.
+
+  '
+statement: '`words` is a list of lowercase words sorted by an unknown alphabet over the same letters.
+  Return a string of every distinct letter that appears, arranged in an order consistent with the sorting.
+  If several orders work, return the one that is smallest in normal alphabetical comparison. If no order
+  works, return `""`.
+
+  '
+function: alien_order
+signature: 'def alien_order(words: list[str]) -> str:'
+starter: "def alien_order(words: list[str]) -> str:\n    pass\n"
+tests:
+- args:
+  - - wrt
+    - wrf
+    - er
+    - ett
+    - rftt
+  expected: wertf
+- args:
+  - - z
+    - x
+  expected: zx
+- args:
+  - - z
+    - x
+    - z
+  expected: ''
+  note: cycle
+- args:
+  - - abc
+    - ab
+  expected: ''
+  note: longer word before its prefix is invalid
+- args:
+  - - ba
+    - bc
+  expected: abc
+  note: unconstrained letters fall in normal order
+- args:
+  - - z
+  expected: z
+  note: single word
+- args:
+  - - ab
+    - ab
+  expected: ab
+  note: equal words give no rule
+hints:
+- 'Compare neighbours only: their first differing letter gives one edge.'
+- Topological sort the letter graph; watch for a word followed by its strict prefix.
+- Kahn's algorithm with a heap of in-degree-zero letters; if the output is shorter than the letter count,
+  return ''.
+solution: "import heapq\n\ndef alien_order(words: list[str]) -> str:\n    letters = {ch for w in words\
+  \ for ch in w}\n    edges = {ch: set() for ch in letters}\n    indeg = dict.fromkeys(letters, 0)\n \
+  \   for a, b in zip(words, words[1:]):\n        for x, y in zip(a, b):\n            if x != y:\n   \
+  \             if y not in edges[x]:\n                    edges[x].add(y)\n                    indeg[y]\
+  \ += 1\n                break\n        else:\n            if len(a) > len(b):\n                return\
+  \ \"\"\n    heap = [ch for ch in letters if indeg[ch] == 0]\n    heapq.heapify(heap)\n    out = []\n\
+  \    while heap:\n        ch = heapq.heappop(heap)\n        out.append(ch)\n        for nxt in edges[ch]:\n\
+  \            indeg[nxt] -= 1\n            if indeg[nxt] == 0:\n                heapq.heappush(heap,\
+  \ nxt)\n    return \"\".join(out) if len(out) == len(letters) else \"\"\n"
+pitfalls:
+  edge-case: A word followed by its own prefix, like ['abc', 'ab'], is invalid and must return ''; letters
+    with no ordering edges must still appear.
+  timeout: Comparing every pair of words is O(n^2 * L); only adjacent pairs give edges, O(total letters).
+  wrong-answer: Comparing beyond the first differing letter, which adds false edges.
+  exception: Missing nodes in the in-degree dict raise KeyError; add every letter of every word up front.

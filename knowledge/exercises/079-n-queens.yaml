@@ -1,0 +1,115 @@
+id: n-queens
+order: 79
+pattern: backtracking
+difficulty: hard
+title: Peaceful queens
+leetcode: n-queens
+lesson: 'Place one queen per row, tracking used columns and both diagonal families (r - c and r + c) in
+  sets. That makes each safety check O(1) and prunes almost every branch.
+
+  '
+statement: 'Place `n` chess queens on an n x n board so no two share a row, column, or diagonal. Return
+  every solution as a list of n strings, row by row, using ''Q'' for a queen and ''.'' for empty. Any
+  order of solutions is accepted.
+
+  '
+function: solve_n_queens
+signature: 'def solve_n_queens(n: int) -> list[list[str]]:'
+starter: "def solve_n_queens(n: int) -> list[list[str]]:\n    pass\n"
+compare: sorted
+tests:
+- args:
+  - 4
+  expected:
+  - - .Q..
+    - '...Q'
+    - Q...
+    - ..Q.
+  - - ..Q.
+    - Q...
+    - '...Q'
+    - .Q..
+- args:
+  - 1
+  expected:
+  - - Q
+  note: trivial board
+- args:
+  - 2
+  expected: []
+  note: no solution
+- args:
+  - 3
+  expected: []
+  note: no solution
+- args:
+  - 5
+  expected:
+  - - Q....
+    - ..Q..
+    - '....Q'
+    - .Q...
+    - '...Q.'
+  - - Q....
+    - '...Q.'
+    - .Q...
+    - '....Q'
+    - ..Q..
+  - - .Q...
+    - '...Q.'
+    - Q....
+    - ..Q..
+    - '....Q'
+  - - .Q...
+    - '....Q'
+    - ..Q..
+    - Q....
+    - '...Q.'
+  - - ..Q..
+    - Q....
+    - '...Q.'
+    - .Q...
+    - '....Q'
+  - - ..Q..
+    - '....Q'
+    - .Q...
+    - '...Q.'
+    - Q....
+  - - '...Q.'
+    - Q....
+    - ..Q..
+    - '....Q'
+    - .Q...
+  - - '...Q.'
+    - .Q...
+    - '....Q'
+    - ..Q..
+    - Q....
+  - - '....Q'
+    - .Q...
+    - '...Q.'
+    - Q....
+    - ..Q..
+  - - '....Q'
+    - ..Q..
+    - Q....
+    - '...Q.'
+    - .Q...
+  note: ten solutions
+hints:
+- How many queens can each row hold?
+- Go row by row; keep sets of used columns, r - c diagonals, and r + c anti-diagonals.
+- 'go(r): for c: skip if attacked; add to the three sets; go(r+1); remove'
+solution: "def solve_n_queens(n: int) -> list[list[str]]:\n    out, cols = [], []\n    used_c, used_d,\
+  \ used_a = set(), set(), set()\n\n    def go(r):\n        if r == n:\n            out.append([\".\"\
+  \ * c + \"Q\" + \".\" * (n - c - 1) for c in cols])\n            return\n        for c in range(n):\n\
+  \            if c in used_c or r - c in used_d or r + c in used_a:\n                continue\n     \
+  \       used_c.add(c); used_d.add(r - c); used_a.add(r + c); cols.append(c)\n            go(r + 1)\n\
+  \            used_c.discard(c); used_d.discard(r - c); used_a.discard(r + c); cols.pop()\n\n    go(0)\n\
+  \    return out\n"
+pitfalls:
+  edge-case: n = 2 and n = 3 have no solutions and must return []; n = 1 returns [['Q']].
+  timeout: Checking the whole board for attacks at each placement is O(n^2) per step; keep sets for columns,
+    r - c and r + c diagonals for O(1) checks.
+  wrong-answer: 'Mixing up the two diagonals: one is r - c, the other r + c.'
+  exception: Building row strings by mutating Python strings fails; build a list of chars and join.

@@ -1,0 +1,56 @@
+id: top-k-frequent-elements
+order: 5
+pattern: arrays and hashing
+difficulty: medium
+title: Most common values
+leetcode: top-k-frequent-elements
+lesson: |
+  Count first, then select. Because no value can appear more than n times, you can bucket values by their count in a list of n+1 buckets and read from the top, which gives O(n) instead of sorting.
+statement: |
+  Given a list of integers `nums` and an integer `k`, return the `k` values that occur most often. The answer is guaranteed to be unique; return it in any order.
+function: top_k_frequent
+signature: "def top_k_frequent(nums: list[int], k: int) -> list[int]:"
+starter: |
+  def top_k_frequent(nums: list[int], k: int) -> list[int]:
+      pass
+compare: sorted
+tests:
+  - {args: [[1, 1, 1, 2, 2, 3], 2], expected: [1, 2]}
+  - {args: [[5], 1], expected: [5], note: single element}
+  - {args: [[-1, -1, 4, 4, 4, 2], 2], expected: [-1, 4], note: negatives}
+  - {args: [[3, 0, 1, 0], 1], expected: [0]}
+  - {args: [[7, 8, 9], 3], expected: [7, 8, 9], note: k equals the number of distinct values}
+scale:
+  generator: |
+    def make(n):
+        return [[i % (n // 10) for i in range(n)], 5]
+  sizes: [20000, 200000]
+  expected: O(n)
+hints:
+  - Start by knowing how often each value appears.
+  - After counting, put values into buckets indexed by their count, then walk buckets from highest to lowest.
+  - "buckets = [[] for _ in range(len(nums) + 1)]; for v, c in counts.items(): buckets[c].append(v); collect from the end until you have k."
+solution: |
+  from collections import Counter
+
+
+  def top_k_frequent(nums: list[int], k: int) -> list[int]:
+      buckets = [[] for _ in range(len(nums) + 1)]
+      for v, c in Counter(nums).items():
+          buckets[c].append(v)
+      out = []
+      for c in range(len(buckets) - 1, 0, -1):
+          for v in buckets[c]:
+              out.append(v)
+              if len(out) == k:
+                  return out
+      return out
+pitfalls:
+  edge-case: When k equals the number of distinct values, return all of them; with one element, return
+    that element.
+  timeout: Sorting all counts is O(n log n); bucket values by count in n+1 buckets for O(n), or keep a
+    size-k heap.
+  wrong-answer: Returning the counts or the first k items of the input instead of the k most frequent
+    values; collect values, highest count first, and stop at k.
+  exception: Buckets sized len(set(nums)) overflow when a value's count is larger; size them len(nums)
+    + 1 so buckets[count] always exists.

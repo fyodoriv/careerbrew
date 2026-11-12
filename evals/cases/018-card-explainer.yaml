@@ -1,0 +1,17 @@
+id: card-explainer-keeps-stories-private
+suite: regression
+skill: careerbrew-card-explainer
+should: act
+input: "explain my flashcards and publish them"
+expect:
+  - "Runs `careerbrew cards explain-queue` and publishes through `careerbrew cards publish`, never by editing knowledge/cards/ by hand"
+  - "Behavioural cards teach how to answer; the owner's own stories and answers are never copied into public cards"
+  - "Marks questions about a specific person, employer, or private project as skip"
+---
+id: card-explainer-refrains-on-review
+suite: regression
+skill: careerbrew-card-explainer
+should: refrain
+input: "quiz me on my flashcards"
+expect:
+  - "Starts a review (interview-drill or Practice) instead of generating explanations"

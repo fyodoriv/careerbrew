@@ -1,0 +1,8 @@
+Name,Title,Group,Parent,Links,Trackers,Owner
+payments,Payments platform,q4-cutline,,,PAY-1,someone
+billing,Billing revamp,q4-cutline,payments,"ledger, invoices",BILL-1 BILL-2,
+invoices,Invoice export,q4-cutline,billing,,BILL-7,
+ledger,Close the ledger in one day,q4-cutline,payments,billing,,
+checkout,Faster checkout,team-goals,,payments,CHK-3,
+Checkout Analytics,Checkout dashboards,team-goals,checkout,,,
+

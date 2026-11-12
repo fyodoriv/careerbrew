@@ -1,0 +1,11 @@
+id: work-companion-pm-content
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "Redraft my PM update: a status check found no action, one report is still a draft, I discussed and iterated on a spec, interviews took half the day, and tomorrow's work includes a deliverable plus a step waiting on someone else."
+expect:
+  - "Drops no-action status checks and small own-tool chores; marks unfinished work In draft, without claiming it shipped"
+  - "Describes discussion and spec iteration as such; never turns an ask sent into an outcome"
+  - "Checks the calendar and permitted private records for interview work and names only source-backed outcomes on their own line"
+  - "Names lasting unblock fixes and who can repeat them; Tomorrow names short owner-controlled deliverables and team process work, excluding external waits"
+  - "Compares each owner edit line by line and derives a context-bound candidate rule without exporting private text or claiming one edit proves a general rule"

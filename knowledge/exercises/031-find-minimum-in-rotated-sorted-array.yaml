@@ -1,0 +1,78 @@
+id: find-minimum-in-rotated-sorted-array
+order: 31
+pattern: binary search
+difficulty: medium
+title: Where the rotation starts
+leetcode: find-minimum-in-rotated-sorted-array
+lesson: |
+  In a rotated sorted list, compare the middle with the right end. If the middle is bigger, the drop (and the minimum) lies to its right; otherwise the minimum is at mid or to its left. Shrink until one element remains.
+statement: |
+  A sorted list of distinct integers was rotated some number of times (moving the tail to the front). Given the rotated list `nums` (non-empty), return its smallest value in O(log n).
+function: find_min
+signature: 'def find_min(nums: list[int]) -> int:'
+starter: |
+  def find_min(nums: list[int]) -> int:
+      pass
+tests:
+- args:
+  - - 3
+    - 4
+    - 5
+    - 1
+    - 2
+  expected: 1
+- args:
+  - - 4
+    - 5
+    - 6
+    - 7
+    - 0
+    - 1
+    - 2
+  expected: 0
+- args:
+  - - 11
+    - 13
+    - 15
+    - 17
+  expected: 11
+  note: not rotated
+- args:
+  - - 1
+  expected: 1
+  note: single element
+- args:
+  - - 2
+    - 1
+  expected: 1
+  note: two elements rotated
+- args:
+  - - 2
+    - 3
+    - 4
+    - 5
+    - 1
+  expected: 1
+  note: minimum at the end
+hints:
+- 'Compare nums[mid] with nums[hi]: which half is cleanly sorted?'
+- If nums[mid] > nums[hi], the minimum is right of mid.
+- 'Loop while lo < hi: if nums[mid] > nums[hi]: lo = mid + 1 else hi = mid. Return nums[lo].'
+solution: |
+  def find_min(nums: list[int]) -> int:
+      lo, hi = 0, len(nums) - 1
+      while lo < hi:
+          mid = (lo + hi) // 2
+          if nums[mid] > nums[hi]:
+              lo = mid + 1
+          else:
+              hi = mid
+      return nums[lo]
+pitfalls:
+  edge-case: An unrotated list like [1, 2, 3] has its minimum at index 0, and a single element is its
+    own minimum.
+  timeout: A linear min() is O(n); compare the middle with the right end and halve for O(log n).
+  wrong-answer: Comparing nums[mid] with nums[lo] instead of nums[hi], or setting hi = mid - 1 when mid
+    could be the minimum; use hi = mid in that branch.
+  exception: With `while lo <= hi` and hi = mid the loop never ends, and then the last read can go out
+    of range; loop while lo < hi and return nums[lo].

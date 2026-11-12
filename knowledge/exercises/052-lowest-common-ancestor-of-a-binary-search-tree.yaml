@@ -1,0 +1,119 @@
+id: lowest-common-ancestor-of-a-binary-search-tree
+order: 52
+pattern: trees
+difficulty: medium
+title: Where two BST paths split
+leetcode: lowest-common-ancestor-of-a-binary-search-tree
+lesson: 'In a BST the ordering tells you which way both targets lie. While both are smaller go left, while
+  both are larger go right; the first node where they fall on different sides (or one equals the node)
+  is the answer. That is O(h) time and O(1) space.
+
+  '
+statement: 'Given the root of a binary search tree with distinct values and two values `p` and `q` that
+  both exist in it, return the value of their lowest common ancestor: the deepest node that has both of
+  them in its subtree. A node counts as being in its own subtree.
+
+  '
+function: lca_bst
+signature: 'def lca_bst(root: TreeNode, p: int, q: int) -> int:'
+starter: "def lca_bst(root: TreeNode, p: int, q: int) -> int:\n    pass\n"
+tests:
+- args:
+  - tree:
+    - 6
+    - 2
+    - 8
+    - 0
+    - 4
+    - 7
+    - 9
+    - null
+    - null
+    - 3
+    - 5
+  - 2
+  - 8
+  expected: 6
+- args:
+  - tree:
+    - 6
+    - 2
+    - 8
+    - 0
+    - 4
+    - 7
+    - 9
+    - null
+    - null
+    - 3
+    - 5
+  - 2
+  - 4
+  expected: 2
+  note: one node is the ancestor of the other
+- args:
+  - tree:
+    - 6
+    - 2
+    - 8
+    - 0
+    - 4
+    - 7
+    - 9
+    - null
+    - null
+    - 3
+    - 5
+  - 3
+  - 5
+  expected: 4
+- args:
+  - tree:
+    - 2
+    - 1
+  - 2
+  - 1
+  expected: 2
+  note: two nodes
+- args:
+  - tree:
+    - 5
+  - 5
+  - 5
+  expected: 5
+  note: single node, p equals q
+- args:
+  - tree:
+    - 3
+    - 2
+    - null
+    - 1
+  - 1
+  - 2
+  expected: 2
+  note: skewed tree
+scale:
+  generator: "def make(n):\n    def b(lo, hi):\n        if lo > hi:\n            return None\n       \
+    \ m = (lo + hi) // 2\n        return TreeNode(m, b(lo, m - 1), b(m + 1, hi))\n    return [b(1, n),\
+    \ 1, 2]\n"
+  sizes:
+  - 10000
+  - 100000
+  expected: O(log n)
+hints:
+- Compare p and q with the current node's value. What does each comparison tell you?
+- If both are smaller, go left; if both are larger, go right; otherwise you have found the split.
+- 'while True: if p < node.val and q < node.val: node = node.left elif p > node.val and q > node.val:
+  node = node.right else: return node.val'
+solution: "def lca_bst(root: TreeNode, p: int, q: int) -> int:\n    node = root\n    while node:\n   \
+  \     if p < node.val and q < node.val:\n            node = node.left\n        elif p > node.val and\
+  \ q > node.val:\n            node = node.right\n        else:\n            return node.val\n    return\
+  \ -1\n"
+pitfalls:
+  timeout: Searching the whole tree ignores the BST order; walk down from the root, going left when both
+    are smaller and right when both are bigger, O(h).
+  edge-case: When p or q is itself the ancestor of the other, the answer is that node, not its parent.
+  wrong-answer: Using <= or >= in the go-left/go-right tests so the walk moves past the split node when
+    it equals p or q.
+  exception: Walking into a None child because the comparisons are flipped; with the right tests the loop
+    always stops at a real node.

@@ -1,0 +1,4 @@
+careerbrew-inventory-pending	1	96b9a3a4dac73c685129d3ea90bab4ff82869921	bec6c96a05326bbc510476bc43d947c701f9d60a
+path	kind	start	end	column
+src/pending.rs	file	0	0	0
+web/panel.ts	embedded-code	1	1	0

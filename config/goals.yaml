@@ -1,0 +1,120 @@
+# Outcome metrics careerbrew watches about itself and about you. Pre-registered:
+# `success` keeps the current approach; below `pivot` the review recommends the pivot.
+# Override any entry in <data root>/goals.yaml. `higher_is_better: false` flips the test.
+metrics:
+  want_agreement:
+    question: Does the proposed Want score rank jobs the way you do?
+    success: 0.6
+    pivot: 0.3
+    pivot_action: Re-run `careerbrew jobs learn`; if it stays low, add a dimension you care about to the criteria (company_scores) or rate 10 more jobs.
+    anchor: Spearman rank correlation; Kendall & Gibbons 1990, Rank Correlation Methods.
+    sources: [spearman-1904]
+  readiness:
+    question: Are you interview-ready on the topics your target jobs need?
+    success: 0.7
+    pivot: 0.3
+    pivot_action: Drill daily for 2 weeks; if readiness does not rise 10 points, cut the topic list to the top 3 gaps.
+    anchor: Retrieval practice and spacing; Roediger & Karpicke 2006; Cepeda et al. 2006.
+    sources: [doi-roediger-karpicke-2006-test-enhanced, doi-roediger-butler-2011-the-critical-ro, doi-cepeda-pashler-vul-wixted-rohrer-200]
+  retention:
+    question: Do you remember what you drilled (reviews not rated "again")?
+    success: 0.8
+    pivot: 0.6
+    pivot_action: Shorten sessions and add teach-first items for missed criteria; FSRS intervals are too long for new material.
+    anchor: FSRS target retention 0.9; open-spaced-repetition/fsrs4anki wiki.
+    sources: [github-abc-of-fsrs-open-spaced-repetitio, github-free-spaced-repetition-scheduler-]
+  practice_pass_rate:
+    question: Do practice interview loops reach onsite or offer?
+    success: 0.5
+    pivot: 0.25
+    pivot_action: Stop applying; return to the learn phase for the round type that failed most.
+    anchor: Funnel conversion as a leading indicator; Kohavi, Tang & Xu 2020.
+    sources: [interviewing-interviewing-io-we-analyzed, interviewing-interviewing-io-how-do-i-kn]
+  promo_coverage:
+    question: How much of the next level's bar does your evidence cover?
+    success: 0.8
+    pivot: 0.4
+    pivot_action: Pick the top gap from `careerbrew work gaps` and plan one task per week linked to it.
+    anchor: Goal-Question-Metric; Basili, Caldiera & Rombach 1994.
+    sources: [cs-basili-caldiera-rombach-1994-the-goal]
+  gap_closure:
+    question: Is promotion coverage rising week over week (points per week)?
+    success: 0.02
+    pivot: 0.0
+    pivot_action: Your work does not map to the ladder. Ask your manager which competency to grow and re-weight tasks to it.
+    anchor: Doerr 2018, Measure What Matters (outcomes over activities).
+    sources: [cs-basili-caldiera-rombach-1994-the-goal, jvns-julia-evans-get-your-work-recognize]
+  estimate_ratio:
+    question: Do tasks take the time you planned (actual / estimate, median)?
+    success: 1.3
+    pivot: 2.0
+    higher_is_better: false
+    pivot_action: Split tasks over 4 hours; plan at 70% of your capacity.
+    anchor: Planning fallacy; Buehler, Griffin & Ross 1994.
+    sources: [doi-buehler-griffin-ross-1994-exploring-]
+  evidence_freshness_days:
+    question: How many days since the last recorded piece of evidence?
+    success: 7
+    pivot: 21
+    higher_is_better: false
+    pivot_action: Run `careerbrew work collect` and add notes for invisible work (reviews, mentoring, incidents).
+    anchor: Brag documents; Julia Evans 2019, "Get your work recognized".
+    sources: [jvns-julia-evans-get-your-work-recognize]
+  loops_sourced:
+    question: Do your dream and target companies have a sourced interview loop before you interview?
+    success: 1.0
+    pivot: 0.5
+    pivot_action: Run the company-research skill for each target company that shows the shared default loop.
+    anchor: Structured preparation per company; Schmidt & Hunter 1998.
+    sources: [doi-schmidt-hunter-1998-the-validity-and, doi-sackett-zhang-berry-lievens-2022-rev, google-google-careers-our-hiring-process]
+  prep_score:
+    question: How prepared are you, by the prep checklist, for the companies you are interviewing with?
+    success: 0.8
+    pivot: 0.5
+    pivot_action: Work the top 3 gaps from `careerbrew prep check <company>` before scheduling more interviews.
+    anchor: Practice before target interviews; interviewing.io mock-interview data.
+    sources: [interviewing-interviewing-io-we-analyzed, interviewing-interviewing-io-how-do-i-kn]
+  eligible_postings:
+    question: How many postings currently pass your criteria?
+    success: 30
+    pivot: 10
+    pivot_action: Add platforms with `careerbrew jobs preset`, widen regions_ok, or relax one hard criterion.
+    anchor: Goal-Question-Metric; Basili, Caldiera & Rombach 1994.
+    sources: [cs-basili-caldiera-rombach-1994-the-goal]
+  interview_followup:
+    question: Are interview and recruiter emails followed by a logged stage within 2 days?
+    success: 0.9
+    pivot: 0.5
+    pivot_action: Run `careerbrew mail scan` daily and log each stage with `careerbrew jobs log`.
+    anchor: Goal-Question-Metric; Basili, Caldiera & Rombach 1994.
+    sources: [cs-basili-caldiera-rombach-1994-the-goal]
+  plugin_setup_minutes:
+    question: How many minutes from `plugin new` to the first collected work evidence?
+    success: 10
+    pivot: 60
+    higher_is_better: false
+    pivot_action: Check `careerbrew connectors list` and store missing tokens with `careerbrew secret set`.
+    anchor: Goal-Question-Metric; Basili, Caldiera & Rombach 1994.
+    sources: [cs-basili-caldiera-rombach-1994-the-goal]
+  watcher_cpu_ms:
+    question: How much CPU does one watcher cycle cost (p95 of the last 50)?
+    success: 500
+    pivot: 2000
+    higher_is_better: false
+    pivot_action: Raise `watch_interval_s`, or drop the slowest source from the watcher.
+    anchor: Apple Energy Efficiency Guide for Mac Apps (do less work, less often).
+    sources: [apple-energy-efficiency]
+  suggestion_follow_rate:
+    question: Do you finish the task careerbrew suggests on the same day?
+    success: 0.6
+    pivot: 0.3
+    pivot_action: Re-rank tasks (impact, deadlines) or tell the day-planner which work matters; suggestions follow the ranking.
+    anchor: Cost of delay over job size; Reinertsen 2009.
+    sources: [framework-safe-weighted-shortest-job-fir]
+  plan_done_rate:
+    question: How many of the tasks planned for your last workday got done?
+    success: 0.7
+    pivot: 0.4
+    pivot_action: Plan fewer tasks; let calibration inflate estimates; split anything over 4 hours.
+    anchor: Planning fallacy; Buehler, Griffin & Ross 1994.
+    sources: [doi-buehler-griffin-ross-1994-exploring-]

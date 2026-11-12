@@ -1,0 +1,69 @@
+id: house-robber
+order: 101
+pattern: 1-d dynamic programming
+difficulty: medium
+title: No two neighbours
+leetcode: house-robber
+lesson: 'State: best[i] is the most you can take from the first i houses. Transition: best[i] = max(best[i-1],
+  best[i-2] + nums[i-1]), skip or take the house. Base case: zero houses give 0.
+
+  '
+statement: '`nums[i]` is the cash in house `i` along a street. You cannot take from two adjacent houses.
+  Return the largest total you can collect.
+
+  '
+function: rob
+signature: 'def rob(nums: list[int]) -> int:'
+starter: "def rob(nums: list[int]) -> int:\n    pass\n"
+tests:
+- args:
+  - - 1
+    - 2
+    - 3
+    - 1
+  expected: 4
+- args:
+  - - 2
+    - 7
+    - 9
+    - 3
+    - 1
+  expected: 12
+- args:
+  - - 5
+  expected: 5
+  note: single house
+- args:
+  - - 2
+    - 1
+    - 1
+    - 2
+  expected: 4
+  note: skip two in a row
+- args:
+  - - 0
+    - 0
+    - 0
+  expected: 0
+  note: all empty
+scale:
+  generator: "def make(n):\n    return [[i % 100 for i in range(n)]]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- 'For each house: take it or skip it.'
+- If you take house i, you cannot take i-1.
+- 'prev = cur = 0; for x in nums: prev, cur = cur, max(cur, prev + x)'
+solution: "def rob(nums: list[int]) -> int:\n    prev = cur = 0\n    for x in nums:\n        prev, cur\
+  \ = cur, max(cur, prev + x)\n    return cur\n"
+pitfalls:
+  edge-case: An empty list should return 0 and a single house returns nums[0]; indexing nums[1] blindly
+    breaks both.
+  timeout: Plain recursion rob(i)=max(rob(i-1), rob(i-2)+nums[i]) is O(2^n); keep two running values for
+    O(n) time, O(1) space.
+  wrong-answer: Setting dp[1]=nums[1] instead of max(nums[0], nums[1]) loses the case where the first
+    house is richer.
+  exception: IndexError on dp[i-2] when i is 0 or 1; seed the first two values before the loop or start
+    with prev2=prev1=0.

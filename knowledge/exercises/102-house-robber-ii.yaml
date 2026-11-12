@@ -1,0 +1,73 @@
+id: house-robber-ii
+order: 102
+pattern: 1-d dynamic programming
+difficulty: medium
+title: Neighbours in a circle
+leetcode: house-robber-ii
+lesson: 'A circle only adds one conflict: the first and last houses. Solve the straight-line robber twice,
+  once without the first house and once without the last, and take the better. State and transition are
+  the same as the line version.
+
+  '
+statement: 'Houses stand in a circle, so the first and last are neighbours. `nums[i]` is the cash in house
+  `i`, and you cannot take from two adjacent houses. Return the largest total.
+
+  '
+function: rob_circle
+signature: 'def rob_circle(nums: list[int]) -> int:'
+starter: "def rob_circle(nums: list[int]) -> int:\n    pass\n"
+tests:
+- args:
+  - - 2
+    - 3
+    - 2
+  expected: 3
+- args:
+  - - 1
+    - 2
+    - 3
+    - 1
+  expected: 4
+- args:
+  - - 1
+    - 2
+    - 3
+  expected: 3
+- args:
+  - - 7
+  expected: 7
+  note: single house
+- args:
+  - - 1
+    - 9
+  expected: 9
+  note: two houses are neighbours
+- args:
+  - - 200
+    - 3
+    - 140
+    - 20
+    - 10
+  expected: 340
+  note: first and last cannot both go
+scale:
+  generator: "def make(n):\n    return [[i % 100 for i in range(n)]]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- Which pair of houses makes the circle different from a line?
+- Run the line solution on nums[1:] and nums[:-1].
+- return max(nums[0], line(nums[1:]), line(nums[:-1]))
+solution: "def rob_circle(nums: list[int]) -> int:\n    def line(xs):\n        prev = cur = 0\n      \
+  \  for x in xs:\n            prev, cur = cur, max(cur, prev + x)\n        return cur\n    if len(nums)\
+  \ == 1:\n        return nums[0]\n    return max(line(nums[1:]), line(nums[:-1]))\n"
+pitfalls:
+  edge-case: A single house is dropped by both slices nums[1:] and nums[:-1], so return nums[0] when len
+    is 1.
+  timeout: Trying every start house and running the line version each time is O(n^2); run the linear robber
+    twice (skip first, skip last) for O(n).
+  wrong-answer: Running one pass over the whole circle lets you take both the first and last house; take
+    max of the two slices instead.
+  exception: max() on an empty slice raises ValueError when len is 1; guard the tiny cases before slicing.

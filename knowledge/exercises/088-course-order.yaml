@@ -1,0 +1,99 @@
+id: course-order
+order: 88
+pattern: graphs
+difficulty: medium
+title: Plan a course order
+leetcode: course-schedule-ii
+lesson: 'A topological sort lists nodes so every edge points forward. Using a min-heap instead of a queue
+  in Kahn''s algorithm always picks the smallest available course, giving the one lexicographically smallest
+  valid order.
+
+  '
+statement: 'There are `num_courses` courses numbered 0..n-1; each pair `[a, b]` in `prerequisites` means
+  b must come before a. Return an order that takes every course with prerequisites respected. When several
+  courses are available, always take the smallest-numbered one first (so the answer is unique). Return
+  [] if no valid order exists.
+
+  '
+function: find_order
+signature: 'def find_order(num_courses: int, prerequisites: list[list[int]]) -> list[int]:'
+starter: "def find_order(num_courses: int, prerequisites: list[list[int]]) -> list[int]:\n    pass\n"
+tests:
+- args:
+  - 2
+  - - - 1
+      - 0
+  expected:
+  - 0
+  - 1
+- args:
+  - 4
+  - - - 1
+      - 0
+    - - 2
+      - 0
+    - - 3
+      - 1
+    - - 3
+      - 2
+  expected:
+  - 0
+  - 1
+  - 2
+  - 3
+  note: diamond, smallest first
+- args:
+  - 1
+  - []
+  expected:
+  - 0
+  note: single course
+- args:
+  - 2
+  - - - 0
+      - 1
+    - - 1
+      - 0
+  expected: []
+  note: cycle
+- args:
+  - 3
+  - - - 0
+      - 2
+  expected:
+  - 1
+  - 2
+  - 0
+  note: some courses free
+- args:
+  - 3
+  - []
+  expected:
+  - 0
+  - 1
+  - 2
+  note: no prerequisites
+scale:
+  generator: "def make(n):\n    return [n, [[i + 1, i] for i in range(n - 1)]]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n log n)
+hints:
+- What does a course with no remaining prerequisites tell you?
+- Kahn's algorithm, but use a min-heap for the available set.
+- indegrees; heap of zeros; pop smallest, append, decrement neighbours; [] if not all taken
+solution: "import heapq\n\ndef find_order(num_courses: int, prerequisites: list[list[int]]) -> list[int]:\n\
+  \    nxt = [[] for _ in range(num_courses)]\n    indeg = [0] * num_courses\n    for a, b in prerequisites:\n\
+  \        nxt[b].append(a)\n        indeg[a] += 1\n    heap = [i for i in range(num_courses) if indeg[i]\
+  \ == 0]\n    heapq.heapify(heap)\n    order = []\n    while heap:\n        c = heapq.heappop(heap)\n\
+  \        order.append(c)\n        for a in nxt[c]:\n            indeg[a] -= 1\n            if indeg[a]\
+  \ == 0:\n                heapq.heappush(heap, a)\n    return order if len(order) == num_courses else\
+  \ []\n"
+pitfalls:
+  edge-case: With a cycle return []; courses with no edges still have to appear in the order.
+  timeout: Repeatedly scanning all courses for one with in-degree 0 is O(V^2); a queue of zero in-degree
+    nodes is O(V + E).
+  wrong-answer: Building edges backwards ([a, b] means b before a), which returns the reverse order.
+  exception: Indexing adjacency with a course number that never appears in a dict raises KeyError; prebuild
+    a list for all n courses.

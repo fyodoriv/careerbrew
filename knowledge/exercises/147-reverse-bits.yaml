@@ -1,0 +1,54 @@
+id: reverse-bits
+order: 147
+pattern: bit manipulation
+difficulty: easy
+title: Mirror 32 bits
+leetcode: reverse-bits
+lesson: 'Peel bits off the right of n and push them onto the right of the result, exactly 32 times. Leading
+  zeros matter: they become trailing zeros, so you cannot stop when n hits zero.
+
+  '
+statement: 'Treat `n` as an unsigned 32-bit integer. Return the unsigned integer whose 32-bit binary form
+  is `n`''s bits in reverse order.
+
+  '
+function: reverse_bits
+signature: 'def reverse_bits(n: int) -> int:'
+starter: "def reverse_bits(n: int) -> int:\n    pass\n"
+tests:
+- args:
+  - 43261596
+  expected: 964176192
+- args:
+  - 4294967293
+  expected: 3221225471
+- args:
+  - 0
+  expected: 0
+  note: zero
+- args:
+  - 1
+  expected: 2147483648
+  note: low bit moves to the top
+- args:
+  - 4294967295
+  expected: 4294967295
+  note: all ones
+- args:
+  - 2147483648
+  expected: 1
+  note: top bit moves to the bottom
+hints:
+- Build the answer one bit at a time.
+- Take n & 1, shift the result left, OR it in, shift n right.
+- 'for _ in range(32): r = (r << 1) | (n & 1); n >>= 1.'
+solution: "def reverse_bits(n: int) -> int:\n    r = 0\n    for _ in range(32):\n        r = (r << 1)\
+  \ | (n & 1)\n        n >>= 1\n    return r\n"
+pitfalls:
+  edge-case: n=0 returns 0, and n=1 returns 2^31 since the low bit moves to the top.
+  timeout: String-reversing bin(n) without padding is fine for speed but wrong; a fixed 32-step bit loop
+    is O(1).
+  wrong-answer: Stopping when n becomes 0 drops the zeros that should shift the result left; always loop
+    exactly 32 times.
+  exception: Using format(n, 'b')[::-1] then int() on an empty or short string gives a wrong or crashing
+    value; pad with format(n, '032b').

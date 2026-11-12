@@ -1,0 +1,263 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:careerbrew:prospective-data-value-v1",
+  "description": "Prospective typed envelope for every actual payload node. Map entries are never interpreted as protocol tags. This file defines no implementation.",
+  "additional_semantic_rules": [
+    "Reject duplicate JSON object members and unknown fields; schema validation alone must not rely on silent last-key wins.",
+    "Use exact Python type identity: bool before int; datetime distinct from date; list distinct from tuple.",
+    "Canonical decimal integers never pass through float64 or fixed-width narrowing. Input schema forbids plus, leading zeroes and negative zero.",
+    "Float64 bits are 8-byte big-endian IEEE-754 hex; preserve negative zero. The first corpus uses finite zeroes only.",
+    "Map keys in this corpus are literal str nodes only, unique and sorted by exact UTF-8 string bytes. Validate that rule, not only this recursive structural grammar. Literal maps with kind/iso fields remain map nodes.",
+    "Projection is selected by exact case/role/purpose: reader primary cases 2/8 use str-sha256; six serialized-bytes calls in cases 3/4/5/6/7/9 use str-sha256; primary reader case 10 uses literal str. No content-based selection.",
+    "Date/datetime ISO strings must parse and round-trip with their exact distinct actual type and registered zone form; format annotations alone are not validation.",
+    "This grammar covers every payload node. Phase metadata and observed API calls use the separate pinned data-phase schema. Expected input-spec records are prospective assertions, not observed execution receipts.",
+    "The path kind is reserved for the actual bound API path parameter in invocation evidence. Ordinary string payloads and literal data maps are never converted to paths. Validate lexical owned-target identity and reject symlinks before normalization; compare against the exact phase target."
+  ],
+  "$ref": "#/$defs/value",
+  "$defs": {
+    "value": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "null"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "bool"
+            },
+            "value": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "int"
+            },
+            "decimal": {
+              "type": "string",
+              "pattern": "^(0|-[1-9][0-9]*|[1-9][0-9]*)$"
+            }
+          },
+          "required": [
+            "kind",
+            "decimal"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "float64"
+            },
+            "bits": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{16}$"
+            }
+          },
+          "required": [
+            "kind",
+            "bits"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "str"
+            },
+            "encoding": {
+              "const": "literal"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "encoding",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "str"
+            },
+            "encoding": {
+              "const": "sha256"
+            },
+            "utf8_bytes": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "required": [
+            "kind",
+            "encoding",
+            "utf8_bytes",
+            "sha256"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "date"
+            },
+            "iso": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+            }
+          },
+          "required": [
+            "kind",
+            "iso"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "datetime"
+            },
+            "iso": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "iso"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "list"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/value"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "items"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "tuple"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/value"
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "items"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "map"
+            },
+            "entries": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "$ref": "#/$defs/value"
+                  },
+                  "value": {
+                    "$ref": "#/$defs/value"
+                  }
+                },
+                "required": [
+                  "key",
+                  "value"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "entries"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "$ref": "#/$defs/ownedTarget"
+        }
+      ]
+    },
+    "ownedTarget": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "path"
+        },
+        "root": {
+          "const": "owned"
+        },
+        "relative": {
+          "enum": [
+            "data/contract/missing.json",
+            "data/contract/record.json",
+            "data/contract/record.yaml",
+            "data/contract/rows.jsonl",
+            "data/contract/text.txt"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "root",
+        "relative"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

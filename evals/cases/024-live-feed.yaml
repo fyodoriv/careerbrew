@@ -1,0 +1,129 @@
+id: live-feed-review-session-drafts-never-posts
+suite: regression
+skill: careerbrew-live-feed
+should: act
+input: "the live cycle printed `review session opened: review-session:ab12cd34ef56` and `1 new review session(s)`"
+expect:
+  - "Starts one fresh-context reviewer for that key, with no worktree, given only the PR link"
+  - "The reviewer writes the review to a local file and saves a reply draft with `careerbrew draft replace`; it never posts, approves, or sends"
+  - "Starts nothing for a `review session kept` line"
+---
+id: live-feed-pulls-in-one-parallel-batch
+suite: regression
+skill: careerbrew-live-feed
+should: act
+input: "run one live cycle; sources are chat, tickets, and calendar, plus two teammates"
+expect:
+  - "Sends every source and teammate search in one batch of parallel tool calls, not one after another, then runs one `careerbrew work live cycle`"
+  - "Bounds the ticket search with a relative cursor such as `updated >= -45m`, never a clock time without a zone"
+---
+id: live-feed-standup-failed-is-not-a-failed-cycle
+suite: regression
+skill: careerbrew-live-feed
+should: act
+input: "the live cycle printed `standup: failed (StandupError); the cycle goes on` and no not_stored line"
+expect:
+  - "Treats the cycle as ok, not failed: does not pull the sources again"
+  - "Tells the user once that the standup publish failed, and suggests `careerbrew work standup` by hand if it repeats"
+---
+id: live-feed-failed-cycle-repulls
+suite: regression
+skill: careerbrew-live-feed
+should: act
+input: "run the live feed; the last cycle printed not_stored  tickets"
+expect:
+  - "Treats the cycle as failed, not quiet: pulls the tickets source again, saves its raw reply to the tickets inbox, and runs `careerbrew work live cycle` again"
+  - "After two failed tries for one source, tells the user the source and its error line"
+---
+id: live-feed-quiet-source-saves-empty-reply
+suite: regression
+skill: careerbrew-live-feed
+should: act
+input: "start the live loop for my work tools"
+expect:
+  - "Runs `careerbrew work live start` and uses each source's inbox and since cursor"
+  - "Saves every reply exactly as returned, including an empty one for a quiet source, before `careerbrew work live cycle`"
+  - "Never sends the PM draft without the user's yes"
+---
+id: live-feed-no-sources-asks
+suite: regression
+skill: careerbrew-live-feed
+should: ask
+input: "watch my work tools"
+expect:
+  - "When start says no live sources, asks for a source config file or a plugin with live sources; invents no hosts or channels"
+---
+id: live-feed-refrains-on-roster
+suite: regression
+skill: careerbrew-live-feed
+should: refrain
+input: "add Sam to my team roster"
+expect:
+  - "Hands off to work-companion (`careerbrew work team add`) instead of running a live cycle"
+---
+id: cli-live-status-stopped
+suite: regression
+skill: careerbrew-live-feed
+should: act
+cli: ["work", "live", "status"]
+expect_regex: "live feed: stopped"
+---
+id: live-feed-listening-drafts-only
+suite: regression
+skill: careerbrew-live-feed
+should: act
+input: "the live cycle printed: event 1  needs you  answer  chat: reply draft saved: chat:a1; review notes drafted: review:0f3a"
+expect:
+  - "Rewrites the reply draft into a real reply and saves it with `careerbrew draft replace chat:a1 --file <file>`; never sends, posts, or reacts"
+  - "Does the review with its own tools and saves its notes over `review:0f3a` with `careerbrew draft replace`"
+  - "Tells the user the drafts wait and that they read each with `careerbrew draft show <target>` in their terminal and send it themselves"
+
+---
+id: live-feed-unchanged-fresh-is-not-a-new-pull
+suite: regression
+skill: careerbrew-live-feed
+should: act
+input: "the running loop reports tickets healthy; unchanged, with no not_stored line; what should I do?"
+expect:
+  - "Treats required coverage as healthy within its acquisition limit; does not claim a new pull or store"
+  - "Keeps the next real source pull; never rewrites an old reply merely to renew its timestamp"
+  - "When acquisition becomes stale, pulls with the real tool, including its supported quiet reply; never makes the required source optional"
+---
+id: live-feed-direct-coverage-keeps-adapters-stopped
+suite: regression
+skill: careerbrew-live-feed
+should: act
+input: "work live status --json reports health healthy, mode direct, running false; Today shows my direct intake. Do I need to start the adapters?"
+expect:
+  - "Uses the healthy declared direct path and leaves stopped adapters stopped"
+  - "For the next batch, runs configured tools, retains quiet replies, stores them, then completes one careerbrew work feed cycle"
+  - "Does not treat a local accepted batch as proof of freshly fetching historical upstream data"
+---
+id: live-feed-direct-subset-is-not-coverage
+suite: regression
+skill: careerbrew-live-feed
+should: act
+input: "I stored chat and passed --require chat, but configured required tickets are missing. Can I call this healthy?"
+expect:
+  - "Refuses to shrink configured coverage with --require; requests real tickets acquisition and storage before completing the batch"
+  - "Does not make tickets optional, invent a reply, or certify setup from an arbitrary fresh source"
+---
+id: live-feed-row-review-is-not-acquisition
+suite: regression
+skill: careerbrew-live-feed
+should: act
+input: "new direct activity appeared but Standup says the saved row facts need review; can I just render it again?"
+expect:
+  - "Explains that row-fact review, source acquisition and proof age are separate"
+  - "Checks the row facts before saving a new bundle; does not renew review or proof age by rendering or adding activity"
+  - "Keeps stable titles and aliases; does not expire them at the acquisition limit"
+---
+id: live-feed-later-adapter-error-overrides-old-direct-success
+suite: regression
+skill: careerbrew-live-feed
+should: act
+input: "a later running adapter check failed for required tickets, but an older direct receipt was healthy"
+expect:
+  - "Surfaces the current required failure and follows the fixed repair command"
+  - "Does not hide the error behind the old receipt; only a genuinely newer complete validated direct batch can recover"
+  - "Treats ambiguous, invalid or reversed ordering as unknown or error, never optimistic success"

@@ -1,0 +1,92 @@
+id: hand-of-straights
+order: 126
+pattern: greedy
+difficulty: medium
+title: Deal into runs
+leetcode: hand-of-straights
+lesson: 'The smallest remaining card must start a run, because nothing smaller can absorb it. Count cards,
+  go through values in sorted order, and greedily consume runs starting from the smallest.
+
+  '
+statement: 'Given card values `hand` and a group size `k`, return `True` if the cards can be split into
+  groups of exactly `k` cards, each group being `k` consecutive values.
+
+  '
+function: is_n_straight_hand
+signature: 'def is_n_straight_hand(hand: list[int], k: int) -> bool:'
+starter: "def is_n_straight_hand(hand: list[int], k: int) -> bool:\n    pass\n"
+tests:
+- args:
+  - - 1
+    - 2
+    - 3
+    - 6
+    - 2
+    - 3
+    - 4
+    - 7
+    - 8
+  - 3
+  expected: true
+- args:
+  - - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  - 4
+  expected: false
+  note: count not divisible
+- args:
+  - - 1
+    - 1
+    - 2
+    - 2
+    - 3
+    - 3
+  - 3
+  expected: true
+  note: duplicate runs
+- args:
+  - - 5
+  - 1
+  expected: true
+  note: k of one
+- args:
+  - - 1
+    - 2
+    - 4
+    - 5
+    - 6
+    - 7
+  - 3
+  expected: false
+  note: gap breaks a run
+- args:
+  - []
+  - 2
+  expected: true
+  note: empty hand
+scale:
+  generator: "def make(n):\n    return [list(range(n)), 4]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n log n)
+hints:
+- Which card has no choice about which group it joins?
+- The smallest card must start a run of k. Use a Counter.
+- 'for v in sorted(count): if count[v]: need = count[v]; for w in range(v, v+k): if count[w] < need: return
+  False; count[w] -= need.'
+solution: "from collections import Counter\n\ndef is_n_straight_hand(hand: list[int], k: int) -> bool:\n\
+  \    if len(hand) % k:\n        return False\n    count = Counter(hand)\n    for v in sorted(count):\n\
+  \        need = count[v]\n        if need:\n            for w in range(v, v + k):\n                if\
+  \ count[w] < need:\n                    return False\n                count[w] -= need\n    return True\n"
+pitfalls:
+  edge-case: If len(hand) is not a multiple of k return False at once; k=1 is always True.
+  timeout: Repeatedly scanning for the smallest card and removing from a list is O(n^2); a Counter plus
+    sorted keys is O(n log n).
+  wrong-answer: Starting a group from any card instead of the smallest remaining one can strand low cards
+    that then cannot form a run.
+  exception: Decrementing a missing key in a dict raises KeyError; use Counter or check count[c+i] > 0
+    first.

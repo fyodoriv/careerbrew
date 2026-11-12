@@ -1,0 +1,9 @@
+id: work-start-fresh-instructions
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "/work: the source checkout is behind and yesterday's installed work command misses plugin steps"
+expect:
+  - "Runs careerbrew day start --update-only --json before reading the plan"
+  - "On updated true, re-reads commands/work.md, the careerbrew-work-day skill and changed plugin step files before continuing"
+  - "Preserves dirty or diverged checkouts and owner-edited installed commands; reports failed repairs rather than following stale instructions"

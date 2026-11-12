@@ -1,0 +1,94 @@
+id: find-the-duplicate-number
+order: 42
+pattern: linked list
+difficulty: medium
+title: The repeated index
+leetcode: find-the-duplicate-number
+lesson: |
+  Treat each value as a pointer to the next index: i -> nums[i]. Because one value repeats, two indexes point to the same place and the walk from 0 runs into a cycle whose entrance is the duplicate. Floyd's algorithm finds that entrance in O(n) time and O(1) space without changing the list.
+statement: |
+  `nums` has `n + 1` integers, each between 1 and `n`. Exactly one value repeats (possibly many times). Return it without modifying `nums` and using only O(1) extra space.
+function: find_duplicate
+signature: 'def find_duplicate(nums: list[int]) -> int:'
+starter: |
+  def find_duplicate(nums: list[int]) -> int:
+      pass
+tests:
+- args:
+  - - 1
+    - 3
+    - 4
+    - 2
+    - 2
+  expected: 2
+- args:
+  - - 3
+    - 1
+    - 3
+    - 4
+    - 2
+  expected: 3
+- args:
+  - - 1
+    - 1
+  expected: 1
+  note: smallest input
+- args:
+  - - 2
+    - 2
+    - 2
+    - 2
+    - 2
+  expected: 2
+  note: repeated many times
+- args:
+  - - 1
+    - 4
+    - 4
+    - 2
+    - 4
+  expected: 4
+- args:
+  - - 2
+    - 5
+    - 9
+    - 6
+    - 9
+    - 3
+    - 8
+    - 9
+    - 7
+    - 1
+  expected: 9
+scale:
+  generator: |
+    def make(n):
+        return [list(range(1, n + 1)) + [n // 2]]
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- Can you read the list as a linked list where index i points to nums[i]?
+- 'A repeated value means two arrows enter one node: that node starts a cycle.'
+- 'Phase 1: slow = nums[slow], fast = nums[nums[fast]] until equal. Phase 2: reset one to 0, move both one step until they meet; that is the answer.'
+solution: |
+  def find_duplicate(nums: list[int]) -> int:
+      slow = fast = 0
+      while True:
+          slow, fast = nums[slow], nums[nums[fast]]
+          if slow == fast:
+              break
+      slow = 0
+      while slow != fast:
+          slow, fast = nums[slow], nums[fast]
+      return slow
+pitfalls:
+  edge-case: The duplicate can appear many times, like [2, 2, 2, 2], not just twice; the answer is still
+    2.
+  timeout: Comparing every pair is O(n^2); treat values as next pointers and use Floyd's cycle finding
+    for O(n) time and O(1) space.
+  wrong-answer: Sorting in place modifies the input, which the task forbids, and a set uses O(n) memory;
+    in Floyd's method, the second phase must restart one pointer at index 0, not at the meeting point.
+  exception: Indexing nums[nums[i]] is safe only because values are 1..n; if you start from index 1 or
+    subtract 1 you can go out of range, so start both pointers at nums[0].

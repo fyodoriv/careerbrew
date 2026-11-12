@@ -1,0 +1,5 @@
+[
+  {"id": "p-root", "title": "Career", "path": "Career", "section": "career", "updated": "2025-01-01", "markdown": "# Goal\nSample goal sentence one."},
+  {"id": "p-howto", "title": "How to pass a system design interview?", "path": "Career", "section": "how-to", "updated": "2025-02-02", "markdown": "- Start with requirements\n- Estimate numbers"},
+  {"id": "p-me", "title": "Me@Zzlegacy", "path": "Zzlegacy", "section": "past-job", "updated": "2023-03-03", "markdown": "Sample page text."}
+]

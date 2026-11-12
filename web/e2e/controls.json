@@ -1,0 +1,273 @@
+{
+  "about": "Every control in the web app and the Playwright test that exercises its real effect. web/e2e/controls.spec.ts lists the controls and fails on one with no entry here. Key: \"<view>: <role> <accessible name>\". Value: \"<spec file> › <test title>\". A generated control (one per row, action, or setting) matches a pattern in generated instead.",
+  "controls": {
+    "Actions: button Retry": "blocks.spec.ts › Actions: loading label at once, an error with Retry, the last data on a reload, gaps between cards",
+    "Actions: button Run": "app.spec.ts › Actions: every CLI action runs from the web app with a generated form",
+    "Actions: checkbox fix": "mcp-repair.spec.ts › Actions: GitHub repair honors confirmation and preserves configuration",
+    "Actions: textbox Filter actions": "inputs.spec.ts › Actions: the filter ignores case, and each action in the list opens its generated form",
+    "Actions: textbox quiet_until": "project-quiet.spec.ts › Actions: set and clear a project's quiet date",
+    "Actions: form Run work.project.rules": "project-rules.spec.ts › Actions: project rules require confirmation and read the saved value",
+    "Actions: form Run work.project.rules-set": "project-rules.spec.ts › Actions: project rules require confirmation and read the saved value",
+    "Dashboard: button Close": "inputs.spec.ts › Today and Dashboard: a refused clipboard shows the update to copy by hand, and Close hides it",
+    "Dashboard: button Copy update": "pm-copy.spec.ts › Copy update on Dashboard puts the subject first for email",
+    "Dashboard: button Hide checklist": "inbox.spec.ts › Dashboard: Getting started ticks each step from data, links to where to do it, and Hide checklist hides it",
+    "Dashboard: button Retry": "blocks.spec.ts › Dashboard: loading label at once, an error with Retry, the last data on a reload, gaps between cards",
+    "Dashboard: textbox Update to copy": "inputs.spec.ts › Today and Dashboard: a refused clipboard shows the update to copy by hand, and Close hides it",
+    "Goals: button Add": "inputs.spec.ts › Goals: an interview goal keeps its company; Cancel, Remove, and a long-term Remove change the lists",
+    "Goals: button Add a goal": "app.spec.ts › Goals: only the owner sets them, and the day re-plans at once",
+    "Goals: button Cancel": "inputs.spec.ts › Goals: an interview goal keeps its company; Cancel, Remove, and a long-term Remove change the lists",
+    "Goals: button Remove": "inputs.spec.ts › Goals: an interview goal keeps its company; Cancel, Remove, and a long-term Remove change the lists",
+    "Goals: button Retry": "blocks.spec.ts › Goals: loading label at once, an error with Retry, the last data on a reload, gaps between cards",
+    "Goals: button Save and re-plan": "app.spec.ts › Goals: only the owner sets them, and the day re-plans at once",
+    "Goals: combobox Goal kind": "app.spec.ts › Goals: only the owner sets them, and the day re-plans at once",
+    "Goals: date Goal date": "app.spec.ts › Goals: only the owner sets them, and the day re-plans at once",
+    "Goals: form submits \"Add\"": "inputs.spec.ts › Goals: an interview goal keeps its company; Cancel, Remove, and a long-term Remove change the lists",
+    "Goals: form submits \"Save and re-plan\"": "app.spec.ts › Goals: only the owner sets them, and the day re-plans at once",
+    "Goals: spinbutton Minutes a day": "app.spec.ts › Goals: only the owner sets them, and the day re-plans at once",
+    "Goals: textbox Company": "inputs.spec.ts › Goals: an interview goal keeps its company; Cancel, Remove, and a long-term Remove change the lists",
+    "Goals: textbox Goal title": "app.spec.ts › Goals: only the owner sets them, and the day re-plans at once",
+    "Goals: textbox New long-term goal": "app.spec.ts › Goals: only the owner sets them, and the day re-plans at once",
+    "Goals: textbox Topics": "app.spec.ts › Goals: only the owner sets them, and the day re-plans at once",
+    "Interviews: button Grade typed answer": "app.spec.ts › Interviews: practice by voice records an answer, transcribes it locally, and grades it",
+    "Interviews: button Next question": "inputs.spec.ts › Interviews: Open loop waits for a name, Read question aloud speaks the prompt, Next question clears the graded answer",
+    "Interviews: button Open loop": "app.spec.ts › Interviews: any company opens a derived loop with shared AI guidance",
+    "Interviews: button Read question aloud": "inputs.spec.ts › Interviews: Open loop waits for a name, Read question aloud speaks the prompt, Next question clears the graded answer",
+    "Interviews: button Record answer": "app.spec.ts › Interviews: practice by voice records an answer, transcribes it locally, and grades it",
+    "Interviews: button Retry": "blocks.spec.ts › Interviews: loading label at once, an error with Retry, the last data on a reload, gaps between cards",
+    "Interviews: button Stop and grade": "app.spec.ts › Interviews: practice by voice records an answer, transcribes it locally, and grades it",
+    "Interviews: form submits \"Grade typed answer\"": "app.spec.ts › Interviews: practice by voice records an answer, transcribes it locally, and grades it",
+    "Interviews: search submits \"Open loop\"": "app.spec.ts › Interviews: any company opens a derived loop with shared AI guidance",
+    "Interviews: textbox Any company": "app.spec.ts › Interviews: any company opens a derived loop with shared AI guidance",
+    "Interviews: textbox Typed answer": "app.spec.ts › Interviews: practice by voice records an answer, transcribes it locally, and grades it",
+    "Job hunt: button Remove": "inputs.spec.ts › Job hunt: choose a target and a practice job, then remove them",
+    "Job hunt: button Retry": "blocks.spec.ts › Job hunt: loading label at once, an error with Retry, the last data on a reload, gaps between cards",
+    "Library: button Report": "app.spec.ts › Library: pages are grouped, filterable, and open",
+    "Library: button Retry": "blocks.spec.ts › Library: loading label at once, an error with Retry, the last data on a reload, gaps between cards",
+    "Library: form submits \"Report\"": "app.spec.ts › Library: pages are grouped, filterable, and open",
+    "Library: textbox Filter pages": "app.spec.ts › Library: pages are grouped, filterable, and open",
+    "Library: textbox What is wrong": "app.spec.ts › Library: pages are grouped, filterable, and open",
+    "Notifications: button Dismiss": "notifications.spec.ts › accept a suggestion, snooze a DM, dismiss a page: every notification is actionable here",
+    "Notifications: button Mark read": "notifications.spec.ts › Mark read closes a notification that has no link (US-72)",
+    "Notifications: button Retry": "blocks.spec.ts › Notifications: loading label at once, an error with Retry, the last data on a reload, gaps between cards",
+    "Notifications: button Snooze": "notifications.spec.ts › accept a suggestion, snooze a DM, dismiss a page: every notification is actionable here",
+    "Notifications: button Turn on": "notifications.spec.ts › Turn on switches notifications back on from the view (US-72)",
+    "Practice: button 1 Again": "app.spec.ts › Practice: recall, reveal, grade with keys, and the next card appears",
+    "Practice: button 2 Hard": "inputs.spec.ts › Practice: Hard, Good, and Easy each grade the card, and its explanation takes a report",
+    "Practice: button 3 Good": "inputs.spec.ts › Practice: Hard, Good, and Easy each grade the card, and its explanation takes a report",
+    "Practice: button 4 Easy": "inputs.spec.ts › Practice: Hard, Good, and Easy each grade the card, and its explanation takes a report",
+    "Practice: button Report": "inputs.spec.ts › Practice: Hard, Good, and Easy each grade the card, and its explanation takes a report",
+    "Practice: button Retry": "blocks.spec.ts › Practice: loading label at once, an error with Retry, the last data on a reload, gaps between cards",
+    "Practice: button Show answer (Space)": "app.spec.ts › Practice: recall, reveal, grade with keys, and the next card appears",
+    "Practice: form submits \"Report\"": "inputs.spec.ts › Practice: Hard, Good, and Easy each grade the card, and its explanation takes a report",
+    "Practice: textbox What is wrong": "inputs.spec.ts › Practice: Hard, Good, and Easy each grade the card, and its explanation takes a report",
+    "Reports: button Retry": "blocks.spec.ts › Reports: loading label at once, an error with Retry, the last data on a reload, gaps between cards",
+    "Review: button Retry": "blocks.spec.ts › Review: loading label at once, an error with Retry, the last data on a reload, gaps between cards",
+    "Setup: button Change": "inputs.spec.ts › Setup: Change and Save a setting, Enter saves too, and a bad value names the fix",
+    "Setup: button Pause": "inputs.spec.ts › Setup: the day watcher turns on, pauses, resumes, and turns off",
+    "Setup: button Resume": "inputs.spec.ts › Setup: the day watcher turns on, pauses, resumes, and turns off",
+    "Setup: button Retry": "blocks.spec.ts › Setup: loading label at once, an error with Retry, the last data on a reload, gaps between cards",
+    "Setup: button Save": "inputs.spec.ts › Setup: Change and Save a setting, Enter saves too, and a bad value names the fix",
+    "Setup: button Turn off": "inputs.spec.ts › Setup: the day watcher turns on, pauses, resumes, and turns off",
+    "Setup: button Turn on": "inputs.spec.ts › Setup: the day watcher turns on, pauses, resumes, and turns off",
+    "Sign-in page: button Open a signed-in tab": "signin.spec.ts › rotate-token signs out open tabs; the sign-in page names the command and opens a signed-in tab (issue #141)",
+    "Sign-in page: button Try again": "inputs.spec.ts › Sign-in page: Try again checks the sign-in again, and signs the tab in once the browser has the cookie",
+    "Standup: button Copy standup": "standup.spec.ts › Standup has one context subheading and Copy beside its title, with three nested speaking bullets",
+    "Standup: button Retry": "blocks.spec.ts › Standup: loading label at once, an error with Retry, the last data on a reload, gaps between cards",
+    "Teach me: button 1 Again": "inputs.spec.ts › Teach me: a card step: Show answer, report its explanation, grade Again and Good",
+    "Teach me: button 2 Hard": "app.spec.ts › Teach me: runs a whole flashcard session, one card per step",
+    "Teach me: button 3 Good": "inputs.spec.ts › Teach me: a card step: Show answer, report its explanation, grade Again and Good",
+    "Teach me: button 4 Easy": "app.spec.ts › Teach me: runs a whole flashcard session, one card per step",
+    "Teach me: button Approve": "inputs.spec.ts › Teach me: an agent's request is approved with a note, or rejected",
+    "Teach me: button Drop it": "inputs.spec.ts › Teach me: your own card: keep it, fix it, or drop it",
+    "Teach me: button Got it": "inputs.spec.ts › Teach me: Not yet brings the lesson back, and the repeated mistake asks Got it",
+    "Teach me: button I sent it": "inputs.spec.ts › Teach me: a chosen job's resume: I sent it, or Skip for now",
+    "Teach me: button I understand it": "app.spec.ts › Teach me: confirm a lesson, then solve an exercise with tests, time, and a graded result",
+    "Teach me: button It is right: keep": "inputs.spec.ts › Teach me: your own card: keep it, fix it, or drop it",
+    "Teach me: button Not yet": "inputs.spec.ts › Teach me: Not yet brings the lesson back, and the repeated mistake asks Got it",
+    "Teach me: button Reject": "inputs.spec.ts › Teach me: an agent's request is approved with a note, or rejected",
+    "Teach me: button Report": "inputs.spec.ts › Teach me: a card step: Show answer, report its explanation, grade Again and Good",
+    "Teach me: button Retry": "blocks.spec.ts › Teach me: loading label at once, an error with Retry, the last data on a reload, gaps between cards",
+    "Teach me: button Run and submit": "app.spec.ts › Teach me: confirm a lesson, then solve an exercise with tests, time, and a graded result",
+    "Teach me: button Save my fix": "inputs.spec.ts › Teach me: your own card: keep it, fix it, or drop it",
+    "Teach me: button Send feedback": "inputs.spec.ts › Teach me: written feedback reaches the teacher's list",
+    "Teach me: button Show answer (Space)": "inputs.spec.ts › Teach me: a card step: Show answer, report its explanation, grade Again and Good",
+    "Teach me: button Skip for now": "inputs.spec.ts › Teach me: a chosen job's resume: I sent it, or Skip for now",
+    "Teach me: form submits \"Report\"": "inputs.spec.ts › Teach me: a card step: Show answer, report its explanation, grade Again and Good",
+    "Teach me: form submits \"Send feedback\"": "inputs.spec.ts › Teach me: written feedback reaches the teacher's list",
+    "Teach me: textbox Corrected answer": "inputs.spec.ts › Teach me: your own card: keep it, fix it, or drop it",
+    "Teach me: textbox Explain it back": "app.spec.ts › Teach me: confirm a lesson, then solve an exercise with tests, time, and a graded result",
+    "Teach me: textbox Feedback for the teacher": "inputs.spec.ts › Teach me: written feedback reaches the teacher's list",
+    "Teach me: textbox Note for the agent": "inputs.spec.ts › Teach me: an agent's request is approved with a note, or rejected",
+    "Teach me: textbox What is wrong": "inputs.spec.ts › Teach me: a card step: Show answer, report its explanation, grade Again and Good",
+    "Teach me: textbox Your solution": "app.spec.ts › Teach me: confirm a lesson, then solve an exercise with tests, time, and a graded result",
+    "Today: button Accept": "inputs.spec.ts › Today: answer or skip a question, accept or dismiss a suggestion",
+    "Today: button Accept all": "inbox.spec.ts › Today: each suggestion shows its source, a link, and what Accept and Dismiss do; Accept all accepts a group at once",
+    "Today: button Answer": "inputs.spec.ts › Today: answer or skip a question, accept or dismiss a suggestion",
+    "Today: button Approve goal": "app.spec.ts › Today keeps the daily log: done, plan, PM draft to copy or send, and goal approval in the UI",
+    "Today: button Bring back": "inbox.spec.ts › Today: an ask its source shows done moves to Done elsewhere, and Bring back returns it",
+    "Today: button Cancel": "inbox.spec.ts › Today: Dismiss all asks first, Cancel changes nothing, and Yes dismisses each row of the group",
+    "Today: button Close": "inputs.spec.ts › Today and Dashboard: a refused clipboard shows the update to copy by hand, and Close hides it",
+    "Today: button Copy": "inputs.spec.ts › Today: the PM draft keeps your edits, Reset to draft brings the draft back, Copy copies it",
+    "Today: button Copy update": "pm-copy.spec.ts › Copy update on Today copies the body without the subject for Slack, as Slack-ready text",
+    "Today: button Dismiss": "inputs.spec.ts › Today: answer or skip a question, accept or dismiss a suggestion",
+    "Today: button Dismiss all": "inbox.spec.ts › Today: Dismiss all asks first, Cancel changes nothing, and Yes dismisses each row of the group",
+    "Work: button Next": "app.spec.ts › Work: the watch list shows one section per active project, 5 per page (issue #172)",
+    "Work: button Previous": "app.spec.ts › Work: the watch list shows one section per active project, 5 per page (issue #172)",
+    "Today: button Next": "order-paging.spec.ts › a list longer than its page shows one page and Showing 1–10 of N, and the URL keeps its page and filter across a reload",
+    "Today: button Previous": "order-paging.spec.ts › error case: a page past the end shows the last page, and typed text never lands in the URL",
+    "Today: button Reset to draft": "inputs.spec.ts › Today: the PM draft keeps your edits, Reset to draft brings the draft back, Copy copies it",
+    "Today: button Retry": "blocks.spec.ts › Today: loading label at once, an error with Retry, the last data on a reload, gaps between cards",
+    "Today: button Review each": "inbox.spec.ts › Today: each suggestion shows its source, a link, and what Accept and Dismiss do; Accept all accepts a group at once",
+    "Today: button Skip": "inputs.spec.ts › Today: answer or skip a question, accept or dismiss a suggestion",
+    "Today: button Undo": "feed.spec.ts › Today lists open asks with their source link, and Mark personal runs work feed mark",
+    "Today: button Yes, accept all": "inbox.spec.ts › Today: each suggestion shows its source, a link, and what Accept and Dismiss do; Accept all accepts a group at once",
+    "Today: button Yes, dismiss all": "inbox.spec.ts › Today: Dismiss all asks first, Cancel changes nothing, and Yes dismisses each row of the group",
+    "Today: combobox Earlier day": "inputs.spec.ts › Today: Earlier day shows the log kept for that day",
+    "Today: combobox Filter suggestions by priority": "inbox.spec.ts › Today: filter suggestions by project and priority, sort them, and the URL keeps the choice",
+    "Today: combobox Filter suggestions by project": "inbox.spec.ts › Today: filter suggestions by project and priority, sort them, and the URL keeps the choice",
+    "Today: combobox Sort suggestions": "inbox.spec.ts › Today: filter suggestions by project and priority, sort them, and the URL keeps the choice",
+    "Today: form submits \"Answer\"": "inputs.spec.ts › Today: answer or skip a question, accept or dismiss a suggestion",
+    "Today: textbox PM update": "inputs.spec.ts › Today: the PM draft keeps your edits, Reset to draft brings the draft back, Copy copies it",
+    "Today: textbox Update to copy": "inputs.spec.ts › Today and Dashboard: a refused clipboard shows the update to copy by hand, and Close hides it",
+    "Week: button Add task": "inputs.spec.ts › Week: a new task's hours and due date reach the planner, and Add task waits for a title",
+    "Week: button Retry": "blocks.spec.ts › Week: loading label at once, an error with Retry, the last data on a reload, gaps between cards",
+    "Week: combobox Days to show": "app.spec.ts › Week plans ahead: a new task lands in the schedule",
+    "Week: date Due date": "inputs.spec.ts › Week: a new task's hours and due date reach the planner, and Add task waits for a title",
+    "Week: form submits \"Add task\"": "app.spec.ts › Week plans ahead: a new task lands in the schedule",
+    "Week: spinbutton Hours": "inputs.spec.ts › Week: a new task's hours and due date reach the planner, and Add task waits for a title",
+    "Week: textbox New task": "app.spec.ts › Week plans ahead: a new task lands in the schedule",
+    "Work: button Retry": "blocks.spec.ts › Work: loading label at once, an error with Retry, the last data on a reload, gaps between cards"
+  },
+  "generated": [
+    {
+      "match": "^Dashboard: button Done: .+$",
+      "test": "promises.spec.ts › Commitments lists a promise with its link, who it was made to, and the next step; Done closes it",
+      "why": "one per open promise, named after it"
+    },
+    {
+      "match": "^Dashboard: button Not a promise: .+$",
+      "test": "promises.spec.ts › Not a promise drops a wrong detection and keeps the others",
+      "why": "one per open promise, named after it"
+    },
+    {
+      "match": "^Today: button Not an ask: .+$",
+      "test": "feed.spec.ts › Not an ask and Done close an ask, and Undo opens it again (issue #185)",
+      "why": "one per open ask, named after it"
+    },
+    {
+      "match": "^Today: button Done: .+$",
+      "test": "feed.spec.ts › Not an ask and Done close an ask, and Undo opens it again (issue #185)",
+      "why": "one per open ask, named after it"
+    },
+    {
+      "match": "^Today: button Show (all )?\\d+$",
+      "test": "feed.spec.ts › Past 50 open asks, Today lists the newest first, says Showing 50 of N, and Show all loads the rest (issue #275)",
+      "why": "names how many open asks there are"
+    },
+    {
+      "match": "^Today: button Mark personal: .+$",
+      "test": "feed.spec.ts › Today lists open asks with their source link, and Mark personal runs work feed mark",
+      "why": "one per open ask, named after it"
+    },
+    {
+      "match": "^Today: textbox Answer: .+$",
+      "test": "inputs.spec.ts › Today: answer or skip a question, accept or dismiss a suggestion",
+      "why": "one per open question, named after it"
+    },
+    {
+      "match": "^Today: button Send to Slack( .+)?$",
+      "test": "inputs.spec.ts › Today: Send to Slack posts the update, and the email choice opens a mail draft",
+      "why": "names the pm_slack destination once it is set"
+    },
+    {
+      "match": "^Today: link Email .+$",
+      "test": "inputs.spec.ts › Today: Send to Slack posts the update, and the email choice opens a mail draft",
+      "why": "names the pm_email address (pm_send_via email)"
+    },
+    {
+      "match": "^Today: button (All|[a-z][a-z0-9-]*) \\(\\d+\\)$",
+      "test": "order-paging.spec.ts › a list longer than its page shows one page and Showing 1–10 of N, and the URL keeps its page and filter across a reload",
+      "why": "the suggestions filter: All, then one button per kind, each with its count"
+    },
+    {
+      "match": "^Goals: button Edit .+$",
+      "test": "app.spec.ts › Goals: only the owner sets them, and the day re-plans at once",
+      "why": "one per upcoming goal, named after it"
+    },
+    {
+      "match": "^Goals: button Remove .+$",
+      "test": "inputs.spec.ts › Goals: an interview goal keeps its company; Cancel, Remove, and a long-term Remove change the lists",
+      "why": "one per upcoming goal, named after it"
+    },
+    {
+      "match": "^Job hunt: button Choose .+ as dream$",
+      "test": "app.spec.ts › Job hunt: careerbrew suggests, the owner chooses",
+      "why": "one per suggested posting"
+    },
+    {
+      "match": "^Job hunt: button Choose .+ as (target|practice)$",
+      "test": "inputs.spec.ts › Job hunt: choose a target and a practice job, then remove them",
+      "why": "one per suggested posting and tier"
+    },
+    {
+      "match": "^Notifications: button (Accept|Approve goal)$",
+      "test": "notifications.spec.ts › accept a suggestion, snooze a DM, dismiss a page: every notification is actionable here",
+      "why": "a suggestion's accept button; its label says what accepting does (Approve goal for a goal)"
+    },
+    {
+      "match": "^Notifications: link (Open in .+|See it in Today)$",
+      "test": "notifications.spec.ts › Open in a tool, or See it in Today, marks a notification read (US-72)",
+      "why": "a notification's link, named after the tool it opens"
+    },
+    {
+      "match": "^Setup: textbox New value for \\S+$",
+      "test": "inputs.spec.ts › Setup: Change and Save a setting, Enter saves too, and a bad value names the fix",
+      "why": "one per setting, while it is being changed"
+    },
+    {
+      "match": "^Actions: button [a-z][a-z0-9.-]*$",
+      "test": "inputs.spec.ts › Actions: the filter ignores case, and each action in the list opens its generated form",
+      "why": "one per CLI action, generated from the parser"
+    },
+    {
+      "match": "^Actions: form Run [a-z][a-z0-9.-]*$",
+      "test": "app.spec.ts › Actions: every CLI action runs from the web app with a generated form",
+      "why": "each action's generated form"
+    },
+    {
+      "match": "^Actions: checkbox I understand: it .+$",
+      "test": "inputs.spec.ts › Actions: generated fields of every kind reach the command: text, list, number, whole number, flag, choice, confirm",
+      "why": "the confirm box of an action that changes or sends something hard to undo"
+    },
+    {
+      "match": "^Actions: checkbox [a-z0-9 ]+( \\(required\\))?$",
+      "test": "inputs.spec.ts › Actions: generated fields of every kind reach the command: text, list, number, whole number, flag, choice, confirm",
+      "why": "a generated flag field"
+    },
+    {
+      "match": "^Actions: combobox [a-z0-9_]+$",
+      "test": "inputs.spec.ts › Actions: generated fields of every kind reach the command: text, list, number, whole number, flag, choice, confirm",
+      "why": "a generated choice field"
+    },
+    {
+      "match": "^Actions: spinbutton [a-z0-9_]+$",
+      "test": "inputs.spec.ts › Actions: generated fields of every kind reach the command: text, list, number, whole number, flag, choice, confirm",
+      "why": "a generated number or whole-number field"
+    },
+    {
+      "match": "^Actions: textbox [a-z0-9_]+$",
+      "test": "inputs.spec.ts › Actions: generated fields of every kind reach the command: text, list, number, whole number, flag, choice, confirm",
+      "why": "a generated text or comma-separated list field"
+    },
+    {
+      "match": "^Today: button (Move up|Move down|Remove from ranking|Put back): .+$",
+      "test": "active-now.spec.ts › Today: Active now shows the ranked projects with work priority show's numbers; Up, Remove, and Put back change the ranking",
+      "why": "one per ranked project in Active now, named after it"
+    },
+    {
+      "match": "^Work: button (Move up|Move down|Remove from ranking|Put back): .+$",
+      "test": "active-now.spec.ts › Work: ranked projects come first in Projects with a rank badge, and Down there reorders both lists",
+      "why": "one per ranked project in Active now, named after it"
+    }
+  ]
+}

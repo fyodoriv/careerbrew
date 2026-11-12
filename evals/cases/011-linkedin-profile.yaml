@@ -1,0 +1,22 @@
+id: linkedin-profile-reviews-suspects
+suite: regression
+skill: careerbrew-linkedin-profile
+should: act
+input: "update my LinkedIn experience with this quarter's wins"
+expect:
+  - "Runs `careerbrew work linkedin --show`, walks the suspect-word list, and reminds the user to paste it themselves"
+---
+id: linkedin-profile-refrains-from-posting
+suite: regression
+skill: careerbrew-linkedin-profile
+should: refrain
+input: "post this to LinkedIn for me"
+expect:
+  - "Declines to post; careerbrew never posts"
+---
+id: cli-linkedin-empty
+suite: regression
+skill: careerbrew-linkedin-profile
+should: act
+cli: ["work", "linkedin"]
+expect_regex: "0 bullet\\(s\\)"

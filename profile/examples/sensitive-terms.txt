@@ -1,0 +1,1 @@
+# One term per line: names, codenames, customers. careerbrew blocks them from leaving this folder.

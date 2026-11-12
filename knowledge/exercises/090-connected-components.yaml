@@ -1,0 +1,88 @@
+id: connected-components
+order: 90
+pattern: graphs
+difficulty: medium
+title: Count the clusters
+leetcode: number-of-connected-components-in-an-undirected-graph
+lesson: 'Start with n separate components; every union that joins two different roots reduces the count
+  by one. Union-find with path compression makes this almost linear.
+
+  '
+statement: 'Given `n` nodes labelled 0..n-1 and a list of undirected `edges`, return how many connected
+  components the graph has.
+
+  '
+function: count_components
+signature: 'def count_components(n: int, edges: list[list[int]]) -> int:'
+starter: "def count_components(n: int, edges: list[list[int]]) -> int:\n    pass\n"
+tests:
+- args:
+  - 5
+  - - - 0
+      - 1
+    - - 1
+      - 2
+    - - 3
+      - 4
+  expected: 2
+- args:
+  - 5
+  - - - 0
+      - 1
+    - - 1
+      - 2
+    - - 2
+      - 3
+    - - 3
+      - 4
+  expected: 1
+- args:
+  - 3
+  - []
+  expected: 3
+  note: no edges
+- args:
+  - 1
+  - []
+  expected: 1
+  note: single node
+- args:
+  - 4
+  - - - 0
+      - 1
+    - - 1
+      - 0
+    - - 0
+      - 1
+  expected: 3
+  note: duplicate edges
+- args:
+  - 3
+  - - - 0
+      - 1
+    - - 1
+      - 2
+    - - 2
+      - 0
+  expected: 1
+  note: cycle
+scale:
+  generator: "def make(n):\n    return [n, [[i, i + 1] for i in range(0, n - 1, 2)]]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- How many components are there before any edge is added?
+- Union-find; decrement the count whenever an edge merges two different roots.
+- 'count = n; for a, b: if find(a) != find(b): union; count -= 1'
+solution: "def count_components(n: int, edges: list[list[int]]) -> int:\n    parent = list(range(n))\n\
+  \n    def find(x):\n        while parent[x] != x:\n            parent[x] = parent[parent[x]]\n     \
+  \       x = parent[x]\n        return x\n\n    count = n\n    for a, b in edges:\n        ra, rb = find(a),\
+  \ find(b)\n        if ra != rb:\n            parent[ra] = rb\n            count -= 1\n    return count\n"
+pitfalls:
+  edge-case: Nodes with no edges count as their own components; n with no edges returns n.
+  timeout: DFS from every node without a shared visited set is O(n^2); one visited set or union-find is
+    O(n + E).
+  wrong-answer: Treating edges as directed so a component is split.
+  exception: Recursion on a long chain hits the recursion limit; use union-find or an explicit stack.

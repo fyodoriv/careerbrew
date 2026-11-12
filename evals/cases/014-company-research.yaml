@@ -1,0 +1,30 @@
+id: company-research-sources-every-fact
+suite: regression
+skill: careerbrew-company-research
+should: act
+input: "research how Stripe interviews and add it"
+expect:
+  - "Cites official pages for each loop step and runs scripts/check-sources.py before finishing"
+---
+id: company-research-refrains-on-promo
+suite: regression
+skill: careerbrew-company-research
+should: refrain
+input: "what does it take to get promoted to staff here?"
+expect:
+  - "Hands off to promo-research"
+---
+id: cli-interview-seeded-company
+suite: regression
+skill: careerbrew-company-research
+should: act
+cli: ["interview", "Google"]
+expect_regex: "sourced company loop"
+---
+id: company-research-writes-research-batch-not-generated-files
+suite: regression
+skill: careerbrew-company-research
+should: act
+input: "add Example Co's interview loop"
+expect:
+  - "Writes knowledge/research/interview-research-<batch>.yaml and runs scripts/import-research.py; does not hand-edit knowledge/sources.yaml or knowledge/companies/"

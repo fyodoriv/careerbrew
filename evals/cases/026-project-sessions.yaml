@@ -1,0 +1,120 @@
+id: work-day-project-sessions
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "/work: two projects need real work today, billing and ledger, and both may reply in the same release thread"
+expect:
+  - "Keeps the main session to the work process and opens one session per project with `careerbrew work session open <project> --id <id>`, reusing a project's live session later the same day"
+  - "Has each session report through careerbrew (`work agent event --session`, `work project update`, `work session ask`), never by notes or by asking the user"
+  - "Has a session run `careerbrew work claim take slack-draft:<target> --session <id>` before it drafts in the shared thread, and skip the thread when the claim is refused"
+  - "Batches every session's questions into the one ask after `careerbrew day question recheck`"
+---
+id: work-day-project-session-pr-claim
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "Two open project sessions both need to work on GitHub PR example/tools#17. Coordinate the work."
+expect:
+  - "Has the session claim `pr:example/tools#17` with its open session id and skips the PR if another session holds the claim"
+  - "Does not claim that work-step scheduling enforces session claims"
+---
+id: work-day-approval-note
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "Record a project approval note for billing. Does that prove the current PR head is approved?"
+expect:
+  - "Uses careerbrew work project update billing approval with a one-line note"
+  - "Says the note does not prove approval of the current PR head"
+---
+id: work-day-standing-rules
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "A billing project session has standing rules that may have changed since its last pass. Continue its next pass."
+expect:
+  - "Reads the current rules with careerbrew work project rules billing before beginning the pass"
+  - "Does not infer or bypass the rules if business-data policy refuses the read"
+---
+id: work-day-project-sessions-end-of-day
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "end of day (two project sessions are still live)"
+expect:
+  - "Has each session write its project's handoff with `careerbrew work session handoff <id>`, then runs `careerbrew work session end --all` until it exits 0"
+---
+id: cli-work-session-unknown-fails
+suite: regression
+skill: careerbrew-work-day
+cli: ["work", "agent", "event", "bot", "x", "--session", "no-such-session"]
+expect_regex: "no open session"
+---
+id: work-day-pm-promises-first
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "Yesterday's sent PM Tomorrow list has billing export, an unmatched RFC review, and hiring notes. Only billing is a ranked project. The plan says pm_promises missing is false and gives a session_project for each item."
+expect:
+  - "Covers all open PM promises before ranked or stale projects, counting them first against the existing session cap"
+  - "Reuses a matched project's live session and uses session_project for unmatched promises rather than dropping them"
+  - "Reports every prior promise's verified outcome or blocker in today's PM draft and never invents completion"
+---
+id: work-day-quiet-project
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "Today is Oct 21. Billing has quiet: true and quiet_until: 2026-10-23, but has an open PM promise; ledger is ready to work. Run the project sessions step."
+expect:
+  - "Skips starting or dispatching billing work and does not ask the owner about billing during its quiet period"
+  - "Reports the billing promise as deferred, not completed, and continues independent ledger work"
+  - "Uses billing's saved handoff as the brief on its return date"
+---
+id: work-day-sessions-deliver-ticket-scope
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "The project brief says plan the rollout. The first ticket also requires templates in two repos, a CI check, and an updated skill. A second task waits behind it. One template needs owner approval."
+expect:
+  - "Reads the full first ticket and tracks templates in both repos, the CI check, and the skill as separate scope items; a plan alone is not delivery"
+  - "Delivers and verifies the first task's full scope before starting the second task"
+  - "Batches foreseeable approvals up front and records the blocked template with careerbrew work session ask; continues independent first-task scope without claiming done"
+  - "Reports every scope item as done or not done with verification or an explicit blocker"
+---
+id: work-day-project-session-next-steps
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "A billing project session is replying to the owner. One decision is ready, while implementation continues without further input. Give the session its reply contract."
+expect:
+  - "Ends the owner reply with ranked next steps the owner can approve or pick now"
+  - "Names the autonomous work that continues without inventing an extra owner decision"
+---
+id: work-day-project-session-keeps-watching
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "A project session has a PR waiting for CI and an independent task ready. The host has a working PR monitor. What should the session do before its turn ends?"
+expect:
+  - "Registers a real monitor or another recheck that covers the CI wait, and records any new loop"
+  - "Continues independent work and does not claim an unregistered watch exists"
+  - "Keeps one work-day timer and honors the end-of-day rules"
+---
+id: work-day-project-session-return-to-goal
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "A project session completed a side request, but its main goal still has an unblocked implementation step. What happens next?"
+expect:
+  - "States the main goal status in one line and starts or names the next goal step"
+  - "Does not treat the side request as completion of the main goal"
+---
+id: work-day-pm-outcome-owner-decision
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "A sent PM update suggests that an earlier promise moved. The owner has not approved it. How do you review the outcome and its counts?"
+expect:
+  - "Runs careerbrew work promise outcomes --json and shows the proposal to the owner"
+  - "Does not accept a proposal without the owner's confirmation"
+  - "Names careerbrew work promise stats --days 7 --json for aggregate counts"

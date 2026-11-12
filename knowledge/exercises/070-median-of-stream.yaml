@@ -1,0 +1,136 @@
+id: median-of-stream
+order: 70
+pattern: heap
+difficulty: hard
+title: Running middle value
+leetcode: find-median-from-data-stream
+lesson: 'Split the numbers into a lower half (max-heap) and an upper half (min-heap), keeping sizes within
+  one. The median lives at the heap tops, so add is O(log n) and median is O(1).
+
+  '
+statement: 'Build a class `MedianFinder()` with `add_num(num)` (returns None) and `find_median()` that
+  returns the median of all numbers added so far as a float (the mean of the two middle values when the
+  count is even). find_median is only called after at least one add.
+
+  '
+function: MedianFinder
+signature: "class MedianFinder:\n    def __init__(self): ...\n    def add_num(self, num: int) -> None:\
+  \ ...\n    def find_median(self) -> float: ...\n"
+starter: "class MedianFinder:\n    def __init__(self):\n        pass\n    def add_num(self, num: int)\
+  \ -> None:\n        pass\n    def find_median(self) -> float:\n        pass\n"
+tests:
+- ops:
+  - MedianFinder
+  - add_num
+  - add_num
+  - find_median
+  - add_num
+  - find_median
+  args:
+  - []
+  - - 1
+  - - 2
+  - []
+  - - 3
+  - []
+  expected:
+  - null
+  - null
+  - null
+  - 1.5
+  - null
+  - 2.0
+- ops:
+  - MedianFinder
+  - add_num
+  - find_median
+  args:
+  - []
+  - - -4
+  - []
+  expected:
+  - null
+  - null
+  - -4.0
+  note: single negative value
+- ops:
+  - MedianFinder
+  - add_num
+  - add_num
+  - add_num
+  - add_num
+  - find_median
+  args:
+  - []
+  - - 5
+  - - 5
+  - - 5
+  - - 5
+  - []
+  expected:
+  - null
+  - null
+  - null
+  - null
+  - null
+  - 5.0
+  note: all equal
+- ops:
+  - MedianFinder
+  - add_num
+  - find_median
+  - add_num
+  - find_median
+  - add_num
+  - find_median
+  args:
+  - []
+  - - 10
+  - []
+  - - 1
+  - []
+  - - 0
+  - []
+  expected:
+  - null
+  - null
+  - 10.0
+  - null
+  - 5.5
+  - null
+  - 1.0
+  note: descending input
+- ops:
+  - MedianFinder
+  - add_num
+  - add_num
+  - find_median
+  args:
+  - []
+  - - 1
+  - - 4
+  - []
+  expected:
+  - null
+  - null
+  - null
+  - 2.5
+  note: even count gives a fractional median
+hints:
+- What do you need to know about the numbers below and above the middle?
+- Keep a max-heap for the lower half and a min-heap for the upper half, balanced in size.
+- Push into low, move low's top to high, and if high grows larger move its top back; median from the tops.
+solution: "import heapq\n\nclass MedianFinder:\n    def __init__(self):\n        self.low = []\n     \
+  \   self.high = []\n\n    def add_num(self, num: int) -> None:\n        heapq.heappush(self.low, -num)\n\
+  \        heapq.heappush(self.high, -heapq.heappop(self.low))\n        if len(self.high) > len(self.low):\n\
+  \            heapq.heappush(self.low, -heapq.heappop(self.high))\n\n    def find_median(self) -> float:\n\
+  \        if len(self.low) > len(self.high):\n            return float(-self.low[0])\n        return\
+  \ (-self.low[0] + self.high[0]) / 2\n"
+pitfalls:
+  timeout: Sorting on every find_median call is O(n log n) each time; two heaps give O(log n) add and
+    O(1) median.
+  edge-case: With an even count the median is the average of the two middle values, returned as a float;
+    one value returns itself.
+  wrong-answer: Not rebalancing so one heap is more than one bigger, or forgetting to negate values in
+    the max-heap.
+  exception: Reading the top of an empty heap on the first add; push into the low heap first, then balance.

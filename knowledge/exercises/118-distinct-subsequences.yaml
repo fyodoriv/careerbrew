@@ -1,0 +1,67 @@
+id: distinct-subsequences
+order: 118
+pattern: 2-d dynamic programming
+difficulty: hard
+title: Count hidden copies
+leetcode: distinct-subsequences
+lesson: 'State: ways[j] is how many ways the first j chars of t appear as a subsequence of the prefix
+  of s seen so far. Transition: for each char of s, walking j backwards, ways[j] += ways[j-1] when s''s
+  char equals t[j-1]. Base case: ways[0] = 1, the empty target.
+
+  '
+statement: 'Given strings `s` and `t`, return how many different sets of positions in `s` spell out `t`
+  in order (that is, how many distinct subsequences of `s` equal `t`).
+
+  '
+function: num_distinct
+signature: 'def num_distinct(s: str, t: str) -> int:'
+starter: "def num_distinct(s: str, t: str) -> int:\n    pass\n"
+tests:
+- args:
+  - rabbbit
+  - rabbit
+  expected: 3
+- args:
+  - babgbag
+  - bag
+  expected: 5
+- args:
+  - abc
+  - ''
+  expected: 1
+  note: empty target
+- args:
+  - ''
+  - a
+  expected: 0
+  note: empty source
+- args:
+  - abc
+  - abcd
+  expected: 0
+  note: target longer
+- args:
+  - aaa
+  - a
+  expected: 3
+scale:
+  generator: "def make(n):\n    return [\"ab\" * (n // 2), \"ab\" * (n // 20)]\n"
+  sizes:
+  - 300
+  - 3000
+  expected: O(n^2)
+hints:
+- Each char of s either helps match the next char of t or is skipped.
+- dp[i][j] = dp[i-1][j] + (s[i-1]==t[j-1] ? dp[i-1][j-1]).
+- One array over t; iterate j downwards so each s char is used once per update.
+solution: "def num_distinct(s: str, t: str) -> int:\n    ways = [1] + [0] * len(t)\n    for ch in s:\n\
+  \        for j in range(len(t), 0, -1):\n            if t[j - 1] == ch:\n                ways[j] +=\
+  \ ways[j - 1]\n    return ways[-1]\n"
+pitfalls:
+  edge-case: An empty t matches once in any s; when t is longer than s the answer is 0.
+  timeout: Recursion on (i, j) without memo is exponential on 'aaaa...' strings; a 2D or rolling 1D dp
+    is O(len(s)*len(t)).
+  wrong-answer: Setting dp[i][0]=0 instead of 1 zeroes everything; and in a 1D dp loop j backwards so
+    you don't reuse s[i] twice.
+  exception: IndexError on dp[i-1][j-1] if the table lacks the empty-prefix row and column; size it (m+1)
+    x (n+1).

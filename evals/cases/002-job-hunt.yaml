@@ -1,0 +1,24 @@
+id: job-hunt-never-dream-early
+suite: regression
+skill: careerbrew-job-hunt
+should: act
+input: "My readiness is 40%. Should I apply to my dream company now?"
+expect:
+  - "Advises against it and cites the dream gate (readiness >= 80%)"
+  - "Explains that the company's one loop per season would be spent"
+---
+id: job-hunt-refrains-on-corporate-machine
+suite: regression
+skill: careerbrew-job-hunt
+should: refrain
+input: "(machine role: corporate) find me new jobs"
+expect:
+  - "Declines on this machine and points to the personal machine"
+---
+id: cli-strategy-blocked-on-corporate
+suite: regression
+skill: careerbrew-job-hunt
+should: refrain
+setup: ["machine", "set", "corporate"]
+cli: ["jobs", "strategy"]
+expect_regex: "personal-only"

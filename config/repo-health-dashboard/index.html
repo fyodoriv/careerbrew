@@ -1,0 +1,176 @@
+<style>
+.rh{display:grid;gap:var(--cds-gap-lg);font-family:var(--font-anthropic-sans)}
+.rh-head{display:grid;gap:var(--cds-gap-xs)}
+.rh-head h1{margin:0;font:400 var(--cds-font-size-title) var(--font-anthropic-serif)}
+.rh-head p{margin:0;color:var(--color-fg-muted)}
+.rh-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));gap:var(--cds-gap-md)}
+.rh-tile,.rh-card{background:var(--color-panel);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:var(--cds-pad-lg);min-width:0}
+.rh-tile{display:grid;gap:var(--cds-gap-xs);align-content:start}
+.rh-label{font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+.rh-num{font:400 var(--cds-font-size-title) var(--font-anthropic-serif);font-variant-numeric:tabular-nums}
+.rh-ok{color:var(--color-ok)}.rh-bad{color:var(--color-bad)}
+.rh-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr));gap:var(--cds-gap-md)}
+.rh-card h2{margin:0 0 var(--cds-gap-xs);font-size:var(--cds-font-size-heading);font-weight:var(--cds-font-weight-medium)}
+.rh-card .rh-note{margin:0 0 var(--cds-gap-sm);font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+.rh-chart{min-height:240px;position:relative}
+.rh-tip{position:absolute;pointer-events:none;background:var(--cds-surface-popover);border:1px solid var(--cds-border);border-radius:var(--cds-radius);box-shadow:var(--cds-shadow-popover);padding:var(--cds-pad-xs) var(--cds-pad-sm);font-size:var(--cds-font-size-caption);white-space:nowrap}
+.rh-tip span{color:var(--cds-text-secondary)}
+.rh-tablebox{max-height:28rem;overflow:auto}
+.rh-table{width:100%;border-collapse:collapse;font-size:var(--cds-font-size-body);font-variant-numeric:tabular-nums}
+.rh-table th,.rh-table td{text-align:right;padding:var(--cds-pad-xs) var(--cds-pad-sm);border-bottom:1px solid var(--color-border-line)}
+.rh-table th:first-child,.rh-table td:first-child{text-align:left}
+.rh-table th{position:sticky;top:0;background:var(--color-panel);font-size:var(--cds-font-size-caption);color:var(--color-fg-muted);font-weight:var(--cds-font-weight-medium)}
+.rh-fail{display:flex;align-items:center;justify-content:center;gap:var(--cds-gap-xs);min-height:inherit;color:var(--color-fg-muted);font-size:var(--cds-font-size-caption)}
+.rh-fail i{width:.375rem;height:.375rem;border-radius:50%;background:var(--color-bad)}
+[data-dash-source-state=empty]{color:transparent}
+[data-dash-source-state=refreshing]{opacity:.5;transition:opacity var(--cds-dur-slow)}
+</style>
+<div class="rh">
+  <header class="rh-head" id="top">
+    <h1>careerbrew repo health</h1>
+    <p>Last <span data-source="summary" data-field="window_days" data-row="0" class="dash-skeleton">—</span> days on this machine. <span id="rh-takeaway" data-source="worst_step" class="dash-skeleton">—</span></p>
+  </header>
+
+  <section class="rh-tiles" id="tiles" aria-label="Headline figures">
+    <div class="rh-tile"><span class="rh-label">Step failure rate</span><span class="rh-num dash-skeleton" data-source="summary" data-field="failure_rate" data-row="0">—</span><span class="rh-label">of all gate step runs</span></div>
+    <div class="rh-tile"><span class="rh-label">Gate runs</span><span class="rh-num dash-skeleton" data-source="summary" data-field="gate_runs" data-row="0">—</span><span class="rh-label"><span data-source="summary" data-field="gate_seconds_avg" data-row="0">—</span> s each on average</span></div>
+    <div class="rh-tile"><span class="rh-label">E2E stories passing</span><span class="rh-num dash-skeleton"><span data-source="summary" data-field="e2e_passed" data-row="0">—</span> / <span data-source="summary" data-field="e2e_total" data-row="0">—</span></span><span class="rh-label">in the last e2e run</span></div>
+    <div class="rh-tile"><span class="rh-label">Last checkup</span><span class="rh-num dash-skeleton" id="rh-status" data-source="summary" data-field="checkup_status" data-row="0">—</span><span class="rh-label"><span data-source="summary" data-field="checkup_blockers" data-row="0">—</span> blocker(s), <span data-source="summary" data-field="open_prs" data-row="0">—</span> open PR(s)</span></div>
+  </section>
+
+  <section class="rh-grid">
+    <div class="rh-card" id="by-step">
+      <h2>Failure rate by gate step</h2>
+      <p class="rh-note">Failed runs ÷ runs, per step of <code>scripts/check.sh</code>. A failure can be a bug or a flake.</p>
+      <div class="rh-chart dash-skeleton" id="rh-steps" data-source="steps"></div>
+    </div>
+    <div class="rh-card" id="by-day">
+      <h2>Failed steps per day</h2>
+      <p class="rh-note">Bars: failed step runs. Hover a day for its gate runs.</p>
+      <div class="rh-chart dash-skeleton" id="rh-daily" data-source="daily"></div>
+    </div>
+  </section>
+
+  <section class="rh-card" id="steps-table">
+    <h2>Every gate step</h2>
+    <p class="rh-note">Sorted by failure rate, highest first.</p>
+    <div class="rh-tablebox">
+      <table class="rh-table" data-source="steps" data-row-key="step">
+        <thead><tr><th data-field="step">Step</th><th data-field="runs">Runs</th><th data-field="failed">Failed</th><th data-field="failure_rate">Failure rate</th><th data-field="seconds_avg">Avg seconds</th></tr></thead>
+        <tbody id="rh-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+<script>
+dash.calc("worst_step", {
+  inputs: ["steps"],
+  title: "Step that fails most",
+  description: "The gate step with the highest failure rate in the window.",
+  fn: (steps) => steps.length ? [steps.reduce((a, b) => (Number(b.failure_rate) > Number(a.failure_rate) ? b : a))] : [],
+});
+
+(() => {
+  const pct = d3.format(".1%"), num = d3.format(","), day = d3.utcFormat("%b %-d");
+  const $ = (s) => document.querySelector(s);
+  const fill = (sel, text) => document.querySelectorAll(sel).forEach((el) => { el.textContent = text; el.classList.remove("dash-skeleton"); });
+  const failed = (el) => { el.textContent = ""; el.classList.remove("dash-skeleton"); const d = document.createElement("div"); d.className = "rh-fail"; d.innerHTML = "<i></i>Failed to load"; el.appendChild(d); };
+  const tip = (box) => { let t = box.querySelector(".rh-tip"); if (!t) { t = document.createElement("div"); t.className = "rh-tip"; t.hidden = true; box.appendChild(t); } return t; };
+  const showTip = (box, t, ev, head, line) => {
+    t.replaceChildren(); const h = document.createElement("span"); h.textContent = head; t.append(h, document.createElement("br"), line);
+    t.hidden = false; const rc = box.getBoundingClientRect(); const x = ev.clientX - rc.left, y = ev.clientY - rc.top;
+    t.style.left = Math.min(Math.max(0, x + 12), rc.width - t.offsetWidth) + "px"; t.style.top = Math.max(0, y - t.offsetHeight - 8) + "px";
+  };
+
+  function header() {
+    const s = dash.data("summary"), w = dash.data("worst_step");
+    if (s.status === "ok" && s.data.length) {
+      const r = s.data[0];
+      fill('[data-source="summary"][data-field="window_days"]', String(r.window_days));
+      fill('[data-source="summary"][data-field="failure_rate"]', pct(Number(r.failure_rate)));
+      fill('[data-source="summary"][data-field="gate_runs"]', num(Number(r.gate_runs)));
+      fill('[data-source="summary"][data-field="gate_seconds_avg"]', String(Math.round(Number(r.gate_seconds_avg))));
+      fill('[data-source="summary"][data-field="e2e_passed"]', num(Number(r.e2e_passed)));
+      fill('[data-source="summary"][data-field="e2e_total"]', num(Number(r.e2e_total)));
+      fill('[data-source="summary"][data-field="checkup_blockers"]', num(Number(r.checkup_blockers)));
+      fill('[data-source="summary"][data-field="open_prs"]', num(Number(r.open_prs)));
+      fill('[data-source="summary"][data-field="checkup_status"]', String(r.checkup_status));
+      $("#rh-status").className = "rh-num " + (r.checkup_status === "ok" ? "rh-ok" : r.checkup_status === "blocked" ? "rh-bad" : "");
+      document.querySelectorAll(".rh-tile .dash-skeleton").forEach((el) => el.classList.remove("dash-skeleton"));
+    } else if (s.status === "error") {
+      document.querySelectorAll('[data-source="summary"]').forEach((el) => { el.textContent = "—"; el.classList.remove("dash-skeleton"); });
+    }
+    const el = $("#rh-takeaway");
+    if (w.status === "ok" && w.data.length) { const r = w.data[0]; el.textContent = `${r.step} fails most: ${pct(Number(r.failure_rate))} of its ${num(Number(r.runs))} runs.`; el.classList.remove("dash-skeleton"); }
+    else if (w.status === "ok") { el.textContent = "No gate runs in this window."; el.classList.remove("dash-skeleton"); }
+  }
+
+  function stepsChart() {
+    const box = $("#rh-steps"), d = dash.data("steps");
+    box.querySelectorAll("svg").forEach((n) => n.remove());
+    if (d.status === "error") return failed(box);
+    if (d.status !== "ok") return;
+    box.classList.remove("dash-skeleton"); box.querySelector(".rh-fail")?.remove();
+    const rows = d.data.map((r) => ({ step: String(r.step), rate: Number(r.failure_rate), failed: Number(r.failed), runs: Number(r.runs) })).filter((r) => r.failed > 0);
+    if (!rows.length) { box.textContent = "No failed steps in this window."; return; }
+    const W = Math.max(280, box.clientWidth), bar = 22, gap = 8, H = rows.length * (bar + gap) + 28;
+    box.style.minHeight = H + "px";
+    const svg = d3.select(box).append("svg").attr("width", "100%").attr("viewBox", `0 0 ${W} ${H}`);
+    const probe = svg.append("text").attr("font-size", 12);
+    const left = d3.max(rows, (r) => { probe.text(r.step); return probe.node().getComputedTextLength(); }) + 12;
+    probe.text(pct(d3.max(rows, (r) => r.rate))); const right = probe.node().getComputedTextLength() + 10; probe.remove();
+    const x = d3.scaleLinear([0, d3.max(rows, (r) => r.rate)], [left, W - right]);
+    const t = tip(box);
+    rows.forEach((r, i) => {
+      const y = i * (bar + gap);
+      svg.append("text").attr("x", left - 8).attr("y", y + bar / 2).attr("dy", "0.35em").attr("text-anchor", "end").attr("font-size", 12).attr("fill", "var(--color-fg)").text(r.step);
+      svg.append("rect").attr("x", left).attr("y", y).attr("height", bar).attr("width", Math.max(2, x(r.rate) - left)).attr("rx", 4)
+        .attr("fill", i === 0 ? "var(--cds-chart-status-critical)" : dash.colors[0])
+        .on("mousemove", (ev) => showTip(box, t, ev, r.step, `${pct(r.rate)} (${num(r.failed)} of ${num(r.runs)} runs)`))
+        .on("mouseleave", () => { t.hidden = true; });
+      svg.append("text").attr("x", x(r.rate) + 6).attr("y", y + bar / 2).attr("dy", "0.35em").attr("font-size", 12).attr("fill", "var(--color-fg-muted)").text(pct(r.rate));
+    });
+  }
+
+  function dailyChart() {
+    const box = $("#rh-daily"), d = dash.data("daily");
+    box.querySelectorAll("svg").forEach((n) => n.remove());
+    if (d.status === "error") return failed(box);
+    if (d.status !== "ok") return;
+    box.classList.remove("dash-skeleton"); box.querySelector(".rh-fail")?.remove();
+    const rows = d.data.map((r) => ({ day: new Date(String(r.day).slice(0, 10)), failed: Number(r.failed_steps), runs: Number(r.gate_runs) }));
+    if (!rows.length) { box.textContent = "No gate runs in this window."; return; }
+    const W = Math.max(280, box.clientWidth), H = 240, m = { t: 10, r: 8, b: 26, l: 30 };
+    const svg = d3.select(box).append("svg").attr("width", "100%").attr("viewBox", `0 0 ${W} ${H}`);
+    const x = d3.scaleBand(rows.map((r) => r.day), [m.l, W - m.r]).padding(0.25);
+    const y = d3.scaleLinear([0, Math.max(1, d3.max(rows, (r) => r.failed))], [H - m.b, m.t]).nice();
+    y.ticks(4).forEach((v) => {
+      svg.append("line").attr("x1", m.l).attr("x2", W - m.r).attr("y1", y(v)).attr("y2", y(v)).attr("stroke", "var(--cds-chart-grid)");
+      svg.append("text").attr("x", m.l - 6).attr("y", y(v)).attr("dy", "0.35em").attr("text-anchor", "end").attr("font-size", 11).attr("fill", "var(--color-fg-muted)").text(v);
+    });
+    const every = Math.ceil(rows.length / Math.max(2, Math.floor((W - m.l) / 60)));
+    rows.forEach((r, i) => { if (i % every === 0) svg.append("text").attr("x", x(r.day) + x.bandwidth() / 2).attr("y", H - 8).attr("text-anchor", "middle").attr("font-size", 11).attr("fill", "var(--color-fg-muted)").text(day(r.day)); });
+    const t = tip(box);
+    rows.forEach((r) => {
+      svg.append("rect").attr("x", x(r.day)).attr("width", x.bandwidth()).attr("y", y(r.failed)).attr("height", Math.max(0, y(0) - y(r.failed))).attr("rx", 4)
+        .attr("fill", r.failed ? "var(--cds-chart-status-critical)" : dash.colors[0]);
+      svg.append("rect").attr("x", x(r.day)).attr("width", x.bandwidth()).attr("y", m.t).attr("height", H - m.b - m.t).attr("fill", "transparent")
+        .on("mousemove", (ev) => showTip(box, t, ev, day(r.day), `${num(r.failed)} failed step(s), ${num(r.runs)} gate run(s)`))
+        .on("mouseleave", () => { t.hidden = true; });
+    });
+  }
+
+  function table() {
+    const body = $("#rh-tbody"), d = dash.data("steps");
+    body.replaceChildren();
+    if (d.status !== "ok") return;
+    d.data.forEach((r) => {
+      const tr = document.createElement("tr");
+      [String(r.step), num(Number(r.runs)), num(Number(r.failed)), pct(Number(r.failure_rate)), String(r.seconds_avg)].forEach((v) => { const td = document.createElement("td"); td.textContent = v; tr.appendChild(td); });
+      body.appendChild(tr);
+    });
+  }
+
+  dash.onData(() => { header(); stepsChart(); dailyChart(); table(); });
+})();
+</script>

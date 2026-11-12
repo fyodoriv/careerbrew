@@ -1,0 +1,1084 @@
+[
+  {
+    "calls": [
+      {
+        "arguments_sha256": "f5d1974587e1108785745a7bdcc6750cc141a46f62e2418c85ced4b5f16c5314",
+        "function": "careerbrew.store.read_json",
+        "purpose": "primary",
+        "returned": {
+          "entries": [
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "count"
+              },
+              "value": {
+                "decimal": "0",
+                "kind": "int"
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "missing"
+              },
+              "value": {
+                "kind": "bool",
+                "value": true
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "nothing"
+              },
+              "value": {
+                "kind": "null"
+              }
+            }
+          ],
+          "kind": "map"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/missing.json",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "1",
+    "no_op_identity_preserved": null,
+    "role": "reader"
+  },
+  {
+    "calls": [
+      {
+        "arguments_sha256": "e61938a2d88f1573fe3b54a9febd97a33c30f288194ea9f8ddb972476914a747",
+        "function": "careerbrew.store.write_text",
+        "purpose": "primary",
+        "returned": {
+          "kind": "null"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/text.txt",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "2",
+    "no_op_identity_preserved": null,
+    "role": "writer"
+  },
+  {
+    "calls": [
+      {
+        "arguments_sha256": "56226d1c113186180854ffc7c6fd2af916d032970547817a219cfdc9e7819714",
+        "function": "careerbrew.store.read_text",
+        "purpose": "primary",
+        "returned": {
+          "encoding": "sha256",
+          "kind": "str",
+          "sha256": "1581ff7ad2ff0694ff0b9a143126c956527a753713748f23ae1d4b351f95b8f6",
+          "utf8_bytes": "41"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/text.txt",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "2",
+    "no_op_identity_preserved": null,
+    "role": "reader"
+  },
+  {
+    "calls": [
+      {
+        "arguments_sha256": "03bfed155fd158e5bc94c3ad550dd7d5f0d01ab55da31a3eebc63fbbf0a2f3e7",
+        "function": "careerbrew.store.write_json",
+        "purpose": "primary",
+        "returned": {
+          "kind": "null"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/record.json",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "3",
+    "no_op_identity_preserved": null,
+    "role": "writer"
+  },
+  {
+    "calls": [
+      {
+        "arguments_sha256": "5b42ca47a2f68a05bcf4e9a7e1ee44730e7282042c9c4f03f977cbce426a096c",
+        "function": "careerbrew.store.read_json",
+        "purpose": "primary",
+        "returned": {
+          "entries": [
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "large"
+              },
+              "value": {
+                "decimal": "1208925819614629174706179",
+                "kind": "int"
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "null"
+              },
+              "value": {
+                "kind": "null"
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "one"
+              },
+              "value": {
+                "decimal": "1",
+                "kind": "int"
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "tag_map"
+              },
+              "value": {
+                "entries": [
+                  {
+                    "key": {
+                      "encoding": "literal",
+                      "kind": "str",
+                      "value": "iso"
+                    },
+                    "value": {
+                      "encoding": "literal",
+                      "kind": "str",
+                      "value": "not-a-date"
+                    }
+                  },
+                  {
+                    "key": {
+                      "encoding": "literal",
+                      "kind": "str",
+                      "value": "kind"
+                    },
+                    "value": {
+                      "encoding": "literal",
+                      "kind": "str",
+                      "value": "date"
+                    }
+                  }
+                ],
+                "kind": "map"
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "truth"
+              },
+              "value": {
+                "kind": "bool",
+                "value": true
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "z"
+              },
+              "value": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "café"
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "zeros"
+              },
+              "value": {
+                "items": [
+                  {
+                    "bits": "8000000000000000",
+                    "kind": "float64"
+                  },
+                  {
+                    "bits": "0000000000000000",
+                    "kind": "float64"
+                  }
+                ],
+                "kind": "list"
+              }
+            }
+          ],
+          "kind": "map"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/record.json",
+          "root": "owned"
+        }
+      },
+      {
+        "arguments_sha256": "5b42ca47a2f68a05bcf4e9a7e1ee44730e7282042c9c4f03f977cbce426a096c",
+        "function": "careerbrew.store.read_text",
+        "purpose": "serialized-bytes",
+        "returned": {
+          "encoding": "sha256",
+          "kind": "str",
+          "sha256": "c0c44e8831d29c46b1bc59cb74bdf0fdeeae154ea3be05feacba628a21109a32",
+          "utf8_bytes": "205"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/record.json",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "3",
+    "no_op_identity_preserved": null,
+    "role": "reader"
+  },
+  {
+    "calls": [
+      {
+        "arguments_sha256": "d0c53ba489798b8c5fc4be92bf17bdc9d660b2213130fb9e114b4dbc1af09d0c",
+        "function": "careerbrew.store.write_yaml",
+        "purpose": "primary",
+        "returned": {
+          "kind": "null"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/record.yaml",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "4",
+    "no_op_identity_preserved": null,
+    "role": "writer"
+  },
+  {
+    "calls": [
+      {
+        "arguments_sha256": "1b7286687aad552f7c382de162bab2b2a9e581938fe4c403e4549c84bb21a303",
+        "function": "careerbrew.store.read_yaml",
+        "purpose": "primary",
+        "returned": {
+          "entries": [
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "at"
+              },
+              "value": {
+                "iso": "2026-03-01T09:30:00+00:00",
+                "kind": "datetime"
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "count"
+              },
+              "value": {
+                "decimal": "8",
+                "kind": "int"
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "date"
+              },
+              "value": {
+                "iso": "2026-03-01",
+                "kind": "date"
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "enabled"
+              },
+              "value": {
+                "kind": "bool",
+                "value": true
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "literal"
+              },
+              "value": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "yes"
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "tag_map"
+              },
+              "value": {
+                "entries": [
+                  {
+                    "key": {
+                      "encoding": "literal",
+                      "kind": "str",
+                      "value": "iso"
+                    },
+                    "value": {
+                      "encoding": "literal",
+                      "kind": "str",
+                      "value": "not-a-date"
+                    }
+                  },
+                  {
+                    "key": {
+                      "encoding": "literal",
+                      "kind": "str",
+                      "value": "kind"
+                    },
+                    "value": {
+                      "encoding": "literal",
+                      "kind": "str",
+                      "value": "date"
+                    }
+                  }
+                ],
+                "kind": "map"
+              }
+            }
+          ],
+          "kind": "map"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/record.yaml",
+          "root": "owned"
+        }
+      },
+      {
+        "arguments_sha256": "1b7286687aad552f7c382de162bab2b2a9e581938fe4c403e4549c84bb21a303",
+        "function": "careerbrew.store.read_text",
+        "purpose": "serialized-bytes",
+        "returned": {
+          "encoding": "sha256",
+          "kind": "str",
+          "sha256": "2606486e561d4a3047d6072930839a9fd73d118df91c9fb671b2af028f989f24",
+          "utf8_bytes": "125"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/record.yaml",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "4",
+    "no_op_identity_preserved": null,
+    "role": "reader"
+  },
+  {
+    "calls": [
+      {
+        "arguments_sha256": "f929f314e71ba24c5465aa36e2c3f11840bb3fd32c6ae4f5b1fc1222c57ce0b5",
+        "function": "careerbrew.store.write_jsonl",
+        "purpose": "primary",
+        "returned": {
+          "kind": "null"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/rows.jsonl",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "5",
+    "no_op_identity_preserved": null,
+    "role": "writer"
+  },
+  {
+    "calls": [
+      {
+        "arguments_sha256": "88ee744c26aa0fe19e324b51d739302f2d5fdd0257e4815f6b41ba2e1156ec10",
+        "function": "careerbrew.store.read_jsonl",
+        "purpose": "primary",
+        "returned": {
+          "items": [
+            {
+              "entries": [
+                {
+                  "key": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "id"
+                  },
+                  "value": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "a"
+                  }
+                },
+                {
+                  "key": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "value"
+                  },
+                  "value": {
+                    "decimal": "1",
+                    "kind": "int"
+                  }
+                }
+              ],
+              "kind": "map"
+            },
+            {
+              "entries": [
+                {
+                  "key": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "id"
+                  },
+                  "value": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "b"
+                  }
+                },
+                {
+                  "key": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "value"
+                  },
+                  "value": {
+                    "decimal": "2",
+                    "kind": "int"
+                  }
+                }
+              ],
+              "kind": "map"
+            }
+          ],
+          "kind": "list"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/rows.jsonl",
+          "root": "owned"
+        }
+      },
+      {
+        "arguments_sha256": "66759aebf94ca4989113186f469b0b6524f151973d056ff8e5254d0de72cb47e",
+        "function": "careerbrew.store.read_text",
+        "purpose": "serialized-bytes",
+        "returned": {
+          "encoding": "sha256",
+          "kind": "str",
+          "sha256": "73cfa46dba5cd6ea9d65e98cca64cc3d27464520eca840f9e1f29e65a0230777",
+          "utf8_bytes": "48"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/rows.jsonl",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "5",
+    "no_op_identity_preserved": null,
+    "role": "reader"
+  },
+  {
+    "calls": [
+      {
+        "arguments_sha256": "21f50755a7184435b64b1239a79dad9c0cfde3a28f341d33a91ba1c93fe5ad04",
+        "function": "careerbrew.store.append_jsonl",
+        "purpose": "primary",
+        "returned": {
+          "decimal": "1",
+          "kind": "int"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/rows.jsonl",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "6",
+    "no_op_identity_preserved": null,
+    "role": "writer"
+  },
+  {
+    "calls": [
+      {
+        "arguments_sha256": "88ee744c26aa0fe19e324b51d739302f2d5fdd0257e4815f6b41ba2e1156ec10",
+        "function": "careerbrew.store.read_jsonl",
+        "purpose": "primary",
+        "returned": {
+          "items": [
+            {
+              "entries": [
+                {
+                  "key": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "id"
+                  },
+                  "value": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "a"
+                  }
+                },
+                {
+                  "key": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "value"
+                  },
+                  "value": {
+                    "decimal": "1",
+                    "kind": "int"
+                  }
+                }
+              ],
+              "kind": "map"
+            },
+            {
+              "entries": [
+                {
+                  "key": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "id"
+                  },
+                  "value": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "b"
+                  }
+                },
+                {
+                  "key": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "value"
+                  },
+                  "value": {
+                    "decimal": "2",
+                    "kind": "int"
+                  }
+                }
+              ],
+              "kind": "map"
+            },
+            {
+              "entries": [
+                {
+                  "key": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "id"
+                  },
+                  "value": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "c"
+                  }
+                },
+                {
+                  "key": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "value"
+                  },
+                  "value": {
+                    "decimal": "3",
+                    "kind": "int"
+                  }
+                }
+              ],
+              "kind": "map"
+            }
+          ],
+          "kind": "list"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/rows.jsonl",
+          "root": "owned"
+        }
+      },
+      {
+        "arguments_sha256": "66759aebf94ca4989113186f469b0b6524f151973d056ff8e5254d0de72cb47e",
+        "function": "careerbrew.store.read_text",
+        "purpose": "serialized-bytes",
+        "returned": {
+          "encoding": "sha256",
+          "kind": "str",
+          "sha256": "b372a256403873dbc5c1c60f47aa5b997894e8af68ec07e95a380a9e5629945c",
+          "utf8_bytes": "72"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/rows.jsonl",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "6",
+    "no_op_identity_preserved": null,
+    "role": "reader"
+  },
+  {
+    "calls": [
+      {
+        "arguments_sha256": "39dee9ba0994e88f0afe1233187a16a7c1c25005d3d791f227d37145cee5339e",
+        "function": "careerbrew.store.upsert_jsonl",
+        "purpose": "primary",
+        "returned": {
+          "items": [
+            {
+              "decimal": "0",
+              "kind": "int"
+            },
+            {
+              "decimal": "1",
+              "kind": "int"
+            }
+          ],
+          "kind": "tuple"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/rows.jsonl",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "7",
+    "no_op_identity_preserved": null,
+    "role": "writer"
+  },
+  {
+    "calls": [
+      {
+        "arguments_sha256": "88ee744c26aa0fe19e324b51d739302f2d5fdd0257e4815f6b41ba2e1156ec10",
+        "function": "careerbrew.store.read_jsonl",
+        "purpose": "primary",
+        "returned": {
+          "items": [
+            {
+              "entries": [
+                {
+                  "key": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "id"
+                  },
+                  "value": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "a"
+                  }
+                },
+                {
+                  "key": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "value"
+                  },
+                  "value": {
+                    "decimal": "1",
+                    "kind": "int"
+                  }
+                }
+              ],
+              "kind": "map"
+            },
+            {
+              "entries": [
+                {
+                  "key": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "id"
+                  },
+                  "value": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "b"
+                  }
+                },
+                {
+                  "key": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "value"
+                  },
+                  "value": {
+                    "decimal": "20",
+                    "kind": "int"
+                  }
+                }
+              ],
+              "kind": "map"
+            },
+            {
+              "entries": [
+                {
+                  "key": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "id"
+                  },
+                  "value": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "c"
+                  }
+                },
+                {
+                  "key": {
+                    "encoding": "literal",
+                    "kind": "str",
+                    "value": "value"
+                  },
+                  "value": {
+                    "decimal": "3",
+                    "kind": "int"
+                  }
+                }
+              ],
+              "kind": "map"
+            }
+          ],
+          "kind": "list"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/rows.jsonl",
+          "root": "owned"
+        }
+      },
+      {
+        "arguments_sha256": "66759aebf94ca4989113186f469b0b6524f151973d056ff8e5254d0de72cb47e",
+        "function": "careerbrew.store.read_text",
+        "purpose": "serialized-bytes",
+        "returned": {
+          "encoding": "sha256",
+          "kind": "str",
+          "sha256": "912818664acdd5a1908a7303b0d382b81c3b4cb3d9ece0d8abd17b050f90213a",
+          "utf8_bytes": "73"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/rows.jsonl",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "7",
+    "no_op_identity_preserved": null,
+    "role": "reader"
+  },
+  {
+    "calls": [
+      {
+        "arguments_sha256": "e61938a2d88f1573fe3b54a9febd97a33c30f288194ea9f8ddb972476914a747",
+        "function": "careerbrew.store.write_text_if_changed",
+        "purpose": "primary",
+        "returned": {
+          "kind": "bool",
+          "value": false
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/text.txt",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "8",
+    "no_op_identity_preserved": true,
+    "role": "writer"
+  },
+  {
+    "calls": [
+      {
+        "arguments_sha256": "56226d1c113186180854ffc7c6fd2af916d032970547817a219cfdc9e7819714",
+        "function": "careerbrew.store.read_text",
+        "purpose": "primary",
+        "returned": {
+          "encoding": "sha256",
+          "kind": "str",
+          "sha256": "1581ff7ad2ff0694ff0b9a143126c956527a753713748f23ae1d4b351f95b8f6",
+          "utf8_bytes": "41"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/text.txt",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "8",
+    "no_op_identity_preserved": null,
+    "role": "reader"
+  },
+  {
+    "calls": [
+      {
+        "arguments_sha256": "03bfed155fd158e5bc94c3ad550dd7d5f0d01ab55da31a3eebc63fbbf0a2f3e7",
+        "function": "careerbrew.store.write_json_if_changed",
+        "purpose": "primary",
+        "returned": {
+          "kind": "bool",
+          "value": false
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/record.json",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "9",
+    "no_op_identity_preserved": true,
+    "role": "writer"
+  },
+  {
+    "calls": [
+      {
+        "arguments_sha256": "5b42ca47a2f68a05bcf4e9a7e1ee44730e7282042c9c4f03f977cbce426a096c",
+        "function": "careerbrew.store.read_json",
+        "purpose": "primary",
+        "returned": {
+          "entries": [
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "large"
+              },
+              "value": {
+                "decimal": "1208925819614629174706179",
+                "kind": "int"
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "null"
+              },
+              "value": {
+                "kind": "null"
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "one"
+              },
+              "value": {
+                "decimal": "1",
+                "kind": "int"
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "tag_map"
+              },
+              "value": {
+                "entries": [
+                  {
+                    "key": {
+                      "encoding": "literal",
+                      "kind": "str",
+                      "value": "iso"
+                    },
+                    "value": {
+                      "encoding": "literal",
+                      "kind": "str",
+                      "value": "not-a-date"
+                    }
+                  },
+                  {
+                    "key": {
+                      "encoding": "literal",
+                      "kind": "str",
+                      "value": "kind"
+                    },
+                    "value": {
+                      "encoding": "literal",
+                      "kind": "str",
+                      "value": "date"
+                    }
+                  }
+                ],
+                "kind": "map"
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "truth"
+              },
+              "value": {
+                "kind": "bool",
+                "value": true
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "z"
+              },
+              "value": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "café"
+              }
+            },
+            {
+              "key": {
+                "encoding": "literal",
+                "kind": "str",
+                "value": "zeros"
+              },
+              "value": {
+                "items": [
+                  {
+                    "bits": "8000000000000000",
+                    "kind": "float64"
+                  },
+                  {
+                    "bits": "0000000000000000",
+                    "kind": "float64"
+                  }
+                ],
+                "kind": "list"
+              }
+            }
+          ],
+          "kind": "map"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/record.json",
+          "root": "owned"
+        }
+      },
+      {
+        "arguments_sha256": "5b42ca47a2f68a05bcf4e9a7e1ee44730e7282042c9c4f03f977cbce426a096c",
+        "function": "careerbrew.store.read_text",
+        "purpose": "serialized-bytes",
+        "returned": {
+          "encoding": "sha256",
+          "kind": "str",
+          "sha256": "c0c44e8831d29c46b1bc59cb74bdf0fdeeae154ea3be05feacba628a21109a32",
+          "utf8_bytes": "205"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/record.json",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "9",
+    "no_op_identity_preserved": null,
+    "role": "reader"
+  },
+  {
+    "calls": [
+      {
+        "arguments_sha256": "14cd1aa29e850cb44311acdb2aa9c0a8dec2319a997555f4a305ef3589e642bd",
+        "function": "careerbrew.store.write_text_if_changed",
+        "purpose": "primary",
+        "returned": {
+          "kind": "bool",
+          "value": true
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/text.txt",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "10",
+    "no_op_identity_preserved": null,
+    "role": "writer"
+  },
+  {
+    "calls": [
+      {
+        "arguments_sha256": "56226d1c113186180854ffc7c6fd2af916d032970547817a219cfdc9e7819714",
+        "function": "careerbrew.store.read_text",
+        "purpose": "primary",
+        "returned": {
+          "encoding": "literal",
+          "kind": "str",
+          "value": "changed café\n"
+        },
+        "target": {
+          "kind": "path",
+          "relative": "data/contract/text.txt",
+          "root": "owned"
+        }
+      }
+    ],
+    "case": "10",
+    "no_op_identity_preserved": null,
+    "role": "reader"
+  }
+]

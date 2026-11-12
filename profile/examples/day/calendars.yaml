@@ -1,0 +1,5 @@
+# Calendars careerbrew reads (read-only) to plan your day. Links are secrets: store them with
+# `careerbrew secret set careerbrew.ics.personal` and reference them as keychain:...
+calendars: []
+#  - {kind: ics, url: keychain:careerbrew.ics.personal, me: [you@example.com]}   # Google/Fastmail/Proton/iCloud private ICS link; `me`: your addresses, so a meeting you organized is one you led
+#  - {kind: graph, token: keychain:careerbrew.graph}      # Outlook / Microsoft 365, Calendars.ReadBasic

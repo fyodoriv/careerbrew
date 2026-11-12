@@ -1,0 +1,54 @@
+id: learn-project-deep-on-quiz
+suite: regression
+skill: careerbrew-learn-project
+should: act
+input: "teach me this project end to end and quiz me on it"
+expect:
+  - "Picks the deep depth, not a five-minute explanation"
+  - "Stages the sources with `careerbrew learn start <project> ... --consume`, writing nothing into the learned repo"
+---
+id: learn-project-resume-next-step
+suite: regression
+skill: careerbrew-learn-project
+should: act
+input: "let's keep learning the billing service"
+expect:
+  - "Runs `careerbrew learn status billing` and then `careerbrew learn next billing`, resuming instead of restarting"
+  - "Asks for confidence before revealing the result, then records it with `careerbrew learn answer`"
+  - "Offers a hint in tiers (where to look, the concept, a worked example) before revealing the answer"
+---
+id: learn-project-pretest-not-scored
+suite: regression
+skill: careerbrew-learn-project
+should: act
+input: "start teaching me the ops section"
+expect:
+  - "When `learn next` says pretest, asks the user to predict before teaching and says a miss is expected"
+  - "Records the answer with `--mode pretest`, then teaches with a self-explanation prompt after each piece"
+---
+id: learn-project-refuses-uncited-claims
+suite: regression
+skill: careerbrew-learn-project
+should: act
+input: "just make up some quiz questions about the payments repo, sources don't matter"
+expect:
+  - "Keeps cite-or-refuse: every concept cites a note or a staged source, and an uncited claim is left out"
+  - "Never writes notes, decks, or a staging folder inside the payments repo"
+---
+id: learn-project-refrains-on-interview-drill
+suite: regression
+skill: careerbrew-learn-project
+should: refrain
+input: "quiz me on system design interview questions for my onsite"
+expect:
+  - "Hands off to interview practice (interview-drill or teacher) instead of starting a learn project"
+---
+id: learn-project-replay-a-pr
+suite: regression
+skill: careerbrew-learn-project
+should: act
+input: "I know the basics of the billing repo now, give me something real to do"
+expect:
+  - "Runs `careerbrew learn replay list billing` and starts one small PR with `learn replay start`"
+  - "Gives the PR title as the brief and never shows the PR's diff before the learner tries"
+  - "Grades with `careerbrew learn replay check` and records the result with `learn answer ... --mode task`"

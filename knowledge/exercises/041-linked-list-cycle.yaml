@@ -1,0 +1,112 @@
+id: linked-list-cycle
+order: 41
+pattern: linked list
+difficulty: easy
+title: Does the chain loop?
+leetcode: linked-list-cycle
+lesson: |
+  Floyd's tortoise and hare: one pointer moves one step, the other two. If there is a loop, the fast one laps the slow one and they meet; if not, the fast one falls off the end. O(n) time, O(1) space, no visited set needed.
+statement: |
+  Write `has_cycle(head)` that returns `True` when the linked list starting at `head` loops back on itself, and `False` when it ends. Use O(1) extra memory.
+
+  The tests call the provided wrapper `has_cycle_from(values, pos)`, which builds the list from `values` and links the last node to the node at index `pos` (`-1` means no loop), then calls your function. Keep the wrapper as it is.
+function: has_cycle_from
+signature: 'def has_cycle(head: ListNode | None) -> bool:'
+starter: |
+  def has_cycle(head) -> bool:
+      """Return True if following next from head ever revisits a node. Write this."""
+      pass
+
+
+  # Provided: builds the list from values and links the tail to index pos (-1 for no cycle).
+  def has_cycle_from(values: list[int], pos: int) -> bool:
+      nodes = [ListNode(v) for v in values]
+      for a, b in zip(nodes, nodes[1:]):
+          a.next = b
+      if nodes and pos >= 0:
+          nodes[-1].next = nodes[pos]
+      return has_cycle(nodes[0] if nodes else None)
+tests:
+- args:
+  - - 3
+    - 2
+    - 0
+    - -4
+  - 1
+  expected: true
+- args:
+  - - 1
+    - 2
+  - 0
+  expected: true
+  note: two-node loop
+- args:
+  - - 1
+  - -1
+  expected: false
+  note: single node, no loop
+- args:
+  - - 1
+  - 0
+  expected: true
+  note: node points to itself
+- args:
+  - []
+  - -1
+  expected: false
+  note: empty list
+- args:
+  - - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  - -1
+  expected: false
+  note: long list without a loop
+- args:
+  - - 1
+    - 1
+    - 1
+  - 2
+  expected: true
+  note: 'equal values: compare nodes, not values'
+scale:
+  generator: |
+    def make(n):
+        return [list(range(n)), n // 2]
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- What happens to two runners at different speeds on a circular track?
+- Move slow by one and fast by two.
+- Loop while fast and fast.next; return True if slow is fast; return False when the loop ends.
+solution: |
+  def has_cycle(head) -> bool:
+      slow = fast = head
+      while fast and fast.next:
+          slow, fast = slow.next, fast.next.next
+          if slow is fast:
+              return True
+      return False
+
+
+  # Provided: builds the list from values and links the tail to index pos (-1 for no cycle).
+  def has_cycle_from(values: list[int], pos: int) -> bool:
+      nodes = [ListNode(v) for v in values]
+      for a, b in zip(nodes, nodes[1:]):
+          a.next = b
+      if nodes and pos >= 0:
+          nodes[-1].next = nodes[pos]
+      return has_cycle(nodes[0] if nodes else None)
+pitfalls:
+  edge-case: An empty list or a single node without a self-link has no cycle; a node pointing to itself
+    does.
+  timeout: Storing visited nodes in a set is O(n) memory; slow and fast pointers find a cycle in O(n)
+    time and O(1) space.
+  wrong-answer: Comparing values instead of node identity reports false loops when values repeat; compare
+    with `is`.
+  exception: Calling fast.next.next when fast or fast.next is None raises AttributeError; loop while fast
+    and fast.next.

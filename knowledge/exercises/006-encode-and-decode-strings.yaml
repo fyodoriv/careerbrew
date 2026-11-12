@@ -1,0 +1,70 @@
+id: encode-and-decode-strings
+order: 6
+pattern: arrays and hashing
+difficulty: medium
+title: Pack strings into one
+leetcode: encode-and-decode-strings
+lesson: |
+  A delimiter alone breaks as soon as a string contains it. Prefix each piece with its length and a separator, so the decoder reads a number, then exactly that many characters, whatever they are. Length-prefixing is how real wire formats frame data.
+statement: |
+  Write `encode(strs)` that turns a list of strings into a single string, and `decode(s)` that turns it back into the original list. Strings may contain any characters, including digits, `#`, and commas. The checker calls `round_trip(strs)`, which must return `decode(encode(strs))`; keep it as given in the starter.
+function: round_trip
+signature: "def round_trip(strs: list[str]) -> list[str]:"
+starter: |
+  def encode(strs: list[str]) -> str:
+      pass
+
+
+  def decode(s: str) -> list[str]:
+      pass
+
+
+  def round_trip(strs: list[str]) -> list[str]:
+      encoded = encode(strs)
+      assert isinstance(encoded, str)
+      return decode(encoded)
+tests:
+  - {args: [["hello", "world"]], expected: ["hello", "world"]}
+  - {args: [[]], expected: [], note: empty list}
+  - {args: [[""]], expected: [""], note: one empty string}
+  - {args: [["", "", ""]], expected: ["", "", ""], note: several empty strings}
+  - {args: [["3#ab", "#", "12,3"]], expected: ["3#ab", "#", "12,3"], note: strings containing digits and separators}
+  - {args: [["a"]], expected: ["a"], note: single element}
+scale:
+  generator: |
+    def make(n):
+        return [["ab#1"] * n]
+  sizes: [10000, 100000]
+  expected: O(n)
+hints:
+  - How can the decoder know where one string ends, if any character may appear inside it?
+  - Write each string's length before it, followed by a marker, then the string itself.
+  - "encode: ''.join(f'{len(w)}#{w}' for w in strs). decode: read digits up to '#', take that many characters, repeat."
+solution: |
+  def encode(strs: list[str]) -> str:
+      return "".join(f"{len(w)}#{w}" for w in strs)
+
+
+  def decode(s: str) -> list[str]:
+      out, i = [], 0
+      while i < len(s):
+          j = s.index("#", i)
+          n = int(s[i:j])
+          out.append(s[j + 1 : j + 1 + n])
+          i = j + 1 + n
+      return out
+
+
+  def round_trip(strs: list[str]) -> list[str]:
+      encoded = encode(strs)
+      assert isinstance(encoded, str)
+      return decode(encoded)
+pitfalls:
+  edge-case: 'An empty list and a list holding one empty string must decode differently: encode [""] as
+    "0#" and [] as "".'
+  timeout: Rebuilding the output with += inside a nested loop, or scanning the rest of the string for
+    each piece, gets quadratic; read length prefixes and slice in one O(n) pass.
+  wrong-answer: A plain delimiter fails when a string contains it; prefix each string with its length
+    and a separator, and read exactly that many characters.
+  exception: Calling int() on the whole remainder, or splitting on '#' inside a string, raises ValueError;
+    find the first '#' from the current index and parse only the digits before it.

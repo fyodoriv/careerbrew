@@ -1,0 +1,7 @@
+[
+ {"id": "c-1", "text": "Senior Backend Engineer", "hostedUrl": "https://example.com/contoso/c-1", "categories": {"location": "Remote"}, "workplaceType": "remote",
+  "descriptionPlain": "Python, SQL, AWS, observability. Own services end to end.", "lists": [{"text": "Nice to have", "content": "<li>Terraform</li><li>Rust</li>"}],
+  "salaryRange": {"min": 170000, "max": 200000, "currency": "USD"}},
+ {"id": "c-2", "text": "Senior Data Engineer", "hostedUrl": "https://example.com/contoso/c-2", "categories": {"location": "Sample Town"}, "workplaceType": "onsite",
+  "descriptionPlain": "Kafka, SQL, Python.", "lists": []}
+]

@@ -1,0 +1,7 @@
+id: behavioral
+criteria:
+  - {id: star, text: Followed STAR with a clear situation and task, cues: [situation, task, context, the goal was]}
+  - {id: ownership, text: Focused on own actions ("I"), not the team's, cues: ["i decided", "i led", "i built", "i wrote", "i proposed", "i owned", "i took"]}
+  - {id: result, text: Gave a measurable result, cues: ["%", percent, reduced, increased, cut, saved, faster, result, outcome]}
+  - {id: tradeoff, text: Named a trade-off or conflict and how it was resolved, cues: [trade-off, tradeoff, conflict, disagreed, disagreement, instead of, at the cost]}
+  - {id: learning, text: Ended with a lesson or what they would do differently, cues: [learned, lesson, "next time", differently, would change]}

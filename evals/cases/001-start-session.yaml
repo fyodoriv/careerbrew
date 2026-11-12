@@ -1,0 +1,48 @@
+id: start-session-proposes-one-step
+suite: regression
+skill: careerbrew-start-session
+should: act
+input: "start careerbrew"
+expect:
+  - "Runs `careerbrew machine show` and `careerbrew review` first"
+  - "Proposes exactly one next step with the exact command"
+---
+id: start-session-refrains-on-trivia
+suite: regression
+skill: careerbrew-start-session
+should: refrain
+input: "what is 2 + 2?"
+expect:
+  - "Answers directly without loading the session ritual"
+---
+id: cli-init-creates-private-files
+suite: regression
+skill: careerbrew-start-session
+should: act
+cli: ["init"]
+expect_regex: "created \\d+ file\\(s\\)"
+---
+id: start-session-ends-with-the-run-page
+suite: regression
+skill: careerbrew-start-session
+should: act
+input: "start careerbrew"
+expect:
+  - "Reads `careerbrew report latest --json`, opens the page with `careerbrew open --report latest`, and never publishes a personal page"
+  - "Asks which next action to take, with the page's Next items as the options, and recommends one"
+---
+id: cli-review-ends-with-its-run-page
+suite: regression
+skill: careerbrew-start-session
+should: act
+cli: ["review"]
+expect_regex: "\\Apage: .*/out/reports/review-\\d{8}-\\d{6}\\.html\\nreview: (ok|blocked): \\d+ metric\\(s\\): [^\\n]*; \\d+ done[^\\n]*\\n\\Z"
+---
+id: start-session-sets-owner-profile-without-editor
+suite: regression
+skill: careerbrew-start-session
+should: act
+input: "Set my name to Synthetic Name and employer to Synthetic Employer."
+expect:
+  - "Uses `careerbrew data set profile.yaml` with the supplied name and employer"
+  - "Uses only the supplied values and does not use command arguments for secrets"

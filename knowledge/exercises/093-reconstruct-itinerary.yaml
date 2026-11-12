@@ -1,0 +1,114 @@
+id: reconstruct-itinerary
+order: 93
+pattern: advanced graphs
+difficulty: hard
+title: Use every ticket once
+leetcode: reconstruct-itinerary
+lesson: 'This is an Eulerian path: every edge must be used exactly once. Hierholzer''s algorithm walks
+  greedily, and when a node has no outgoing edges left it is appended to the route; reversing that post-order
+  gives the path. Sorting destinations makes the greedy walk pick the alphabetically smallest route.
+
+  '
+statement: 'You hold a pile of one-way flight tickets `tickets`, each a pair `[from, to]` of airport codes.
+  Starting at `"JFK"`, build a route that uses every ticket exactly once. If several routes work, return
+  the one that is smallest when the airport lists are compared alphabetically. A valid route always exists.
+
+  '
+function: find_itinerary
+signature: 'def find_itinerary(tickets: list[list[str]]) -> list[str]:'
+starter: "def find_itinerary(tickets: list[list[str]]) -> list[str]:\n    pass\n"
+tests:
+- args:
+  - - - MUC
+      - LHR
+    - - JFK
+      - MUC
+    - - SFO
+      - SJC
+    - - LHR
+      - SFO
+  expected:
+  - JFK
+  - MUC
+  - LHR
+  - SFO
+  - SJC
+- args:
+  - - - JFK
+      - SFO
+    - - JFK
+      - ATL
+    - - SFO
+      - ATL
+    - - ATL
+      - JFK
+    - - ATL
+      - SFO
+  expected:
+  - JFK
+  - ATL
+  - JFK
+  - SFO
+  - ATL
+  - SFO
+  note: several valid routes, pick the smallest
+- args:
+  - - - JFK
+      - AAA
+  expected:
+  - JFK
+  - AAA
+  note: single ticket
+- args:
+  - - - JFK
+      - KUL
+    - - JFK
+      - NRT
+    - - NRT
+      - JFK
+  expected:
+  - JFK
+  - NRT
+  - JFK
+  - KUL
+  note: smallest first choice is a dead end
+- args:
+  - - - JFK
+      - AAA
+    - - AAA
+      - JFK
+    - - JFK
+      - AAA
+    - - AAA
+      - JFK
+  expected:
+  - JFK
+  - AAA
+  - JFK
+  - AAA
+  - JFK
+  note: duplicate tickets
+scale:
+  generator: "def make(n):\n    return [[[\"JFK\", \"A\"]] + [[\"A\", \"B\"], [\"B\", \"A\"]] * n]\n"
+  sizes:
+  - 2000
+  - 20000
+  expected: O(n log n)
+hints:
+- A greedy walk that always picks the smallest destination can get stuck. How do you recover without backtracking?
+- 'Use Hierholzer: DFS consuming edges; add a node to the answer only after all its edges are used.'
+- 'Sort tickets in reverse, build adjacency stacks, iterative DFS: while stack top has edges, push next;
+  else pop into route; reverse route.'
+solution: "from collections import defaultdict\n\ndef find_itinerary(tickets: list[list[str]]) -> list[str]:\n\
+  \    graph = defaultdict(list)\n    for a, b in sorted(tickets, reverse=True):\n        graph[a].append(b)\n\
+  \    stack, route = [\"JFK\"], []\n    while stack:\n        if graph[stack[-1]]:\n            stack.append(graph[stack[-1]].pop())\n\
+  \        else:\n            route.append(stack.pop())\n    return route[::-1]\n"
+pitfalls:
+  wrong: Greedy smallest-first without post-order can strand unused tickets.
+  edge-case: A dead-end airport that is visited lexically first must be placed last, e.g. JFK->KUL, JFK->NRT,
+    NRT->JFK gives JFK, NRT, JFK, KUL.
+  timeout: Trying every ordering with backtracking and list copies is exponential; Hierholzer's walk with
+    sorted destinations is O(E log E).
+  wrong-answer: Greedy smallest-first without post-order can strand unused tickets.
+  exception: Popping from a missing airport raises KeyError; use defaultdict(list) and check the list
+    is non-empty.

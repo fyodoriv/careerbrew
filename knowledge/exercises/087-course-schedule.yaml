@@ -1,0 +1,88 @@
+id: course-schedule
+order: 87
+pattern: graphs
+difficulty: medium
+title: Can you finish every course?
+leetcode: course-schedule
+lesson: 'Courses and prerequisites form a directed graph; finishing them all is possible exactly when
+  there is no cycle. Kahn''s algorithm (repeatedly take courses with no remaining prerequisites) detects
+  that in O(V + E).
+
+  '
+statement: 'There are `num_courses` courses numbered 0..n-1. Each pair `[a, b]` in `prerequisites` means
+  b must be taken before a. Return True if all courses can be completed.
+
+  '
+function: can_finish
+signature: 'def can_finish(num_courses: int, prerequisites: list[list[int]]) -> bool:'
+starter: "def can_finish(num_courses: int, prerequisites: list[list[int]]) -> bool:\n    pass\n"
+tests:
+- args:
+  - 2
+  - - - 1
+      - 0
+  expected: true
+- args:
+  - 2
+  - - - 1
+      - 0
+    - - 0
+      - 1
+  expected: false
+  note: two-course cycle
+- args:
+  - 1
+  - []
+  expected: true
+  note: no prerequisites
+- args:
+  - 3
+  - - - 1
+      - 0
+    - - 2
+      - 1
+    - - 0
+      - 2
+  expected: false
+  note: three-course cycle
+- args:
+  - 1
+  - - - 0
+      - 0
+  expected: false
+  note: self loop
+- args:
+  - 4
+  - - - 1
+      - 0
+    - - 2
+      - 0
+    - - 3
+      - 1
+    - - 3
+      - 2
+  expected: true
+  note: diamond
+scale:
+  generator: "def make(n):\n    return [n, [[i + 1, i] for i in range(n - 1)]]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- What shape of prerequisites makes finishing impossible?
+- Count incoming edges; repeatedly take a course with zero remaining prerequisites.
+- 'Kahn: indegree array, queue of zeros, pop and decrement neighbours; success if every course is popped'
+solution: "from collections import deque\n\ndef can_finish(num_courses: int, prerequisites: list[list[int]])\
+  \ -> bool:\n    nxt = [[] for _ in range(num_courses)]\n    indeg = [0] * num_courses\n    for a, b\
+  \ in prerequisites:\n        nxt[b].append(a)\n        indeg[a] += 1\n    q = deque(i for i in range(num_courses)\
+  \ if indeg[i] == 0)\n    done = 0\n    while q:\n        c = q.popleft()\n        done += 1\n      \
+  \  for a in nxt[c]:\n            indeg[a] -= 1\n            if indeg[a] == 0:\n                q.append(a)\n\
+  \    return done == num_courses\n"
+pitfalls:
+  edge-case: No prerequisites means True, and a self-loop like [1, 1] means False.
+  timeout: DFS without a 'done' state revisits nodes and becomes exponential; three-color DFS or Kahn's
+    in-degree BFS is O(V + E).
+  wrong-answer: Using one visited set for both 'on the current path' and 'finished', which reports cycles
+    that are not there.
+  exception: Recursive DFS on a long chain hits the recursion limit; use Kahn's algorithm with a deque.

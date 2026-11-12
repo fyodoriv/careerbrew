@@ -1,0 +1,25 @@
+# Model routing for careerbrew. Code reads this one file; nothing else names a model.
+# Order: local first, then free hosted, then paid. Personal or business data uses only
+# routes with private_data: true. A plugin policy can narrow the allowed routes further.
+# Every LLM step has a deterministic fallback, so careerbrew works with no model at all.
+routes:
+  - name: local
+    provider: ollama            # OpenAI-compatible endpoint
+    base_url: http://localhost:11434/v1
+    model: llama3.1:8b
+    private_data: true
+  - name: free-hosted
+    provider: cloudflare-workers-ai
+    base_url: https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/v1
+    model: "@cf/meta/llama-3.1-8b-instruct"
+    api_key_env: CLOUDFLARE_API_TOKEN
+    private_data: false
+  - name: paid
+    provider: anthropic
+    base_url: https://api.anthropic.com/v1
+    model: claude-sonnet-5-5
+    api_key_env: ANTHROPIC_API_KEY
+    private_data: false         # set true only after you accept the provider's data terms
+judge:                          # EVALS_LLM=1 evals/run.sh (src/careerbrew/judge.py, evals/README.md)
+  route: local                  # eval grader; a paid judge only for disagreements
+  answer_route: local           # answers the eval cases the judge grades (synthetic input only)

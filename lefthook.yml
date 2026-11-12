@@ -1,0 +1,19 @@
+# Git hooks (https://github.com/evilmartians/lefthook). scripts/setup.sh installs them
+# when lefthook is on PATH. Cheap checks first; keep pre-push under 10 seconds.
+source_dir: hooks/lefthook
+pre-commit:
+  commands:
+    secrets:
+      run: command -v gitleaks >/dev/null 2>&1 || { echo "gitleaks missing (fix - brew install gitleaks)"; exit 1; }; gitleaks git --staged --no-banner --redact -l warn
+    leaks:
+      run: scripts/leak-check.sh --staged
+    docs:
+      run: scripts/check-docs.sh
+pre-push:
+  scripts:
+    "privacy.sh":
+      runner: bash
+      use_stdin: true
+  commands:
+    fast-gate:
+      run: scripts/check.sh fast

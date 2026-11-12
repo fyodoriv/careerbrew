@@ -1,0 +1,129 @@
+id: reverse-nodes-in-k-group
+order: 45
+pattern: linked list
+difficulty: hard
+title: Flip every k nodes
+leetcode: reverse-nodes-in-k-group
+lesson: |
+  Process the list in blocks: check that k nodes remain, reverse exactly those k, and stitch the block between the previous block's tail and the next block's head. A dummy node in front makes the first block like any other. O(n) time, O(1) space.
+statement: |
+  Given the head of a linked list and a positive integer `k`, reverse the nodes in each consecutive block of `k`. A final block shorter than `k` stays as it is. Change links, not values, and return the new head.
+function: reverse_k_group
+signature: 'def reverse_k_group(head: ListNode | None, k: int) -> ListNode | None:'
+starter: |
+  def reverse_k_group(head, k):
+      pass
+tests:
+- args:
+  - list:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  - 2
+  expected:
+    list:
+    - 2
+    - 1
+    - 4
+    - 3
+    - 5
+- args:
+  - list:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  - 3
+  expected:
+    list:
+    - 3
+    - 2
+    - 1
+    - 4
+    - 5
+  note: short tail left alone
+- args:
+  - list:
+    - 1
+    - 2
+    - 3
+  - 1
+  expected:
+    list:
+    - 1
+    - 2
+    - 3
+  note: k = 1 changes nothing
+- args:
+  - list:
+    - 1
+    - 2
+    - 3
+    - 4
+  - 4
+  expected:
+    list:
+    - 4
+    - 3
+    - 2
+    - 1
+  note: k equals length
+- args:
+  - list:
+    - 1
+    - 2
+  - 3
+  expected:
+    list:
+    - 1
+    - 2
+  note: k larger than the list
+- args:
+  - list: []
+  - 2
+  expected:
+    list: []
+  note: empty
+scale:
+  generator: |
+    def make(n):
+        head = None
+        for v in range(n, 0, -1):
+            head = ListNode(v, head)
+        return [head, 3]
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- Before reversing a block, how do you know it is full?
+- Keep group_prev (the node before the block); walk k steps to find the block's end.
+- Reverse the k nodes, pointing the first at the node after the block; then group_prev.next = new block head, and group_prev = old block head.
+solution: |
+  def reverse_k_group(head, k):
+      dummy = ListNode(0, head)
+      group_prev = dummy
+      while True:
+          end = group_prev
+          for _ in range(k):
+              end = end.next
+              if not end:
+                  return dummy.next
+          after = end.next
+          prev, cur = after, group_prev.next
+          while cur is not after:
+              cur.next, prev, cur = prev, cur, cur.next
+          first = group_prev.next
+          group_prev.next = end
+          group_prev = first
+pitfalls:
+  edge-case: The last group shorter than k stays in its original order, and k = 1 returns the list unchanged.
+  timeout: Counting the rest of the list before every group is O(n^2/k); check only the next k nodes before
+    flipping, which is O(n).
+  wrong-answer: Not reconnecting the previous group's tail to the new head of the flipped group; keep
+    a pointer to the node before each group, starting at a dummy.
+  exception: Walking k steps without checking for None raises AttributeError on a short last group; stop
+    and leave it as is when you hit None.

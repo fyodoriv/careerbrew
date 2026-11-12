@@ -1,0 +1,52 @@
+id: container-with-most-water
+order: 13
+pattern: two pointers
+difficulty: medium
+title: Widest tallest tank
+leetcode: container-with-most-water
+lesson: |
+  Start with the widest pair of walls. The shorter wall limits the area, and moving the taller one inward can never help, so always move the shorter one. Each step rules out a wall for good, so one pass is enough.
+statement: |
+  Given a list `height` of non-negative integers, each value is a vertical wall at that position. Pick two walls; the water they hold is the distance between them times the shorter wall. Return the largest amount any pair can hold.
+function: max_area
+signature: "def max_area(height: list[int]) -> int:"
+starter: |
+  def max_area(height: list[int]) -> int:
+      pass
+tests:
+  - {args: [[1, 8, 6, 2, 5, 4, 8, 3, 7]], expected: 49}
+  - {args: [[1, 1]], expected: 1, note: two walls}
+  - {args: [[0, 0, 0]], expected: 0, note: all zero}
+  - {args: [[4, 3, 2, 1, 4]], expected: 16, note: equal ends win}
+  - {args: [[1, 2, 1]], expected: 2}
+  - {args: [[2, 9, 9, 2]], expected: 9, note: tall walls close together}
+scale:
+  generator: |
+    def make(n):
+        return [[(i * 7919) % 1000 for i in range(n)]]
+  sizes: [20000, 200000]
+  expected: O(n)
+hints:
+  - Begin with the two walls farthest apart. Which one is holding you back?
+  - Move the pointer at the shorter wall inward, tracking the best area seen.
+  - "while l < r: best = max(best, (r - l) * min(h[l], h[r])); if h[l] < h[r]: l += 1 else: r -= 1"
+solution: |
+  def max_area(height: list[int]) -> int:
+      l, r = 0, len(height) - 1
+      best = 0
+      while l < r:
+          best = max(best, (r - l) * min(height[l], height[r]))
+          if height[l] < height[r]:
+              l += 1
+          else:
+              r -= 1
+      return best
+pitfalls:
+  edge-case: Two bars is the smallest input, and the best tank may be wide and short, like [1, 1] gives
+    1, not 0.
+  timeout: Trying every pair of walls is O(n^2); start at both ends and move only the shorter wall for
+    O(n).
+  wrong-answer: Using the taller wall for the height, or moving the taller wall; area is min(h[l], h[r])
+    * (r - l), and only moving the shorter one can help.
+  exception: Moving both pointers in one step can make them cross and index outside the list; move one
+    per step and loop while l < r.

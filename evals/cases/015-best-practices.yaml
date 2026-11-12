@@ -1,0 +1,22 @@
+id: best-practices-loaded-first
+suite: regression
+skill: careerbrew-best-practices
+should: act
+input: "start careerbrew and plan my day"
+expect:
+  - "Loads best-practices before the start-session and day-planner steps, and ends by appending a dated lesson"
+---
+id: best-practices-refrains-alone
+suite: regression
+skill: careerbrew-best-practices
+should: refrain
+input: "what does the best-practices skill say about sources?"
+expect:
+  - "Answers from the skill text without running a careerbrew workflow"
+---
+id: cli-interview-patterns-shared-first
+suite: regression
+skill: careerbrew-best-practices
+should: act
+cli: ["interview-patterns"]
+expect_regex: "typical order: recruiter-screen"

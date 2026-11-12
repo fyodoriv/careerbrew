@@ -1,0 +1,133 @@
+{
+  "schema": "careerbrew-http-handler-v1",
+  "token": "synthetic-http-contract-token",
+  "canary": "synthetic-http-capture-canary-9173",
+  "cases": [
+    {
+      "name": "actions",
+      "method": "GET",
+      "path": "/api/actions",
+      "status": 200
+    },
+    {
+      "name": "missing-token",
+      "method": "GET",
+      "path": "/api/actions",
+      "status": 401
+    },
+    {
+      "name": "wrong-token",
+      "method": "GET",
+      "path": "/api/actions",
+      "status": 401
+    },
+    {
+      "name": "bad-host",
+      "method": "GET",
+      "path": "/api/actions",
+      "status": 403
+    },
+    {
+      "name": "localhost",
+      "method": "GET",
+      "path": "/api/actions",
+      "status": 200
+    },
+    {
+      "name": "unknown-get",
+      "method": "GET",
+      "path": "/api/not-a-real-endpoint",
+      "status": 404
+    },
+    {
+      "name": "unknown-post",
+      "method": "POST",
+      "path": "/api/not-a-real-endpoint",
+      "status": 404
+    },
+    {
+      "name": "missing-cookie",
+      "method": "GET",
+      "path": "/api/session",
+      "status": 401
+    },
+    {
+      "name": "set-cookie",
+      "method": "POST",
+      "path": "/api/session",
+      "status": 200
+    },
+    {
+      "name": "restore-cookie",
+      "method": "GET",
+      "path": "/api/session",
+      "status": 200
+    },
+    {
+      "name": "set-cross-site",
+      "method": "POST",
+      "path": "/api/session",
+      "status": 403
+    },
+    {
+      "name": "restore-cross-site",
+      "method": "GET",
+      "path": "/api/session",
+      "status": 403
+    },
+    {
+      "name": "localhost-cookie",
+      "method": "POST",
+      "path": "/api/session",
+      "status": 200
+    },
+    {
+      "name": "wrong-session-token",
+      "method": "POST",
+      "path": "/api/session",
+      "status": 401
+    },
+    {
+      "name": "unknown-session",
+      "method": "GET",
+      "path": "/api/session/unknown",
+      "status": 404
+    },
+    {
+      "name": "unknown-action",
+      "method": "POST",
+      "path": "/api/actions/not-a-real-action",
+      "status": 400
+    },
+    {
+      "name": "invalid-values",
+      "method": "POST",
+      "path": "/api/actions/config.set",
+      "status": 400
+    },
+    {
+      "name": "malformed-json",
+      "method": "POST",
+      "path": "/api/timing",
+      "status": 400
+    },
+    {
+      "name": "array-json",
+      "method": "POST",
+      "path": "/api/timing",
+      "status": 400
+    },
+    {
+      "name": "oversized-request",
+      "method": "POST",
+      "path": "/api/timing",
+      "status": 400
+    },
+    {
+      "name": "ping",
+      "method": "GET",
+      "path": "/api/ping",
+      "status": 200
+    }
+  ]
+}

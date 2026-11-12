@@ -1,0 +1,89 @@
+id: binary-search
+order: 28
+pattern: binary search
+difficulty: easy
+title: Find it by halving
+leetcode: binary-search
+lesson: |
+  Binary search keeps an interval that must contain the target if it exists, and halves it each step by comparing with the middle. With inclusive bounds lo..hi the loop runs while lo <= hi, giving O(log n).
+statement: |
+  `nums` is sorted ascending with distinct values. Return the index of `target`, or `-1` if it is not present. Aim for O(log n).
+function: search
+signature: 'def search(nums: list[int], target: int) -> int:'
+starter: |
+  def search(nums: list[int], target: int) -> int:
+      pass
+tests:
+- args:
+  - - -1
+    - 0
+    - 3
+    - 5
+    - 9
+    - 12
+  - 9
+  expected: 4
+- args:
+  - - -1
+    - 0
+    - 3
+    - 5
+    - 9
+    - 12
+  - 2
+  expected: -1
+  note: absent, in the middle
+- args:
+  - - 5
+  - 5
+  expected: 0
+  note: single element hit
+- args:
+  - - 5
+  - 1
+  expected: -1
+  note: single element miss
+- args:
+  - []
+  - 3
+  expected: -1
+  note: empty
+- args:
+  - - 1
+    - 3
+    - 5
+    - 7
+  - 1
+  expected: 0
+  note: first index
+- args:
+  - - 1
+    - 3
+    - 5
+    - 7
+  - 7
+  expected: 3
+  note: last index
+hints:
+- 'The list is sorted: what does comparing with the middle tell you?'
+- Keep lo and hi; look at mid = (lo + hi) // 2.
+- 'If nums[mid] < target: lo = mid + 1; elif greater: hi = mid - 1; else return mid.'
+solution: |
+  def search(nums: list[int], target: int) -> int:
+      lo, hi = 0, len(nums) - 1
+      while lo <= hi:
+          mid = (lo + hi) // 2
+          if nums[mid] == target:
+              return mid
+          if nums[mid] < target:
+              lo = mid + 1
+          else:
+              hi = mid - 1
+      return -1
+pitfalls:
+  edge-case: An empty list or a missing target returns -1, and a one-element list must still be checked.
+  timeout: A linear scan or nums.index() is O(n); halve the range each step for O(log n).
+  wrong-answer: Using `while lo < hi` with hi = len(nums) - 1 skips the last candidate; use lo <= hi,
+    and move lo = mid + 1 or hi = mid - 1 so the loop ends.
+  exception: Setting hi = len(nums) with `lo <= hi` reads nums[len(nums)] and raises IndexError; pick
+    one convention and keep hi in range.

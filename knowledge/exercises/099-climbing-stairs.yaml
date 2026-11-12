@@ -1,0 +1,53 @@
+id: climbing-stairs
+order: 99
+pattern: 1-d dynamic programming
+difficulty: easy
+title: Steps of one or two
+leetcode: climbing-stairs
+lesson: 'State: ways[i] is the number of ways to reach step i. Transition: ways[i] = ways[i-1] + ways[i-2],
+  since the last move was one or two steps. Base case: one way to stand at step 0 and step 1; two rolling
+  variables are enough.
+
+  '
+statement: 'You climb a staircase of `n` steps, taking either 1 or 2 steps at a time. Return how many
+  distinct sequences of moves reach the top.
+
+  '
+function: climb_stairs
+signature: 'def climb_stairs(n: int) -> int:'
+starter: "def climb_stairs(n: int) -> int:\n    pass\n"
+tests:
+- args:
+  - 2
+  expected: 2
+- args:
+  - 3
+  expected: 3
+- args:
+  - 1
+  expected: 1
+  note: single step
+- args:
+  - 5
+  expected: 8
+- args:
+  - 45
+  expected: 1836311903
+  note: large n needs no recursion blowup
+scale:
+  generator: "def make(n):\n    return [n]\n"
+  sizes:
+  - 2000
+  - 20000
+  expected: O(n)
+hints:
+- How could you arrive at step n?
+- From n-1 or n-2, so add those counts.
+- 'a, b = 1, 1; repeat n-1 times: a, b = b, a + b; return b'
+solution: "def climb_stairs(n: int) -> int:\n    a, b = 1, 1\n    for _ in range(n - 1):\n        a, b\
+  \ = b, a + b\n    return b\n"
+pitfalls:
+  timeout: Plain recursion without memo is exponential; two rolling variables give O(n).
+  edge-case: n = 1 returns 1 and n = 2 returns 2; do not start with ways(0) = 0.
+  wrong-answer: Returning the n-th Fibonacci number with the wrong offset, e.g. 3 for n = 2.
+  exception: Memoized recursion for large n hits the recursion limit; iterate bottom-up.

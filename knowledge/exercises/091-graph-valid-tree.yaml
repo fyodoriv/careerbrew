@@ -1,0 +1,90 @@
+id: graph-valid-tree
+order: 91
+pattern: graphs
+difficulty: medium
+title: Is it a tree?
+leetcode: graph-valid-tree
+lesson: 'A graph on n nodes is a tree exactly when it has n - 1 edges and is connected (equivalently,
+  n - 1 edges and no cycle). Check the edge count first, then union-find for a cycle.
+
+  '
+statement: 'Given `n` nodes labelled 0..n-1 and a list of undirected `edges`, return True if the edges
+  form a single tree: connected and without cycles.
+
+  '
+function: valid_tree
+signature: 'def valid_tree(n: int, edges: list[list[int]]) -> bool:'
+starter: "def valid_tree(n: int, edges: list[list[int]]) -> bool:\n    pass\n"
+tests:
+- args:
+  - 5
+  - - - 0
+      - 1
+    - - 0
+      - 2
+    - - 0
+      - 3
+    - - 1
+      - 4
+  expected: true
+- args:
+  - 5
+  - - - 0
+      - 1
+    - - 1
+      - 2
+    - - 2
+      - 3
+    - - 1
+      - 3
+    - - 1
+      - 4
+  expected: false
+  note: has a cycle
+- args:
+  - 1
+  - []
+  expected: true
+  note: single node
+- args:
+  - 4
+  - - - 0
+      - 1
+    - - 2
+      - 3
+  expected: false
+  note: disconnected
+- args:
+  - 3
+  - - - 0
+      - 1
+    - - 1
+      - 0
+  expected: false
+  note: duplicate edge forms a cycle
+- args:
+  - 2
+  - []
+  expected: false
+  note: two isolated nodes
+scale:
+  generator: "def make(n):\n    return [n, [[i, i + 1] for i in range(n - 1)]]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- How many edges does a tree on n nodes have?
+- Check len(edges) == n - 1, then make sure no edge joins two already-connected nodes.
+- 'if len(edges) != n - 1: False; union-find; False on a repeated root; else True'
+solution: "def valid_tree(n: int, edges: list[list[int]]) -> bool:\n    if len(edges) != n - 1:\n    \
+  \    return False\n    parent = list(range(n))\n\n    def find(x):\n        while parent[x] != x:\n\
+  \            parent[x] = parent[parent[x]]\n            x = parent[x]\n        return x\n\n    for a,\
+  \ b in edges:\n        ra, rb = find(a), find(b)\n        if ra == rb:\n            return False\n \
+  \       parent[ra] = rb\n    return True\n"
+pitfalls:
+  edge-case: n = 1 with no edges is a tree; a tree needs exactly n - 1 edges, so any other count is False.
+  timeout: Running a cycle check from every node is quadratic; check len(edges) == n - 1 then one union-find
+    or BFS for connectivity.
+  wrong-answer: Checking only for cycles and forgetting connectivity, so two separate trees pass.
+  exception: Recursive DFS on a long path can exceed the recursion limit; use BFS or union-find.

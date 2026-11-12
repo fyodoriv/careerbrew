@@ -1,0 +1,127 @@
+id: serialize-and-deserialize-binary-tree
+order: 60
+pattern: trees
+difficulty: hard
+title: Tree to text and back
+leetcode: serialize-and-deserialize-binary-tree
+lesson: 'A preorder walk that writes a marker for every missing child records the tree unambiguously.
+  To rebuild, read tokens with an iterator in the same order: a marker means None, anything else is a
+  node whose left and then right subtrees follow. Both directions are O(n).
+
+  '
+statement: 'Write a class `Codec` with two methods: `serialize(root)` turns a binary tree into a string,
+  and `deserialize(data)` turns such a string back into the identical tree. Any string format is fine
+  as long as the round trip restores the exact shape and values (values may be negative or repeated).
+
+
+  The tests call `roundtrip(root)`, already given in the starter, which serializes, checks that the result
+  is a string, and deserializes it.
+
+  '
+function: roundtrip
+signature: 'class Codec:  # serialize(self, root) -> str; deserialize(self, data: str) -> Optional[TreeNode]'
+starter: "class Codec:\n    def serialize(self, root: Optional[TreeNode]) -> str:\n        pass\n\n  \
+  \  def deserialize(self, data: str) -> Optional[TreeNode]:\n        pass\n\n\ndef roundtrip(root: Optional[TreeNode])\
+  \ -> Optional[TreeNode]:\n    codec = Codec()\n    text = codec.serialize(root)\n    assert isinstance(text,\
+  \ str), \"serialize must return a string\"\n    return Codec().deserialize(text)\n"
+tests:
+- args:
+  - tree:
+    - 1
+    - 2
+    - 3
+    - null
+    - null
+    - 4
+    - 5
+  expected:
+    tree:
+    - 1
+    - 2
+    - 3
+    - null
+    - null
+    - 4
+    - 5
+- args:
+  - tree: []
+  expected:
+    tree: []
+  note: empty tree
+- args:
+  - tree:
+    - 7
+  expected:
+    tree:
+    - 7
+  note: single node
+- args:
+  - tree:
+    - -1
+    - -1
+    - -1
+  expected:
+    tree:
+    - -1
+    - -1
+    - -1
+  note: negative duplicates
+- args:
+  - tree:
+    - 1
+    - 2
+    - null
+    - 3
+    - null
+    - 4
+  expected:
+    tree:
+    - 1
+    - 2
+    - null
+    - 3
+    - null
+    - 4
+  note: left-skewed tree
+- args:
+  - tree:
+    - 12
+    - null
+    - 345
+  expected:
+    tree:
+    - 12
+    - null
+    - 345
+  note: multi-digit values and a missing left child
+scale:
+  generator: "def make(n):\n    def b(lo, hi):\n        if lo > hi:\n            return None\n       \
+    \ m = (lo + hi) // 2\n        return TreeNode(m, b(lo, m - 1), b(m + 1, hi))\n    return [b(1, n)]\n"
+  sizes:
+  - 10000
+  - 100000
+  expected: O(n)
+hints:
+- A traversal alone is ambiguous. What extra information would pin down the shape?
+- Write preorder values with a marker such as "#" for every None child, separated by commas.
+- 'def d(): v = next(it); if v == ''#'': return None; n = TreeNode(int(v)); n.left = d(); n.right = d();
+  return n'
+solution: "class Codec:\n    def serialize(self, root: Optional[TreeNode]) -> str:\n        out = []\n\
+  \n        def walk(node):\n            if not node:\n                out.append(\"#\")\n           \
+  \     return\n            out.append(str(node.val))\n            walk(node.left)\n            walk(node.right)\n\
+  \n        walk(root)\n        return \",\".join(out)\n\n    def deserialize(self, data: str) -> Optional[TreeNode]:\n\
+  \        tokens = iter(data.split(\",\"))\n\n        def read():\n            tok = next(tokens)\n \
+  \           if tok == \"#\":\n                return None\n            node = TreeNode(int(tok))\n \
+  \           node.left = read()\n            node.right = read()\n            return node\n\n       \
+  \ return read()\n\n\ndef roundtrip(root: Optional[TreeNode]) -> Optional[TreeNode]:\n    codec = Codec()\n\
+  \    text = codec.serialize(root)\n    assert isinstance(text, str), \"serialize must return a string\"\
+  \n    return Codec().deserialize(text)\n"
+pitfalls:
+  ambiguous: Writing only values without null markers cannot tell left children from right ones.
+  timeout: Repeated string concatenation or list.pop(0) makes it quadratic; join a list and read tokens
+    with an iterator, O(n).
+  edge-case: An empty tree must round-trip to None, and negative or multi-digit values must survive, so
+    split on a separator rather than per character.
+  wrong-answer: Writing only values without null markers cannot tell left children from right ones.
+  exception: Calling int() on the null marker, or running out of tokens because serialize skipped a trailing
+    null; check for the marker first.

@@ -1,0 +1,61 @@
+id: 3sum
+order: 12
+pattern: two pointers
+difficulty: medium
+title: Three that cancel out
+leetcode: 3sum
+lesson: |
+  Sort first, fix one value, and run the sorted two-pointer search on the rest for its negation. Skipping equal neighbours at every level keeps triplets unique without a set. The result is O(n^2), the best known for this problem.
+statement: |
+  Given a list of integers `nums`, return every distinct triplet of values `[a, b, c]` taken from three different positions with `a + b + c == 0`. No triplet may repeat (as a multiset of values). Any order of triplets, and of values inside a triplet, is accepted.
+function: three_sum
+signature: "def three_sum(nums: list[int]) -> list[list[int]]:"
+starter: |
+  def three_sum(nums: list[int]) -> list[list[int]]:
+      pass
+compare: set
+tests:
+  - {args: [[-1, 0, 1, 2, -1, -4]], expected: [[-1, -1, 2], [-1, 0, 1]]}
+  - {args: [[0, 0, 0, 0]], expected: [[0, 0, 0]], note: many duplicates give one triplet}
+  - {args: [[1, 2, -2, -1]], expected: [], note: no answer}
+  - {args: [[]], expected: [], note: empty list}
+  - {args: [[0]], expected: [], note: single element}
+  - {args: [[-2, 0, 1, 1, 2]], expected: [[-2, 0, 2], [-2, 1, 1]]}
+scale:
+  generator: |
+    def make(n):
+        return [list(range(-n // 2, n // 2))]
+  sizes: [150, 1500]
+  expected: O(n^2)
+hints:
+  - Fixing one number turns the rest into a problem you already solved.
+  - Sort the list, then for each index i run two pointers on the part after i looking for -nums[i].
+  - "Skip i when nums[i] == nums[i-1]; after a hit, move both pointers and skip duplicates on the left."
+solution: |
+  def three_sum(nums: list[int]) -> list[list[int]]:
+      nums = sorted(nums)
+      out = []
+      for i in range(len(nums) - 2):
+          if i > 0 and nums[i] == nums[i - 1]:
+              continue
+          l, r = i + 1, len(nums) - 1
+          while l < r:
+              s = nums[i] + nums[l] + nums[r]
+              if s < 0:
+                  l += 1
+              elif s > 0:
+                  r -= 1
+              else:
+                  out.append([nums[i], nums[l], nums[r]])
+                  l += 1
+                  r -= 1
+                  while l < r and nums[l] == nums[l - 1]:
+                      l += 1
+      return out
+pitfalls:
+  edge-case: 'Three zeros [0, 0, 0] is one valid triplet, and a list shorter than 3 has none: return [].'
+  timeout: Three nested loops are O(n^3); sort and run two pointers for each first value for O(n^2).
+  wrong-answer: Skip equal neighbours for the first value and after each found triplet, or the same triplet
+    appears more than once.
+  exception: Skipping duplicates with `while nums[l] == nums[l + 1]` reads past the end; also check l
+    < r in the skip loop.

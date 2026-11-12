@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:careerbrew:synthetic-data-fault-v1",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "careerbrew-data-fault-v1"
+    },
+    "control": {
+      "enum": [
+        "json-one",
+        "json-bool",
+        "json-large",
+        "json-zero",
+        "yaml-date-map",
+        "yaml-map-date",
+        "same-wrong",
+        "plaintext",
+        "stdout",
+        "stderr",
+        "extra-write",
+        "empty",
+        "nonzero",
+        "hang",
+        "rewrite"
+      ]
+    },
+    "trial": {
+      "enum": [
+        "first",
+        "second"
+      ]
+    },
+    "case": {
+      "enum": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "8",
+        "9"
+      ]
+    },
+    "role": {
+      "enum": [
+        "writer",
+        "reader"
+      ]
+    },
+    "pid": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "driver_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "stage": {
+      "enum": [
+        "started",
+        "applied",
+        "api-complete"
+      ]
+    },
+    "direct_calls_observed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "hook": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "enum": [
+                "store._json_text",
+                "yaml.safe_dump",
+                "store.read_text"
+              ]
+            },
+            "entered": {
+              "type": "boolean"
+            },
+            "completed": {
+              "type": "boolean"
+            },
+            "restored": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "name",
+            "entered",
+            "completed",
+            "restored"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "write_bytes": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4194304
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "control",
+    "trial",
+    "case",
+    "role",
+    "pid",
+    "driver_sha256",
+    "stage",
+    "direct_calls_observed",
+    "hook",
+    "write_bytes"
+  ],
+  "additionalProperties": false,
+  "description": "Actual reached-stage sidecar only; mandatory parent intent, PID, driver, phase, exact path and mode binding are separate from this shape."
+}

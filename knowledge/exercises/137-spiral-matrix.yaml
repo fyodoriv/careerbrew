@@ -1,0 +1,121 @@
+id: spiral-matrix
+order: 137
+pattern: math and geometry
+difficulty: medium
+title: Read in a spiral
+leetcode: spiral-matrix
+lesson: 'Keep four shrinking walls: top, bottom, left, right. Walk each side and pull its wall in; check
+  the walls have not crossed before the bottom and left passes so single rows or columns are not read
+  twice.
+
+  '
+statement: 'Given an `m x n` matrix, return all its values read clockwise in a spiral, starting at the
+  top-left corner.
+
+  '
+function: spiral_order
+signature: 'def spiral_order(matrix: list[list[int]]) -> list[int]:'
+starter: "def spiral_order(matrix: list[list[int]]) -> list[int]:\n    pass\n"
+tests:
+- args:
+  - - - 1
+      - 2
+      - 3
+    - - 4
+      - 5
+      - 6
+    - - 7
+      - 8
+      - 9
+  expected:
+  - 1
+  - 2
+  - 3
+  - 6
+  - 9
+  - 8
+  - 7
+  - 4
+  - 5
+- args:
+  - - - 1
+      - 2
+      - 3
+      - 4
+    - - 5
+      - 6
+      - 7
+      - 8
+    - - 9
+      - 10
+      - 11
+      - 12
+  expected:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 8
+  - 12
+  - 11
+  - 10
+  - 9
+  - 5
+  - 6
+  - 7
+- args:
+  - - - 1
+  expected:
+  - 1
+  note: 1x1
+- args:
+  - - - 1
+      - 2
+      - 3
+  expected:
+  - 1
+  - 2
+  - 3
+  note: single row
+- args:
+  - - - 1
+    - - 2
+    - - 3
+  expected:
+  - 1
+  - 2
+  - 3
+  note: single column
+- args:
+  - - - 1
+      - 2
+    - - 3
+      - 4
+    - - 5
+      - 6
+  expected:
+  - 1
+  - 2
+  - 4
+  - 6
+  - 5
+  - 3
+  note: tall
+hints:
+- Simulate the walk layer by layer.
+- Use top/bottom/left/right bounds and shrink one after each side.
+- After the top row and right column, only read bottom if top <= bottom and left if left <= right.
+solution: "def spiral_order(matrix: list[list[int]]) -> list[int]:\n    out = []\n    top, bottom, left,\
+  \ right = 0, len(matrix) - 1, 0, len(matrix[0]) - 1\n    while top <= bottom and left <= right:\n  \
+  \      out.extend(matrix[top][left:right + 1]); top += 1\n        out.extend(matrix[r][right] for r\
+  \ in range(top, bottom + 1)); right -= 1\n        if top <= bottom:\n            out.extend(matrix[bottom][c]\
+  \ for c in range(right, left - 1, -1)); bottom -= 1\n        if left <= right:\n            out.extend(matrix[r][left]\
+  \ for r in range(bottom, top - 1, -1)); left += 1\n    return out\n"
+pitfalls:
+  edge-case: A single row or single column must be read once, not forward and back; an empty matrix returns
+    [].
+  timeout: Marking visited cells in a set is fine, but direction-turn simulation with checks per cell
+    adds overhead; four shrinking boundaries are O(m*n).
+  wrong-answer: Without the crossing checks a single middle row or column is read forward and back; check
+    top <= bottom and left <= right before the bottom and left passes.
+  exception: matrix[0] on an empty matrix raises IndexError; return [] when there are no rows.

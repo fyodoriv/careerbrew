@@ -1,0 +1,30 @@
+[
+  {
+    "name": "work.project.rules",
+    "command": "careerbrew work project rules",
+    "help": "read a project's standing session rules",
+    "args": [
+      {"name": "name", "flag": null, "kind": "text", "choices": null, "required": true, "many": false, "help": "", "default": null},
+      {"name": "json", "flag": "--json", "kind": "flag", "choices": null, "required": false, "many": false, "help": "return the rules as JSON where business output is allowed", "default": null}
+    ],
+    "ui": true,
+    "terminal_only": null,
+    "confirm": null,
+    "agent_note": null
+  },
+  {
+    "name": "work.project.rules-set",
+    "command": "careerbrew work project rules-set",
+    "help": "replace or clear a project's standing session rules",
+    "args": [
+      {"name": "name", "flag": null, "kind": "text", "choices": null, "required": true, "many": false, "help": "", "default": null},
+      {"name": "text", "flag": "--text", "kind": "text", "choices": null, "required": false, "many": false, "help": "replace the rules with one line", "default": null},
+      {"name": "clear", "flag": "--clear", "kind": "flag", "choices": null, "required": false, "many": false, "help": "remove the rules", "default": null},
+      {"name": "yes", "flag": "--yes", "kind": "flag", "choices": null, "required": false, "many": false, "help": "confirm replacement", "default": null}
+    ],
+    "ui": true,
+    "terminal_only": null,
+    "confirm": "replaces or removes the project's standing rules",
+    "agent_note": null
+  }
+]

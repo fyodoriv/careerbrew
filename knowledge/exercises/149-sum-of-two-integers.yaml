@@ -1,0 +1,66 @@
+id: sum-of-two-integers
+order: 149
+pattern: bit manipulation
+difficulty: medium
+title: Add without plus
+leetcode: sum-of-two-integers
+lesson: 'XOR adds bits without carries and AND shifted left gives the carries; repeat until no carry remains.
+  Python ints are unbounded, so a negative carry would shift forever: mask every step to 32 bits with
+  0xFFFFFFFF, and at the end turn a result above 0x7FFFFFFF back into a negative with ~(r ^ mask).
+
+  '
+statement: 'Return the sum of two 32-bit signed integers `a` and `b` without using the `+` or `-` operators
+  (or `sum`).
+
+  '
+function: get_sum
+signature: 'def get_sum(a: int, b: int) -> int:'
+starter: "def get_sum(a: int, b: int) -> int:\n    pass\n"
+tests:
+- args:
+  - 1
+  - 2
+  expected: 3
+- args:
+  - 2
+  - 3
+  expected: 5
+- args:
+  - -1
+  - 1
+  expected: 0
+  note: crosses zero; needs masking
+- args:
+  - -5
+  - -7
+  expected: -12
+  note: both negative
+- args:
+  - 0
+  - 0
+  expected: 0
+  note: zeros
+- args:
+  - 1000
+  - -1
+  expected: 999
+- args:
+  - -2147483648
+  - 2147483647
+  expected: -1
+  note: 32-bit extremes
+hints:
+- Split addition into 'sum without carry' and 'the carries'.
+- a ^ b is the carry-less sum; (a & b) << 1 is the carry. Loop until the carry is 0.
+- mask = 0xFFFFFFFF; keep a, b masked each loop; return a if a <= 0x7FFFFFFF else ~(a ^ mask).
+solution: "def get_sum(a: int, b: int) -> int:\n    mask = 0xFFFFFFFF\n    a, b = a & mask, b & mask\n\
+  \    while b:\n        a, b = (a ^ b) & mask, ((a & b) << 1) & mask\n    return a if a <= 0x7FFFFFFF\
+  \ else ~(a ^ mask)\n"
+pitfalls:
+  edge-case: a=-1, b=1 must give 0, and a=0 or b=0 returns the other value.
+  timeout: Adding one bit at a time with a long loop is slow, and an unmasked carry loop never ends; mask
+    to 32 bits so it stops within 32 rounds.
+  wrong-answer: Forgetting to convert back from the 32-bit mask leaves large positives where negatives
+    belong; if result > 0x7FFFFFFF return ~(result ^ 0xFFFFFFFF).
+  exception: Without the 32-bit mask, a negative input makes the carry grow forever in Python; apply &
+    0xFFFFFFFF each round.

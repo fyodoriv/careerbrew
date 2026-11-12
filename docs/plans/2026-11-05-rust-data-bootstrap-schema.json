@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:careerbrew:prospective-data-runtime-bootstrap-v1",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "careerbrew-data-runtime-bootstrap-v1"
+    },
+    "pid": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4294967295
+    },
+    "driver_provenance": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "const": "careerbrew-data-driver-provenance-v1"
+        },
+        "pid": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "entry": {
+          "type": "object",
+          "properties": {
+            "stage": {
+              "const": "main-entry"
+            },
+            "globals_file": {
+              "type": "string",
+              "minLength": 1
+            },
+            "globals_file_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "globals_name": {
+              "const": "__main__"
+            },
+            "globals_spec_name": {
+              "type": "null"
+            },
+            "globals_spec_origin": {
+              "type": "null"
+            },
+            "main_code_filename": {
+              "type": "string",
+              "minLength": 1
+            },
+            "main_code_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "sys_modules_main_present": {
+              "const": true
+            },
+            "sys_modules_main_file": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sys_modules_main_file_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "sys_modules_main_name": {
+              "const": "__main__"
+            },
+            "sys_modules_main_spec_name": {
+              "type": "null"
+            },
+            "sys_modules_main_spec_origin": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "stage",
+            "globals_file",
+            "globals_file_sha256",
+            "globals_name",
+            "globals_spec_name",
+            "globals_spec_origin",
+            "main_code_filename",
+            "main_code_sha256",
+            "sys_modules_main_present",
+            "sys_modules_main_file",
+            "sys_modules_main_file_sha256",
+            "sys_modules_main_name",
+            "sys_modules_main_spec_name",
+            "sys_modules_main_spec_origin"
+          ],
+          "additionalProperties": false
+        },
+        "api_complete": {
+          "type": "object",
+          "properties": {
+            "stage": {
+              "const": "api-complete"
+            },
+            "globals_file": {
+              "type": "string",
+              "minLength": 1
+            },
+            "globals_file_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "globals_name": {
+              "const": "__main__"
+            },
+            "globals_spec_name": {
+              "type": "null"
+            },
+            "globals_spec_origin": {
+              "type": "null"
+            },
+            "main_code_filename": {
+              "type": "string",
+              "minLength": 1
+            },
+            "main_code_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "sys_modules_main_present": {
+              "const": true
+            },
+            "sys_modules_main_file": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sys_modules_main_file_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "sys_modules_main_name": {
+              "const": "__main__"
+            },
+            "sys_modules_main_spec_name": {
+              "type": "null"
+            },
+            "sys_modules_main_spec_origin": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "stage",
+            "globals_file",
+            "globals_file_sha256",
+            "globals_name",
+            "globals_spec_name",
+            "globals_spec_origin",
+            "main_code_filename",
+            "main_code_sha256",
+            "sys_modules_main_present",
+            "sys_modules_main_file",
+            "sys_modules_main_file_sha256",
+            "sys_modules_main_name",
+            "sys_modules_main_spec_name",
+            "sys_modules_main_spec_origin"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schema",
+        "pid",
+        "entry",
+        "api_complete"
+      ],
+      "additionalProperties": false
+    },
+    "store_calls": {
+      "type": "array",
+      "maxItems": 1024,
+      "items": {
+        "type": "object",
+        "properties": {
+          "ordinal": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1024
+          },
+          "function": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_]+$"
+          }
+        },
+        "required": [
+          "ordinal",
+          "function"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "pid",
+    "driver_provenance",
+    "store_calls"
+  ],
+  "additionalProperties": false,
+  "semantic_rules": [
+    "Normal import-only acceptance requires an empty actual profile call ledger and actual parent PID agreement.",
+    "Install child-only profiling before import site/site.main, matching exact frozen store code path before any content access; exclude its module-body frame only.",
+    "Calls are ordinal/function metadata, never arguments, locals or return values.",
+    "Mandatory driver provenance has the same exact current trusted source/PID constraints as the phase schema.",
+    "Static source/interpreter/site input hashes precede process execution; other loaded module content is first observed after load, with that limitation explicit."
+  ]
+}

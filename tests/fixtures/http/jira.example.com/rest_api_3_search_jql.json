@@ -1,0 +1,5 @@
+{"issues": [
+ {"key": "PROJ-101", "fields": {"summary": "Fix flaky payment retries", "resolutiondate": "2026-08-20T12:00:00.000+0000", "issuetype": {"name": "Bug"}}},
+ {"key": "PROJ-102", "fields": {"summary": "Migrate billing to new queue", "resolutiondate": "2026-09-15T12:00:00.000+0000", "issuetype": {"name": "Epic"}}},
+ {"key": "PROJ-103", "fields": {"summary": "Lead incident review for outage", "resolutiondate": "2026-09-25T12:00:00.000+0000", "issuetype": {"name": "Incident"}}}
+]}

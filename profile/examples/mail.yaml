@@ -1,0 +1,5 @@
+# Mail accounts careerbrew reads (metadata only: sender, subject, date; never bodies; never sends).
+accounts: []
+#  - {name: work, kind: graph, token: keychain:careerbrew.graph, machine: corporate}   # Outlook, Mail.ReadBasic
+#  - {name: personal, kind: jmap, token: keychain:careerbrew.fastmail}                  # Fastmail API token (read-only mail)
+#  - {name: proton, kind: imap, host: 127.0.0.1, port: 1143, starttls: true, user: env:PROTON_USER, password: keychain:careerbrew.proton-bridge}

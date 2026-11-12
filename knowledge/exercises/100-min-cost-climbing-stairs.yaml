@@ -1,0 +1,73 @@
+id: min-cost-climbing-stairs
+order: 100
+pattern: 1-d dynamic programming
+difficulty: easy
+title: Pay per step
+leetcode: min-cost-climbing-stairs
+lesson: 'State: best[i] is the cheapest cost to stand on step i. Transition: best[i] = min(best[i-1] +
+  cost[i-1], best[i-2] + cost[i-2]). Base case: starting on step 0 or 1 is free; the top is index n.
+
+  '
+statement: '`cost[i]` is the price of stepping off step `i`, after which you move up 1 or 2 steps. You
+  may start on step 0 or step 1. Return the cheapest total to get past the last step.
+
+  '
+function: min_cost_climbing_stairs
+signature: 'def min_cost_climbing_stairs(cost: list[int]) -> int:'
+starter: "def min_cost_climbing_stairs(cost: list[int]) -> int:\n    pass\n"
+tests:
+- args:
+  - - 10
+    - 15
+    - 20
+  expected: 15
+- args:
+  - - 1
+    - 100
+    - 1
+    - 1
+    - 1
+    - 100
+    - 1
+    - 1
+    - 100
+    - 1
+  expected: 6
+- args:
+  - - 5
+    - 7
+  expected: 5
+  note: two steps
+- args:
+  - - 0
+    - 0
+    - 0
+  expected: 0
+  note: all free
+- args:
+  - - 10
+    - 1
+    - 10
+    - 1
+    - 10
+  expected: 2
+  note: skip expensive steps
+scale:
+  generator: "def make(n):\n    return [[i % 7 for i in range(n)]]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- The top is one past the last index.
+- best[i] = min(best[i-1]+cost[i-1], best[i-2]+cost[i-2]).
+- 'a = b = 0; for i in 2..n: a, b = b, min(b+cost[i-1], a+cost[i-2]); return b'
+solution: "def min_cost_climbing_stairs(cost: list[int]) -> int:\n    a = b = 0\n    for i in range(2,\
+  \ len(cost) + 1):\n        a, b = b, min(b + cost[i - 1], a + cost[i - 2])\n    return b\n"
+pitfalls:
+  edge-case: The top is one past the last step, so for cost [10, 15, 20] the answer is 15 (start at step
+    1, jump two).
+  timeout: Plain recursion over both choices is exponential; a bottom-up DP with two variables is O(n).
+  wrong-answer: Returning dp[n - 1] instead of min(dp[n - 1], dp[n - 2]), i.e. forgetting the top is past
+    the end.
+  exception: A list of length 2 indexed at cost[2] raises IndexError; loop only up to len(cost).

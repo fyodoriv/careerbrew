@@ -1,0 +1,7936 @@
+[
+ {
+  "name": "init",
+  "command": "careerbrew init",
+  "help": "create the private data folder from examples",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "metrics.weekly",
+  "command": "careerbrew metrics weekly",
+  "help": "write this week's numbers-only metrics file (when metrics_share is on); --dry-run shows it",
+  "args": [
+   {
+    "name": "dry_run",
+    "flag": "--dry-run",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "metrics.time-saved",
+  "command": "careerbrew metrics time-saved",
+  "help": "minutes careerbrew saved you per week: your manual baseline minus your time (web app: up to copy, send, or accept; CLI: run time), per action (numbers only)",
+  "args": [
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "metrics.field",
+  "command": "careerbrew metrics field",
+  "help": "this machine's real-use totals (runs, success rate, run time, time saved) under a salted-hash label; local only",
+  "args": [
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "time.baseline",
+  "command": "careerbrew time baseline",
+  "help": "record how many minutes an action takes you by hand (0 returns to the labeled estimate)",
+  "args": [
+   {
+    "name": "action",
+    "flag": null,
+    "kind": "choice",
+    "choices": [
+     "pm_update",
+     "standup",
+     "day_log",
+     "day_plan",
+     "evidence",
+     "promo_doc",
+     "job_scan",
+     "inbox"
+    ],
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "minutes",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "telemetry.status",
+  "command": "careerbrew telemetry status",
+  "help": "on or off and why, the endpoint, the random install id, and how many events wait",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "telemetry.on",
+  "command": "careerbrew telemetry on",
+  "help": "turn telemetry on (it sends only when a key is set: careerbrew secret set posthog_key)",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "telemetry.off",
+  "command": "careerbrew telemetry off",
+  "help": "turn telemetry off: nothing is sent",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "telemetry.send",
+  "command": "careerbrew telemetry send",
+  "help": "send the waiting events now; --dry-run prints the exact JSON and sends nothing",
+  "args": [
+   {
+    "name": "dry_run",
+    "flag": "--dry-run",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "sends the waiting anonymous usage counts to PostHog EU (try --dry-run first)",
+  "agent_note": null
+ },
+ {
+  "name": "actions",
+  "command": "careerbrew actions",
+  "help": "every action, for agents and people: CLI command, arguments, and how the web app runs it",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "one action or group, e.g. day or day.send",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "start",
+  "command": "careerbrew start",
+  "help": "start everything (the default with no command): watcher, web app, refresh, then what matters now",
+  "args": [
+   {
+    "name": "no_watch",
+    "flag": "--no-watch",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "no_web",
+    "flag": "--no-web",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "no_refresh",
+    "flag": "--no-refresh",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": false,
+  "terminal_only": "it starts the web app you are already using; run `careerbrew` in a terminal",
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "checklist",
+  "command": "careerbrew checklist",
+  "help": "getting started: the first steps for a new user, each done or with the command that does it",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "config.show",
+  "command": "careerbrew config show",
+  "help": "every setting, its value, and where it comes from",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "config.set",
+  "command": "careerbrew config set",
+  "help": "validate and save a setting",
+  "args": [
+   {
+    "name": "key",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "value",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "config.unset",
+  "command": "careerbrew config unset",
+  "help": "return a setting to its default",
+  "args": [
+   {
+    "name": "key",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "signals",
+  "command": "careerbrew signals",
+  "help": "what each of your decisions changed: ranks, the question budget, what plugins learn; reset <kind> <source> forgets one",
+  "args": [
+   {
+    "name": "action",
+    "flag": null,
+    "kind": "choice",
+    "choices": [
+     "reset"
+    ],
+    "required": false,
+    "many": false,
+    "help": "reset: forget one signal's decisions so far",
+    "default": null
+   },
+   {
+    "name": "kind",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "with reset: the kind, as `careerbrew signals` names it (plugin, impact, competency...)",
+    "default": null
+   },
+   {
+    "name": "source",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "with reset: the source, as `careerbrew signals` names it (plugin:acme, github, project:billing...)",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "checkup",
+  "command": "careerbrew checkup",
+  "help": "one pass/fail line per step: pull-only clone, venv, plugins, readiness, privacy, collect, promo coverage",
+  "args": [
+   {
+    "name": "offline",
+    "flag": "--offline",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "skip the network evidence collect",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "jobs.scan",
+  "command": "careerbrew jobs scan",
+  "help": "fetch postings from your job sources",
+  "args": [
+   {
+    "name": "no_cache",
+    "flag": "--no-cache",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "jobs.choose",
+  "command": "careerbrew jobs choose",
+  "help": "choose a posting you want, and its tier (careerbrew never chooses for you)",
+  "args": [
+   {
+    "name": "posting",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "tier",
+    "flag": null,
+    "kind": "choice",
+    "choices": [
+     "dream",
+     "target",
+     "practice"
+    ],
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "jobs.unchoose",
+  "command": "careerbrew jobs unchoose",
+  "help": "remove a posting from your chosen jobs",
+  "args": [
+   {
+    "name": "posting",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "jobs.linkedin-import",
+  "command": "careerbrew jobs linkedin-import",
+  "help": "import your LinkedIn data export (zip)",
+  "args": [
+   {
+    "name": "zip",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "jobs.interview-gaps",
+  "command": "careerbrew jobs interview-gaps",
+  "help": "pipeline companies that still lack a sourced interview loop",
+  "args": [
+   {
+    "name": "top",
+    "flag": "--top",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 20
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "jobs.preset",
+  "command": "careerbrew jobs preset",
+  "help": "write the remote-first job source and region preset",
+  "args": [
+   {
+    "name": "force",
+    "flag": "--force",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "jobs.list",
+  "command": "careerbrew jobs list",
+  "help": "postings that pass your criteria, by Want score",
+  "args": [
+   {
+    "name": "top",
+    "flag": "--top",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 20
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "jobs.rate",
+  "command": "careerbrew jobs rate",
+  "help": "rate a posting 1-5",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "rating",
+    "flag": null,
+    "kind": "int",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "tags",
+    "flag": "--tags",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": ""
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "jobs.learn",
+  "command": "careerbrew jobs learn",
+  "help": "refit Want weights to your ratings",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "jobs.strategy",
+  "command": "careerbrew jobs strategy",
+  "help": "build the season plan",
+  "args": [
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "jobs.log",
+  "command": "careerbrew jobs log",
+  "help": "log an application stage",
+  "args": [
+   {
+    "name": "company",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "tier",
+    "flag": null,
+    "kind": "choice",
+    "choices": [
+     "practice",
+     "target",
+     "dream"
+    ],
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "stage",
+    "flag": null,
+    "kind": "choice",
+    "choices": [
+     "applied",
+     "screen",
+     "onsite",
+     "offer",
+     "rejected",
+     "withdrawn"
+    ],
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "cards.review",
+  "command": "careerbrew cards review",
+  "help": "review due and new cards: recall, reveal, grade",
+  "args": [
+   {
+    "name": "count",
+    "flag": "--count",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 20
+   }
+  ],
+  "ui": false,
+  "terminal_only": "an interactive card session (use Practice in the web app)",
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "cards.next",
+  "command": "careerbrew cards next",
+  "help": "show the queue",
+  "args": [
+   {
+    "name": "count",
+    "flag": "--count",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 10
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "cards.grade",
+  "command": "careerbrew cards grade",
+  "help": "grade one card",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "rating",
+    "flag": null,
+    "kind": "choice",
+    "choices": [
+     "again",
+     "hard",
+     "good",
+     "easy"
+    ],
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "cards.add",
+  "command": "careerbrew cards add",
+  "help": "add your own card",
+  "args": [
+   {
+    "name": "question",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "answer",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "tags",
+    "flag": "--tags",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": ""
+   },
+   {
+    "name": "deck",
+    "flag": "--deck",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": "mine"
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "cards.stats",
+  "command": "careerbrew cards stats",
+  "help": "due, new, retention, streak, topics",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "cards.unsuspend",
+  "command": "careerbrew cards unsuspend",
+  "help": "put a leech back in the queue",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "cards.explain-queue",
+  "command": "careerbrew cards explain-queue",
+  "help": "cards the public study deck should explain or rewrite next",
+  "args": [
+   {
+    "name": "count",
+    "flag": "--count",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 50
+   },
+   {
+    "name": "topic",
+    "flag": "--topic",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": ""
+   },
+   {
+    "name": "offset",
+    "flag": "--offset",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "print the items for the card-explainer skill",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "cards.publish",
+  "command": "careerbrew cards publish",
+  "help": "lint, privacy-check, and merge generated cards into knowledge/cards/",
+  "args": [
+   {
+    "name": "file",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "keep",
+    "flag": "--keep",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "keep the input file",
+    "default": null
+   },
+   {
+    "name": "dry_run",
+    "flag": "--dry-run",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "check the cards without writing anything",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "cards.public-check",
+  "command": "careerbrew cards public-check",
+  "help": "check every public card against the bar",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "learn.list",
+  "command": "careerbrew learn list",
+  "help": "your learn projects with mastery and what is due",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "learn.start",
+  "command": "careerbrew learn start",
+  "help": "stage sources: repos by path and commit, fetched text stored encrypted",
+  "args": [
+   {
+    "name": "project",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "repo",
+    "flag": "--repo",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": true,
+    "help": "a local checkout (repeatable)",
+    "default": null
+   },
+   {
+    "name": "doc",
+    "flag": "--doc",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": true,
+    "help": "LABEL:FILE, a doc you exported (repeatable)",
+    "default": null
+   },
+   {
+    "name": "web",
+    "flag": "--web",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": true,
+    "help": "URL:FILE, a page you fetched (repeatable)",
+    "default": null
+   },
+   {
+    "name": "context",
+    "flag": "--context",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": true,
+    "help": "LABEL:FILE, a PR, issue, or ticket summary (repeatable)",
+    "default": null
+   },
+   {
+    "name": "file",
+    "flag": "--file",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": true,
+    "help": "LABEL:FILE, any other text file (repeatable)",
+    "default": null
+   },
+   {
+    "name": "consume",
+    "flag": "--consume",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "delete each fetched file once it is stored encrypted",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "learn.note",
+  "command": "careerbrew learn note",
+  "help": "read a study note, or save one with --set FILE",
+  "args": [
+   {
+    "name": "project",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "path",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "e.g. 01-overview/data-flow.md",
+    "default": null
+   },
+   {
+    "name": "set",
+    "flag": "--set",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "save this file as the note",
+    "default": null
+   },
+   {
+    "name": "consume",
+    "flag": "--consume",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "delete the --set file once it is stored",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "learn.concepts",
+  "command": "careerbrew learn concepts",
+  "help": "import concepts (sections, prerequisites, citations, questions); --check only checks",
+  "args": [
+   {
+    "name": "project",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "file",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "YAML with a `concepts:` list",
+    "default": null
+   },
+   {
+    "name": "check",
+    "flag": "--check",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "consume",
+    "flag": "--consume",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "delete the file once it is imported",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "learn.next",
+  "command": "careerbrew learn next",
+  "help": "the one thing to practise next: retest, review, pretest, teach, or quiz",
+  "args": [
+   {
+    "name": "project",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "learn.answer",
+  "command": "careerbrew learn answer",
+  "help": "record one answer: mastery, spaced review (FSRS), retests",
+  "args": [
+   {
+    "name": "project",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "concept",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "result",
+    "flag": "--result",
+    "kind": "choice",
+    "choices": [
+     "correct",
+     "partial",
+     "wrong",
+     "dontknow"
+    ],
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "confidence",
+    "flag": "--confidence",
+    "kind": "choice",
+    "choices": [
+     "low",
+     "medium",
+     "high"
+    ],
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "level",
+    "flag": "--level",
+    "kind": "choice",
+    "choices": [
+     "remember",
+     "understand",
+     "apply",
+     "analyze",
+     "evaluate",
+     "create"
+    ],
+    "required": true,
+    "many": false,
+    "help": "the question's Bloom level",
+    "default": null
+   },
+   {
+    "name": "mode",
+    "flag": "--mode",
+    "kind": "choice",
+    "choices": [
+     "pretest",
+     "teach",
+     "quiz",
+     "recall",
+     "review",
+     "retest",
+     "task"
+    ],
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": "quiz"
+   },
+   {
+    "name": "kind",
+    "flag": "--kind",
+    "kind": "choice",
+    "choices": [
+     "mcq",
+     "open",
+     "task"
+    ],
+    "required": false,
+    "many": false,
+    "help": "the question's format, kept in the log",
+    "default": "open"
+   },
+   {
+    "name": "seconds",
+    "flag": "--seconds",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "learn.status",
+  "command": "careerbrew learn status",
+  "help": "mastery per section, what is due, 7-day retest score, calibration",
+  "args": [
+   {
+    "name": "project",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "learn.replay.list",
+  "command": "careerbrew learn replay list",
+  "help": "the newest small squash-merged PRs and their test files",
+  "args": [
+   {
+    "name": "project",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "repo",
+    "flag": "--repo",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "default: the project's first staged repo",
+    "default": null
+   },
+   {
+    "name": "limit",
+    "flag": "--limit",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 20
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "learn.replay.start",
+  "command": "careerbrew learn replay start",
+  "help": "a clone at the PR's parent with only its tests: make them pass",
+  "args": [
+   {
+    "name": "project",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "pr",
+    "flag": null,
+    "kind": "int",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "repo",
+    "flag": "--repo",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "default: the project's first staged repo",
+    "default": null
+   },
+   {
+    "name": "python",
+    "flag": "--python",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the Python that runs the tests (default: careerbrew's)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "learn.replay.check",
+  "command": "careerbrew learn replay check",
+  "help": "run the PR's tests on your change",
+  "args": [
+   {
+    "name": "project",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "pr",
+    "flag": null,
+    "kind": "int",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "learn.replay.measure",
+  "command": "careerbrew learn replay measure",
+  "help": "how many of the last N small PRs make a runnable task (tests fail before, pass after)",
+  "args": [
+   {
+    "name": "repo",
+    "flag": "--repo",
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "limit",
+    "flag": "--limit",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 50
+   },
+   {
+    "name": "python",
+    "flag": "--python",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the Python that runs the tests (default: careerbrew's)",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "learn.tour.add",
+  "command": "careerbrew learn tour add",
+  "help": "add a tour: JSON with repo, title, and steps (file, line, description, concept)",
+  "args": [
+   {
+    "name": "project",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "file",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "consume",
+    "flag": "--consume",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "delete the file once it is stored",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "learn.tour.approve",
+  "command": "careerbrew learn tour approve",
+  "help": "a maintainer approves the tour at the repo's current commit",
+  "args": [
+   {
+    "name": "project",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "by",
+    "flag": "--by",
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "who reviewed it",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "learn.tour.export",
+  "command": "careerbrew learn tour export",
+  "help": "write a CodeTour file to out/tours/; mastered steps ask you to predict",
+  "args": [
+   {
+    "name": "project",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "goals.show",
+  "command": "careerbrew goals show",
+  "help": "your goals and what they focus on",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "goals.set",
+  "command": "careerbrew goals set",
+  "help": "set the upcoming goal; today re-plans at once",
+  "args": [
+   {
+    "name": "title",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "kind",
+    "flag": "--kind",
+    "kind": "choice",
+    "choices": [
+     "interview",
+     "learn",
+     "job-search",
+     "promotion",
+     "custom"
+    ],
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": "custom"
+   },
+   {
+    "name": "date",
+    "flag": "--date",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "company",
+    "flag": "--company",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "topics",
+    "flag": "--topics",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": ""
+   },
+   {
+    "name": "minutes",
+    "flag": "--minutes",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 90
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "goals.add-long-term",
+  "command": "careerbrew goals add-long-term",
+  "help": "add a long-term goal",
+  "args": [
+   {
+    "name": "text",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "by",
+    "flag": "--by",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "approvals.request",
+  "command": "careerbrew approvals request",
+  "help": "(for agents) ask the owner to approve an action",
+  "args": [
+   {
+    "name": "title",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "detail",
+    "flag": "--detail",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": ""
+   },
+   {
+    "name": "by",
+    "flag": "--by",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": "agent"
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": "agents: read the owner's notes it prints (standing guidance from past decisions) and follow them; act only on approved"
+ },
+ {
+  "name": "approvals.list",
+  "command": "careerbrew approvals list",
+  "help": "recent approval requests",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "approvals.guidance",
+  "command": "careerbrew approvals guidance",
+  "help": "your notes on past decisions: standing guidance agents read before they ask again",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "approvals.show",
+  "command": "careerbrew approvals show",
+  "help": "one request; exit 0 only when approved",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "approvals.decide",
+  "command": "careerbrew approvals decide",
+  "help": "approve or reject (owner only)",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "decision",
+    "flag": null,
+    "kind": "choice",
+    "choices": [
+     "approved",
+     "rejected"
+    ],
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "note",
+    "flag": "--note",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": ""
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "records your decision on an agent request",
+  "agent_note": null
+ },
+ {
+  "name": "teach.next",
+  "command": "careerbrew teach next",
+  "help": "the next step and why",
+  "args": [
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "teach.improvements",
+  "command": "careerbrew teach improvements",
+  "help": "predicted and written feedback, with proposed fixes",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "teach.feedback",
+  "command": "careerbrew teach feedback",
+  "help": "tell the teacher what to improve",
+  "args": [
+   {
+    "name": "text",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "step",
+    "flag": "--step",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": ""
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "exercises.check",
+  "command": "careerbrew exercises check",
+  "help": "every reference solution passes its tests (or check one YAML file)",
+  "args": [
+   {
+    "name": "file",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "exercises.list",
+  "command": "careerbrew exercises list",
+  "help": "the curriculum in order, with your progress",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "exercises.sync",
+  "command": "careerbrew exercises sync",
+  "help": "skip what you solved elsewhere: a public LeetCode profile (opt-in) or slugs you list",
+  "args": [
+   {
+    "name": "username",
+    "flag": "--leetcode",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": ""
+   },
+   {
+    "name": "solved",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": true,
+    "help": "LeetCode slugs or exercise ids you already solved",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "exercises.submit",
+  "command": "careerbrew exercises submit",
+  "help": "run and grade a solution file",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "file",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "seconds",
+    "flag": "--seconds",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "runs the solution code on this machine",
+  "agent_note": null
+ },
+ {
+  "name": "import.notion",
+  "command": "careerbrew import notion",
+  "help": "import a Notion career bundle (written by the notion-import skill)",
+  "args": [
+   {
+    "name": "dir",
+    "flag": "--dir",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "bundle folder (default <data root>/imports/notion)",
+    "default": null
+   },
+   {
+    "name": "check",
+    "flag": "--check",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "compare the bundle with what is imported",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "library.list",
+  "command": "careerbrew library list",
+  "help": "list library pages",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "library.show",
+  "command": "careerbrew library show",
+  "help": "print one page",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "drill.next",
+  "command": "careerbrew drill next",
+  "help": "show the next item (due reviews first)",
+  "args": [
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "drill.answer",
+  "command": "careerbrew drill answer",
+  "help": "grade an attempt by rubric criteria met",
+  "args": [
+   {
+    "name": "item",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "met",
+    "flag": "--met",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": ""
+   },
+   {
+    "name": "seconds",
+    "flag": "--seconds",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "drill.speak",
+  "command": "careerbrew drill speak",
+  "help": "answer by voice (local speech-to-text) or typed text; graded by the rubric",
+  "args": [
+   {
+    "name": "item",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "audio",
+    "flag": "--audio",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "recorded answer (wav, or any format ffmpeg reads)",
+    "default": null
+   },
+   {
+    "name": "text",
+    "flag": "--text",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "typed answer (the fallback when there is no microphone)",
+    "default": null
+   },
+   {
+    "name": "aloud",
+    "flag": "--aloud",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "read the question aloud with the system voice",
+    "default": null
+   },
+   {
+    "name": "seconds",
+    "flag": "--seconds",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "drill.session",
+  "command": "careerbrew drill session",
+  "help": "interactive drill loop",
+  "args": [
+   {
+    "name": "count",
+    "flag": "--count",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 5
+   }
+  ],
+  "ui": false,
+  "terminal_only": "an interactive question-and-answer loop (use Practice in the web app)",
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "drill.progress",
+  "command": "careerbrew drill progress",
+  "help": "write the progress chart",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "drill.list",
+  "command": "careerbrew drill list",
+  "help": "list items",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.collect",
+  "command": "careerbrew work collect",
+  "help": "collect evidence from git, gh, and plugins",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.project.add",
+  "command": "careerbrew work project add",
+  "help": "create a project record",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "memory",
+    "flag": "--memory",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "path to the agent's notes for this project",
+    "default": null
+   },
+   {
+    "name": "stale_after",
+    "flag": "--stale-after",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "7d or 2w (default 7d)",
+    "default": "7d"
+   },
+   {
+    "name": "title",
+    "flag": "--title",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "one line: what the project is",
+    "default": null
+   },
+   {
+    "name": "group",
+    "flag": "--group",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "a label such as a team, a goal list, or a quarter's cutline",
+    "default": null
+   },
+   {
+    "name": "parent",
+    "flag": "--parent",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the project this one belongs to",
+    "default": null
+   },
+   {
+    "name": "link",
+    "flag": "--link",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": true,
+    "help": "a related project (repeat for more)",
+    "default": null
+   },
+   {
+    "name": "kind",
+    "flag": "--kind",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "prep: it prepares you for an event (an interview, a meeting, a demo, a talk) and is done only after its readiness gate",
+    "default": null
+   },
+   {
+    "name": "event_on",
+    "flag": "--event-on",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "a prep project's event day, YYYY-MM-DD: that day's plan starts with its open gates",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.project.set",
+  "command": "careerbrew work project set",
+  "help": "change a project's title, group, parent, or links (the value none clears one)",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "title",
+    "flag": "--title",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "one line: what the project is",
+    "default": null
+   },
+   {
+    "name": "group",
+    "flag": "--group",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "a label such as a team, a goal list, or a quarter's cutline",
+    "default": null
+   },
+   {
+    "name": "parent",
+    "flag": "--parent",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the project this one belongs to",
+    "default": null
+   },
+   {
+    "name": "link",
+    "flag": "--link",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": true,
+    "help": "a related project (repeat for more)",
+    "default": null
+   },
+   {
+    "name": "kind",
+    "flag": "--kind",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "prep: it prepares you for an event (an interview, a meeting, a demo, a talk) and is done only after its readiness gate",
+    "default": null
+   },
+   {
+    "name": "event_on",
+    "flag": "--event-on",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "a prep project's event day, YYYY-MM-DD: that day's plan starts with its open gates",
+    "default": null
+   },
+   {
+    "name": "unlink",
+    "flag": "--unlink",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": true,
+    "help": "drop a link",
+    "default": null
+   },
+   {
+    "name": "quiet_until",
+    "flag": "--quiet-until",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "YYYY-MM-DD or none",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.project.import",
+  "command": "careerbrew work project import",
+  "help": "add or update projects from a sheet: a CSV or JSON file, or a Google Sheets link",
+  "args": [
+   {
+    "name": "source",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "a .csv or .json file with columns name, title, group, parent, links, trackers (recommended: a CSV download); or a Google Sheets link only when the sheet's owner and your company policy allow it",
+    "default": null
+   },
+   {
+    "name": "dry_run",
+    "flag": "--dry-run",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "check every row and show what would change; write nothing",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "adds or updates many project records at once (try --dry-run first)",
+  "agent_note": null
+ },
+ {
+  "name": "work.project.source",
+  "command": "careerbrew work project source",
+  "help": "add a source: doc, tracker, repo, chat, memory, or url",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "kind",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "ref",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.project.check",
+  "command": "careerbrew work project check",
+  "help": "stamp checked_at now on one source (by ref) or all",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "ref",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "status",
+    "flag": "--status",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "one line: what the source says now",
+    "default": null
+   },
+   {
+    "name": "since",
+    "flag": "--since",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "stamp nothing: list which sources changed since their last check, so you read only those",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": "agents: run --since first to see what changed; then stamp only the sources you read, one ref at a time, never a reference"
+ },
+ {
+  "name": "work.project.reference",
+  "command": "careerbrew work project reference",
+  "help": "mark a source reference-only: never read, never stale (links that open a sign-in page are references already)",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "ref",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "off",
+    "flag": "--off",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "track it again: it goes stale after the project's limit",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.project.absorb",
+  "command": "careerbrew work project absorb",
+  "help": "add a link, file, task id, or #channel to a project and note what it says",
+  "args": [
+   {
+    "name": "first",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the project name, or the thing to absorb (the project is then matched)",
+    "default": null
+   },
+   {
+    "name": "second",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the thing to absorb when a project name comes first",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.project.memory",
+  "command": "careerbrew work project memory",
+  "help": "set the project's memory path (where absorb and checkup write notes)",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "path",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.project.rules",
+  "command": "careerbrew work project rules",
+  "help": "read a project's standing session rules",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "return the rules as JSON where business output is allowed",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.project.rules-set",
+  "command": "careerbrew work project rules-set",
+  "help": "replace or clear a project's standing session rules",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "text",
+    "flag": "--text",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "replace the rules with one line",
+    "default": null
+   },
+   {
+    "name": "clear",
+    "flag": "--clear",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "remove the rules",
+    "default": null
+   },
+   {
+    "name": "yes",
+    "flag": "--yes",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "confirm replacement",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "replaces or removes the project's standing rules",
+  "agent_note": null
+ },
+ {
+  "name": "work.project.sync",
+  "command": "careerbrew work project sync",
+  "help": "read each changed project memory file into its project (links, trackers, status), and write matching work items there as dated notes (the watcher does it each cycle)",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.project.next",
+  "command": "careerbrew work project next",
+  "help": "link a work task as a next step",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "task",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.project.list",
+  "command": "careerbrew work project list",
+  "help": "one line per active project: stale sources first; --json gives an agent each project's sources to watch",
+  "args": [
+   {
+    "name": "active",
+    "flag": "--active",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "only the active projects (the default)",
+    "default": null
+   },
+   {
+    "name": "all",
+    "flag": "--all",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "archived projects too",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "each project with its sources, last check, and latest update, as JSON",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.project.archive",
+  "command": "careerbrew work project archive",
+  "help": "stop watching a project: off the list and the watcher, never stale; the record and notes stay (a prep project only once ready)",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "force",
+    "flag": "--force",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "archive a prep project with open gates (the event was cancelled)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.project.gate",
+  "command": "careerbrew work project gate",
+  "help": "mark a prep project's gate done: tool (tried it hands-on), links <ref>... (you read these links), or questions (your own questions are ready)",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "gate",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "tool, links, or questions (the quiz passes with a clean quiz)",
+    "default": null
+   },
+   {
+    "name": "refs",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": true,
+    "help": "links only: each source link you read yourself",
+    "default": null
+   },
+   {
+    "name": "undo",
+    "flag": "--undo",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "open the gate again",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": "agents: mark tool, questions, or a link read only after the owner says it is done; reading a link yourself does not count"
+ },
+ {
+  "name": "work.project.quiz",
+  "command": "careerbrew work project quiz",
+  "help": "store a prep project's quiz result, counts only: questions asked and missed (misses are re-quizzed)",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "asked",
+    "flag": "--asked",
+    "kind": "int",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "how many questions the quiz asked",
+    "default": null
+   },
+   {
+    "name": "missed",
+    "flag": "--missed",
+    "kind": "int",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "how many of them were missed",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": "agents: ask the quiz in chat (format, rubric, questions, logistics), then store only the counts; never write a question or an answer; after misses, re-quiz each miss and store that run"
+ },
+ {
+  "name": "work.project.unarchive",
+  "command": "careerbrew work project unarchive",
+  "help": "watch an archived project again",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.project.remove",
+  "command": "careerbrew work project remove",
+  "help": "delete a project's record (needs --yes); its memory file and tasks stay",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "yes",
+    "flag": "--yes",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "confirm the delete",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "deletes a project's record (its memory file and tasks stay; archive keeps it instead)",
+  "agent_note": "agents: show the project's name first; add --yes only after the user says remove, and prefer archive (it keeps the record)"
+ },
+ {
+  "name": "work.project.update",
+  "command": "careerbrew work project update",
+  "help": "note one project change or approval (the Work view shows the latest)",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "kind",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "company, project, team, other, or approval",
+    "default": null
+   },
+   {
+    "name": "text",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "one line: what changed",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.project.explain",
+  "command": "careerbrew work project explain",
+  "help": "write a layered, cited explanation outline, or --check a filled one",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "short",
+    "flag": "--short",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "short depth: one-minute version, containers, codemap, gotchas, read next, sources",
+    "default": null
+   },
+   {
+    "name": "deep",
+    "flag": "--deep",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "deep mode: adds a cited 'How it runs' section with the commands you ran",
+    "default": null
+   },
+   {
+    "name": "check",
+    "flag": "--check",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "run the checker on a filled doc; exit 1 on any problem",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.project.prd",
+  "command": "careerbrew work project prd",
+  "help": "write a PRD outline (requirements, decisions, estimates in dev weeks), or --check a filled one",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "slot",
+    "flag": "--slot",
+    "kind": "number",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the plan slot in dev weeks; the checker asks for a pushback when the estimate is bigger",
+    "default": null
+   },
+   {
+    "name": "check",
+    "flag": "--check",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "run the PRD checker on a filled doc; exit 1 on any problem",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.project.show",
+  "command": "careerbrew work project show",
+  "help": "sources stalest first, then next steps",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.priority.show",
+  "command": "careerbrew work priority show",
+  "help": "the ranked projects, their patterns, and what each matches now",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.priority.set",
+  "command": "careerbrew work priority set",
+  "help": "add a project or move it to a rank; --match sets the globs it owns (repos, ticket keys, titles)",
+  "args": [
+   {
+    "name": "project",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "rank",
+    "flag": "--rank",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "1 is the top project (default: keep its rank, or last for a new one)",
+    "default": null
+   },
+   {
+    "name": "match",
+    "flag": "--match",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": true,
+    "help": "a glob such as */agentbrew, PROJ-*, or *invoice* (repeat for more; default: keep them, or the name)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.priority.remove",
+  "command": "careerbrew work priority remove",
+  "help": "drop a project from the ranking",
+  "args": [
+   {
+    "name": "project",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.feed.show",
+  "command": "careerbrew work feed show",
+  "help": "counts by triage (act, fyi, noise, mine), open asks, personal; --show lists titles to your terminal",
+  "args": [
+   {
+    "name": "show",
+    "flag": "--show",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "open",
+    "flag": "--open",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "only asks with no reply or acknowledge from you yet",
+    "default": null
+   },
+   {
+    "name": "triage",
+    "flag": "--triage",
+    "kind": "choice",
+    "choices": [
+     "act",
+     "fyi",
+     "noise",
+     "mine"
+    ],
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "source",
+    "flag": "--source",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "slack, pagerduty, outlook, or a plugin's source name",
+    "default": null
+   },
+   {
+    "name": "personal",
+    "flag": "--personal",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "also list personal events",
+    "default": null
+   },
+   {
+    "name": "top",
+    "flag": "--top",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 50
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.feed.pull",
+  "command": "careerbrew work feed pull",
+  "help": "read Slack, PagerDuty, and Outlook into the feed now (the watcher does it every 15 minutes)",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.feed.add",
+  "command": "careerbrew work feed add",
+  "help": "add events from a JSON-lines file (- for stdin): id, at, title, and source, kind, actor, to_me, text, personal",
+  "args": [
+   {
+    "name": "file",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "plugin",
+    "flag": "--plugin",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the installed plugin that sends them (plugin remove --purge-data deletes them)",
+    "default": null
+   },
+   {
+    "name": "source",
+    "flag": "--source",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "for a raw tool reply saved as returned ({tickets: [...]} or {messages: [...]}): its feed source (default jira or mail)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": "plugins: one JSON object per line (id, at, title; source, kind, actor me|other|bot, to_me, text, personal) and --plugin <name>; keep your own store out"
+ },
+ {
+  "name": "work.feed.transcript",
+  "command": "careerbrew work feed transcript",
+  "help": "store the feed tools' replies from an agent session transcript (.jsonl); fails on a mapped source that stored nothing (feed_tool_sources)",
+  "args": [
+   {
+    "name": "file",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "Claude/Codex JSONL",
+    "default": null
+   },
+   {
+    "name": "since",
+    "flag": "--since",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "this cycle only: an ISO time, or a duration back from now such as 30m or 2h (default: the whole transcript)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.feed.cycle",
+  "command": "careerbrew work feed cycle",
+  "help": "end a feed batch: report missing or invalid required acquisition coverage, then begin a new batch",
+  "args": [
+   {
+    "name": "require",
+    "flag": "--require",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "additional required sources, comma-separated; configured tool and required live sources always apply",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the required, stored, and not_stored source names as JSON",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.feed.mark",
+  "command": "careerbrew work feed mark",
+  "help": "mark one event personal (kept out of evidence, the day log, project memory, and the PM update) or work; your mark wins over rules",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "value",
+    "flag": null,
+    "kind": "choice",
+    "choices": [
+     "personal",
+     "work",
+     "not-ask",
+     "done",
+     "ask"
+    ],
+    "required": true,
+    "many": false,
+    "help": "personal or work; for an ask: not-ask (it never asked you), done (handled elsewhere), or ask (open again)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": "agents: mark an event personal or work only when the user says so"
+ },
+ {
+  "name": "work.feed.rules",
+  "command": "careerbrew work feed rules",
+  "help": "the triage rules in the order they run: yours (work/feed-rules.yaml), then the built-in ones",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.feed.retriage",
+  "command": "careerbrew work feed retriage",
+  "help": "run the rules again over every event whose original is still kept (after a rules or team change)",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.feed.links",
+  "command": "careerbrew work feed links",
+  "help": "kept events with links, and the links not researched yet (--pending: only those)",
+  "args": [
+   {
+    "name": "pending",
+    "flag": "--pending",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "top",
+    "flag": "--top",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 50
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.feed.research",
+  "command": "careerbrew work feed research",
+  "help": "store what each link of one event says; refused unless every link has a summary, or opened: false and why",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "file",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "a JSON list (- for stdin): {url, summary} or {url, opened: false, reason} per link",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": "agents: open every link `work feed links --pending` lists for the event first; one {url, summary} per link, or {url, opened: false, reason} when it needs a sign-in; never skip a link"
+ },
+ {
+  "name": "work.feed.open",
+  "command": "careerbrew work feed open",
+  "help": "one event's original text, to your terminal",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.live.start",
+  "command": "careerbrew work live start",
+  "help": "mark the live feed running and list what each source pulls; --sources saves a new source config first",
+  "args": [
+   {
+    "name": "sources",
+    "flag": "--sources",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "a source config, YAML or JSON (- for stdin): sources: [{name, kind, required, adapter: file|connector, inbox|connector, pull}]",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.live.cycle",
+  "command": "careerbrew work live cycle",
+  "help": "one cycle: pull, store, triage, verdict per event, next actions; exits 1 when a required source is not healthy (not_stored)",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.live.status",
+  "command": "careerbrew work live status",
+  "help": "running or stopped, the last cycle, each source's cursor, and the next actions",
+  "args": [
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.live.stop",
+  "command": "careerbrew work live stop",
+  "help": "stop the live feed; cursors are kept, so the next start continues",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.promise.list",
+  "command": "careerbrew work promise list",
+  "help": "open promises: overdue first, then by due day, with the next step (research, draft, status)",
+  "args": [
+   {
+    "name": "all",
+    "flag": "--all",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "also the closed ones",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.promise.scan",
+  "command": "careerbrew work promise scan",
+  "help": "look for promises in your sent messages still kept in the work feed (new ones are tracked as they arrive)",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.promise.add",
+  "command": "careerbrew work promise add",
+  "help": "track a promise made outside the feed (a meeting, a call)",
+  "args": [
+   {
+    "name": "text",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "what you promised, one line",
+    "default": null
+   },
+   {
+    "name": "to",
+    "flag": "--to",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "who you promised it to",
+    "default": null
+   },
+   {
+    "name": "due",
+    "flag": "--due",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the due day, YYYY-MM-DD",
+    "default": null
+   },
+   {
+    "name": "link",
+    "flag": "--link",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "where it was made (an http(s) link)",
+    "default": null
+   },
+   {
+    "name": "parent",
+    "flag": "--parent",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the project it belongs to",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.promise.outcomes",
+  "command": "careerbrew work promise outcomes",
+  "help": "show verified PM promise outcome proposals",
+  "args": [
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.promise.accept",
+  "command": "careerbrew work promise accept",
+  "help": "accept one current PM promise proposal (owner only, needs --yes)",
+  "args": [
+   {
+    "name": "proposal_id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "yes",
+    "flag": "--yes",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "records your decision on one current PM promise outcome",
+  "agent_note": null
+ },
+ {
+  "name": "work.promise.stats",
+  "command": "careerbrew work promise stats",
+  "help": "count promise outcomes in an inclusive creation-day window",
+  "args": [
+   {
+    "name": "days",
+    "flag": "--days",
+    "kind": "int",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.promise.done",
+  "command": "careerbrew work promise done",
+  "help": "close a promise you kept: it leaves Commitments and the handoff",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.promise.dropped",
+  "command": "careerbrew work promise dropped",
+  "help": "close a promise that was not one (detected by mistake) or no longer stands",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.promise.step",
+  "command": "careerbrew work promise step",
+  "help": "record one step of the work on a promise: research, draft (the follow-up), or status",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "step",
+    "flag": null,
+    "kind": "choice",
+    "choices": [
+     "research",
+     "draft",
+     "status"
+    ],
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "text",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "one line: what was done",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.agent.event",
+  "command": "careerbrew work agent event",
+  "help": "report one step now (never batch at the end of a cycle): Agent activity shows it within seconds",
+  "args": [
+   {
+    "name": "agent",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the agent's name, for example review-bot",
+    "default": null
+   },
+   {
+    "name": "title",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "one line: what the agent did or does now (up to 200 characters)",
+    "default": null
+   },
+   {
+    "name": "status",
+    "flag": "--status",
+    "kind": "choice",
+    "choices": [
+     "running",
+     "done",
+     "failed"
+    ],
+    "required": false,
+    "many": false,
+    "help": "running (default) while it works; done or failed ends the run",
+    "default": "running"
+   },
+   {
+    "name": "project",
+    "flag": "--project",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the project it works for; Agent activity groups by it",
+    "default": ""
+   },
+   {
+    "name": "url",
+    "flag": "--url",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "an http(s) link to what it works on (a PR, a ticket, a run page)",
+    "default": ""
+   },
+   {
+    "name": "run",
+    "flag": "--run",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the run id when one agent runs several jobs at once (default: the agent's name)",
+    "default": ""
+   },
+   {
+    "name": "session",
+    "flag": "--session",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "a project session's id (`work session open`): sets the run and the project",
+    "default": ""
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.agent.show",
+  "command": "careerbrew work agent show",
+  "help": "each background agent's run: status, project, and last event (titles and links only to your terminal)",
+  "args": [
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the runs as JSON (titles and links only where business data may show)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.session.open",
+  "command": "careerbrew work session open",
+  "help": "record a project's session, or get its live one (one per project; at most work_session_cap live)",
+  "args": [
+   {
+    "name": "project",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the project's name (careerbrew work project list)",
+    "default": null
+   },
+   {
+    "name": "id",
+    "flag": "--id",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the agent tool's own id for the new session (not needed to get the live one)",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.session.list",
+  "command": "careerbrew work session list",
+  "help": "every open project session: state, last agent event, claims, open questions, handoff (projects only to your terminal)",
+  "args": [
+   {
+    "name": "all",
+    "flag": "--all",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "also the archived (ended) sessions",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.session.ask",
+  "command": "careerbrew work session ask",
+  "help": "save a session's question for the main session's one batched ask (a session never asks the user)",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the session's id",
+    "default": null
+   },
+   {
+    "name": "text",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the ask, one line (at most 200 characters)",
+    "default": null
+   },
+   {
+    "name": "option",
+    "flag": "--option",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": true,
+    "help": "one answer the user can pick (repeat it, at most 6)",
+    "default": []
+   },
+   {
+    "name": "pick",
+    "flag": "--pick",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "your pick: one of the --option values",
+    "default": null
+   },
+   {
+    "name": "recheck",
+    "flag": "--recheck",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "a command (exit 0 means still open) or an http(s):// link an agent checks",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.session.handoff",
+  "command": "careerbrew work session handoff",
+  "help": "write the project's end-of-day handoff (one per project; a new one replaces it)",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the session's id (or its project)",
+    "default": null
+   },
+   {
+    "name": "text",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "one line: where the project stands and the next step",
+    "default": null
+   },
+   {
+    "name": "link",
+    "flag": "--link",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "an http(s) link to the detail",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.session.end",
+  "command": "careerbrew work session end",
+  "help": "archive a session that wrote its handoff and release its claims (exit 1 while one has no handoff)",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the session's id (or its project)",
+    "default": ""
+   },
+   {
+    "name": "all",
+    "flag": "--all",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "every open session (end of day)",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "archives each project session that wrote its handoff and releases its claims (an ended session is not reopened)",
+  "agent_note": null
+ },
+ {
+  "name": "work.claim.take",
+  "command": "careerbrew work claim take",
+  "help": "claim a resource before writing it, or renew your claim (exit 1: another session holds it, so skip it)",
+  "args": [
+   {
+    "name": "resource",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "named like a step's uses: entry, for example slack-draft:C123/1700000000.000100",
+    "default": null
+   },
+   {
+    "name": "session",
+    "flag": "--session",
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the session's id",
+    "default": null
+   },
+   {
+    "name": "minutes",
+    "flag": "--minutes",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "how long it lasts (default: work_claim_minutes)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.claim.release",
+  "command": "careerbrew work claim release",
+  "help": "drop your claim when the write is done",
+  "args": [
+   {
+    "name": "resource",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "named like a step's uses: entry, for example slack-draft:C123/1700000000.000100",
+    "default": null
+   },
+   {
+    "name": "session",
+    "flag": "--session",
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the session's id",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.claim.list",
+  "command": "careerbrew work claim list",
+  "help": "every claim held now: resource, session, and until when (resources only to your terminal)",
+  "args": [
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.team.add",
+  "command": "careerbrew work team add",
+  "help": "add a teammate, or fill in ids of one already on the roster",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "chat",
+    "flag": "--chat",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "chat user id (Slack), such as U0SAM",
+    "default": null
+   },
+   {
+    "name": "email",
+    "flag": "--email",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "login",
+    "flag": "--login",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "code-host login, such as samlee",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.team.remove",
+  "command": "careerbrew work team remove",
+  "help": "take a teammate off the roster",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.team.list",
+  "command": "careerbrew work team list",
+  "help": "the roster: names to your terminal, ids as yes or no to agents",
+  "args": [
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.team.feed",
+  "command": "careerbrew work team feed",
+  "help": "your teammates' kept feed events, by project (none: no project matches), with what each link says",
+  "args": [
+   {
+    "name": "days",
+    "flag": "--days",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 7
+   },
+   {
+    "name": "top",
+    "flag": "--top",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 50
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.standup",
+  "command": "careerbrew work standup",
+  "help": "what you did on each row you report on since the last standup: one page (out/standup.html) and the Standup view",
+  "args": [
+   {
+    "name": "rows",
+    "flag": "--rows",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the rows to report on, a JSON or YAML file (- for stdin): a list of {title, status, owner, keys, project, repos, aliases}; kept for later runs; an empty list [] clears them",
+    "default": null
+   },
+   {
+    "name": "talk",
+    "flag": "--talk",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "talking points an agent wrote, a JSON or YAML file (- for stdin): {row title: string or [bullet, ...]}; 1 to 5 bullets, at most 200 characters each, replace that row's generated talking points until the next standup",
+    "default": null
+   },
+   {
+    "name": "extra",
+    "flag": "--extra",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "actions careerbrew does not collect (Slack, meetings, mail), a JSON or YAML file (- for stdin): a list of {title, at, kind, url, row}; they join the row's evidence until the next standup",
+    "default": null
+   },
+   {
+    "name": "proof",
+    "flag": "--proof",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "a live proof check an agent made right before the build, a JSON or YAML file (- for stdin): {row title: {verdict: pass|fail, proofs: [{source, url, checked_at, quote}], reason}}; with it, a row shows only when its check passes and its proofs are fresh (standup_proof_minutes)",
+    "default": null
+   },
+   {
+    "name": "show",
+    "flag": "--show",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "print each row's talking point, and each failed row's title and reason, to your terminal",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": "plugins and agents: pass the rows with --rows <file|-> (title, status, owner, keys, project, repos, aliases; optional groups and ticket_projects); relay the counts and the page path, never titles"
+ },
+ {
+  "name": "work.review-ask",
+  "command": "careerbrew work review-ask",
+  "help": "draft a review ask for a PR that names enough people for its required approvals (never fewer than 2; group handles do not count), each with what to review",
+  "args": [
+   {
+    "name": "url",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the pull request link, https://<host>/<owner>/<repo>/pull/<number>",
+    "default": null
+   },
+   {
+    "name": "reviewer",
+    "flag": "--reviewer",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": true,
+    "help": "a person to name first, by login (repeatable)",
+    "default": []
+   },
+   {
+    "name": "check",
+    "flag": "--check",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "check a draft you wrote instead, a text file (- for stdin): refused when it names too few people",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.focus",
+  "command": "careerbrew work focus",
+  "help": "the most efficient action now, today, this week, month, quarter, year, and at this company, with why",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.note",
+  "command": "careerbrew work note",
+  "help": "record evidence no tool sees",
+  "args": [
+   {
+    "name": "title",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "tags",
+    "flag": "--tags",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": ""
+   },
+   {
+    "name": "impact",
+    "flag": "--impact",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": ""
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.promo",
+  "command": "careerbrew work promo",
+  "help": "write the promotion doc",
+  "args": [
+   {
+    "name": "ladder",
+    "flag": "--ladder",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "level",
+    "flag": "--level",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "show",
+    "flag": "--show",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.gaps",
+  "command": "careerbrew work gaps",
+  "help": "what is missing, by priority",
+  "args": [
+   {
+    "name": "ladder",
+    "flag": "--ladder",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "level",
+    "flag": "--level",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.plan",
+  "command": "careerbrew work plan",
+  "help": "plan today's work",
+  "args": [
+   {
+    "name": "ladder",
+    "flag": "--ladder",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "level",
+    "flag": "--level",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "hours",
+    "flag": "--hours",
+    "kind": "number",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 6.0
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.linkedin",
+  "command": "careerbrew work linkedin",
+  "help": "public-safe LinkedIn Experience block from your results",
+  "args": [
+   {
+    "name": "role",
+    "flag": "--role",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "e.g. \"Senior Software Engineer, Payments\"",
+    "default": null
+   },
+   {
+    "name": "max",
+    "flag": "--max",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 6
+   },
+   {
+    "name": "since",
+    "flag": "--since",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "only evidence on or after YYYY-MM-DD",
+    "default": null
+   },
+   {
+    "name": "show",
+    "flag": "--show",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.task-set",
+  "command": "careerbrew work task-set",
+  "help": "change a task's impact, urgency, or hours (an accepted task starts at 3, 3, 1h)",
+  "args": [
+   {
+    "name": "task",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "impact",
+    "flag": "--impact",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "1 to 5",
+    "default": null
+   },
+   {
+    "name": "urgency",
+    "flag": "--urgency",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "1 to 5",
+    "default": null
+   },
+   {
+    "name": "hours",
+    "flag": "--hours",
+    "kind": "number",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "your estimate in hours",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.impact",
+  "command": "careerbrew work impact",
+  "help": "a task's impact as work happens: expected at the start, measured with evidence at delivery (issue #214)",
+  "args": [
+   {
+    "name": "task",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "expect",
+    "flag": "--expect",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "at the start: the hypothesis, what should change",
+    "default": ""
+   },
+   {
+    "name": "who",
+    "flag": "--who",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "at the start: who benefits",
+    "default": ""
+   },
+   {
+    "name": "metric",
+    "flag": "--metric",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "at the start: the metric that will show it",
+    "default": ""
+   },
+   {
+    "name": "result",
+    "flag": "--result",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "at delivery: the measured result, a number when you have one",
+    "default": ""
+   },
+   {
+    "name": "evidence",
+    "flag": "--evidence",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": true,
+    "help": "at delivery: a link to a PR, dashboard, or message (repeatable)",
+    "default": []
+   },
+   {
+    "name": "not_sure",
+    "flag": "--not-sure",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the result cannot be checked: it is kept as 'Not sure: ...'",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "work.task",
+  "command": "careerbrew work task",
+  "help": "add a task",
+  "args": [
+   {
+    "name": "title",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "impact",
+    "flag": "--impact",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 3
+   },
+   {
+    "name": "urgency",
+    "flag": "--urgency",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 3
+   },
+   {
+    "name": "hours",
+    "flag": "--hours",
+    "kind": "number",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 2.0
+   },
+   {
+    "name": "competencies",
+    "flag": "--competencies",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": ""
+   },
+   {
+    "name": "due",
+    "flag": "--due",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "source",
+    "flag": "--source",
+    "kind": "choice",
+    "choices": [
+     "user",
+     "agent"
+    ],
+    "required": false,
+    "many": false,
+    "help": "who adds it; agents must pass agent (default: user in a terminal, agent otherwise)",
+    "default": null
+   },
+   {
+    "name": "why",
+    "flag": "--why",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "why it was added (required for agents); URLs in it become links in the web app",
+    "default": null
+   },
+   {
+    "name": "link",
+    "flag": "--link",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": true,
+    "help": "a full https:// link to what the task needs (a file, a ticket, a channel), or LABEL=URL; repeat for more",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": "agents: pass --why, and one --link (a full https:// URL, or LABEL=URL) per file, ticket, or channel the task needs; the task waits in the owner's inbox until accepted"
+ },
+ {
+  "name": "work.done",
+  "command": "careerbrew work done",
+  "help": "mark a task done with actual hours",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "hours",
+    "flag": null,
+    "kind": "number",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "ladder.list",
+  "command": "careerbrew ladder list",
+  "help": "list ladders",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "ladder.import",
+  "command": "careerbrew ladder import",
+  "help": "validate and import a ladder YAML",
+  "args": [
+   {
+    "name": "file",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "ladder.levels",
+  "command": "careerbrew ladder levels",
+  "help": "a level's dimensions: description and looks-like examples",
+  "args": [
+   {
+    "name": "ladder",
+    "flag": "--ladder",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "ladder id (default: setting `ladder`)",
+    "default": null
+   },
+   {
+    "name": "level",
+    "flag": "--level",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "level id (default: setting `target_level`)",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "data.status",
+  "command": "careerbrew data status",
+  "help": "is the data root encrypted, and how much of it",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "data.encrypt",
+  "command": "careerbrew data encrypt",
+  "help": "encrypt every plaintext data file and turn encryption on",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "re-encrypts every data file",
+  "agent_note": null
+ },
+ {
+  "name": "data.decrypt",
+  "command": "careerbrew data decrypt",
+  "help": "write every data file as plaintext and turn encryption off",
+  "args": [
+   {
+    "name": "yes",
+    "flag": "--yes",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "writes every data file as plaintext",
+  "agent_note": null
+ },
+ {
+  "name": "data.edit",
+  "command": "careerbrew data edit",
+  "help": "edit a data file (e.g. profile.yaml) in $EDITOR; it stays encrypted on disk",
+  "args": [
+   {
+    "name": "file",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": false,
+  "terminal_only": "it opens your $EDITOR",
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "data.set",
+  "command": "careerbrew data set",
+  "help": "set profile name or employer without an editor; do not use for secrets",
+  "args": [
+   {
+    "name": "file",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "profile.yaml",
+    "default": null
+   },
+   {
+    "name": "name",
+    "flag": "--name",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "your name",
+    "default": null
+   },
+   {
+    "name": "employer",
+    "flag": "--employer",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "your employer",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": "agents: set profile name or employer when the owner supplies them; command arguments may appear in process listings and shell history, so never use it for secrets"
+ },
+ {
+  "name": "data.show",
+  "command": "careerbrew data show",
+  "help": "print a data file decrypted without changing it; --keys prints only its structure (for agents)",
+  "args": [
+   {
+    "name": "file",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "keys",
+    "flag": "--keys",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "key names and value types only, never a value",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": "agents: add --keys to check a file's structure (key names and types, never a value); only files at the top of the data root and in jobs/, tutor/, prep/, and linkedin/ print their text to agents; any other file's text (work/, day/, ladders/, cache/, plugins/, out/) prints only to the owner's terminal or the web app, unless the plugin policy sets agent_may_read_business"
+ },
+ {
+  "name": "backup.create",
+  "command": "careerbrew backup create",
+  "help": "write and verify an encrypted backup",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "backup.verify",
+  "command": "careerbrew backup verify",
+  "help": "verify a backup (latest by default)",
+  "args": [
+   {
+    "name": "file",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "backup.restore",
+  "command": "careerbrew backup restore",
+  "help": "restore a backup into a folder",
+  "args": [
+   {
+    "name": "file",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "dest",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "replaces data with a backup",
+  "agent_note": null
+ },
+ {
+  "name": "plugin.add",
+  "command": "careerbrew plugin add",
+  "help": "install a plugin from a folder or git URL",
+  "args": [
+   {
+    "name": "source",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "allow_exec",
+    "flag": "--allow-exec",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "installs a plugin (with --allow-exec its commands can run on this machine)",
+  "agent_note": null
+ },
+ {
+  "name": "plugin.remove",
+  "command": "careerbrew plugin remove",
+  "help": "uninstall a plugin",
+  "args": [
+   {
+    "name": "name",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "purge_data",
+    "flag": "--purge-data",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "uninstalls a plugin (and with --purge-data deletes its records)",
+  "agent_note": null
+ },
+ {
+  "name": "plugin.list",
+  "command": "careerbrew plugin list",
+  "help": "list plugins and the merged policy",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "plugin.refresh",
+  "command": "careerbrew plugin refresh",
+  "help": "reinstall every plugin from its folder or URL after you edit it",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "plugin.new",
+  "command": "careerbrew plugin new",
+  "help": "create, install, and connect a plugin for a new job in one step",
+  "args": [
+   {
+    "name": "company",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "dir",
+    "flag": "--dir",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "where to create it (default ~/careerbrew-plugins/careerbrew-<company>)",
+    "default": null
+   },
+   {
+    "name": "connect",
+    "flag": "--connect",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "comma list: jira,github,slack,gdocs,zoom",
+    "default": null
+   },
+   {
+    "name": "jira_url",
+    "flag": "--jira-url",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "email",
+    "flag": "--email",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "github_user",
+    "flag": "--github-user",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "github_api",
+    "flag": "--github-api",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "GitHub Enterprise API base, e.g. https://github.example.com/api/v3",
+    "default": null
+   },
+   {
+    "name": "no_prompt",
+    "flag": "--no-prompt",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "plugin.verify",
+  "command": "careerbrew plugin verify",
+  "help": "detect changed plugin files",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "privacy.scan",
+  "command": "careerbrew privacy scan",
+  "help": "scan tracked/staged files (or a draft you are about to post, with --file) for sensitive terms",
+  "args": [
+   {
+    "name": "staged",
+    "flag": "--staged",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "repo",
+    "flag": "--repo",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "files",
+    "flag": "--file",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": true,
+    "help": "scan this draft instead of the repo (repeatable): terms, private/ paths, the data root",
+    "default": null
+   },
+   {
+    "name": "show",
+    "flag": "--show",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "also print each matched text with its line, for the owner only",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "connect",
+  "command": "careerbrew connect",
+  "help": "register a work-tool connector (token goes to the Keychain)",
+  "args": [
+   {
+    "name": "kind",
+    "flag": null,
+    "kind": "choice",
+    "choices": [
+     "github",
+     "jira",
+     "slack",
+     "gdocs",
+     "zoom",
+     "outlook",
+     "pagerduty"
+    ],
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "ref",
+    "flag": "--ref",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "use an existing secret reference: keychain:<svc> | op://vault/item/field | env:NAME",
+    "default": null
+   },
+   {
+    "name": "base_url",
+    "flag": "--base-url",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "email",
+    "flag": "--email",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "user",
+    "flag": "--user",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "api",
+    "flag": "--api",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "days",
+    "flag": "--days",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "no_verify",
+    "flag": "--no-verify",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "save without the who-am-I check",
+    "default": null
+   },
+   {
+    "name": "paste",
+    "flag": "--paste",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "outlook: paste a manual Graph token (it expires after about an hour) instead of signing in with a device code",
+    "default": null
+   },
+   {
+    "name": "client_id",
+    "flag": "--client-id",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "outlook: the app registration to sign in with (default: the outlook_client_id setting, then a plugin's connector_defaults)",
+    "default": null
+   },
+   {
+    "name": "tenant",
+    "flag": "--tenant",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "outlook: the Microsoft tenant (default: the outlook_tenant setting, then a plugin's, then organizations)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "interview",
+  "command": "careerbrew interview",
+  "help": "the interview loop for a company: every step, tips, traps, sources",
+  "args": [
+   {
+    "name": "company",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "level",
+    "flag": "--level",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 3
+   },
+   {
+    "name": "show",
+    "flag": "--show",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "no_sources",
+    "flag": "--no-sources",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "open",
+  "command": "careerbrew open",
+  "help": "open the web app in your default browser (starts it if needed; never prints the token)",
+  "args": [
+   {
+    "name": "view",
+    "flag": "--view",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "view to open, for example today, week, dashboard",
+    "default": "today"
+   },
+   {
+    "name": "report",
+    "flag": "--report",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "open a run page instead: latest, a run name such as review, or a page id",
+    "default": null
+   }
+  ],
+  "ui": false,
+  "terminal_only": "it opens the web app you are already using; run `careerbrew open` in a terminal",
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "report.latest",
+  "command": "careerbrew report latest",
+  "help": "the newest run page: its path, status, blockers, and next commands (--json: counts, ids, statuses, and commands only, for agents)",
+  "args": [
+   {
+    "name": "run",
+    "flag": "--run",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "only this run: repo-checkup, start, review, work-collect, day-plan, checkup, machine-ready, machine-new-user, or plugin-new",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "report.list",
+  "command": "careerbrew report list",
+  "help": "every kept run page, newest first",
+  "args": [
+   {
+    "name": "top",
+    "flag": "--top",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 20
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "report.public",
+  "command": "careerbrew report public",
+  "help": "repo health for the shared Dashboard: gate, e2e, and checkup numbers only, allowlisted (--json for agents; --out DIR writes its row files)",
+  "args": [
+   {
+    "name": "days",
+    "flag": "--days",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the window, in days ending today (1 to 366)",
+    "default": 28
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "out",
+    "flag": "--out",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "write summary.json, steps.json, and daily.json for the repo health Dashboard here",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "serve",
+  "command": "careerbrew serve",
+  "help": "open the local web app (127.0.0.1 only)",
+  "args": [
+   {
+    "name": "port",
+    "flag": "--port",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 8765
+   }
+  ],
+  "ui": false,
+  "terminal_only": "it is the web app itself",
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "web.rotate-token",
+  "command": "careerbrew web rotate-token",
+  "help": "sign out every web app tab and bookmark now with a new token; `careerbrew open` signs you in again (never prints the token)",
+  "args": [
+   {
+    "name": "yes",
+    "flag": "--yes",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "really sign out every open tab",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "signs out every open web app tab and bookmark, this one too (`careerbrew open` signs you in again)",
+  "agent_note": null
+ },
+ {
+  "name": "changes",
+  "command": "careerbrew changes",
+  "help": "detect ladder, plugin, company, and source changes and pivot",
+  "args": [
+   {
+    "name": "fetch",
+    "flag": "--fetch",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "also re-fetch pipeline companies' source pages",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "research.page",
+  "command": "careerbrew research page",
+  "help": "fetch a public page (static HTML) with a timestamp",
+  "args": [
+   {
+    "name": "url",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "fetches a web page",
+  "agent_note": null
+ },
+ {
+  "name": "research.stale",
+  "command": "careerbrew research stale",
+  "help": "sources due for a re-check",
+  "args": [
+   {
+    "name": "days",
+    "flag": "--days",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 180
+   },
+   {
+    "name": "top",
+    "flag": "--top",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 20
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "interview-patterns",
+  "command": "careerbrew interview-patterns",
+  "help": "what interview loops share across companies (steps, order, AI policy)",
+  "args": [
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "prep.check",
+  "command": "careerbrew prep check",
+  "help": "walk the readiness checklist for a company",
+  "args": [
+   {
+    "name": "company",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "level",
+    "flag": "--level",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 3
+   },
+   {
+    "name": "yes",
+    "flag": "--yes",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "comma list of item ids you have done",
+    "default": null
+   },
+   {
+    "name": "answers",
+    "flag": "--answers",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "JSON file {item_id: true|false}",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "top",
+    "flag": "--top",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 8
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "prep.story",
+  "command": "careerbrew prep story",
+  "help": "add a STAR story to your bank",
+  "args": [
+   {
+    "name": "title",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "competencies",
+    "flag": "--competencies",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": ""
+   },
+   {
+    "name": "situation",
+    "flag": "--situation",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "action",
+    "flag": "--action",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "result",
+    "flag": "--result",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "mail.scan",
+  "command": "careerbrew mail scan",
+  "help": "find LinkedIn job alerts and interview emails",
+  "args": [
+   {
+    "name": "days",
+    "flag": "--days",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": 7
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "secret.set",
+  "command": "careerbrew secret set",
+  "help": "hidden prompt, then Keychain",
+  "args": [
+   {
+    "name": "service",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": false,
+  "terminal_only": "the secret goes to a hidden prompt in your own terminal, never through a browser form",
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "connectors.list",
+  "command": "careerbrew connectors list",
+  "help": "list connectors and the policy",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "machine.show",
+  "command": "careerbrew machine show",
+  "help": "show the role and plugin hints",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "machine.new-user",
+  "command": "careerbrew machine new-user",
+  "help": "set yourself up on a corporate machine with the company plugin: role, profile, your repos and connectors, readiness",
+  "args": [
+   {
+    "name": "plugin",
+    "flag": "--plugin",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "install the company plugin first (git URL or folder)",
+    "default": null
+   },
+   {
+    "name": "repos",
+    "flag": "--repos",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "folder with your work repos (default ~/apps)",
+    "default": "~/apps"
+   },
+   {
+    "name": "email",
+    "flag": "--email",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "your work email (default: git config user.email)",
+    "default": null
+   },
+   {
+    "name": "name",
+    "flag": "--name",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "your name (default: git config user.name)",
+    "default": null
+   },
+   {
+    "name": "employer",
+    "flag": "--employer",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the company name (default: the plugin's first sensitive term)",
+    "default": null
+   },
+   {
+    "name": "github_user",
+    "flag": "--github-user",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "your login on the company GitHub",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "sets this machine to the corporate role and writes your own connectors",
+  "agent_note": null
+ },
+ {
+  "name": "machine.split-plugin-evidence",
+  "command": "careerbrew machine split-plugin-evidence",
+  "help": "move per-person sources and connectors from the company plugin's evidence file into your private files, as they are; shared ones stay",
+  "args": [
+   {
+    "name": "dry_run",
+    "flag": "--dry-run",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "show the counts it would reach and write nothing",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "rewrites the company plugin's evidence file and reinstalls the plugin (try --dry-run first)",
+  "agent_note": null
+ },
+ {
+  "name": "machine.ready",
+  "command": "careerbrew machine ready",
+  "help": "check a corporate machine is ready (role, plugin, ladder, terms, no leaks)",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "machine.set",
+  "command": "careerbrew machine set",
+  "help": "set the role",
+  "args": [
+   {
+    "name": "role",
+    "flag": null,
+    "kind": "choice",
+    "choices": [
+     "personal",
+     "corporate"
+    ],
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "label",
+    "flag": "--label",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "changes this machine's role",
+  "agent_note": null
+ },
+ {
+  "name": "pair.init",
+  "command": "careerbrew pair init",
+  "help": "create a pairing key",
+  "args": [],
+  "ui": false,
+  "terminal_only": "the pairing key prints once, to your terminal only",
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "pair.join",
+  "command": "careerbrew pair join",
+  "help": "join with a pairing key",
+  "args": [
+   {
+    "name": "key",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": false,
+  "terminal_only": "the pairing key is typed into a hidden prompt",
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "sync.export",
+  "command": "careerbrew sync export",
+  "help": "write an encrypted bundle (policy-filtered)",
+  "args": [
+   {
+    "name": "file",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "writes an encrypted bundle of your data",
+  "agent_note": null
+ },
+ {
+  "name": "sync.import",
+  "command": "careerbrew sync import",
+  "help": "import a bundle from the other machine",
+  "args": [
+   {
+    "name": "file",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "imports a bundle from another machine",
+  "agent_note": null
+ },
+ {
+  "name": "day.log",
+  "command": "careerbrew day log",
+  "help": "today's log: done today, plan for tomorrow, blockers, questions (kept per day)",
+  "args": [
+   {
+    "name": "date",
+    "flag": "--date",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "show",
+    "flag": "--show",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "list",
+    "flag": "--list",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "list the kept logs",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.inbox",
+  "command": "careerbrew day inbox",
+  "help": "proposals and questions careerbrew has for you: what, why, from, links, and what Accept and Dismiss do",
+  "args": [
+   {
+    "name": "group",
+    "flag": "--group",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "list each suggestion of one group (Review each in the web app)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.accept-all",
+  "command": "careerbrew day accept-all",
+  "help": "accept every suggestion of one group of alike suggestions at once (needs --yes)",
+  "args": [
+   {
+    "name": "group",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the group id from `careerbrew day inbox` (grp-...)",
+    "default": null
+   },
+   {
+    "name": "yes",
+    "flag": "--yes",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "really accept them all",
+    "default": null
+   },
+   {
+    "name": "count",
+    "flag": "--count",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the number of suggestions you were shown; nothing changes if the group now holds another number",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "accepts every suggestion of the group at once (tasks planned, sources added)",
+  "agent_note": "agents: show the group's label, its count, and what Accept all does first; add --yes --count <the count you showed> only after the user says yes"
+ },
+ {
+  "name": "day.dismiss-all",
+  "command": "careerbrew day dismiss-all",
+  "help": "dismiss every suggestion of one group of alike suggestions at once (needs --yes)",
+  "args": [
+   {
+    "name": "group",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the group id from `careerbrew day inbox` (grp-...)",
+    "default": null
+   },
+   {
+    "name": "yes",
+    "flag": "--yes",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "really dismiss them all",
+    "default": null
+   },
+   {
+    "name": "count",
+    "flag": "--count",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the number of suggestions you were shown; nothing changes if the group now holds another number",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "dismisses every suggestion of the group at once; they do not come back",
+  "agent_note": "agents: show the group's label and its count first; add --yes --count <the count you showed> only after the user says yes (dismissed suggestions never come back)"
+ },
+ {
+  "name": "day.reopen",
+  "command": "careerbrew day reopen",
+  "help": "bring back a suggestion careerbrew hid as done elsewhere",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.send",
+  "command": "careerbrew day send",
+  "help": "send today's PM update: Slack (default, needs --yes) or an email draft",
+  "args": [
+   {
+    "name": "yes",
+    "flag": "--yes",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "really post it (Slack)",
+    "default": null
+   },
+   {
+    "name": "via",
+    "flag": "--via",
+    "kind": "choice",
+    "choices": [
+     "slack",
+     "email"
+    ],
+    "required": false,
+    "many": false,
+    "help": "override pm_send_via once",
+    "default": null
+   },
+   {
+    "name": "text",
+    "flag": "--text",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "send this text instead of the generated update",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "sends the PM update (Slack, or an email draft)",
+  "agent_note": "agents: show the draft first; add --yes only after the user says send"
+ },
+ {
+  "name": "day.pm-sent",
+  "command": "careerbrew day pm-sent",
+  "help": "record the PM update you sent (a text file) so the next draft learns from it",
+  "args": [
+   {
+    "name": "file",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "a text file with the update as you sent it",
+    "default": null
+   },
+   {
+    "name": "day",
+    "flag": "--day",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the day it was for (YYYY-MM-DD; default today)",
+    "default": null
+   }
+  ],
+  "ui": false,
+  "terminal_only": "it reads a text file on your machine; a plugin skill or agent that sent the update runs it",
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.pm-grade",
+  "command": "careerbrew day pm-grade",
+  "help": "grade today's PM update against your next ladder level (for you only)",
+  "args": [
+   {
+    "name": "record",
+    "flag": "--record",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "keep the tagged lines as evidence for work promo",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.accept",
+  "command": "careerbrew day accept",
+  "help": "apply a proposal (goal proposals: web app only)",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.dismiss",
+  "command": "careerbrew day dismiss",
+  "help": "drop a proposal or question",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.answer",
+  "command": "careerbrew day answer",
+  "help": "answer a question; careerbrew applies it",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "text",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.suggest",
+  "command": "careerbrew day suggest",
+  "help": "a plugin adds its own suggestion to the inbox: what, why, and what Accept does",
+  "args": [
+   {
+    "name": "plugin",
+    "flag": "--plugin",
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the installed plugin that suggests it",
+    "default": null
+   },
+   {
+    "name": "what",
+    "flag": "--what",
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "what the suggestion is, in one line",
+    "default": null
+   },
+   {
+    "name": "why",
+    "flag": "--why",
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the evidence: why the plugin suggests it",
+    "default": null
+   },
+   {
+    "name": "accept",
+    "flag": "--accept",
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "what accepting it does, in the owner's words",
+    "default": null
+   },
+   {
+    "name": "ref",
+    "flag": "--ref",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "a stable id from the feed, so it never shows twice (default: the --what text)",
+    "default": null
+   },
+   {
+    "name": "task",
+    "flag": "--task",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "on accept, add this task to Week (leave out to only record the decision)",
+    "default": null
+   },
+   {
+    "name": "link",
+    "flag": "--link",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "a link to what prompted it (kept on the task)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": "plugins: pass a stable --ref from the feed; use this instead of adding a task the owner did not ask for"
+ },
+ {
+  "name": "day.suggestions",
+  "command": "careerbrew day suggestions",
+  "help": "plugin suggestions and your decision on each (ids and refs only)",
+  "args": [
+   {
+    "name": "plugin",
+    "flag": "--plugin",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.watch",
+  "command": "careerbrew day watch",
+  "help": "toggle the background day watcher",
+  "args": [
+   {
+    "name": "action",
+    "flag": null,
+    "kind": "choice",
+    "choices": [
+     "on",
+     "off",
+     "pause",
+     "resume",
+     "status",
+     "once",
+     "reload"
+    ],
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "interval",
+    "flag": "--interval",
+    "kind": "int",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "seconds between cycles (default 300, adaptive)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.results",
+  "command": "careerbrew day results",
+  "help": "the results-of-the-day list",
+  "args": [
+   {
+    "name": "date",
+    "flag": "--date",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "show",
+    "flag": "--show",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.plan",
+  "command": "careerbrew day plan",
+  "help": "plan today from calendar facts, tasks, and calibration",
+  "args": [
+   {
+    "name": "date",
+    "flag": "--date",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.next",
+  "command": "careerbrew day next",
+  "help": "what to work on right now, and why",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.handoff",
+  "command": "careerbrew day handoff",
+  "help": "the next-day handoff: show yesterday's for this morning, or add and drop today's items (issue #210)",
+  "args": [
+   {
+    "name": "action",
+    "flag": null,
+    "kind": "choice",
+    "choices": [
+     "show",
+     "add",
+     "done"
+    ],
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "section",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "add: calendar, prs, waiting, questions, promises, unverified, lessons, or gotchas; done: the item id",
+    "default": null
+   },
+   {
+    "name": "text",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "add: the item, short (ids and links, no message bodies)",
+    "default": null
+   },
+   {
+    "name": "link",
+    "flag": "--link",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "add: a link to the thing",
+    "default": ""
+   },
+   {
+    "name": "today",
+    "flag": "--today",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "show: today's handoff so far instead of the one for this morning",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "show: ids, sections, and links for an agent (text only when business data may show)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.run",
+  "command": "careerbrew day run",
+  "help": "the work day plan for /work: steps from careerbrew, the work_steps setting, and plugin manifests, with today's status rows",
+  "args": [
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the plan for an agent (row text only when business data may show)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.update",
+  "command": "careerbrew day update",
+  "help": "write one /work status row: a step's status, a one-line summary, what it needs from you, and a link",
+  "args": [
+   {
+    "name": "step",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "a step of today's plan, for example /careerbrew (see `careerbrew day run`)",
+    "default": null
+   },
+   {
+    "name": "status",
+    "flag": "--status",
+    "kind": "choice",
+    "choices": [
+     "waiting",
+     "running",
+     "done",
+     "blocked",
+     "failed"
+    ],
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "summary",
+    "flag": "--summary",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "one line: what the step did or found (at most 200 characters)",
+    "default": null
+   },
+   {
+    "name": "needs_you",
+    "flag": "--needs-you",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "what the step needs from you, one line (empty clears it)",
+    "default": null
+   },
+   {
+    "name": "link",
+    "flag": "--link",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "a PR, report, or page for the step (a full https:// URL; empty clears it)",
+    "default": null
+   },
+   {
+    "name": "handled",
+    "flag": "--handled",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": true,
+    "help": "a checkout or PR the step handled today, so later steps skip it: checkout:<path> or pr:<repo>#<number> (repeat it)",
+    "default": []
+   },
+   {
+    "name": "error_class",
+    "flag": "--error-class",
+    "kind": "choice",
+    "choices": [
+     "env",
+     "auth",
+     "network",
+     "conflict",
+     "tool"
+    ],
+    "required": false,
+    "many": false,
+    "help": "with --status failed: what broke (a blocked row passes --needs-you instead)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": "agents (/work): mark a step running when it starts and done, blocked, or failed when it ends, with a one-line --summary; blocked needs --needs-you (the ask), failed needs --error-class; done runs the step's verify and exits 1 when it fails"
+ },
+ {
+  "name": "day.check",
+  "command": "careerbrew day check",
+  "help": "the next /work pass: a running step past its timeout goes back for one retry, then is marked failed",
+  "args": [
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the steps it set back for a retry or marked failed, for an agent",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": "agents (/work): run before each stage and on each watch pass; run a step it set back for a retry again"
+ },
+ {
+  "name": "day.start",
+  "command": "careerbrew day start",
+  "help": "start the /work day once, before the first step: fast-forward every checkout the steps read (never a reset), check the shell, and probe sign-in",
+  "args": [
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "each checkout's refresh, the shell checks, and the sign-in result, for an agent",
+    "default": null
+   },
+   {
+    "name": "update_only",
+    "flag": "--update-only",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "first refresh source checkouts, dependencies, launcher, plugins and configured agent commands; read no old plan",
+    "default": null
+   },
+   {
+    "name": "fix",
+    "flag": "--fix",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "repair only an empty launchd GITHUB_TOKEN connector in Claude settings; requires explicit owner approval with --yes; does not start the day",
+    "default": null
+   },
+   {
+    "name": "yes",
+    "flag": "--yes",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the owner approved changing Claude connector settings for --fix",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "fast-forwards clean checkouts; with --fix, changes Claude GitHub connector authentication to a connection-time helper (no GitHub token is saved)",
+  "agent_note": "agents (/work): run once before stage 1; ask its sign-in question right away (the one ask before the batched ask after the last step); give every step the shell traps file it names. --fix changes Claude connector settings: add --yes only after explicit owner approval, then reconnect using an exposed host tool and recheck; never infer approval from a failed preflight"
+ },
+ {
+  "name": "day.history",
+  "command": "careerbrew day history",
+  "help": "how the /work day went across days: each step's runs, done, blocked, failed, and median time, the step that fails most first",
+  "args": [
+   {
+    "name": "days",
+    "flag": "--days",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "how many days back, today included (1-120, default 7)",
+    "default": 7
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the steps and days, for an agent (a plugin's step names hidden unless business data may show)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.render",
+  "command": "careerbrew day render",
+  "help": "write the /work page for today: done, blocked, and what is left, one row per step",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.end",
+  "command": "careerbrew day end",
+  "help": "end the /work day: read careerbrew's PM draft (never sent), write tomorrow's handoff (open PRs and questions, each with its recheck), stop careerbrew's loops, render the page",
+  "args": [
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "counts, ids, and the page path for an agent (never the draft text)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "stops careerbrew's loops for the day and writes tomorrow's handoff",
+  "agent_note": null
+ },
+ {
+  "name": "day.wrap",
+  "command": "careerbrew day wrap",
+  "help": "show, move or hold today's wrap-up; an explicit day end still ends now",
+  "args": [
+   {
+    "name": "at",
+    "flag": "--at",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "move today's wrap-up to local HH:MM; wrap-up and clock end must both stay before midnight; clears hold",
+    "default": null
+   },
+   {
+    "name": "hold",
+    "flag": "--hold",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "hold automatic wrap-up and clock ending until --at resumes it",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "today's wrap-up time, hold and phase, without business text",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.question.add",
+  "command": "careerbrew day question add",
+  "help": "save a step's question for the batched ask: the ask, its options, your pick, and a recheck that says whether it is still open",
+  "args": [
+   {
+    "name": "step",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the step that raises it, for example /careerbrew (see `careerbrew day run`)",
+    "default": null
+   },
+   {
+    "name": "text",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the ask, one line (at most 200 characters; put any follow-up goal text here)",
+    "default": null
+   },
+   {
+    "name": "option",
+    "flag": "--option",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": true,
+    "help": "one answer the user can pick (repeat it, at most 6)",
+    "default": []
+   },
+   {
+    "name": "pick",
+    "flag": "--pick",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "your pick: one of the --option values",
+    "default": null
+   },
+   {
+    "name": "recheck",
+    "flag": "--recheck",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "a command (exit 0 means still open; run without a shell, its output never read) or an http(s):// link an agent checks",
+    "default": null
+   },
+   {
+    "name": "plugin",
+    "flag": "--plugin",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the installed plugin whose manifest names the recheck (its command runs only with --allow-exec)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": "agents (/work): a step never asks the user mid-run; save each ask here with --option, --pick, and --recheck (a command that exits 0 while it is still open, or a link you check), then go on"
+ },
+ {
+  "name": "day.question.list",
+  "command": "careerbrew day question list",
+  "help": "open questions of today and earlier days, each with its step and age (text only when business data may show)",
+  "args": [
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.question.recheck",
+  "command": "careerbrew day question recheck",
+  "help": "the batched ask: run every recheck, drop the closed items, and list the rest with their age",
+  "args": [
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": "runs each open question's recheck command on this machine (a plugin's only with --allow-exec) and closes the ones it finds closed",
+  "agent_note": "agents (/work): run it after the last step, then ask every item it lists in one batched ask with its age; check each `agent` item's link and close a done one"
+ },
+ {
+  "name": "day.question.close",
+  "command": "careerbrew day question close",
+  "help": "close a question the user answered, or one an agent found done",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "day.loop",
+  "command": "careerbrew day loop",
+  "help": "the one work-day watch loop: a pass runs the live feed and each step's cycle under a lock, every 1.2 x the median pass; end stops every recorded loop",
+  "args": [
+   {
+    "name": "action",
+    "flag": null,
+    "kind": "choice",
+    "choices": [
+     "pass",
+     "run",
+     "status",
+     "add",
+     "stop",
+     "end",
+     "catch-up"
+    ],
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "kind",
+    "flag": "--kind",
+    "kind": "choice",
+    "choices": [
+     "cron",
+     "monitor",
+     "agent",
+     "session",
+     "day-watcher"
+    ],
+    "required": false,
+    "many": false,
+    "help": "add: what kind of loop you started",
+    "default": null
+   },
+   {
+    "name": "id",
+    "flag": "--id",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "add, stop: the loop's id in its own tool",
+    "default": null
+   },
+   {
+    "name": "step",
+    "flag": "--step",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "add: the work step the loop serves, for example /checkup",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "pass, status, end: ids, kinds, counts, and times for an agent",
+    "default": null
+   }
+  ],
+  "ui": false,
+  "terminal_only": "`run` keeps going until end of day and a pass can run for many minutes; the /work agent runs it in its own session",
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "notify.status",
+  "command": "careerbrew notify status",
+  "help": "on or off, the rules (priority, quiet hours, daily cap), and how pop-ups show here (alerter, terminal-notifier, osascript)",
+  "args": [],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "notify.check",
+  "command": "careerbrew notify check",
+  "help": "check for important new events now and pop up at most one notification (the watcher does this every cycle)",
+  "args": [
+   {
+    "name": "wait",
+    "flag": "--wait",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "with alerter: wait for your click on the pop-up and apply it",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "notify.list",
+  "command": "careerbrew notify list",
+  "help": "open notifications: what happened, why it matters, the next step (titles only with --show, to your terminal)",
+  "args": [
+   {
+    "name": "all",
+    "flag": "--all",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "also the closed ones (done, dismissed)",
+    "default": null
+   },
+   {
+    "name": "show",
+    "flag": "--show",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "notify.act",
+  "command": "careerbrew notify act",
+  "help": "act on a notification: read, accept or dismiss a suggestion (decides it in the inbox), dismiss, or snooze",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   },
+   {
+    "name": "action",
+    "flag": null,
+    "kind": "choice",
+    "choices": [
+     "read",
+     "accept",
+     "dismiss",
+     "snooze"
+    ],
+    "required": true,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": "agents: accept or dismiss a suggestion only when the user says so; it decides it in the inbox"
+ },
+ {
+  "name": "notify.open",
+  "command": "careerbrew notify open",
+  "help": "open a notification in the web app (marks it read; never prints the token); a pop-up click runs this",
+  "args": [
+   {
+    "name": "id",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": false,
+  "terminal_only": "it opens the web app you are already using; use Open in the Notifications view",
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "review",
+  "command": "careerbrew review",
+  "help": "measure outcomes; KEEP / WATCH / PIVOT",
+  "args": [
+   {
+    "name": "html",
+    "flag": "--html",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "draft.fit",
+  "command": "careerbrew draft fit",
+  "help": "what a reply should be on the thread's newest message: none, emoji, ack, stop, or reply (prints no thread text)",
+  "args": [
+   {
+    "name": "thread",
+    "flag": "--thread",
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "a JSON file: {\"messages\": [{\"ts\": ..., \"text\": ..., \"mine\": false}, ...]}",
+    "default": null
+   },
+   {
+    "name": "draft",
+    "flag": "--draft",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "a text file with the reply you drafted",
+    "default": null
+   },
+   {
+    "name": "seen",
+    "flag": "--seen",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the ts of the newest message your draft answers (newer ones make it stale)",
+    "default": null
+   },
+   {
+    "name": "major",
+    "flag": "--major",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "after a release started: the major issue that must stop it, in one line",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": false,
+  "terminal_only": "it reads a thread file on your machine; the agent that drafts the reply runs it",
+  "confirm": null,
+  "agent_note": "agents: read the thread to its newest message first, pass --seen <its ts>, and follow the kind: none (no reply), emoji (suggest the reaction), ack or stop (use its text), reply (write or keep yours)"
+ },
+ {
+  "name": "draft.replace",
+  "command": "careerbrew draft replace",
+  "help": "save a reply draft safely: clear the old one, save, read it back, fail on a mismatch (one writer per target)",
+  "args": [
+   {
+    "name": "target",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the draft's target, for example C123/1700000000.000100 (a channel and thread)",
+    "default": null
+   },
+   {
+    "name": "file",
+    "flag": "--file",
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "a text file with the draft",
+    "default": null
+   },
+   {
+    "name": "session",
+    "flag": "--session",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the project session that writes it: claims the target first; exit 1 when another session claimed it (issue #274)",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": false,
+  "terminal_only": "it reads a draft file on your machine; the agent that drafts the reply runs it",
+  "confirm": null,
+  "agent_note": "agents: every draft goes through this (or `draft check` after a chat tool save); a step that writes drafts declares `uses: slack-draft:<target>`; on a mismatch, tell the owner before anyone sends"
+ },
+ {
+  "name": "draft.show",
+  "command": "careerbrew draft show",
+  "help": "read one saved draft (a live cycle's reply draft or review notes); the text shows only in your terminal or the web app",
+  "args": [
+   {
+    "name": "target",
+    "flag": null,
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the draft's target, as the live cycle prints it (chat:a1, review:<digest>)",
+    "default": null
+   }
+  ],
+  "ui": true,
+  "terminal_only": null,
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "draft.check",
+  "command": "careerbrew draft check",
+  "help": "compare a draft you saved in a chat tool with what it reads back; exit 1 when they differ (prints no text)",
+  "args": [
+   {
+    "name": "sent",
+    "flag": "--sent",
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "a text file with the draft you saved",
+    "default": null
+   },
+   {
+    "name": "read_back",
+    "flag": "--read-back",
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "a text file with what the chat tool shows now",
+    "default": null
+   }
+  ],
+  "ui": false,
+  "terminal_only": "it reads two text files on your machine; the agent that saved the draft runs it",
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "draft.route",
+  "command": "careerbrew draft route",
+  "help": "where an access ask goes: the owning team's channel, and an open thread to link instead of a new one (prints ids only)",
+  "args": [
+   {
+    "name": "ask",
+    "flag": "--ask",
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "a text file with the blocked message",
+    "default": null
+   },
+   {
+    "name": "directory",
+    "flag": "--directory",
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "a JSON file of support channels (id, owns, members) and open threads",
+    "default": null
+   },
+   {
+    "name": "teammate",
+    "flag": "--teammate",
+    "kind": "text",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the blocked teammate's member id, to tag in the thread or link from the original",
+    "default": null
+   },
+   {
+    "name": "json",
+    "flag": "--json",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "",
+    "default": null
+   }
+  ],
+  "ui": false,
+  "terminal_only": "it reads an ask file and a channel directory on your machine; the agent that handles the access ask runs it",
+  "confirm": null,
+  "agent_note": null
+ },
+ {
+  "name": "draft.judge",
+  "command": "careerbrew draft judge",
+  "help": "check a draft's channel before it is saved: the owning channel, no duplicate thread, every mention a member; exit 1 on a failure",
+  "args": [
+   {
+    "name": "draft",
+    "flag": "--draft",
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "a text file with the draft",
+    "default": null
+   },
+   {
+    "name": "channel",
+    "flag": "--channel",
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the channel id the draft goes to",
+    "default": null
+   },
+   {
+    "name": "directory",
+    "flag": "--directory",
+    "kind": "text",
+    "choices": null,
+    "required": true,
+    "many": false,
+    "help": "the same JSON file `draft route` reads",
+    "default": null
+   },
+   {
+    "name": "new_thread",
+    "flag": "--new-thread",
+    "kind": "flag",
+    "choices": null,
+    "required": false,
+    "many": false,
+    "help": "the draft opens a new thread (fails when an open thread asks the same)",
+    "default": null
+   }
+  ],
+  "ui": false,
+  "terminal_only": "it reads a draft file and a channel directory on your machine; the judge step runs it before the draft is saved",
+  "confirm": null,
+  "agent_note": "agents: run it on every draft before `draft replace`; on exit 1 fix the draft (link the open thread, drop a non-member mention, move it to the owning channel) and judge it again; never send"
+ }
+]

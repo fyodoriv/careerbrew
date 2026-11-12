@@ -1,0 +1,68 @@
+id: missing-number
+order: 148
+pattern: bit manipulation
+difficulty: easy
+title: Which one is gone?
+leetcode: missing-number
+lesson: 'The list holds n distinct numbers from 0..n, so exactly one is absent. XOR every index and every
+  value together with n: pairs cancel and the missing one remains. The sum formula works too.
+
+  '
+statement: '`nums` contains `n` distinct integers taken from the range 0 to n inclusive. Return the single
+  number in that range that is not in the list.
+
+  '
+function: missing_number
+signature: 'def missing_number(nums: list[int]) -> int:'
+starter: "def missing_number(nums: list[int]) -> int:\n    pass\n"
+tests:
+- args:
+  - - 3
+    - 0
+    - 1
+  expected: 2
+- args:
+  - - 0
+    - 1
+  expected: 2
+  note: missing the top
+- args:
+  - - 9
+    - 6
+    - 4
+    - 2
+    - 3
+    - 5
+    - 7
+    - 0
+    - 1
+  expected: 8
+- args:
+  - - 1
+  expected: 0
+  note: missing zero
+- args:
+  - - 0
+  expected: 1
+- args:
+  - []
+  expected: 0
+  note: empty list
+scale:
+  generator: "def make(n):\n    return [list(range(n))]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- You know exactly which numbers should be there.
+- Compare against 0..n with a sum or XOR.
+- 'r = len(nums); for i, x in enumerate(nums): r ^= i ^ x; return r.'
+solution: "def missing_number(nums: list[int]) -> int:\n    r = len(nums)\n    for i, x in enumerate(nums):\n\
+  \        r ^= i ^ x\n    return r\n"
+pitfalls:
+  edge-case: When the missing number is n (like [0,1]) or 0 (like [1]), the answer is the end of the range.
+  timeout: Checking each number with 'in' on a list is O(n^2); compare n*(n+1)//2 to the sum or XOR everything
+    in O(n).
+  wrong-answer: Using len(nums)-1 as n instead of len(nums) drops the top value from the expected sum.
+  exception: Sorting then reading nums[i+1] at the end raises IndexError; use the sum formula instead.

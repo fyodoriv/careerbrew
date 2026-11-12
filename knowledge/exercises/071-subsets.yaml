@@ -1,0 +1,80 @@
+id: subsets
+order: 71
+pattern: backtracking
+difficulty: medium
+title: Every subset
+leetcode: subsets
+lesson: 'Each element is either in or out, giving 2^n subsets. A recursive choice per index, or extending
+  every existing subset with the next element, enumerates them all.
+
+  '
+statement: 'Given a list of distinct integers `nums`, return every subset (the power set), including the
+  empty one. Order of subsets and of values inside them does not matter.
+
+  '
+function: subsets
+signature: 'def subsets(nums: list[int]) -> list[list[int]]:'
+starter: "def subsets(nums: list[int]) -> list[list[int]]:\n    pass\n"
+compare: set
+tests:
+- args:
+  - - 1
+    - 2
+    - 3
+  expected:
+  - []
+  - - 1
+  - - 2
+  - - 3
+  - - 1
+    - 2
+  - - 1
+    - 3
+  - - 2
+    - 3
+  - - 1
+    - 2
+    - 3
+- args:
+  - - 0
+  expected:
+  - []
+  - - 0
+  note: single element
+- args:
+  - []
+  expected:
+  - []
+  note: empty input has one subset
+- args:
+  - - -1
+    - 5
+  expected:
+  - []
+  - - -1
+  - - 5
+  - - -1
+    - 5
+  note: negatives
+- args:
+  - - 4
+    - 1
+  expected:
+  - []
+  - - 4
+  - - 1
+  - - 1
+    - 4
+  note: unsorted input
+hints:
+- For each element, how many choices are there?
+- Either recurse with include/skip at each index, or grow the list of subsets one element at a time.
+- 'out = [[]]; for x in nums: out += [s + [x] for s in out]'
+solution: "def subsets(nums: list[int]) -> list[list[int]]:\n    out = [[]]\n    for x in nums:\n    \
+  \    out += [s + [x] for s in out]\n    return out\n"
+pitfalls:
+  edge-case: The empty list must return [[]], and the empty subset must be in every answer.
+  timeout: Generating all orderings then deduplicating is factorial; build 2^n subsets directly by include/exclude,
+    O(n * 2^n).
+  wrong-answer: Appending `path` itself instead of `path[:]`, so every stored subset ends up empty.
+  exception: Recursing with an index past the end; stop when i == len(nums).

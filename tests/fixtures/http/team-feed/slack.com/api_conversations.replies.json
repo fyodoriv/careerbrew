@@ -1,0 +1,5 @@
+{"ok": true, "messages": [
+  {"ts": "1792591200.000100", "user": "U0SAM", "username": "sam", "text": "the export spec is ready: <https://docs.example.com/d/1|spec>"},
+  {"ts": "1792591260.000300", "user": "U0ANA", "username": "ana", "text": "<@U0SAM> we decided to ship it behind a flag; tracking in https://tickets.example.com/PROJ-7"},
+  {"ts": "1792591320.000400", "user": "U0ME", "username": "me", "text": "sounds good"}
+]}

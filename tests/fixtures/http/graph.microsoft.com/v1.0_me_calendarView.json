@@ -1,0 +1,4 @@
+{"value": [
+ {"subject": "Design review", "start": {"dateTime": "2026-10-19T19:00:00.0000000", "timeZone": "UTC"}, "end": {"dateTime": "2026-10-19T20:00:00.0000000", "timeZone": "UTC"}, "showAs": "busy", "isAllDay": false, "isOrganizer": true, "id": "EV1"},
+ {"subject": "Focus time", "start": {"dateTime": "2026-10-19T14:00:00.0000000", "timeZone": "UTC"}, "end": {"dateTime": "2026-10-19T15:00:00.0000000", "timeZone": "UTC"}, "showAs": "free", "isAllDay": false, "isOrganizer": false, "id": "EV2"}
+]}

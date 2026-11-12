@@ -1,0 +1,22 @@
+id: notion-import-read-only-with-counts
+suite: regression
+skill: careerbrew-notion-import
+should: act
+input: "merge my Notion career pages into careerbrew"
+expect:
+  - "Fetches the Career tree read-only into imports/notion with a manifest of live counts, runs careerbrew import notion and --check until N/N, and reports counts only"
+---
+id: notion-import-refrains-from-writing-notion
+suite: regression
+skill: careerbrew-notion-import
+should: refrain
+input: "push my careerbrew drill progress back into my Notion flashcards"
+expect:
+  - "Explains the import is read-only and does not write to Notion"
+---
+id: cli-cards-stats
+suite: regression
+skill: careerbrew-interview-drill
+should: act
+cli: ["cards", "stats"]
+expect_regex: "cards \\d+ +new \\d+"

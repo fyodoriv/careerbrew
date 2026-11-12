@@ -1,0 +1,74 @@
+# A generic software-engineer ladder written for careerbrew (public, no company content).
+# Shape follows common public engineering frameworks (see knowledge/README.md).
+# A company ladder comes from a corporate plugin or `careerbrew ladder import`.
+#
+# Schema, per competency:
+#   id, name, weight, effort (default 2), expect: {<level>: evidence count}, how_to_close
+#   signals.keywords: whole words in an evidence title; `migrat*` matches any word starting with "migrat"
+#   signals.tags: evidence tags. Collection auto-tags by commit type, so these tags match a lot:
+#     fix, refactor, test -> quality; feat -> delivery; perf -> quality + impact; docs -> communication;
+#     ci -> tooling; and title words: incident -> ownership, mentor -> leadership, design/rfc -> design,
+#     migrat/latency -> impact, review -> collaboration (source: src/careerbrew/work/evidence.py).
+#   `work promo` warns when one competency matches more than 30% of all evidence.
+#   descriptions (optional): {<level>: the bar in words}, shown in the promo doc for the target level.
+#   examples (optional): {<level>: {looks_like: [..], doesnt_look_like: [..]}}, shown the same way.
+id: generic-swe
+name: Generic software engineer ladder
+window_months: 12            # evidence older than this counts half
+levels: [mid, senior, staff]
+competencies:
+  - id: delivery
+    name: Delivery and execution
+    weight: 3
+    effort: 1
+    signals: {tags: [delivery], keywords: [ship*, launch*, release*, feat]}
+    expect: {mid: 15, senior: 25, staff: 30}
+    how_to_close: Ship scoped work every sprint; link each launch to its ticket and PR.
+    descriptions:
+      senior: Ships multi-week projects end to end with little guidance.
+    examples:
+      senior:
+        looks_like: [Owned a feature from design to launch and its follow-up fixes]
+        doesnt_look_like: [Closed many small tickets that someone else scoped]
+  - id: quality
+    name: Code quality and reliability
+    weight: 2
+    effort: 1
+    signals: {tags: [quality], keywords: [fix*, test*, refactor*, flaky]}
+    expect: {mid: 10, senior: 15, staff: 15}
+    how_to_close: Fix root causes with regression tests; reduce a flaky or slow suite and record the before/after number.
+  - id: impact
+    name: Measurable impact
+    weight: 3
+    effort: 3
+    signals: {tags: [impact], keywords: [latency, cost*, revenue, migrat*, perf*]}
+    expect: {mid: 2, senior: 5, staff: 8}
+    how_to_close: Pick one metric the business tracks (latency, cost, conversion) and move it; write the result with numbers.
+  - id: design
+    name: Technical design
+    weight: 3
+    effort: 2
+    signals: {tags: [design], keywords: [design*, rfc*, architect*, adr*]}
+    expect: {mid: 1, senior: 3, staff: 6}
+    how_to_close: Write a design doc or ADR for your next non-trivial change and get it reviewed by a senior peer.
+  - id: ownership
+    name: Ownership and operations
+    weight: 2
+    effort: 2
+    signals: {tags: [ownership], keywords: [incident*, oncall, on-call, postmortem*, alert*]}
+    expect: {mid: 1, senior: 3, staff: 5}
+    how_to_close: Lead an incident review or own a service's alerts and runbook for a quarter.
+  - id: leadership
+    name: Leadership and mentoring
+    weight: 2
+    effort: 2
+    signals: {tags: [leadership], keywords: [mentor*, onboard*, lead*, interview*]}
+    expect: {mid: 0, senior: 2, staff: 6}
+    how_to_close: Mentor one engineer with a written goal; run onboarding or interviews and log each one.
+  - id: collaboration
+    name: Collaboration and communication
+    weight: 1
+    effort: 1
+    signals: {tags: [collaboration, communication], keywords: [review, docs, demo, present]}
+    expect: {mid: 5, senior: 10, staff: 15}
+    how_to_close: Review peers' PRs weekly; write docs for what you ship; demo once a month.

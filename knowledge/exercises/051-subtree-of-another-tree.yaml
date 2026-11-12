@@ -1,0 +1,97 @@
+id: subtree-of-another-tree
+order: 51
+pattern: trees
+difficulty: easy
+title: Tree inside a tree
+leetcode: subtree-of-another-tree
+lesson: 'Try every node of the big tree as a starting point and run a "same tree" check from there. That
+  is O(m*n) in the worst case, which is fine for interviews; serializing both trees and doing a string
+  search can bring it down to linear.
+
+  '
+statement: 'Given two binary trees `root` and `sub`, return `True` if some node of `root` is the top of
+  a subtree that is identical to `sub` (same shape and values, all the way down to the leaves).
+
+  '
+function: is_subtree
+signature: 'def is_subtree(root: Optional[TreeNode], sub: Optional[TreeNode]) -> bool:'
+starter: "def is_subtree(root: Optional[TreeNode], sub: Optional[TreeNode]) -> bool:\n    pass\n"
+tests:
+- args:
+  - tree:
+    - 3
+    - 4
+    - 5
+    - 1
+    - 2
+  - tree:
+    - 4
+    - 1
+    - 2
+  expected: true
+- args:
+  - tree:
+    - 3
+    - 4
+    - 5
+    - 1
+    - 2
+    - null
+    - null
+    - null
+    - null
+    - 0
+  - tree:
+    - 4
+    - 1
+    - 2
+  expected: false
+  note: matching top but extra descendant
+- args:
+  - tree:
+    - 1
+  - tree:
+    - 1
+  expected: true
+  note: single node equal
+- args:
+  - tree:
+    - 1
+    - 1
+  - tree:
+    - 1
+  expected: true
+  note: duplicate values
+- args:
+  - tree:
+    - 1
+    - 2
+    - 3
+  - tree: []
+  expected: true
+  note: empty sub is always a subtree
+- args:
+  - tree: []
+  - tree:
+    - 1
+  expected: false
+  note: empty root
+hints:
+- You already know how to test whether two trees are identical.
+- At each node of root, check same(node, sub); otherwise search the left and right subtrees.
+- 'if not sub: return True; if not root: return False; return same(root, sub) or is_subtree(root.left,
+  sub) or is_subtree(root.right, sub)'
+solution: "def is_subtree(root: Optional[TreeNode], sub: Optional[TreeNode]) -> bool:\n    def same(a,\
+  \ b):\n        if not a and not b:\n            return True\n        if not a or not b or a.val != b.val:\n\
+  \            return False\n        return same(a.left, b.left) and same(a.right, b.right)\n\n    if\
+  \ not sub:\n        return True\n    if not root:\n        return False\n    return same(root, sub)\
+  \ or is_subtree(root.left, sub) or is_subtree(root.right, sub)\n"
+pitfalls:
+  edge-case: An empty `sub` (None) is a subtree of anything, so return True; an empty `root` with a non-empty
+    `sub` is False.
+  timeout: Comparing at every node is O(m*n), fine here; if it times out, serialize both trees with null
+    markers and do a substring check in O(m+n).
+  wrong-answer: Matching only values at the top node, or stopping at the first node whose value equals
+    sub's root instead of trying every such node.
+  exception: 'Reading `.val` on a None child inside the same-tree check; test `if not a or not b: return
+    a is b` first.'

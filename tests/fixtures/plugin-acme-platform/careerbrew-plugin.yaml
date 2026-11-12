@@ -1,0 +1,15 @@
+# Synthetic team plugin: the "platform" department at Acme. It extends the company plugin.
+name: acme-platform
+version: 1.0.0
+requires: ">=0.1.0"
+extends: acme
+description: Acme platform team (synthetic) ladder tweaks and team tools.
+provides:
+  ladders: ladders/*.yaml
+sensitive_terms: sensitive-terms.txt
+settings_defaults:
+  ladder: acme-platform-eng
+  target_level: e5
+policy:
+  allowed_routes: [local]
+  export_to_personal: aggregates

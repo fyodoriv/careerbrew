@@ -1,0 +1,162 @@
+id: time-based-key-value-store
+order: 33
+pattern: binary search
+difficulty: medium
+title: Versioned key-value store
+leetcode: time-based-key-value-store
+lesson: |
+  Writes for a key arrive with increasing timestamps, so each key's history is already sorted. A read is then a binary search for the last timestamp not after the query; bisect_right minus one finds it.
+statement: |
+  Design `TimeMap` with `set(key, value, timestamp)` and `get(key, timestamp)`. `get` returns the value stored for `key` at the largest timestamp less than or equal to `timestamp`, or `""` if there is none. For each key, `set` is called with strictly increasing timestamps. Tests call the constructor first and compare every return value (`None` for set).
+function: TimeMap
+signature: 'class TimeMap:'
+starter: |
+  class TimeMap:
+      def __init__(self):
+          pass
+
+      def set(self, key: str, value: str, timestamp: int) -> None:
+          pass
+
+      def get(self, key: str, timestamp: int) -> str:
+          pass
+tests:
+- ops:
+  - TimeMap
+  - set
+  - get
+  - get
+  - set
+  - get
+  - get
+  args:
+  - []
+  - - foo
+    - bar
+    - 1
+  - - foo
+    - 1
+  - - foo
+    - 3
+  - - foo
+    - bar2
+    - 4
+  - - foo
+    - 4
+  - - foo
+    - 5
+  expected:
+  - null
+  - null
+  - bar
+  - bar
+  - null
+  - bar2
+  - bar2
+- ops:
+  - TimeMap
+  - get
+  args:
+  - []
+  - - x
+    - 10
+  expected:
+  - null
+  - ''
+  note: unknown key
+- ops:
+  - TimeMap
+  - set
+  - get
+  args:
+  - []
+  - - a
+    - v
+    - 5
+  - - a
+    - 4
+  expected:
+  - null
+  - null
+  - ''
+  note: query before the first write
+- ops:
+  - TimeMap
+  - set
+  - set
+  - get
+  - get
+  args:
+  - []
+  - - a
+    - '1'
+    - 1
+  - - b
+    - '2'
+    - 2
+  - - a
+    - 2
+  - - b
+    - 1
+  expected:
+  - null
+  - null
+  - null
+  - '1'
+  - ''
+  note: keys are independent
+- ops:
+  - TimeMap
+  - set
+  - set
+  - set
+  - get
+  args:
+  - []
+  - - k
+    - x
+    - 10
+  - - k
+    - y
+    - 20
+  - - k
+    - z
+    - 30
+  - - k
+    - 25
+  expected:
+  - null
+  - null
+  - null
+  - null
+  - y
+  note: between two writes
+hints:
+- Timestamps per key only grow. What does that give you for free?
+- Store a list of (timestamp, value) per key and binary search it.
+- Use bisect_right on the timestamps; the answer is the entry just before that position, if any.
+solution: |
+  from bisect import bisect_right
+
+
+  class TimeMap:
+      def __init__(self):
+          self.times = {}
+          self.values = {}
+
+      def set(self, key: str, value: str, timestamp: int) -> None:
+          self.times.setdefault(key, []).append(timestamp)
+          self.values.setdefault(key, []).append(value)
+
+      def get(self, key: str, timestamp: int) -> str:
+          i = bisect_right(self.times.get(key, []), timestamp)
+          return self.values[key][i - 1] if i else ""
+pitfalls:
+  edge-case: A get with a timestamp earlier than every set for that key returns "", and so does a get
+    for a key never set.
+  timeout: Scanning a key's whole history on each get is O(n); timestamps already arrive sorted, so binary
+    search them in O(log n).
+  wrong-answer: Returning the value at the first timestamp greater than the query instead of the last
+    one at or below it; use bisect_right(times, t) - 1.
+  exception: Reading self.store[key] for an unknown key raises KeyError, and index -1 after bisect wraps
+    to the newest value; use .get(key, []) and check the index >= 0.

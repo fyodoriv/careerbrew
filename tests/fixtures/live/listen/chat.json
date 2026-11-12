@@ -1,0 +1,8 @@
+{"ok": true, "messages": [
+  {"ts": "1792936800.000100", "text": "Can you check the error budget before the rollout? https://status.example.com/budget\nLISTENZEBRA notes are in the thread", "actor": "other", "kind": "dm", "to_me": true, "channel": "dm", "thread": "chat:a1", "from": "Ana Ruiz"},
+  {"ts": "1792936860.000200", "text": "@owner please review https://github.com/example-shop/api/pull/9", "actor": "other", "kind": "mention", "to_me": true, "channel": "team-alpha", "thread": "chat:r1", "from": "Bo Chen"},
+  {"ts": "1792936920.000300", "text": "Notes from the planning call: https://docs.google.com/document/d/abc123/edit", "actor": "other", "channel": "team-alpha", "from": "Cy Park"},
+  {"ts": "1792936980.000400", "text": "What is the plan for the rollout dashboard?", "actor": "other", "channel": "team-alpha", "thread": "chat:w1", "from": "Dee Moss"},
+  {"ts": "1792937040.000500", "text": "Asked the data team; waiting on their numbers for the rollout dashboard", "actor": "me", "channel": "team-alpha", "thread": "chat:w1", "from": "owner"},
+  {"ts": "1792937100.000600", "text": "deploy bot: canary passed", "actor": "bot", "channel": "team-alpha"}
+]}

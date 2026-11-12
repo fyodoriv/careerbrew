@@ -1,0 +1,91 @@
+id: clone-graph
+order: 81
+pattern: graphs
+difficulty: medium
+title: Copy a graph
+leetcode: clone-graph
+lesson: 'Cloning a graph means a map from each original node to its copy, filled during a traversal; the
+  map also stops cycles from looping forever. Here nodes are given as an adjacency list so the copy is
+  checked structurally.
+
+  '
+statement: 'A connected undirected graph has nodes labelled 1..n and is given as `adj`, where `adj[i]`
+  lists the labels of node i+1''s neighbours. Starting from node 1, build a deep copy of the graph using
+  node objects of your own (or dicts), then return the copy serialized back to the same adjacency-list
+  form: entry i lists node i+1''s neighbours in the same order as the input. An empty graph is `[]`.
+
+  '
+function: clone_graph
+signature: 'def clone_graph(adj: list[list[int]]) -> list[list[int]]:'
+starter: "def clone_graph(adj: list[list[int]]) -> list[list[int]]:\n    pass\n"
+tests:
+- args:
+  - - - 2
+      - 4
+    - - 1
+      - 3
+    - - 2
+      - 4
+    - - 1
+      - 3
+  expected:
+  - - 2
+    - 4
+  - - 1
+    - 3
+  - - 2
+    - 4
+  - - 1
+    - 3
+- args:
+  - - []
+  expected:
+  - []
+  note: single node, no edges
+- args:
+  - []
+  expected: []
+  note: empty graph
+- args:
+  - - - 2
+    - - 1
+  expected:
+  - - 2
+  - - 1
+  note: two nodes
+- args:
+  - - - 2
+      - 3
+    - - 1
+      - 3
+    - - 1
+      - 2
+  expected:
+  - - 2
+    - 3
+  - - 1
+    - 3
+  - - 1
+    - 2
+  note: triangle cycle
+hints:
+- How do you avoid copying a node twice, or looping forever on a cycle?
+- Keep a dict from original node to its copy; create the copy the first time you see a node.
+- BFS from node 1; for each neighbour create its copy if missing, then append the copy to the current
+  copy's neighbours.
+solution: "from collections import deque\n\nclass Node:\n    def __init__(self, val):\n        self.val\
+  \ = val\n        self.neighbors = []\n\ndef clone_graph(adj: list[list[int]]) -> list[list[int]]:\n\
+  \    if not adj:\n        return []\n    orig = [Node(i + 1) for i in range(len(adj))]\n    for i, ns\
+  \ in enumerate(adj):\n        orig[i].neighbors = [orig[j - 1] for j in ns]\n    copies = {orig[0]:\
+  \ Node(1)}\n    q = deque([orig[0]])\n    while q:\n        node = q.popleft()\n        for nb in node.neighbors:\n\
+  \            if nb not in copies:\n                copies[nb] = Node(nb.val)\n                q.append(nb)\n\
+  \            copies[node].neighbors.append(copies[nb])\n    by_val = {c.val: c for c in copies.values()}\n\
+  \    return [[nb.val for nb in by_val[v].neighbors] for v in range(1, len(adj) + 1)]\n"
+pitfalls:
+  edge-case: A single node with no neighbours, and an empty graph, must work.
+  timeout: Copying without a map of already-cloned nodes revisits nodes forever or duplicates them; one
+    visited dict gives O(V + E).
+  wrong-answer: Creating a new copy every time a neighbour is seen instead of reusing the cloned one,
+    so the copy is not one graph.
+  exception: Recursion on a long chain can hit the recursion limit, and missing keys raise KeyError; use
+    BFS and check `if label not in clones`.

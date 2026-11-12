@@ -1,0 +1,111 @@
+id: number-of-islands
+order: 80
+pattern: graphs
+difficulty: medium
+title: Count the land masses
+leetcode: number-of-islands
+lesson: 'Each unvisited land cell starts a new island; flood-fill it (BFS or DFS) so its other cells are
+  not counted again. Every cell is visited a constant number of times, so it is O(rows * cols).
+
+  '
+statement: 'Given a grid of ''1'' (land) and ''0'' (water), return the number of islands. An island is
+  a group of land cells connected horizontally or vertically.
+
+  '
+function: num_islands
+signature: 'def num_islands(grid: list[list[str]]) -> int:'
+starter: "def num_islands(grid: list[list[str]]) -> int:\n    pass\n"
+tests:
+- args:
+  - - - '1'
+      - '1'
+      - '1'
+      - '1'
+      - '0'
+    - - '1'
+      - '1'
+      - '0'
+      - '1'
+      - '0'
+    - - '1'
+      - '1'
+      - '0'
+      - '0'
+      - '0'
+    - - '0'
+      - '0'
+      - '0'
+      - '0'
+      - '0'
+  expected: 1
+- args:
+  - - - '1'
+      - '1'
+      - '0'
+      - '0'
+      - '0'
+    - - '1'
+      - '1'
+      - '0'
+      - '0'
+      - '0'
+    - - '0'
+      - '0'
+      - '1'
+      - '0'
+      - '0'
+    - - '0'
+      - '0'
+      - '0'
+      - '1'
+      - '1'
+  expected: 3
+- args:
+  - - - '0'
+  expected: 0
+  note: all water
+- args:
+  - - - '1'
+  expected: 1
+  note: single land cell
+- args:
+  - - - '1'
+      - '0'
+      - '1'
+    - - '0'
+      - '1'
+      - '0'
+    - - '1'
+      - '0'
+      - '1'
+  expected: 5
+  note: diagonals do not connect
+scale:
+  generator: "def make(n):\n    s = int(n ** 0.5)\n    return [[['1' if (r // 2 + c // 2) % 2 == 0 else\
+    \ '0' for c in range(s)] for r in range(s)]]\n"
+  sizes:
+  - 10000
+  - 100000
+  expected: O(n)
+hints:
+- When you find land you haven't counted, what should happen to the rest of that island?
+- Flood-fill from it with BFS/DFS, marking cells visited.
+- 'for each cell: if land and unseen: count += 1; BFS marking all connected land'
+solution: "from collections import deque\n\ndef num_islands(grid: list[list[str]]) -> int:\n    rows,\
+  \ cols = len(grid), len(grid[0])\n    seen = [[False] * cols for _ in range(rows)]\n    count = 0\n\
+  \    for r in range(rows):\n        for c in range(cols):\n            if grid[r][c] == \"1\" and not\
+  \ seen[r][c]:\n                count += 1\n                seen[r][c] = True\n                q = deque([(r,\
+  \ c)])\n                while q:\n                    i, j = q.popleft()\n                    for a,\
+  \ b in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)):\n                        if 0 <= a < rows and\
+  \ 0 <= b < cols and grid[a][b] == \"1\" and not seen[a][b]:\n                            seen[a][b]\
+  \ = True\n                            q.append((a, b))\n    return count\n"
+pitfalls:
+  error: Recursive DFS on a large all-land grid can exceed Python's recursion limit; BFS with a deque
+    avoids that.
+  edge-case: An empty grid or one with no '1' returns 0; compare against the string '1', not the integer
+    1.
+  timeout: Re-scanning the grid for each island or using a visited list with `in` is O(cells^2); mark
+    land as visited in place, O(rows*cols).
+  wrong-answer: Comparing to integer 1 when cells are the string '1', so no island is ever found.
+  exception: Recursive DFS on a large all-land grid can exceed Python's recursion limit; BFS with a deque
+    avoids that.

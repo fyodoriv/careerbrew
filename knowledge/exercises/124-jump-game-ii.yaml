@@ -1,0 +1,75 @@
+id: jump-game-ii
+order: 124
+pattern: greedy
+difficulty: medium
+title: Fewest hops
+leetcode: jump-game-ii
+lesson: 'Treat it as BFS by levels without a queue: every index reachable with k jumps forms a window.
+  Scan the window to find how far k+1 jumps reach, then move to the next window.
+
+  '
+statement: 'Each `nums[i]` is the maximum forward jump from index `i`. The last index is always reachable.
+  Return the minimum number of jumps needed to get from index 0 to the last index.
+
+  '
+function: jump
+signature: 'def jump(nums: list[int]) -> int:'
+starter: "def jump(nums: list[int]) -> int:\n    pass\n"
+tests:
+- args:
+  - - 2
+    - 3
+    - 1
+    - 1
+    - 4
+  expected: 2
+- args:
+  - - 2
+    - 3
+    - 0
+    - 1
+    - 4
+  expected: 2
+- args:
+  - - 0
+  expected: 0
+  note: single element needs no jumps
+- args:
+  - - 1
+    - 1
+    - 1
+    - 1
+  expected: 3
+  note: forced single steps
+- args:
+  - - 10
+    - 1
+    - 1
+  expected: 1
+  note: one big jump
+- args:
+  - - 1
+    - 2
+  expected: 1
+scale:
+  generator: "def make(n):\n    return [[2] * n]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- Group indices by how many jumps it takes to reach them.
+- Keep the end of the current window and the farthest reach from inside it; when you pass the window end,
+  you must jump.
+- 'for i in range(len(nums)-1): far = max(far, i+nums[i]); if i == end: jumps += 1; end = far.'
+solution: "def jump(nums: list[int]) -> int:\n    jumps = end = far = 0\n    for i in range(len(nums)\
+  \ - 1):\n        far = max(far, i + nums[i])\n        if i == end:\n            jumps += 1\n       \
+  \     end = far\n    return jumps\n"
+pitfalls:
+  edge-case: A single element list needs 0 jumps; do not count the start as a hop.
+  timeout: A BFS or dp that tries every jump target is O(n^2); a greedy window over the current reach
+    is O(n).
+  wrong-answer: Looping all the way to the last index adds an extra jump; loop to len(nums)-1 and jump
+    only when i reaches the current end.
+  exception: dp initialised with float('inf') then int() conversions crash; with the greedy window you
+    need no array at all.

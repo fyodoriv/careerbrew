@@ -1,0 +1,60 @@
+id: multiply-strings
+order: 142
+pattern: math and geometry
+difficulty: medium
+title: Long multiplication
+leetcode: multiply-strings
+lesson: 'Digit i of one number times digit j of the other lands in position i+j+1 of a result array of
+  length m+n. Accumulate every product there, push carries left, then strip leading zeros.
+
+  '
+statement: 'Given two non-negative integers as decimal strings `a` and `b`, return their product as a
+  string. Do not convert the whole inputs to integers.
+
+  '
+function: multiply
+signature: 'def multiply(a: str, b: str) -> str:'
+starter: "def multiply(a: str, b: str) -> str:\n    pass\n"
+tests:
+- args:
+  - '2'
+  - '3'
+  expected: '6'
+- args:
+  - '123'
+  - '456'
+  expected: '56088'
+- args:
+  - '0'
+  - '52'
+  expected: '0'
+  note: zero times anything
+- args:
+  - '9'
+  - '9'
+  expected: '81'
+  note: carry into new digit
+- args:
+  - '999'
+  - '999'
+  expected: '998001'
+- args:
+  - '1'
+  - '12345'
+  expected: '12345'
+  note: identity
+hints:
+- Recall grade-school multiplication column by column.
+- Use an int array of length len(a)+len(b); position i+j+1 gets a[i]*b[j].
+- add product to res[i+j+1], move res[i+j+1]//10 into res[i+j], keep %10; join and lstrip '0' (or '0').
+solution: "def multiply(a: str, b: str) -> str:\n    res = [0] * (len(a) + len(b))\n    for i in range(len(a)\
+  \ - 1, -1, -1):\n        for j in range(len(b) - 1, -1, -1):\n            total = res[i + j + 1] + int(a[i])\
+  \ * int(b[j])\n            res[i + j + 1] = total % 10\n            res[i + j] += total // 10\n    s\
+  \ = \"\".join(map(str, res)).lstrip(\"0\")\n    return s or \"0\"\n"
+pitfalls:
+  edge-case: If either string is '0' the answer is '0', not '0000'.
+  timeout: Repeated string addition of a for each unit of b is far too slow; schoolbook digit multiplication
+    into a result array is O(len(a)*len(b)).
+  wrong-answer: Placing the product of a[i] and b[j] at index i+j instead of i+j+1 (with a length m+n
+    array) shifts the digits.
+  exception: Stripping leading zeros from '000' leaves an empty string; return '0' when nothing is left.

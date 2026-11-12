@@ -1,0 +1,29 @@
+[
+  {
+    "name": "work.promise.outcomes",
+    "command": "careerbrew work promise outcomes",
+    "help": "show verified PM promise outcome proposals",
+    "args": [{"name": "json", "flag": "--json", "kind": "flag", "choices": null, "required": false, "many": false, "help": "", "default": null}],
+    "ui": true, "terminal_only": null, "confirm": null, "agent_note": null
+  },
+  {
+    "name": "work.promise.accept",
+    "command": "careerbrew work promise accept",
+    "help": "accept one current PM promise proposal (owner only, needs --yes)",
+    "args": [
+      {"name": "proposal_id", "flag": null, "kind": "text", "choices": null, "required": true, "many": false, "help": "", "default": null},
+      {"name": "yes", "flag": "--yes", "kind": "flag", "choices": null, "required": false, "many": false, "help": "", "default": null}
+    ],
+    "ui": true, "terminal_only": null, "confirm": "records your decision on one current PM promise outcome", "agent_note": null
+  },
+  {
+    "name": "work.promise.stats",
+    "command": "careerbrew work promise stats",
+    "help": "count promise outcomes in an inclusive creation-day window",
+    "args": [
+      {"name": "days", "flag": "--days", "kind": "int", "choices": null, "required": true, "many": false, "help": "", "default": null},
+      {"name": "json", "flag": "--json", "kind": "flag", "choices": null, "required": false, "many": false, "help": "", "default": null}
+    ],
+    "ui": true, "terminal_only": null, "confirm": null, "agent_note": null
+  }
+]

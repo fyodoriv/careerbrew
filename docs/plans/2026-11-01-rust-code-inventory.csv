@@ -1,0 +1,897 @@
+path,disposition,task,reason
+tests/unit/test_eval_case_loading.py,port,rust-27,Fixed real eval-loader duplicate-key and document-boundary regression controls
+.cargo/config.toml,keep-native,rust-00,Native migration workspace source or build configuration
+Cargo.lock,keep-native,rust-00,Native migration workspace source or build configuration
+Cargo.toml,keep-native,rust-00,Native migration workspace source or build configuration
+evals/run.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+evals/run.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+hooks/pre-commit,port,rust-27,Executable hook/bootstrap; native tool must retain original policy and exit semantics
+hooks/pre-push,port,rust-27,Executable hook/bootstrap; native tool must retain original policy and exit semantics
+knowledge/exercises/001-contains-duplicate.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/002-valid-anagram.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/003-two-sum.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/004-group-anagrams.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/005-top-k-frequent-elements.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/006-encode-and-decode-strings.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/007-product-of-array-except-self.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/008-valid-sudoku.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/009-longest-consecutive-sequence.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/010-valid-palindrome.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/011-two-sum-ii-input-array-is-sorted.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/012-3sum.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/013-container-with-most-water.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/014-trapping-rain-water.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/015-best-time-to-buy-and-sell-stock.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/016-longest-substring-without-repeating-characters.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/017-longest-repeating-character-replacement.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/018-permutation-in-string.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/019-minimum-window-substring.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/020-sliding-window-maximum.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/021-valid-parentheses.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/022-min-stack.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/023-evaluate-reverse-polish-notation.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/024-generate-parentheses.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/025-daily-temperatures.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/026-car-fleet.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/027-largest-rectangle-in-histogram.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/028-binary-search.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/029-search-a-2d-matrix.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/030-koko-eating-bananas.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/031-find-minimum-in-rotated-sorted-array.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/032-search-in-rotated-sorted-array.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/033-time-based-key-value-store.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/034-median-of-two-sorted-arrays.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/035-reverse-linked-list.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/036-merge-two-sorted-lists.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/037-reorder-list.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/038-remove-nth-node-from-end-of-list.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/039-copy-list-with-random-pointer.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/040-add-two-numbers.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/041-linked-list-cycle.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/042-find-the-duplicate-number.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/043-lru-cache.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/044-merge-k-sorted-lists.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/045-reverse-nodes-in-k-group.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/046-invert-binary-tree.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/047-maximum-depth-of-binary-tree.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/048-diameter-of-binary-tree.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/049-balanced-binary-tree.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/050-same-tree.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/051-subtree-of-another-tree.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/052-lowest-common-ancestor-of-a-binary-search-tree.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/053-binary-tree-level-order-traversal.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/054-binary-tree-right-side-view.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/055-count-good-nodes-in-binary-tree.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/056-validate-binary-search-tree.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/057-kth-smallest-element-in-a-bst.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/058-construct-binary-tree-from-preorder-and-inorder-traversal.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/059-binary-tree-maximum-path-sum.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/060-serialize-and-deserialize-binary-tree.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/061-implement-trie-prefix-tree.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/062-design-add-and-search-words-data-structure.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/063-word-search-ii.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/064-kth-largest-in-stream.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/065-last-stone-weight.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/066-k-closest-points.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/067-kth-largest-in-array.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/068-task-scheduler.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/069-design-twitter.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/070-median-of-stream.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/071-subsets.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/072-combination-sum.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/073-permutations.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/074-subsets-with-duplicates.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/075-combination-sum-once.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/076-word-search.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/077-palindrome-partitioning.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/078-phone-letter-combinations.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/079-n-queens.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/080-number-of-islands.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/081-clone-graph.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/082-max-area-of-island.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/083-pacific-atlantic.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/084-surrounded-regions.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/085-rotting-oranges.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/086-walls-and-gates.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/087-course-schedule.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/088-course-order.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/089-redundant-connection.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/090-connected-components.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/091-graph-valid-tree.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/092-word-ladder.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/093-reconstruct-itinerary.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/094-min-cost-connect-points.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/095-network-delay-time.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/096-swim-in-rising-water.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/097-alien-dictionary.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/098-cheapest-flights-k-stops.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/099-climbing-stairs.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/100-min-cost-climbing-stairs.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/101-house-robber.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/102-house-robber-ii.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/103-longest-palindromic-substring.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/104-palindromic-substrings.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/105-decode-ways.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/106-coin-change.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/107-maximum-product-subarray.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/108-word-break.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/109-longest-increasing-subsequence.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/110-partition-equal-subset-sum.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/111-unique-paths.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/112-longest-common-subsequence.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/113-stock-cooldown.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/114-coin-change-ii.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/115-target-sum.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/116-interleaving-string.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/117-longest-increasing-path-matrix.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/118-distinct-subsequences.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/119-edit-distance.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/120-burst-balloons.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/121-regex-matching.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/122-maximum-subarray.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/123-jump-game.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/124-jump-game-ii.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/125-gas-station.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/126-hand-of-straights.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/127-merge-triplets-to-form-target-triplet.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/128-partition-labels.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/129-valid-parenthesis-string.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/130-insert-interval.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/131-merge-intervals.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/132-non-overlapping-intervals.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/133-meeting-rooms.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/134-meeting-rooms-ii.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/135-minimum-interval-to-include-each-query.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/136-rotate-image.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/137-spiral-matrix.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/138-set-matrix-zeroes.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/139-happy-number.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/140-plus-one.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/141-powx-n.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/142-multiply-strings.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/143-detect-squares.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/144-single-number.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/145-number-of-1-bits.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/146-counting-bits.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/147-reverse-bits.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/148-missing-number.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/149-sum-of-two-integers.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+knowledge/exercises/150-reverse-integer.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
+rust-toolchain.toml,keep-native,rust-00,Native migration workspace source or build configuration
+scripts/api-timing.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/batch-gate.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/check-card-code.py,port,rust-27,Port Python compile oracle and embedded Node/esbuild backend checker to maintained native parsers; preserve invalid-code controls
+scripts/check-deployed-commands.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/check-docs.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/check-sources.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/check-stories.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/check.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/checkup.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/doctor.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/e2e.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/import-research.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/input-key.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/install-launcher.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/install.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/leak-check.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/learnings-table.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/metrics.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/open-prs.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/open-work.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/pm-sent-coverage.py,port,rust-27,Port non-UI read-only measurement helper with exact eligibility privacy and aggregate defect controls
+scripts/proof.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/report-html.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/rust-readiness.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/setup.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/tests_affected.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+src/careerbrew/__init__.py,port,rust-02,Runtime capability; tests port with the capability
+src/careerbrew/__main__.py,port,rust-26,Runtime capability; tests port with the capability
+src/careerbrew/actions.py,port,rust-03,Runtime capability; tests port with the capability
+src/careerbrew/agent_workflows.py,port,rust-03,Runtime capability; tests port with the capability
+src/careerbrew/approvals.py,port,rust-04,Runtime capability; tests port with the capability
+src/careerbrew/backup.py,port,rust-06,Key lifecycle provider extracted rust-05; archives/restore rust-06
+src/careerbrew/calendar.py,port,rust-08,Runtime capability; tests port with the capability
+src/careerbrew/changes.py,port,rust-24,Full changes orchestration here; pure hash provider extracted in rust-02
+src/careerbrew/charts.py,port,rust-24,Runtime capability; tests port with the capability
+src/careerbrew/checklist.py,port,rust-24,Runtime capability; tests port with the capability
+src/careerbrew/checkup.py,port,rust-24,Runtime capability; tests port with the capability
+src/careerbrew/checkup_runs.py,port,rust-24,Runtime capability; tests port with the capability
+src/careerbrew/cli.py,port,rust-26,Runtime capability; tests port with the capability
+src/careerbrew/config.py,port,rust-02,Pure schema rust-02; encrypted IO and event primitive rust-05
+src/careerbrew/connectors.py,port,rust-08,Runtime capability; tests port with the capability
+src/careerbrew/day/__init__.py,port,rust-17,Runtime capability; tests port with the capability
+src/careerbrew/day/done_elsewhere.py,port,rust-17,Runtime capability; tests port with the capability
+src/careerbrew/day/handoff.py,port,rust-17,Runtime capability; tests port with the capability
+src/careerbrew/day/inbox.py,port,rust-17,Runtime capability; tests port with the capability
+src/careerbrew/day/log.py,port,rust-17,Runtime capability; tests port with the capability
+src/careerbrew/day/planner.py,port,rust-17,Runtime capability; tests port with the capability
+src/careerbrew/day/pm_learn.py,port,rust-17,Runtime capability; tests port with the capability
+src/careerbrew/day/pm_promises.py,port,rust-17,PM promise detection and source-day identity
+src/careerbrew/day/results.py,port,rust-17,Runtime capability; tests port with the capability
+src/careerbrew/day/watch.py,port,rust-17,Runtime capability; tests port with the capability
+src/careerbrew/events.py,port,rust-24,Content-free emit primitive rust-05; remaining metrics/orchestration rust-24
+src/careerbrew/field.py,port,rust-24,Runtime capability; tests port with the capability
+src/careerbrew/goals.py,port,rust-21,Runtime capability; tests port with the capability
+src/careerbrew/interview.py,port,rust-19,Runtime capability; tests port with the capability
+src/careerbrew/jobs/__init__.py,port,rust-19,Runtime capability; tests port with the capability
+src/careerbrew/jobs/criteria.py,port,rust-19,Runtime capability; tests port with the capability
+src/careerbrew/jobs/linkedin.py,port,rust-19,Runtime capability; tests port with the capability
+src/careerbrew/jobs/platforms.py,port,rust-19,Runtime capability; tests port with the capability
+src/careerbrew/jobs/sources.py,port,rust-19,Runtime capability; tests port with the capability
+src/careerbrew/jobs/strategy.py,port,rust-19,Runtime capability; tests port with the capability
+src/careerbrew/jobs/want.py,port,rust-19,Runtime capability; tests port with the capability
+src/careerbrew/judge.py,port,rust-23,Runtime capability; tests port with the capability
+src/careerbrew/learn/__init__.py,port,rust-12,Runtime capability; tests port with the capability
+src/careerbrew/learn/project.py,port,rust-12,Runtime capability; tests port with the capability
+src/careerbrew/learn/replay.py,port,rust-12,Runtime capability; tests port with the capability
+src/careerbrew/learn/tour.py,port,rust-12,Runtime capability; tests port with the capability
+src/careerbrew/machine.py,port,rust-07,Runtime capability; tests port with the capability
+src/careerbrew/mail.py,port,rust-08,Runtime capability; tests port with the capability
+src/careerbrew/metrics_share.py,port,rust-24,Runtime capability; tests port with the capability
+src/careerbrew/models.py,port,rust-23,Runtime capability; tests port with the capability
+src/careerbrew/msauth.py,port,rust-07,Runtime capability; tests port with the capability
+src/careerbrew/notify.py,port,rust-14,Runtime capability; tests port with the capability
+src/careerbrew/notion_import.py,port,rust-20,Runtime capability; tests port with the capability
+src/careerbrew/paths.py,port,rust-02,Runtime capability; tests port with the capability
+src/careerbrew/plugins.py,port,rust-07,Runtime capability; tests port with the capability
+src/careerbrew/prep.py,port,rust-19,Runtime capability; tests port with the capability
+src/careerbrew/privacy.py,port,rust-04,Runtime capability; tests port with the capability
+src/careerbrew/repo_health.py,port,rust-24,Runtime capability; tests port with the capability
+src/careerbrew/report.py,port,rust-24,Runtime capability; tests port with the capability
+src/careerbrew/research.py,port,rust-19,Runtime capability; tests port with the capability
+src/careerbrew/review.py,port,rust-24,Runtime capability; tests port with the capability
+src/careerbrew/runs.py,port,rust-24,Runtime capability; tests port with the capability
+src/careerbrew/secrets.py,port,rust-05,Runtime capability; tests port with the capability
+src/careerbrew/server.py,port,rust-25,Runtime capability; tests port with the capability
+src/careerbrew/signals.py,port,rust-24,Runtime capability; tests port with the capability
+src/careerbrew/store.py,port,rust-05,Runtime capability; tests port with the capability
+src/careerbrew/sync.py,port,rust-06,Runtime capability; tests port with the capability
+src/careerbrew/teacher.py,port,rust-21,Runtime capability; tests port with the capability
+src/careerbrew/telemetry.py,port,rust-24,Runtime capability; tests port with the capability
+src/careerbrew/time_saved.py,port,rust-24,Runtime capability; tests port with the capability
+src/careerbrew/tutor/__init__.py,port,rust-21,Runtime capability; tests port with the capability
+src/careerbrew/tutor/cards.py,port,rust-20,Runtime capability; tests port with the capability
+src/careerbrew/tutor/engine.py,port,rust-21,Shared queue/scheduler/record providers extracted rust-20; remaining teacher behavior rust-21
+src/careerbrew/tutor/exercises.py,port,rust-22,Runtime capability; tests port with the capability
+src/careerbrew/tutor/mistakes.py,port,rust-21,Shared queue/scheduler/record providers extracted rust-20; remaining teacher behavior rust-21
+src/careerbrew/tutor/public.py,port,rust-20,Runtime capability; tests port with the capability
+src/careerbrew/tutor/voice.py,port,rust-23,Runtime capability; tests port with the capability
+src/careerbrew/vault.py,port,rust-05,Runtime capability; tests port with the capability
+src/careerbrew/wizard.py,port,rust-24,Runtime capability; tests port with the capability
+src/careerbrew/work/__init__.py,port,rust-09,Runtime capability; tests port with the capability
+src/careerbrew/work/access.py,port,rust-04,Runtime capability; tests port with the capability
+src/careerbrew/work/agents.py,port,rust-10,Runtime capability; tests port with the capability
+src/careerbrew/work/claim_audit.py,port,rust-27,Synthetic claim measurement oracle
+src/careerbrew/work/drafts.py,port,rust-10,Runtime capability; tests port with the capability
+src/careerbrew/work/evidence.py,port,rust-18,Runtime capability; tests port with the capability
+src/careerbrew/work/explain.py,port,rust-12,Runtime capability; tests port with the capability
+src/careerbrew/work/feed.py,port,rust-13,Runtime capability; tests port with the capability
+src/careerbrew/work/focus.py,port,rust-09,Runtime capability; tests port with the capability
+src/careerbrew/work/ladder_grade.py,port,rust-18,Runtime capability; tests port with the capability
+src/careerbrew/work/linkedin.py,port,rust-18,Runtime capability; tests port with the capability
+src/careerbrew/work/listen.py,port,rust-14,Runtime capability; tests port with the capability
+src/careerbrew/work/live.py,port,rust-14,Runtime capability; tests port with the capability
+src/careerbrew/work/memory_sync.py,port,rust-11,Runtime capability; tests port with the capability
+src/careerbrew/work/prd.py,port,rust-12,Runtime capability; tests port with the capability
+src/careerbrew/work/priorities.py,port,rust-09,Runtime capability; tests port with the capability
+src/careerbrew/work/project_import.py,port,rust-11,Runtime capability; tests port with the capability
+src/careerbrew/work/project_priority.py,port,rust-09,Runtime capability; tests port with the capability
+src/careerbrew/work/prior_selection.py,port,rust-10,Read-only prior session classification foundation
+src/careerbrew/work/projects.py,port,rust-09,Runtime capability; tests port with the capability
+src/careerbrew/work/promises.py,port,rust-09,Runtime capability; tests port with the capability
+src/careerbrew/work/promo.py,port,rust-18,Runtime capability; tests port with the capability
+src/careerbrew/work/research.py,port,rust-11,Runtime capability; tests port with the capability
+src/careerbrew/work/review_ask.py,port,rust-14,Runtime capability; tests port with the capability
+src/careerbrew/work/sessions.py,port,rust-10,Runtime capability; tests port with the capability
+src/careerbrew/work/standup.py,port,rust-18,Runtime capability; tests port with the capability
+src/careerbrew/work/team.py,port,rust-09,Runtime capability; tests port with the capability
+src/careerbrew/work/transcript.py,port,rust-13,Runtime capability; tests port with the capability
+src/careerbrew/workday/__init__.py,port,rust-15,Runtime capability; tests port with the capability
+src/careerbrew/workday/cron_check.py,port,rust-16,Content-free work-day scheduling check
+src/careerbrew/workday/end.py,port,rust-16,Runtime capability; tests port with the capability
+src/careerbrew/workday/gate.py,port,rust-16,Runtime capability; tests port with the capability
+src/careerbrew/workday/mcp_check.py,port,rust-07,Runtime capability; tests port with the capability
+src/careerbrew/workday/plan.py,port,rust-16,Runtime capability; tests port with the capability
+src/careerbrew/workday/questions.py,port,rust-15,Runtime capability; tests port with the capability
+src/careerbrew/workday/self_update.py,port,rust-07,Runtime capability; tests port with the capability
+src/careerbrew/workday/stages.py,port,rust-15,Runtime capability; tests port with the capability
+src/careerbrew/workday/start.py,port,rust-16,Runtime capability; tests port with the capability
+src/careerbrew/workday/status.py,port,rust-15,Runtime capability; tests port with the capability
+src/careerbrew/workday/steps.py,port,rust-15,Runtime capability; tests port with the capability
+src/careerbrew/workday/timing.py,port,rust-16,Runtime capability; tests port with the capability
+src/careerbrew/workday/watch.py,port,rust-16,Runtime capability; tests port with the capability
+src/careerbrew/workday/workflow_check.py,port,rust-07,Runtime capability; tests port with the capability
+tests/__init__.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/fake-judge.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/lib.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-01-setup.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-02-jobs-scan-filter.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-03-want-rate-learn.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-04-strategy.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-05-drill.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-06-progress-chart.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-07-evidence.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-08-backup.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-09-promo.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-10-plan.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-100-work-day-truth.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-101-live-listening.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-102-work-day-start.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-103-work-day-watch.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-104-question-records.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-105-work-day-timing.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-106-end-of-day.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-107-project-sessions.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-11-review.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-12-plugin.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-13-privacy.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-14-connectors.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-15-machines-sync.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-16-linkedin.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-17-interview.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-18-prep.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-19-job-platforms.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-20-linkedin-import.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-21-mail.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-22-plugin-new.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-23-day-watch.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-24-day-next.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-25-day-plan.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-26-sources.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-27-stories-skills.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-28-ladder-import.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-29-second-person.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-30-hot-reload.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-31-changes.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-32-research.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-33-patterns.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-34-skill-practice.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-35-web-app.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-36-plan-ahead.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-37-web-api.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-38-notion-import.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-39-flashcards.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-40-corporate-rehearsal.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-41-focus-dashboard.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-42-connect.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-43-data-show.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-43-encryption-at-rest.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-44-public-study-deck.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-45-teacher.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-46-exercises.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-47-goals.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-48-job-choice.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-49-mistakes.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-50-work-projects.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-51-project-research.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-52-daily-log.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-53-actions-and-slack.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-54-metrics-share.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-55-second-user.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-55-split-plugin-evidence.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-56-project-explain.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-57-voice-practice.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-58-action-feedback.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-59-pm-update.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-60-project-import.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-61-work-feed.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-62-notifications.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-63-today-open-asks.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-64-fast-views.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-65-standup-report.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-66-llm-evals.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-67-run-pages.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-68-project-memory-sync.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-69-project-push.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-70-task-links.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-71-web-sign-in.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-72-every-control.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-73-page-order-and-paging.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-74-inbox-for-new-users.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-75-visual-stories.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-76-comfort-budget.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-77-project-watch.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-78-team-feed.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-79-repo-health.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-80-learn-project.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-81-outlook-sign-in.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-82-active-now.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-83-learn-replay-tour.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-84-decision-signals.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-85-handoff.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-86-time-saved.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-87-impact.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-88-ladder-grade.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-89-field-telemetry.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-90-review-ask.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-91-agent-activity.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-93-prep-readiness.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-94-work-day.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-95-standup-proofs.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-96-work-day-stages.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-97-live-feed.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-98-reply-drafts.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-99-promises.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/web-seed-and-serve.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/web_seed.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/fixtures/notifier/fake-notifier.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/fixtures/plugin-acme/bin/tickets.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/fixtures/voice/fake-stt.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/safety/test_issue_327_native.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/safety/test_issue_327_native_cleanup.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/__init__.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/conftest.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_action_parity.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_agent_skill_declaration.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_api_cache.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_batch_gate.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_cards.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_check_stories.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_checkup.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_checkup_command.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_checkup_html.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_claim_audit.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_clock_reads.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_connect_wizard.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_connectors_machines.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_contributing.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_corporate_exits.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_corporate_ready.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_data_show.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_day.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_daylog.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_deployed_commands.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_drill_session_input_ends.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_e2e_lib.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_e2e_results.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_e2e_us52_pipes.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_e2e_runner.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_every_action_has_an_e2e.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_exercise_cache_runtime_probe.py,port,rust-27,Port exercise runtime-cache refusal controls with the gate
+tests/unit/test_exercise_complexity.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_exercise_diagnostics.py,port,rust-27,Port owner-status and content-free diagnostic assertions with the exercise runner
+tests/unit/test_exercises_cache.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_focus.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_gate_cache.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_gate_corporate.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_gate_inputs.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_goals.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_grader_findings.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_grind_command.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_hot_reload.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_import_memory_questions.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_install_prompt.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_interview_prep.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_101.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_110.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_118.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_141.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_145.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_147.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_172.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_175.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_180.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_180_threads.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_183.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_184.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_185_feed.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_185_gaps.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_185_pm.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_185_signals.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_185_teach.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_186.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_198.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_199.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_200.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_210.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_214.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_214_why.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_216.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_221.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_223.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_226.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_227.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_228.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_229.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_230.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_232.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_234.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_238.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_239.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_254.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_258.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_259.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_260.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_261.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_263.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_264.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_265.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_266.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_267.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_408.py,port,rust-27,Port live-source acquisition freshness and required coverage controls with the domain slice
+tests/unit/test_issue_268.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_269.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_270.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_271.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_272.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_274.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_276.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_280.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_305.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_307.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_308.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_309.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_310.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_311.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_312.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_313.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_314.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_315.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_316.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_326.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_327.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_330.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_331.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_333.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_334.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_335_337.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_336.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_338.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_339.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_366.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_371.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_372.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_374_legacy_feed.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_377_closed_today.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_52.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_58.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_60.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_68.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_70.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_71.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_72.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_73.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_74.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issues_38_39.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issues_43_46.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_jira_connector.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_jobs.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_launcher.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_learn.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_learn_replay_tour.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_learnings_table.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_linkedin.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_llm_evals.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_mail_linkedin.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_mcp_browser_fixture.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_mcp_fix.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_memory_sync.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_metrics_report.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_metrics_share.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_no_conflict_markers.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_notion_import.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_open_prs.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_open_work.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_outlook_connector.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_ownership_docs.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_pinned_clock.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_platforms.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_region_labels.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_playwright_server.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_plugin_commands.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_plugins_privacy.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_pm_send.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_pm_history_concurrency.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_pm_sent_cache.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_pm_sent_coverage.py,port,rust-27,Port synthetic coverage identity defect and zero-write assertions with measurement helper
+tests/unit/test_pm_sent_reconciliation.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_privacy_scan_file.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_project_explain.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_project_import.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_project_research.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_project_since.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_projects.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_promo_matching.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_proof.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_public_cards.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_public_scrub.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_regrade.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_regrade_notion.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_repo_health.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_run_pages.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_rust_readiness.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_second_user.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_server.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_slow_start.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_split_plugin_evidence.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_state_concurrency.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_story_metrics.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_task_labels.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_task_links.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_teacher.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_telemetry.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_tests_affected.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_time_saved.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_tutor.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_v2_grader.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_vault.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_vault_plugins.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_voice.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_watch_idle.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_watch_mail_plan.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_watch_probe.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_web_blocks.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_web_grader.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_web_seed.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_wizard.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_work.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_prior_session_selection.py,port,rust-27,Synthetic prior session classification controls
+tests/unit/test_format_cache_runtime.py,port,rust-27,Synthetic format-cache runtime change and fresh-run controls
+tests/unit/test_lint_cache_runtime.py,port,rust-27,Synthetic lint-cache runtime change and fresh-run controls
+tests/unit/test_live_health_seed.py,port,rust-27,Synthetic source-health fixture time-zone boundary controls
+tests/unit/test_unit_cache_runtime.py,port,rust-27,Synthetic unit-cache runtime change and fresh-run controls
+tests/unit/test_workday.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/watch_gate_child.py,port,rust-27,Port the isolated watch resource measurement helper
+web/e2e/active-now.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/agents.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/app.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/blocks.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/comfort.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/route-owner-probe/playwright.config.ts,keep-ui,,Keep route-owner error probe configuration
+web/route-owner-probe/probe.spec.ts,keep-ui,,Verify asynchronous route errors remain visible
+web/route-owner-probe/assert-report.cjs,keep-ui,,Verify exact expected probe outcomes
+web/e2e/controls-route-owner.ts,keep-ui,,Own browser-page visit route cleanup for the control inventory
+web/e2e/controls-route-lifecycle.spec.ts,keep-ui,,Exercise delayed route cleanup and next-visit isolation
+web/e2e/controls.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/feed.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/feedback.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/inbox.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/inputs.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/mcp-repair-fixture.ts,keep-ui,,Keep browser fixture in TypeScript; migrate embedded Python via rust-25 and process/diagnostic helpers via rust-27
+web/e2e/mcp-repair.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/notifications.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/order-paging.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/pm-copy.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/pm-slack-fixture.ts,keep-ui,,Keep browser fixture in TypeScript; migrate its embedded Python and process helpers via rust-25/rust-27
+web/e2e/promises.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/signin.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/standup.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/task-links.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/time-saved.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/eslint.config.js,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/playwright.config.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/playwright.visual.config.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/App.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/App.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/about.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/act-status.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/act-status.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/act.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/actions.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/actions.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/agents.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/agents.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/api.test.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/api.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/blocks.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/cache.test.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/cache.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/copy.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/dates.test.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/dates.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/daylog.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/daylog.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/links.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/links.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/live.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/live.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/main.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/notifications.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/notifications.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/order.test.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/order.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/pager.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/pager.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/paging.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/pm-copy.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/reports.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/reports.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/router.test.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/router.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/session.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/signin.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/standup.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/standup.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/teach.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/teach.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/test-setup.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/test-setup.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/text.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/time.test.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/timing.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/timing.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/useCopy.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/useData.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/useDayLog.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/views.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/views.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/vite-env.d.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/voice.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/voice.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/helpers.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-02-jobs-scan-filter.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-03-want-rate-learn.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-04-strategy.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-07-evidence.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-09-promo.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-10-plan.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-102-work-day-start.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-11-review.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-12-plugin.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-14-connectors.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-17-interview.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-18-prep.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-23-day-watch.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-24-day-next.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-25-day-plan.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-26-sources.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-31-changes.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-32-research.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-33-patterns.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-35-web-app.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-36-plan-ahead.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-37-web-api.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-38-notion-import.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-39-flashcards.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-41-focus-dashboard.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-42-connect.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-44-public-study-deck.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-45-teacher.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-46-exercises.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-47-goals.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-48-job-choice.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-49-mistakes.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-50-work-projects.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-52-daily-log.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-53-actions-and-slack.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-57-voice-practice.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-58-action-feedback.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-59-pm-update.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-60-project-import.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-61-work-feed.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-62-notifications.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-63-today-open-asks.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-64-fast-views.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-65-standup-report.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-67-run-pages.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-70-task-links.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-71-web-sign-in.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-72-every-control.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-73-page-order-and-paging.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-74-inbox-for-new-users.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-77-project-watch.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-82-active-now.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-84-decision-signals.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-86-time-saved.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-91-agent-activity.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-93-prep-readiness.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-95-standup-proofs.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-99-promises.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/vite.config.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+xtask/Cargo.toml,keep-native,rust-00,Native migration workspace source or build configuration
+xtask/src/baseline_verdict.rs,keep-native,rust-00,Native migration workspace source or build configuration
+xtask/src/capture_actions.rs,keep-native,rust-00,Native observed action catalog capture
+xtask/src/inventory.rs,keep-native,rust-00,Native tracked inventory verifier
+xtask/src/main.rs,keep-native,rust-00,Native migration workspace source or build configuration
+xtask/src/toolchain_identity.rs,keep-native,rust-00,Native read-only toolchain identity probe
+xtask/src/trial_plan.rs,keep-native,rust-00,Native paired trial ordering for the migration harness
+xtask/tests/activation_manifest.rs,keep-native,rust-00,Native source-anchor and SCC checks for the partial activation manifest
+xtask/tests/capture_actions.rs,keep-native,rust-00,Native integration controls for actual Python action capture
+xtask/tests/i01_fixture.rs,keep-native,rust-00,Native preparation tests for the tiny I01 identity fixture
+xtask/tests/fixtures/capture/observer/sitecustomize.py,port,rust-27,Retire this observed Python oracle hook with the Python migration oracle
+xtask/src/capture_http.rs,keep-native,rust-00,Native observed HTTP handler contract capture
+xtask/tests/capture_http.rs,keep-native,rust-00,Real HTTP handler capture controls
+xtask/tests/fixtures/capture/http_driver.py,port,rust-27,Retire pinned server oracle driver with Python migration oracle
+xtask/src/capture_data.rs,keep-native,rust-00,Bounded actual data API capture preparation
+xtask/tests/capture_data.rs,keep-native,rust-00,Data capture phase and strict wire controls
+xtask/tests/capture_data_cli.rs,keep-native,rust-00,Native developer DATA executable routing and owned capture contract checks
+xtask/tests/fixtures/capture/data_driver.py,port,rust-27,Retire pinned fresh-process data oracle with Python provider
+xtask/tests/observer_deadline.rs,keep-native,rust-00,Fixed Linux observer capability and ownership controls; no production dispatch
+xtask/tests/fixtures/capture/data_reference_v1.semantic.json,keep-native,rust-00,Reviewed portable synthetic data semantic reference
+xtask/tests/fixtures/capture/data_reference_v1.provenance.json,keep-native,rust-00,Path-free provenance of the frozen positive data reference
+xtask/tests/support/actions_controls.rs,keep-native,rust-00,Unchanged shared CLI capture preservation controls
+xtask/tests/support/http_controls.rs,keep-native,rust-00,Unchanged shared HTTP capture preservation controls
+xtask/tests/support/owner_controls.rs,keep-native,rust-00,Unchanged shared child owner preservation controls
+docs/plans/2026-11-05-rust-data-fault-schema.json,keep-native,rust-00,Intent-bound synthetic DATA fault protocol schema
+xtask/src/observer_probe.rs,keep-native,rust-00,Fixed Linux observer capability and ownership controls; no production dispatch
+xtask/src/observer_probe/ownership.rs,keep-native,rust-00,Fixed Linux observer capability and ownership controls; no production dispatch
+xtask/src/observer_probe/parser.rs,keep-native,rust-00,Fixed Linux observer capability and ownership controls; no production dispatch
+xtask/tests/fixtures/linux-observer/child.py,port,rust-27,Temporary fixed synthetic observer oracle; retire after native harness qualification
+xtask/tests/fixtures/linux-observer/parent.py,port,rust-27,Temporary fixed synthetic observer oracle; retire after native harness qualification
+xtask/tests/fixtures/linux-observer/supervisor.py,port,rust-27,Temporary fixed synthetic observer oracle; retire after native harness qualification
+xtask/tests/observer_owner.rs,keep-native,rust-00,Fixed Linux observer capability and ownership controls; no production dispatch
+xtask/tests/observer_parser.rs,keep-native,rust-00,Fixed Linux observer capability and ownership controls; no production dispatch
+xtask/src/observer_probe/transport.rs,keep-native,rust-00,Bounded fixed observer tmpfs snapshot transport; no production dispatch
+xtask/tests/observer_transport.rs,keep-native,rust-00,Local real-producer byte and refusal controls; no Docker or kernel qualification
+xtask/tests/fixtures/linux-observer/export.py,port,rust-27,Temporary pinned fixed oracle byte exporter; retire with Python migration oracle
+tests/unit/test_doctor_rust_deps.py,port,rust-27,Synthetic dependency doctor refusal and success controls
+web/e2e/comfort-fixtures.ts,keep-ui,,Keep test-scoped Playwright screen fixture in TypeScript
+web/e2e/comfort-screen.ts,keep-ui,,Keep per-test browser-context ownership and cleanup in TypeScript
+web/src/comfort-screen.test.ts,keep-ui,,Keep actual browser-context ownership helper unit controls in TypeScript
+src/careerbrew/work/health.py,port,rust-14,Read-only acquisition health and direct receipt completion owned with live feed
+tests/unit/test_issue_406.py,port,rust-27,Port declared coverage and source health boundary assertions with domain slices
+tests/e2e/live_health_seed.py,port,rust-27,Port isolated source health runtime fixture with backend assertions
+web/e2e/live-source-health.spec.ts,keep-ui,,Shared source notice expiry and direct intake browser assertions
+web/src/feedHealth.tsx,keep-ui,,Shared Today and Standup source acquisition notice
+web/src/feedHealth.test.tsx,keep-ui,,Source notice and visible timer boundary assertions
+web/src/useFeedHealth.ts,keep-ui,,Per-mounted-view visible source health refresh lifecycle
+tests/unit/test_issue_422.py,port,rust-27,Port stale connector credential detection controls with workday
+tests/unit/test_issue_423.py,port,rust-27,Port encryption and replay boundary controls with data storage
+tests/unit/test_issue_423_keys.py,port,rust-27,Port key placement boundary controls with encrypted storage
+tests/unit/test_issue_423_bundles.py,port,rust-27,Port backup and sync bundle placement controls with encrypted storage
+tests/unit/test_issue_423_missing_key.py,port,rust-27,Port missing backup key refusal controls with encrypted storage
+tests/unit/test_issue_355_owner_steps.py,port,rust-27,Port owner work-step settings and source boundary controls
+tests/unit/test_setup_story_health_check.py,port,rust-27,Port setup story health assertion controls with test harness
+tests/unit/test_issue_423_eval_output.py,port,rust-27,Port eval data-root boundary and environment restoration controls
+tests/unit/test_issue_423_eval_inputs.py,port,rust-27,Port eval source input boundary controls
+tests/unit/test_issue_412.py,port,rust-27,Port non-interactive encrypted profile update controls
+web/e2e/profile-update.spec.ts,keep-ui,,Keep browser action and comfort controls in TypeScript
+tests/unit/test_issue_409.py,port,rust-27,Port quiet project and notification lifecycle controls
+web/e2e/project-quiet.spec.ts,keep-ui,,Keep quiet project action and comfort controls in TypeScript
+tests/unit/test_issue_356.py,port,rust-27,Port existing issue controls with their domain slice
+tests/unit/test_issue_357_session_claim.py,port,rust-27,Port session claim controls with workday
+tests/unit/test_issue_385.py,port,rust-27,Port project discovery controls with workday
+tests/unit/test_issue_395_skill.py,port,rust-27,Port agent skill controls with their domain slice
+tests/unit/test_issue_423_metrics_output.py,port,rust-27,Port metrics output boundary controls
+tests/unit/test_issue_423_plugin_source.py,port,rust-27,Port plugin source boundary controls
+web/e2e/health-setup.spec.ts,keep-ui,,Keep health setup browser controls in TypeScript
+web/e2e/health-setup.ts,keep-ui,,Keep health setup browser fixture in TypeScript
+tests/unit/test_issue_429.py,port,rust-27,Port approval update kind controls with project records
+tests/unit/test_issue_437.py,port,rust-27,Port project session continuity contract controls
+tests/unit/test_issue_401.py,port,rust-27,Port local draft feedback controls with CLI
+tests/unit/test_judge_completion.py,port,rust-27,Port evaluation completion and cache boundary controls
+tests/unit/test_privacy_index.py,port,rust-27,Port staged privacy scan controls with the privacy boundary
+hooks/lefthook/pre-push/privacy.sh,port,rust-27,Preserve pre-push context and strict scan
+scripts/verify-push-context.py,port,rust-27,Bound and validate pre-push context
+tests/unit/test_push_context.py,port,rust-27,Exercise native push context and strict scan
+tests/unit/test_gate_cache_index.py,port,rust-27,Check staged-tree and revision cache identity
+tests/unit/test_gate_cache_runtime.py,port,rust-27,Check external Rust runtime changes cannot reuse passes
+scripts/benchmark-day-start-discovery.py,port,rust-27,Measure isolated update discovery with owned synthetic checkouts
+tests/unit/test_issue_426.py,port,rust-27,Check invocation-scoped update discovery and Git behavior
+tests/unit/test_issue_423_metadata_temp.py,port,rust-27,Check owned temporary metadata publication and cleanup
+scripts/browser-test-receipts.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-110-pm-promise-outcomes.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_browser_test_receipts.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_e2e_cache_runtime.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_389_baseline.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_389_outcomes.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_389_resolution.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_432.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_issue_438.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_promise_reference_successor.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_rules_reference_successor.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_type_cache_runtime.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_types_cache_safeguard.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_types_command_collision_probe.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_web_type_cache_probe.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+web/e2e/open-asks-refresh-click.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/project-rules.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/e2e/standup-teardown.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/playwright.promise.config.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/promise-e2e/resolution.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/src/open-asks-response-order.test.tsx,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-107-standing-rules.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/visual/us-110-pm-promise-outcomes.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+experiments/hash/src/main.rs,keep-native,rust-00,Disconnected synthetic Rust hash experiment; no production routing
+tests/unit/test_rust_hash_experiment.py,port,rust-27,Synthetic differential controls for the disconnected Rust hash experiment
+crates/vault/src/lib.rs,keep-native,rust-00,Disconnected Rust vault codec pending interoperability and storage qualification
+crates/vault/src/main.rs,keep-native,rust-00,Synthetic-only vault compatibility test transport
+tests/unit/test_rust_vault_interop.py,port,rust-27,Synthetic Python and Rust vault interoperability controls
+tests/unit/test_rust_vault_base64_parity.py,port,rust-27,Synthetic Python and Rust Base64 decoder parity matrix
+xtask/tests/store_supervisor.rs,keep-native,rust-00,Synthetic store supervisor ownership and pipe controls
+xtask/tests/support/store_supervisor.rs,keep-native,rust-00,Synthetic-only store test supervisor
+xtask/src/bin/store_supervisor_fixture.rs,keep-native,rust-00,Synthetic fixed worker ownership fixture
+scripts/public-readiness.py,port,rust-27,Port the public-readiness surface checks with their count-only output
+scripts/public-readiness.sh,port,rust-27,Port the public-readiness entry point and its private pattern loading
+tests/unit/test_public_readiness.py,port,rust-27,Check each planted public-readiness defect fails its surface
+tests/unit/test_redirect_host_policy.py,port,rust-27,Check a redirect obeys the host policy and keeps a token on its origin

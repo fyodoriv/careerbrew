@@ -1,0 +1,15 @@
+{
+  "first_day": "2026-10-30",
+  "missed_day": "2026-11-02",
+  "next_day": "2026-11-03",
+  "older_day": "2026-10-29",
+  "new_due": "2026-11-04",
+  "first_clock": "2026-10-30T12:00:00-04:00",
+  "next_clock": "2026-11-03T12:00:00-04:00",
+  "first_sent": "Today\n- Read the synthetic brief\n\nTomorrow (Mon)\n- Ship the gap sample",
+  "repeated_sent": "Today\n- Read the synthetic follow-up\n\nTomorrow - Wednesday\n- Ship the gap sample",
+  "unrelated_sent": "Today\n- Read the synthetic follow-up\n\nTomorrow - Wednesday\n- Review the unrelated sample",
+  "older_sent": "Today\n- Read the synthetic brief\n\nTomorrow\n- Ship the gap sample",
+  "first_receipt": {"channel": "C389GAP", "ts": "1793376000.000001"},
+  "next_receipt": {"channel": "C389GAP", "ts": "1793725200.000002"}
+}

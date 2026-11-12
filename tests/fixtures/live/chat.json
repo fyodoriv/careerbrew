@@ -1,0 +1,6 @@
+{"ok": true, "messages": [
+  {"ts": "1792929600.000100", "text": "@owner can you review the rollout plan?\nThe LIVEZEBRA notes are in the doc.", "actor": "other", "kind": "mention", "to_me": true, "channel": "team-alpha", "thread": "chat:t1"},
+  {"ts": "1792929660.000200", "text": "build bot: nightly passed", "actor": "bot", "channel": "team-alpha"},
+  {"ts": "1792929720.000300", "text": "FYI the staging window moves to Thursday", "actor": "other", "channel": "team-alpha"},
+  {"note": "a row with no id, time, or title is skipped"}
+]}

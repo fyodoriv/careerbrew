@@ -1,0 +1,143 @@
+id: implement-trie-prefix-tree
+order: 61
+pattern: tries
+difficulty: medium
+title: A prefix tree
+leetcode: implement-trie-prefix-tree
+lesson: 'A trie stores words character by character along paths from a root, so words that share a prefix
+  share nodes. Each node holds a dict of children and a flag marking that a word ends there. Insert, search,
+  and prefix checks all cost O(length of the word), independent of how many words are stored.
+
+  '
+statement: 'Build a class `Trie` with:
+
+  - `insert(word)`: store the word.
+
+  - `search(word)`: return `True` if exactly this word was stored.
+
+  - `starts_with(prefix)`: return `True` if any stored word begins with `prefix`.
+
+
+  Words use lowercase letters. The empty prefix matches as soon as anything (or nothing) is stored.
+
+  '
+function: Trie
+signature: 'class Trie:  # insert(word) -> None; search(word) -> bool; starts_with(prefix) -> bool'
+starter: "class Trie:\n    def __init__(self):\n        pass\n\n    def insert(self, word: str) -> None:\n\
+  \        pass\n\n    def search(self, word: str) -> bool:\n        pass\n\n    def starts_with(self,\
+  \ prefix: str) -> bool:\n        pass\n"
+tests:
+- ops:
+  - Trie
+  - insert
+  - search
+  - search
+  - starts_with
+  - insert
+  - search
+  args:
+  - []
+  - - apple
+  - - apple
+  - - app
+  - - app
+  - - app
+  - - app
+  expected:
+  - null
+  - null
+  - true
+  - false
+  - true
+  - null
+  - true
+- ops:
+  - Trie
+  - search
+  - starts_with
+  args:
+  - []
+  - - a
+  - - a
+  expected:
+  - null
+  - false
+  - false
+  note: empty trie
+- ops:
+  - Trie
+  - insert
+  - insert
+  - search
+  - starts_with
+  args:
+  - []
+  - - car
+  - - car
+  - - car
+  - - cars
+  expected:
+  - null
+  - null
+  - null
+  - true
+  - false
+  note: duplicate insert, prefix longer than any word
+- ops:
+  - Trie
+  - insert
+  - search
+  - starts_with
+  args:
+  - []
+  - - a
+  - - a
+  - - ''
+  expected:
+  - null
+  - null
+  - true
+  - true
+  note: single letter word and empty prefix
+- ops:
+  - Trie
+  - insert
+  - insert
+  - search
+  - search
+  - starts_with
+  args:
+  - []
+  - - dog
+  - - door
+  - - do
+  - - door
+  - - doo
+  expected:
+  - null
+  - null
+  - null
+  - false
+  - true
+  - true
+  note: shared prefix is not itself a word
+hints:
+- Think of each node as a map from the next letter to a child node.
+- Add an end-of-word flag on nodes; search needs it, starts_with does not.
+- 'node = root; for ch in word: node = node.children.setdefault(ch, Node()); node.end = True'
+solution: "class Trie:\n    def __init__(self):\n        self.root = {}\n\n    def insert(self, word:\
+  \ str) -> None:\n        node = self.root\n        for ch in word:\n            node = node.setdefault(ch,\
+  \ {})\n        node[\"$\"] = True\n\n    def _walk(self, s):\n        node = self.root\n        for\
+  \ ch in s:\n            if ch not in node:\n                return None\n            node = node[ch]\n\
+  \        return node\n\n    def search(self, word: str) -> bool:\n        node = self._walk(word)\n\
+  \        return node is not None and \"$\" in node\n\n    def starts_with(self, prefix: str) -> bool:\n\
+  \        return self._walk(prefix) is not None\n"
+pitfalls:
+  prefix_as_word: Returning True from search for a stored prefix like "app" of "apple" forgets the end
+    flag.
+  edge-case: search('app') after inserting only 'apple' is False, but starts_with('app') is True; the
+    empty prefix is always True.
+  timeout: Storing words in a list and scanning is O(total words) per call; trie walks are O(length of
+    word).
+  wrong-answer: Returning True from search for a stored prefix like "app" of "apple" forgets the end flag.
+  exception: children[ch] raises KeyError on a missing letter; use `.get(ch)` and return False on None.

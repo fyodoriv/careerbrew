@@ -1,0 +1,7 @@
+id: acme-platform-eng
+name: Acme platform team ladder (synthetic, extends the company ladder)
+levels: [e4, e5]
+competencies:
+  - {id: delivery, name: Delivery, weight: 3, effort: 1, signals: {tags: [delivery]}, expect: {e4: 3, e5: 6}, how_to_close: Ship platform features.}
+  - {id: reliability, name: Reliability, weight: 3, effort: 2, signals: {tags: [ownership, quality]}, expect: {e4: 2, e5: 4}, how_to_close: Own an SLO and its runbook.}
+  - {id: design, name: Design, weight: 2, effort: 2, signals: {tags: [design]}, expect: {e4: 1, e5: 3}, how_to_close: Write RFCs for shared infrastructure.}

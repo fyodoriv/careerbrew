@@ -1,0 +1,122 @@
+id: word-search-ii
+order: 63
+pattern: tries
+difficulty: hard
+title: Find many words in a grid
+leetcode: word-search-ii
+lesson: 'Searching the grid once per word repeats the same walks. Put all words in a trie, then run one
+  DFS from each cell that follows the trie as it moves, abandoning a path as soon as no word has that
+  prefix. Removing words once found and pruning empty trie branches keeps later searches fast.
+
+  '
+statement: 'Given a grid of lowercase letters `board` and a list of distinct words `words`, return every
+  word that can be spelled by a path of horizontally or vertically adjacent cells, using each cell at
+  most once per word. Order does not matter.
+
+  '
+function: find_words
+signature: 'def find_words(board: list[list[str]], words: list[str]) -> list[str]:'
+compare: sorted
+starter: "def find_words(board: list[list[str]], words: list[str]) -> list[str]:\n    pass\n"
+tests:
+- args:
+  - - - o
+      - a
+      - a
+      - n
+    - - e
+      - t
+      - a
+      - e
+    - - i
+      - h
+      - k
+      - r
+    - - i
+      - f
+      - l
+      - v
+  - - oath
+    - pea
+    - eat
+    - rain
+  expected:
+  - eat
+  - oath
+- args:
+  - - - a
+      - b
+    - - c
+      - d
+  - - abcb
+  expected: []
+  note: a cell may not be reused
+- args:
+  - - - a
+  - - a
+    - b
+  expected:
+  - a
+  note: single cell
+- args:
+  - - - a
+      - a
+  - - aaa
+    - aa
+  expected:
+  - aa
+  note: repeated letters
+- args:
+  - - - a
+      - b
+    - - c
+      - d
+  - []
+  expected: []
+  note: no words
+- args:
+  - - - a
+      - b
+    - - d
+      - c
+  - - abcd
+    - ab
+    - dcba
+    - x
+  expected:
+  - ab
+  - abcd
+  - dcba
+  note: one word is a prefix of another
+scale:
+  generator: "def make(n):\n    import random\n    rng = random.Random(7)\n    side = int(n ** 0.5)\n\
+    \    board = [[rng.choice(\"abcde\") for _ in range(side)] for _ in range(side)]\n    words = [\"\"\
+    .join(rng.choice(\"abcde\") for _ in range(6)) + \"z\" for _ in range(200)]\n    return [board, words]\n"
+  sizes:
+  - 2500
+  - 25000
+  expected: O(n)
+hints:
+- Searching for each word separately repeats work. How can all words share one search?
+- Build a trie of the words; DFS from every cell, stepping only into trie children that match the next
+  letter.
+- 'At each step: node = parent[ch]; if node has a word, record it and clear it; mark the cell, recurse
+  into 4 neighbors, unmark it'
+solution: "def find_words(board: list[list[str]], words: list[str]) -> list[str]:\n    root = {}\n   \
+  \ for w in words:\n        node = root\n        for ch in w:\n            node = node.setdefault(ch,\
+  \ {})\n        node[\"$\"] = w\n    rows, cols = len(board), len(board[0]) if board else 0\n    found\
+  \ = []\n\n    def dfs(r, c, parent):\n        ch = board[r][c]\n        node = parent.get(ch)\n    \
+  \    if node is None:\n            return\n        if \"$\" in node:\n            found.append(node.pop(\"\
+  $\"))\n        board[r][c] = \"#\"\n        for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n    \
+  \        nr, nc = r + dr, c + dc\n            if 0 <= nr < rows and 0 <= nc < cols and board[nr][nc]\
+  \ in node:\n                dfs(nr, nc, node)\n        board[r][c] = ch\n        if not node:\n    \
+  \        parent.pop(ch)\n\n    for r in range(rows):\n        for c in range(cols):\n            if\
+  \ board[r][c] in root:\n                dfs(r, c, root)\n    return found\n"
+pitfalls:
+  timeout: Running a separate grid search per word is O(words * cells * 4^L); one trie-guided DFS from
+    each cell shares prefixes.
+  reuse: Forgetting to mark visited cells lets a path use the same cell twice.
+  edge-case: A word that appears twice through different paths must be listed once; remove or mark a word
+    in the trie when it is found.
+  wrong-answer: Forgetting to mark visited cells lets a path use the same cell twice.
+  exception: Indexing outside the grid on neighbours; bounds-check row and column before reading board[r][c].

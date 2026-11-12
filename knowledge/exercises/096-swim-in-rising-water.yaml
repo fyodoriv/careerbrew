@@ -1,0 +1,88 @@
+id: swim-in-rising-water
+order: 96
+pattern: advanced graphs
+difficulty: hard
+title: Wait for the flood
+leetcode: swim-in-rising-water
+lesson: 'The cost of a path is its highest cell, not its sum. A min-heap ordered by the bottleneck so
+  far (a Dijkstra variant) always expands the cell reachable at the lowest water level; the first time
+  the corner is popped, that level is the answer.
+
+  '
+statement: '`grid` is an `n x n` matrix of distinct heights. At time `t` the water level is `t`, and you
+  may move between 4-directionally adjacent cells only if both are at most `t` high. Starting at the top-left,
+  return the earliest time you can reach the bottom-right.
+
+  '
+function: swim_in_water
+signature: 'def swim_in_water(grid: list[list[int]]) -> int:'
+starter: "def swim_in_water(grid: list[list[int]]) -> int:\n    pass\n"
+tests:
+- args:
+  - - - 0
+      - 2
+    - - 1
+      - 3
+  expected: 3
+- args:
+  - - - 0
+      - 1
+      - 2
+      - 3
+      - 4
+    - - 24
+      - 23
+      - 22
+      - 21
+      - 5
+    - - 12
+      - 13
+      - 14
+      - 15
+      - 16
+    - - 11
+      - 17
+      - 18
+      - 19
+      - 20
+    - - 10
+      - 9
+      - 8
+      - 7
+      - 6
+  expected: 16
+- args:
+  - - - 0
+  expected: 0
+  note: single cell
+- args:
+  - - - 3
+      - 2
+    - - 0
+      - 1
+  expected: 3
+  note: start cell is the highest
+- args:
+  - - - 0
+      - 3
+    - - 2
+      - 1
+  expected: 2
+  note: go around the tall cell
+hints:
+- The time to finish a path is the maximum height along it. Minimise that maximum.
+- Use a min-heap keyed by max height so far; expand the lowest frontier cell first.
+- heap=[(grid[0][0],0,0)]; pop (t,r,c); if corner return t; push neighbours with max(t, grid[nr][nc])
+  once each.
+solution: "import heapq\n\ndef swim_in_water(grid: list[list[int]]) -> int:\n    n = len(grid)\n    heap\
+  \ = [(grid[0][0], 0, 0)]\n    seen = {(0, 0)}\n    while heap:\n        t, r, c = heapq.heappop(heap)\n\
+  \        if r == n - 1 and c == n - 1:\n            return t\n        for nr, nc in ((r + 1, c), (r\
+  \ - 1, c), (r, c + 1), (r, c - 1)):\n            if 0 <= nr < n and 0 <= nc < n and (nr, nc) not in\
+  \ seen:\n                seen.add((nr, nc))\n                heapq.heappush(heap, (max(t, grid[nr][nc]),\
+  \ nr, nc))\n    return -1\n"
+pitfalls:
+  edge-case: A 1x1 grid returns grid[0][0]; the start cell's height already sets the minimum time.
+  timeout: Trying every t and running BFS each time is O(n^4); Dijkstra on max height along the path,
+    or binary search plus BFS, is O(n^2 log n).
+  wrong-answer: Summing heights along the path instead of taking the maximum.
+  exception: Moving outside the grid on neighbours; bounds-check before reading.

@@ -1,0 +1,49 @@
+id: maximum-depth-of-binary-tree
+order: 47
+pattern: trees
+difficulty: easy
+title: How tall is the tree?
+leetcode: maximum-depth-of-binary-tree
+lesson: |
+  A tree's height is one more than the taller of its two subtrees, and an empty tree has height zero. That one-line recurrence visits each node once. A level-by-level BFS that counts levels gives the same answer without recursion.
+statement: |
+  Given the root of a binary tree, return the number of nodes on the longest path from the root down to any leaf. An empty tree has depth 0.
+function: max_depth
+signature: "def max_depth(root: Optional[TreeNode]) -> int:"
+starter: |
+  def max_depth(root: Optional[TreeNode]) -> int:
+      pass
+tests:
+  - {args: [{tree: [3, 9, 20, null, null, 15, 7]}], expected: 3}
+  - {args: [{tree: [1, null, 2]}], expected: 2}
+  - {args: [{tree: []}], expected: 0, note: empty tree}
+  - {args: [{tree: [1]}], expected: 1, note: single node}
+  - {args: [{tree: [1, 2, null, 3, null, 4]}], expected: 4, note: skewed tree}
+scale:
+  generator: |
+    def make(n):
+        def b(lo, hi):
+            if lo > hi:
+                return None
+            m = (lo + hi) // 2
+            return TreeNode(m, b(lo, m - 1), b(m + 1, hi))
+        return [b(1, n)]
+  sizes: [10000, 100000]
+  expected: O(n)
+hints:
+  - What is the depth of an empty tree? How does a node's depth relate to its children's?
+  - depth(node) = 1 + max(depth(left), depth(right)).
+  - "return 0 if not root else 1 + max(max_depth(root.left), max_depth(root.right))"
+solution: |
+  def max_depth(root: Optional[TreeNode]) -> int:
+      if not root:
+          return 0
+      return 1 + max(max_depth(root.left), max_depth(root.right))
+pitfalls:
+  edge-case: An empty tree has depth 0 and a single node has depth 1; do not return -1 or count edges.
+  timeout: Computing depth separately for each node from the root again is O(n^2); one post-order pass
+    returning 1 + max(left, right) is O(n).
+  wrong-answer: Using min instead of max, or forgetting the +1 for the current node, gives a too-small
+    depth.
+  exception: Very deep skewed trees can hit Python's recursion limit with RecursionError; use an iterative
+    BFS or a stack of (node, depth).

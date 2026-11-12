@@ -1,0 +1,90 @@
+id: subsets-with-duplicates
+order: 74
+pattern: backtracking
+difficulty: medium
+title: Subsets without repeats
+leetcode: subsets-ii
+lesson: 'Sort first so equal values sit together. At each recursion level, skip a value equal to the previous
+  one at that same level; that removes duplicate subsets without a set.
+
+  '
+statement: 'Given a list of integers `nums` that may contain repeats, return every distinct subset. Subsets
+  that contain the same values with the same multiplicities count once. Any order is accepted.
+
+  '
+function: subsets_with_dup
+signature: 'def subsets_with_dup(nums: list[int]) -> list[list[int]]:'
+starter: "def subsets_with_dup(nums: list[int]) -> list[list[int]]:\n    pass\n"
+compare: set
+tests:
+- args:
+  - - 1
+    - 2
+    - 2
+  expected:
+  - []
+  - - 1
+  - - 1
+    - 2
+  - - 1
+    - 2
+    - 2
+  - - 2
+  - - 2
+    - 2
+- args:
+  - - 0
+  expected:
+  - []
+  - - 0
+  note: single element
+- args:
+  - - 2
+    - 2
+    - 2
+  expected:
+  - []
+  - - 2
+  - - 2
+    - 2
+  - - 2
+    - 2
+    - 2
+  note: all equal
+- args:
+  - []
+  expected:
+  - []
+  note: empty
+- args:
+  - - 4
+    - 4
+    - 1
+  expected:
+  - []
+  - - 1
+  - - 4
+  - - 1
+    - 4
+  - - 4
+    - 4
+  - - 1
+    - 4
+    - 4
+  note: unsorted with repeats
+hints:
+- Why would plain subset generation produce [1,2] twice?
+- Sort, then at each level skip nums[i] when it equals nums[i-1] and i is past the level's start.
+- 'go(start): record path; for i in range(start, n): if i > start and nums[i] == nums[i-1]: continue;
+  push, go(i+1), pop'
+solution: "def subsets_with_dup(nums: list[int]) -> list[list[int]]:\n    nums = sorted(nums)\n    out,\
+  \ path = [], []\n\n    def go(start):\n        out.append(path[:])\n        for i in range(start, len(nums)):\n\
+  \            if i > start and nums[i] == nums[i - 1]:\n                continue\n            path.append(nums[i])\n\
+  \            go(i + 1)\n            path.pop()\n\n    go(0)\n    return out\n"
+pitfalls:
+  edge-case: All-equal input like [2, 2] must give [[], [2], [2, 2]], not two [2] subsets.
+  timeout: Generating all 2^n subsets and deduplicating with a set of tuples works but wastes time; sort
+    and skip equal values at the same depth.
+  wrong-answer: Skipping duplicates without sorting first, or skipping with `i > 0` instead of `i > start`,
+    which drops valid subsets.
+  exception: Putting lists into a set raises TypeError (unhashable); convert to tuples or avoid the set.

@@ -1,0 +1,224 @@
+{
+  "metrics": {
+    "capability_coverage": {
+      "command": "scripts/e2e.sh results for the docs/metrics.md rows",
+      "date": "2026-10-26",
+      "history": [
+        {
+          "date": "2026-10-26",
+          "value": "45/45"
+        }
+      ],
+      "kind": "local run, 2026-10-26, macOS arm64, last `scripts/e2e.sh`",
+      "unit": "capabilities with a passing e2e test",
+      "value": "45/45"
+    },
+    "e2e_seconds": {
+      "command": "mean green `e2e` step in .metrics/events.jsonl",
+      "date": "2026-10-26",
+      "history": [
+        {
+          "date": "2026-10-26",
+          "value": 151
+        }
+      ],
+      "kind": "local runs, 2026-10-18 to 2026-10-27, macOS arm64",
+      "runs": 81,
+      "unit": "s, mean green e2e step",
+      "value": 151
+    },
+    "e2e_stories": {
+      "command": "scripts/e2e.sh",
+      "date": "2026-10-26",
+      "history": [
+        {
+          "date": "2026-10-26",
+          "value": "87/87"
+        }
+      ],
+      "kind": "local run, 2026-10-26, macOS arm64, last `scripts/e2e.sh`",
+      "unit": "e2e story files pass",
+      "value": "87/87"
+    },
+    "eval_cases": {
+      "command": "evals/run.sh",
+      "date": "2026-10-26",
+      "history": [
+        {
+          "date": "2026-10-26",
+          "value": "44/44"
+        }
+      ],
+      "kind": "local run, 2026-10-26, macOS arm64",
+      "unit": "deterministic eval cases pass",
+      "value": "44/44"
+    },
+    "gate_step_pass_rate": {
+      "by_day": {
+        "2026-10-18": 98.8,
+        "2026-10-19": 98.6,
+        "2026-10-20": 98.4,
+        "2026-10-21": 98.5,
+        "2026-10-22": 98.1,
+        "2026-10-23": 98.7,
+        "2026-10-26": 98.2,
+        "2026-10-27": 95.6
+      },
+      "command": "scripts/check.sh (steps in .metrics/events.jsonl)",
+      "date": "2026-10-26",
+      "history": [
+        {
+          "date": "2026-10-26",
+          "value": 98.4
+        }
+      ],
+      "kind": "local runs, 2026-10-18 to 2026-10-27, macOS arm64",
+      "runs": 3159,
+      "unit": "% of gate steps passed",
+      "value": 98.4
+    },
+    "judge_labels": {
+      "command": "evals/run.sh agreement",
+      "date": "2026-10-26",
+      "history": [
+        {
+          "date": "2026-10-26",
+          "value": "0/20"
+        }
+      ],
+      "kind": "local run, 2026-10-26, macOS arm64",
+      "unit": "LLM-judged cases with an owner label",
+      "value": "0/20"
+    },
+    "leak_findings": {
+      "command": "scripts/leak-check.sh",
+      "date": "2026-10-26",
+      "history": [
+        {
+          "date": "2026-10-26",
+          "value": 1
+        }
+      ],
+      "kind": "local run, 2026-10-26, macOS arm64",
+      "unit": "findings by the leak-check patterns in 1018 tracked files",
+      "value": 1
+    },
+    "stories_interviews": {
+      "command": "scripts/e2e.sh (results in .metrics/e2e-results.json)",
+      "date": "2026-10-26",
+      "history": [
+        {
+          "date": "2026-10-26",
+          "value": "8/8"
+        }
+      ],
+      "kind": "local run, 2026-10-26, macOS arm64, last `scripts/e2e.sh`",
+      "unit": "e2e stories pass",
+      "value": "8/8"
+    },
+    "stories_jobs": {
+      "command": "scripts/e2e.sh (results in .metrics/e2e-results.json)",
+      "date": "2026-10-26",
+      "history": [
+        {
+          "date": "2026-10-26",
+          "value": "6/6"
+        }
+      ],
+      "kind": "local run, 2026-10-26, macOS arm64, last `scripts/e2e.sh`",
+      "unit": "e2e stories pass",
+      "value": "6/6"
+    },
+    "stories_learning": {
+      "command": "scripts/e2e.sh (results in .metrics/e2e-results.json)",
+      "date": "2026-10-26",
+      "history": [
+        {
+          "date": "2026-10-26",
+          "value": "3/3"
+        }
+      ],
+      "kind": "local run, 2026-10-26, macOS arm64, last `scripts/e2e.sh`",
+      "unit": "e2e stories pass",
+      "value": "3/3"
+    },
+    "stories_platform": {
+      "command": "scripts/e2e.sh (results in .metrics/e2e-results.json)",
+      "date": "2026-10-26",
+      "history": [
+        {
+          "date": "2026-10-26",
+          "value": "5/5"
+        }
+      ],
+      "kind": "local run, 2026-10-26, macOS arm64, last `scripts/e2e.sh`",
+      "unit": "e2e stories pass",
+      "value": "5/5"
+    },
+    "stories_privacy": {
+      "command": "scripts/e2e.sh (results in .metrics/e2e-results.json)",
+      "date": "2026-10-26",
+      "history": [
+        {
+          "date": "2026-10-26",
+          "value": "3/3"
+        }
+      ],
+      "kind": "local run, 2026-10-26, macOS arm64, last `scripts/e2e.sh`",
+      "unit": "e2e stories pass",
+      "value": "3/3"
+    },
+    "stories_promotion": {
+      "command": "scripts/e2e.sh (results in .metrics/e2e-results.json)",
+      "date": "2026-10-26",
+      "history": [
+        {
+          "date": "2026-10-26",
+          "value": "4/4"
+        }
+      ],
+      "kind": "local run, 2026-10-26, macOS arm64, last `scripts/e2e.sh`",
+      "unit": "e2e stories pass",
+      "value": "4/4"
+    },
+    "stories_standup": {
+      "command": "scripts/e2e.sh (results in .metrics/e2e-results.json)",
+      "date": "2026-10-26",
+      "history": [
+        {
+          "date": "2026-10-26",
+          "value": "1/1"
+        }
+      ],
+      "kind": "local run, 2026-10-26, macOS arm64, last `scripts/e2e.sh`",
+      "unit": "e2e stories pass",
+      "value": "1/1"
+    },
+    "stories_workday": {
+      "command": "scripts/e2e.sh (results in .metrics/e2e-results.json)",
+      "date": "2026-10-26",
+      "history": [
+        {
+          "date": "2026-10-26",
+          "value": "7/7"
+        }
+      ],
+      "kind": "local run, 2026-10-26, macOS arm64, last `scripts/e2e.sh`",
+      "unit": "e2e stories pass",
+      "value": "7/7"
+    },
+    "unit_tests": {
+      "command": "uv run pytest --collect-only -q tests/unit",
+      "date": "2026-10-26",
+      "history": [
+        {
+          "date": "2026-10-26",
+          "value": 1361
+        }
+      ],
+      "kind": "local run, 2026-10-26, macOS arm64",
+      "unit": "unit tests",
+      "value": 1361
+    }
+  }
+}

@@ -1,0 +1,53 @@
+id: happy-number
+order: 139
+pattern: math and geometry
+difficulty: easy
+title: Digit-square loop
+leetcode: happy-number
+lesson: 'Repeatedly summing squared digits either reaches 1 or falls into a cycle. Detect the cycle with
+  a seen-set, or with Floyd''s slow and fast pointers for O(1) memory.
+
+  '
+statement: 'Starting from a positive integer `n`, keep replacing it with the sum of the squares of its
+  digits. Return `True` if this eventually reaches 1, and `False` if it loops forever without reaching
+  1.
+
+  '
+function: is_happy
+signature: 'def is_happy(n: int) -> bool:'
+starter: "def is_happy(n: int) -> bool:\n    pass\n"
+tests:
+- args:
+  - 19
+  expected: true
+- args:
+  - 2
+  expected: false
+- args:
+  - 1
+  expected: true
+  note: already 1
+- args:
+  - 7
+  expected: true
+- args:
+  - 4
+  expected: false
+  note: inside the 4-cycle
+- args:
+  - 1111111
+  expected: true
+  note: large input
+hints:
+- What happens if the sequence never hits 1?
+- It must repeat; remember what you have seen.
+- 'while n != 1 and n not in seen: seen.add(n); n = sum(int(d)**2 for d in str(n)); return n == 1.'
+solution: "def is_happy(n: int) -> bool:\n    seen = set()\n    while n != 1 and n not in seen:\n    \
+  \    seen.add(n)\n        n = sum(int(d) ** 2 for d in str(n))\n    return n == 1\n"
+pitfalls:
+  edge-case: n=1 is happy immediately; n=7 is happy, n=2 loops forever.
+  timeout: Looping without detecting a cycle never ends; keep a seen set or use Floyd's two pointers,
+    roughly O(log n) per step.
+  wrong-answer: Summing the digits instead of the squares of the digits gives the wrong sequence.
+  exception: Recursion on the next number with no cycle check hits RecursionError; use a loop with a seen
+    set.

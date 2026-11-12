@@ -1,0 +1,126 @@
+id: kth-largest-in-stream
+order: 64
+pattern: heap
+difficulty: easy
+title: Running k-th best score
+leetcode: kth-largest-element-in-a-stream
+lesson: 'Keep only the k largest values seen so far in a min-heap. The smallest of those k sits at the
+  root, and it is exactly the k-th largest overall; each new value costs O(log k).
+
+  '
+statement: 'Build a class `KthLargest(k, nums)` that tracks a growing collection of integers. Its method
+  `add(val)` inserts `val` and returns the k-th largest value in the collection after the insertion. It
+  is guaranteed that at least `k` values exist whenever `add` is called.
+
+  '
+function: KthLargest
+signature: "class KthLargest:\n    def __init__(self, k: int, nums: list[int]): ...\n    def add(self,\
+  \ val: int) -> int: ...\n"
+starter: "class KthLargest:\n    def __init__(self, k: int, nums: list[int]):\n        pass\n    def add(self,\
+  \ val: int) -> int:\n        pass\n"
+tests:
+- ops:
+  - KthLargest
+  - add
+  - add
+  - add
+  - add
+  - add
+  args:
+  - - 3
+    - - 4
+      - 5
+      - 8
+      - 2
+  - - 3
+  - - 5
+  - - 10
+  - - 9
+  - - 4
+  expected:
+  - null
+  - 4
+  - 5
+  - 5
+  - 8
+  - 8
+- ops:
+  - KthLargest
+  - add
+  - add
+  args:
+  - - 1
+    - []
+  - - -3
+  - - -2
+  expected:
+  - null
+  - -3
+  - -2
+  note: empty start with k = 1
+- ops:
+  - KthLargest
+  - add
+  - add
+  - add
+  args:
+  - - 2
+    - - 0
+  - - -1
+  - - 1
+  - - -2
+  expected:
+  - null
+  - -1
+  - 0
+  - 0
+  note: starts with fewer than k values
+- ops:
+  - KthLargest
+  - add
+  - add
+  args:
+  - - 2
+    - - 5
+      - 5
+      - 5
+  - - 5
+  - - 1
+  expected:
+  - null
+  - 5
+  - 5
+  note: duplicates
+- ops:
+  - KthLargest
+  - add
+  args:
+  - - 3
+    - - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+  - - 0
+  expected:
+  - null
+  - 4
+  note: new value too small to matter
+hints:
+- Do you need to remember values that can never be the k-th largest again?
+- Keep a min-heap of size at most k; its root is the answer.
+- 'heapify nums, pop until size k; in add: heappush, pop if size > k, return heap[0]'
+solution: "import heapq\n\nclass KthLargest:\n    def __init__(self, k: int, nums: list[int]):\n     \
+  \   self.k = k\n        self.heap = nums[:]\n        heapq.heapify(self.heap)\n        while len(self.heap)\
+  \ > k:\n            heapq.heappop(self.heap)\n\n    def add(self, val: int) -> int:\n        heapq.heappush(self.heap,\
+  \ val)\n        if len(self.heap) > self.k:\n            heapq.heappop(self.heap)\n        return self.heap[0]\n"
+pitfalls:
+  timeout: Sorting the whole collection on every add is O(n log n) per call; a min-heap kept at size k
+    is O(log k).
+  edge-case: nums may start with fewer than k values; the heap fills up through add before it is full
+    size.
+  wrong-answer: Keeping a max-heap of everything and popping k times, or pushing without popping back
+    down to k items.
+  exception: Reading heap[0] on an empty heap raises IndexError; push the new value before trimming and
+    reading.

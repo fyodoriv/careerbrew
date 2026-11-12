@@ -1,0 +1,88 @@
+id: longest-increasing-path-matrix
+order: 117
+pattern: 2-d dynamic programming
+difficulty: hard
+title: Climb the grid
+leetcode: longest-increasing-path-in-a-matrix
+lesson: 'State: best[r][c] is the longest strictly increasing path starting at (r, c). Transition: 1 +
+  the max best of any larger neighbour. Strict increase means no cycles, so memoised DFS computes each
+  cell once. Base case: a cell with no larger neighbour has length 1.
+
+  '
+statement: 'Given an integer grid `matrix`, return the length of the longest path that moves up, down,
+  left, or right and strictly increases at every step.
+
+  '
+function: longest_increasing_path
+signature: 'def longest_increasing_path(matrix: list[list[int]]) -> int:'
+starter: "def longest_increasing_path(matrix: list[list[int]]) -> int:\n    pass\n"
+tests:
+- args:
+  - - - 9
+      - 9
+      - 4
+    - - 6
+      - 6
+      - 8
+    - - 2
+      - 1
+      - 1
+  expected: 4
+- args:
+  - - - 3
+      - 4
+      - 5
+    - - 3
+      - 2
+      - 6
+    - - 2
+      - 2
+      - 1
+  expected: 4
+- args:
+  - - - 1
+  expected: 1
+  note: single cell
+- args:
+  - - - 7
+      - 7
+    - - 7
+      - 7
+  expected: 1
+  note: all equal
+- args:
+  - - - 1
+      - 2
+      - 3
+    - - 6
+      - 5
+      - 4
+    - - 7
+      - 8
+      - 9
+  expected: 9
+  note: snake through all cells
+scale:
+  generator: "def make(n):\n    side = max(1, int(n ** 0.5))\n    return [[[r * side + c for c in range(side)]\
+    \ for r in range(side)]]\n"
+  sizes:
+  - 10000
+  - 100000
+  expected: O(n log n)
+hints:
+- Strictly increasing paths cannot loop. What does that let you cache?
+- Memoise the longest path from each cell.
+- dfs(r,c) = 1 + max(dfs(nb) for larger neighbours); answer = max over cells. Avoid deep recursion with
+  an order-by-value sweep.
+solution: "def longest_increasing_path(matrix: list[list[int]]) -> int:\n    rows, cols = len(matrix),\
+  \ len(matrix[0])\n    best = [[1] * cols for _ in range(rows)]\n    cells = sorted((matrix[r][c], r,\
+  \ c) for r in range(rows) for c in range(cols))\n    for v, r, c in reversed(cells):\n        for nr,\
+  \ nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):\n            if 0 <= nr < rows and 0 <= nc\
+  \ < cols and matrix[nr][nc] > v:\n                best[r][c] = max(best[r][c], best[nr][nc] + 1)\n \
+  \   return max(max(row) for row in best)\n"
+pitfalls:
+  edge-case: A 1x1 grid has path length 1, and a grid of equal values has 1 since the climb must be strict.
+  timeout: DFS from every cell without caching is exponential; memoize each cell's best length for O(m*n).
+  wrong-answer: Allowing equal neighbours (>= instead of >) creates cycles and wrong lengths.
+  exception: Recursive DFS can hit Python's recursion limit on long paths; process cells in sorted value
+    order or raise the limit.

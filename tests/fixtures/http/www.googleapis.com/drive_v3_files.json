@@ -1,0 +1,4 @@
+{"files": [
+ {"id": "doc1", "name": "RFC: event sourcing for orders", "createdTime": "2026-07-01T00:00:00Z", "webViewLink": "https://docs.google.com/document/d/doc1"},
+ {"id": "doc2", "name": "Postmortem: checkout outage", "createdTime": "2026-09-26T00:00:00Z", "webViewLink": "https://docs.google.com/document/d/doc2"}
+]}

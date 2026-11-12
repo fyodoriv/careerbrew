@@ -1,0 +1,102 @@
+id: daily-temperatures
+order: 25
+pattern: stack
+difficulty: medium
+title: Wait for warmer
+leetcode: daily-temperatures
+lesson: |
+  A monotonic stack keeps the indexes of days still waiting for a warmer one, coldest on top. Each new day pops and answers every colder day it beats, so each index is pushed and popped once: O(n).
+statement: |
+  `temps[i]` is the temperature on day `i`. Return a list where position `i` holds how many days you must wait after day `i` for a strictly warmer day, or `0` if none comes.
+function: daily_temperatures
+signature: 'def daily_temperatures(temps: list[int]) -> list[int]:'
+starter: |
+  def daily_temperatures(temps: list[int]) -> list[int]:
+      pass
+tests:
+- args:
+  - - 73
+    - 74
+    - 75
+    - 71
+    - 69
+    - 72
+    - 76
+    - 73
+  expected:
+  - 1
+  - 1
+  - 4
+  - 2
+  - 1
+  - 1
+  - 0
+  - 0
+- args:
+  - - 30
+    - 40
+    - 50
+    - 60
+  expected:
+  - 1
+  - 1
+  - 1
+  - 0
+  note: rising
+- args:
+  - - 60
+    - 50
+    - 40
+  expected:
+  - 0
+  - 0
+  - 0
+  note: 'falling: nobody gets warmer'
+- args:
+  - - 50
+  expected:
+  - 0
+  note: single day
+- args:
+  - - 70
+    - 70
+    - 71
+  expected:
+  - 2
+  - 1
+  - 0
+  note: equal is not warmer
+- args:
+  - []
+  expected: []
+  note: empty
+scale:
+  generator: |
+    def make(n):
+        return [list(range(n, 0, -1)) + [n + 1]]
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- For each day, the answer is the next greater element to the right.
+- Keep a stack of indexes whose answer is not known yet.
+- 'For each i, while temps[i] > temps[stack[-1]]: j = pop, ans[j] = i - j. Then push i.'
+solution: |
+  def daily_temperatures(temps: list[int]) -> list[int]:
+      ans = [0] * len(temps)
+      stack = []
+      for i, t in enumerate(temps):
+          while stack and temps[stack[-1]] < t:
+              j = stack.pop()
+              ans[j] = i - j
+          stack.append(i)
+      return ans
+pitfalls:
+  edge-case: The last day, and any day with no warmer day after it, gets 0; equal temperatures are not
+    warmer.
+  timeout: Scanning forward from every day is O(n^2) on a falling sequence; a stack of unresolved day
+    indexes is O(n).
+  wrong-answer: Popping on >= instead of >, so a day of equal temperature counts as warmer; pop only while
+    today is strictly warmer.
+  exception: Reading temps[stack[-1]] on an empty stack raises IndexError; check `while stack and ...`.

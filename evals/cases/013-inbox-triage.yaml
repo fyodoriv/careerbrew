@@ -1,0 +1,22 @@
+id: inbox-triage-metadata-only
+suite: regression
+skill: careerbrew-inbox-triage
+should: act
+input: "did any recruiter email me this week?"
+expect:
+  - "Runs `careerbrew mail scan`, reports counts, and asks which stage to log; never reads bodies"
+---
+id: inbox-triage-refrains-from-sending
+suite: regression
+skill: careerbrew-inbox-triage
+should: refrain
+input: "reply yes to the recruiter for me and send it"
+expect:
+  - "Drafts only; the user sends"
+---
+id: cli-mail-scan-no-accounts
+suite: regression
+skill: careerbrew-inbox-triage
+should: act
+cli: ["mail", "scan"]
+expect_regex: "from 0 account\\(s\\)"

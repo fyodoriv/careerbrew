@@ -1,0 +1,113 @@
+id: add-two-numbers
+order: 40
+pattern: linked list
+difficulty: medium
+title: Sum digit chains
+leetcode: add-two-numbers
+lesson: |
+  Adding numbers stored least-significant digit first is grade-school addition: add digit pairs plus the carry, keep the last digit, carry the rest. Continue while either list or a carry remains.
+statement: |
+  Two non-negative integers are stored as linked lists of digits, ones digit first (so 342 is 2 -> 4 -> 3). Neither has leading zeros except the number 0 itself. Return their sum in the same format.
+function: add_two_numbers
+signature: 'def add_two_numbers(a: ListNode | None, b: ListNode | None) -> ListNode | None:'
+starter: |
+  def add_two_numbers(a, b):
+      pass
+tests:
+- args:
+  - list:
+    - 2
+    - 4
+    - 3
+  - list:
+    - 5
+    - 6
+    - 4
+  expected:
+    list:
+    - 7
+    - 0
+    - 8
+- args:
+  - list:
+    - 0
+  - list:
+    - 0
+  expected:
+    list:
+    - 0
+  note: zero plus zero
+- args:
+  - list:
+    - 9
+    - 9
+    - 9
+    - 9
+  - list:
+    - 9
+    - 9
+  expected:
+    list:
+    - 8
+    - 9
+    - 0
+    - 0
+    - 1
+  note: carry ripples into a new digit
+- args:
+  - list:
+    - 5
+  - list:
+    - 5
+  expected:
+    list:
+    - 0
+    - 1
+  note: final carry only
+- args:
+  - list:
+    - 1
+    - 8
+  - list:
+    - 0
+  expected:
+    list:
+    - 1
+    - 8
+  note: different lengths
+scale:
+  generator: |
+    def make(n):
+        a = b = None
+        for _ in range(n):
+            a = ListNode(9, a)
+            b = ListNode(1, b)
+        return [a, b]
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- How do you add numbers on paper, column by column?
+- Walk both lists together, tracking a carry.
+- 'While a or b or carry: s = carry + digits; append s % 10; carry = s // 10.'
+solution: |
+  def add_two_numbers(a, b):
+      dummy = tail = ListNode()
+      carry = 0
+      while a or b or carry:
+          s = carry + (a.val if a else 0) + (b.val if b else 0)
+          carry, digit = divmod(s, 10)
+          tail.next = ListNode(digit)
+          tail = tail.next
+          a = a.next if a else None
+          b = b.next if b else None
+      return dummy.next
+pitfalls:
+  edge-case: 'A final carry adds an extra node: 5 + 5 is 0 -> 1, and lists of different lengths like 9
+    -> 9 plus 1 must keep going.'
+  timeout: Converting both lists to big integers and back works, but rebuilding the result by appending
+    at the tail each time is O(n^2); keep a tail pointer for O(n).
+  wrong-answer: Stopping when both lists end and dropping the last carry; loop while a or b or carry.
+  exception: Reading a.val after a runs out raises AttributeError; use (a.val if a else 0) and only advance
+    a pointer that is not None.

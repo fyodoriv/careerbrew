@@ -1,0 +1,13 @@
+{
+  "first_day": "2026-10-30",
+  "next_day": "2026-11-02",
+  "clock": "2026-11-02T12:00:00-04:00",
+  "first": "Today\n- Checked the sample\n\nTomorrow (Mon)\n- Ship the sample",
+  "first_receipt": {"channel": "C389FIXTURE", "ts": "1793379600.000001"},
+  "next_receipt": {"channel": "C389FIXTURE", "ts": "1793638800.000002"},
+  "O01": {"sent": "Today\n- Ship the sample\n\nTomorrow\n- Review the follow-up", "baseline_open_original": true, "baseline_proposals": 0},
+  "O02": {"sent": "Today\n- Checked the follow-up\n\nTomorrow - Tuesday\n- Ship the sample", "replay": 2, "baseline_distinct_ids": 2, "baseline_proposals": 0},
+  "O03": {"sent": "Today\n- Checked the follow-up\n\nTomorrow\n- Review the follow-up", "baseline_open_original": true, "baseline_observation_field": "unavailable"},
+  "O04": {"draft": "Today\n- Ship the sample", "sent": "Today\n- Ship the sample\n\nTomorrow\n- Ship the sample", "baseline_proposals": 0, "baseline_open_original": true},
+  "O05": {"manual_close": "dropped", "baseline_manual_drop": "supported", "baseline_owner_accept": "unavailable"}
+}

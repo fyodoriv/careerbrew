@@ -1,0 +1,22 @@
+id: promo-research-keeps-internal-ladder-out-of-repo
+suite: regression
+skill: careerbrew-promo-research
+should: act
+input: "here is our internal ladder doc, import it"
+expect:
+  - "Puts it in the corporate plugin repo or private/ladders/, never in this repo"
+---
+id: promo-research-refrains-on-doc-writing
+suite: regression
+skill: careerbrew-promo-research
+should: refrain
+input: "write my promotion doc"
+expect:
+  - "Uses work-companion / `careerbrew work promo` instead of researching ladders"
+---
+id: cli-ladder-list
+suite: regression
+skill: careerbrew-promo-research
+should: act
+cli: ["ladder", "list"]
+expect_regex: "generic-swe"

@@ -1,0 +1,79 @@
+id: koko-eating-bananas
+order: 30
+pattern: binary search
+difficulty: medium
+title: Slowest steady pace
+leetcode: koko-eating-bananas
+lesson: |
+  When the question is "the smallest k that works" and working is monotonic in k, binary search over the answer itself. For a pace k, hours needed is the sum of ceil(pile / k); find the smallest k whose hours fit.
+statement: |
+  There are piles of snacks, `piles[i]` in pile `i`, and `h` hours (at least as many as piles). Each hour you pick one pile and eat up to `k` items from it; if the pile has fewer, you finish it and wait for the next hour. Return the smallest integer `k` that lets you finish everything within `h` hours.
+function: min_eating_speed
+signature: 'def min_eating_speed(piles: list[int], h: int) -> int:'
+starter: |
+  def min_eating_speed(piles: list[int], h: int) -> int:
+      pass
+tests:
+- args:
+  - - 3
+    - 6
+    - 7
+    - 11
+  - 8
+  expected: 4
+- args:
+  - - 30
+    - 11
+    - 23
+    - 4
+    - 20
+  - 5
+  expected: 30
+  note: 'h equals the pile count: pace is the biggest pile'
+- args:
+  - - 30
+    - 11
+    - 23
+    - 4
+    - 20
+  - 6
+  expected: 23
+- args:
+  - - 1
+  - 1
+  expected: 1
+  note: tiny
+- args:
+  - - 1000000000
+  - 2
+  expected: 500000000
+  note: huge pile
+- args:
+  - - 5
+    - 5
+    - 5
+  - 100
+  expected: 1
+  note: 'lots of time: pace 1'
+hints:
+- If pace k works, does pace k+1 also work?
+- Binary search k between 1 and max(piles).
+- hours(k) = sum((p + k - 1) // k); if hours <= h, try smaller (hi = k), else lo = k + 1.
+solution: |
+  def min_eating_speed(piles: list[int], h: int) -> int:
+      lo, hi = 1, max(piles)
+      while lo < hi:
+          k = (lo + hi) // 2
+          if sum((p + k - 1) // k for p in piles) <= h:
+              hi = k
+          else:
+              lo = k + 1
+      return lo
+pitfalls:
+  edge-case: When h equals the number of piles, the answer is the biggest pile; one pile and lots of hours
+    can give a pace of 1.
+  timeout: Trying every pace from 1 upward is too slow when piles are huge; binary search the pace between
+    1 and max(piles) for O(n log max).
+  wrong-answer: Using floor division for hours; a pile of 7 at pace 3 takes 3 hours, so use (p + k - 1)
+    // k or math.ceil.
+  exception: Starting the search at a pace of 0 divides by zero; the lowest pace is 1.

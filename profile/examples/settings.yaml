@@ -1,0 +1,3 @@
+ladder: generic-swe
+target_level: senior
+backup_targets: [~/Backups/careerbrew]

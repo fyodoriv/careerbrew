@@ -1,0 +1,8 @@
+id: acme-eng
+name: Acme engineering ladder (synthetic)
+window_months: 12
+levels: [e4, e5]
+competencies:
+  - {id: delivery, name: Delivery, weight: 3, effort: 1, signals: {tags: [delivery], keywords: [feat]}, expect: {e4: 3, e5: 6}, how_to_close: Ship more scoped features.}
+  - {id: design, name: Design, weight: 3, effort: 2, signals: {tags: [design], keywords: [rfc]}, expect: {e4: 1, e5: 3}, how_to_close: Write RFCs for cross-team changes.}
+  - {id: leadership, name: Leadership, weight: 2, effort: 2, signals: {tags: [leadership], keywords: [mentor]}, expect: {e4: 0, e5: 2}, how_to_close: Mentor an engineer with a written goal.}

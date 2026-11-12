@@ -1,0 +1,20 @@
+{
+ "meta": {"title": "careerbrew repo health"},
+ "datasets": {
+  "summary": {
+   "title": "Repo health summary",
+   "description": "One row from `careerbrew report public --out`: gate runs, step failure rate, e2e stories passing, and the last repo checkup's status. Content-free and allowlisted. Refreshed by each /careerbrew-checkup on the machine that ran it; not live, because the numbers exist only on that machine.",
+   "file": "summary.json"
+  },
+  "steps": {
+   "title": "Gate steps",
+   "description": "One row per step of scripts/check.sh: runs, failed runs, failure rate, and average seconds in the window. From `careerbrew report public --out`, refreshed by each /careerbrew-checkup.",
+   "file": "steps.json"
+  },
+  "daily": {
+   "title": "Gate runs per day",
+   "description": "One row per day: gate runs, step runs, and failed step runs. From `careerbrew report public --out`, refreshed by each /careerbrew-checkup.",
+   "file": "daily.json"
+  }
+ }
+}

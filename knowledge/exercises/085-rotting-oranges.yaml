@@ -1,0 +1,91 @@
+id: rotting-oranges
+order: 85
+pattern: graphs
+difficulty: medium
+title: Spreading rot
+leetcode: rotting-oranges
+lesson: 'Rot spreads from all rotten oranges at once, so start a breadth-first search with all of them
+  in the queue. Each BFS layer is one minute; any fresh orange left at the end is unreachable.
+
+  '
+statement: 'In a grid, 0 is empty, 1 is a fresh orange and 2 is a rotten one. Each minute every fresh
+  orange next to (up/down/left/right) a rotten one becomes rotten. Return the minutes until no fresh orange
+  remains, or -1 if that never happens.
+
+  '
+function: oranges_rotting
+signature: 'def oranges_rotting(grid: list[list[int]]) -> int:'
+starter: "def oranges_rotting(grid: list[list[int]]) -> int:\n    pass\n"
+tests:
+- args:
+  - - - 2
+      - 1
+      - 1
+    - - 1
+      - 1
+      - 0
+    - - 0
+      - 1
+      - 1
+  expected: 4
+- args:
+  - - - 2
+      - 1
+      - 1
+    - - 0
+      - 1
+      - 1
+    - - 1
+      - 0
+      - 1
+  expected: -1
+  note: isolated fresh orange
+- args:
+  - - - 0
+      - 2
+  expected: 0
+  note: no fresh oranges
+- args:
+  - - - 0
+  expected: 0
+  note: empty grid
+- args:
+  - - - 1
+  expected: -1
+  note: fresh but no rot source
+- args:
+  - - - 2
+      - 1
+      - 1
+      - 1
+      - 2
+  expected: 2
+  note: two sources meet in the middle
+scale:
+  generator: "def make(n):\n    s = int(n ** 0.5)\n    g = [[1] * s for _ in range(s)]\n    g[0][0] =\
+    \ 2\n    return [g]\n"
+  sizes:
+  - 10000
+  - 100000
+  expected: O(n)
+hints:
+- Should you spread from one rotten orange at a time?
+- 'Multi-source BFS: queue every rotten orange up front, process level by level.'
+- 'q = all 2s; count fresh; while q and fresh: process one layer, rot neighbours; minutes += 1; return
+  -1 if fresh else minutes'
+solution: "from collections import deque\n\ndef oranges_rotting(grid: list[list[int]]) -> int:\n    rows,\
+  \ cols = len(grid), len(grid[0])\n    q = deque((r, c) for r in range(rows) for c in range(cols) if\
+  \ grid[r][c] == 2)\n    fresh = sum(row.count(1) for row in grid)\n    minutes = 0\n    while q and\
+  \ fresh:\n        for _ in range(len(q)):\n            r, c = q.popleft()\n            for a, b in ((r\
+  \ + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):\n                if 0 <= a < rows and 0 <= b < cols\
+  \ and grid[a][b] == 1:\n                    grid[a][b] = 2\n                    fresh -= 1\n       \
+  \             q.append((a, b))\n        minutes += 1\n    return -1 if fresh else minutes\n"
+pitfalls:
+  edge-case: No fresh oranges at the start returns 0, even with no rotten ones; an unreachable fresh orange
+    returns -1.
+  timeout: Rescanning the whole grid every minute is O((rows*cols)^2); multi-source BFS from all rotten
+    oranges at once is O(rows*cols).
+  wrong-answer: Counting one extra minute after the last orange rots, or starting BFS from a single rotten
+    orange.
+  exception: Indexing grid[0] on an empty grid, or popping from an empty deque; check the grid first and
+    loop while the queue is non-empty.

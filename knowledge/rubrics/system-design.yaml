@@ -1,0 +1,8 @@
+id: system-design
+criteria:
+  - {id: requirements, text: Listed functional and non-functional requirements with numbers, cues: [requirements, functional, non-functional, latency, availability, users]}
+  - {id: estimates, text: Did back-of-envelope estimates (QPS, storage, bandwidth), cues: [qps, per second, storage, bandwidth, terabytes, gigabytes, estimate]}
+  - {id: api-data, text: Defined the API and the data model, cues: [api, endpoint, schema, table, data model, post, get]}
+  - {id: high-level, text: Drew a coherent high-level design covering the main flow, cues: [load balancer, service, database, cache, client, flow, queue]}
+  - {id: deep-dive, text: Deep-dived the main bottleneck with trade-offs, cues: [bottleneck, deep dive, trade-off, tradeoff, shard, partition, hot key]}
+  - {id: failure, text: Covered failure modes, scaling, and monitoring, cues: [failure, fail, replica, replication, monitoring, alert, retry, scale]}

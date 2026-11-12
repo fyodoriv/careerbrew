@@ -1,0 +1,125 @@
+id: work-day-runs-the-plan
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "/work"
+expect:
+  - "Runs `careerbrew day run --json` first and names the machine and the steps in two lines"
+  - "Runs the plan's `stages` in order, starting the steps of one stage together, and marks each row with `careerbrew day update <step> --status ...`"
+  - "Saves questions and asks them once, after the last step"
+  - "Saves each step's question with `careerbrew day question add` instead of asking mid-run, and runs `careerbrew day question recheck` before the one batched ask, showing each item's age"
+---
+id: work-day-end-of-day
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "end of day"
+expect:
+  - "Runs `careerbrew day end`, shows careerbrew's PM draft and the Dashboard link, and writes no Today / Tomorrow report of its own"
+  - "Stops each loop `day end` lists with its own tool until `careerbrew day loop end` exits 0, and does not send the PM update or publish the page"
+---
+id: work-day-refrains-on-time-blocks
+suite: regression
+skill: careerbrew-work-day
+should: refrain
+input: "time-block my afternoon around my meetings"
+expect:
+  - "Hands off to day-planner (`careerbrew day plan`) instead of starting the work-day runner"
+---
+id: cli-work-day-unknown-step-fails
+suite: regression
+skill: careerbrew-work-day
+cli: ["day", "update", "/not-a-step", "--status", "done"]
+expect_regex: "not in today's plan"
+---
+id: work-day-reply-draft-after-deploy
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "draft my reply in the release thread; the newest message says the deploy started, and I wanted to ask them to rename the flag"
+expect:
+  - "Reads the thread to its newest message and runs `careerbrew draft fit` with `--seen`, then drafts an approve or ack, not the rename request"
+  - "Saves the draft with `careerbrew draft replace` (or `draft check` after a chat tool save) and does not send it"
+---
+id: cli-draft-check-mismatch-fails
+suite: regression
+skill: careerbrew-work-day
+cli: ["draft", "check", "--sent", "README.md", "--read-back", "AGENTS.md"]
+expect_regex: "read-back differs"
+---
+id: cli-work-day-bad-handled-item-fails
+suite: regression
+skill: careerbrew-work-day
+cli: ["day", "update", "/careerbrew", "--handled", "branch:main"]
+expect_regex: "checkout:<path> or pr:"
+---
+id: work-day-blocked-vs-failed
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "/work: the deploy step's CI is red and the standup step waits on my pick of a slot"
+expect:
+  - "Marks the broken step failed with `--error-class` (not blocked), and the step that waits on the user blocked with `--needs-you`"
+  - "Runs `careerbrew day check` before a stage or on a watch pass, and runs a step it set back for a retry again"
+---
+id: cli-work-day-blocked-without-a-question-fails
+suite: regression
+skill: careerbrew-work-day
+cli: ["day", "update", "/careerbrew", "--status", "blocked"]
+expect_regex: "blocked needs a question record"
+---
+id: work-day-starts-fresh
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "/work (the plan's start_of_day has a failed sign-in probe and one question)"
+expect:
+  - "Runs `careerbrew day start` once before stage 1 and asks its one sign-in question right away, not at the end"
+  - "Tells each step to read the shell traps file first and to run tests with `uv run python -m ...` or `.venv/bin/python`, never bare python3"
+---
+id: cli-work-day-relative-checkout-fails
+suite: regression
+skill: careerbrew-work-day
+cli: ["config", "set", "work_checkouts", "relative/path"]
+expect_regex: "full path"
+---
+id: cli-work-day-bad-loop-id-fails
+suite: regression
+skill: careerbrew-work-day
+cli: ["day", "loop", "add", "--kind", "cron", "--id", "has space"]
+expect_regex: "use the tool's own id"
+---
+id: cli-work-day-wrap-lead-out-of-range-fails
+suite: regression
+skill: careerbrew-work-day
+cli: ["config", "set", "work_wrap_minutes", "999"]
+expect_regex: "from 0 to 240"
+---
+id: work-day-stop-external-loop-with-id
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "End my work day. A monitor with id cron-7f3a is still running after careerbrew day end."
+expect:
+  - "Stops the monitor with its own tool, then records it stopped with `careerbrew day loop stop --id cron-7f3a`"
+  - "Runs `careerbrew day loop end` again until no loops remain"
+
+---
+id: work-day-owner-step-ordering
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "Add my deployed /example-check command after /example-prep with scope example-work. Keep plugin sources isolated."
+expect:
+  - "Reads the existing work_steps setting and preserves its entries when adding /example-check, or deliberately updates that entry if already present"
+  - "Uses `careerbrew config set work_steps` with a JSON mapping that retains /example-check, scope example-work, and after /example-prep"
+  - "Does not substitute a host command for a plugin-owned step"
+---
+id: work-day-draft-save-scope
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "I saved a reply with careerbrew draft replace. Is it already in the chat tool's drafts?"
+expect:
+  - "Says draft replace saved and verified the careerbrew local store, not the chat-tool draft"
+  - "Says to save it separately in the chat tool and read that copy back before treating it as saved there"

@@ -1,0 +1,73 @@
+id: last-stone-weight
+order: 65
+pattern: heap
+difficulty: easy
+title: Smash the two heaviest
+leetcode: last-stone-weight
+lesson: 'Repeatedly needing the two largest items is a max-heap job. Python''s heapq is a min-heap, so
+  store negated weights.
+
+  '
+statement: 'You have a list of positive stone weights. Each round, take the two heaviest stones x >= y
+  and smash them: if they are equal both vanish, otherwise one stone of weight x - y remains. Repeat until
+  at most one stone is left. Return its weight, or 0 if none remain.
+
+  '
+function: last_stone_weight
+signature: 'def last_stone_weight(stones: list[int]) -> int:'
+starter: "def last_stone_weight(stones: list[int]) -> int:\n    pass\n"
+tests:
+- args:
+  - - 2
+    - 7
+    - 4
+    - 1
+    - 8
+    - 1
+  expected: 1
+- args:
+  - - 1
+  expected: 1
+  note: single stone
+- args:
+  - - 3
+    - 3
+  expected: 0
+  note: equal pair cancels
+- args:
+  - - 10
+    - 4
+  expected: 6
+  note: two stones
+- args:
+  - - 5
+    - 5
+    - 5
+  expected: 5
+  note: odd count of equals
+- args:
+  - - 1
+    - 1
+    - 1
+    - 1
+  expected: 0
+  note: everything cancels
+scale:
+  generator: "def make(n):\n    return [[(i * 7919) % 1000 + 1 for i in range(n)]]\n"
+  sizes:
+  - 10000
+  - 100000
+  expected: O(n log n)
+hints:
+- Which two stones do you need each round, and how do you get them fast?
+- Use a heap; heapq is a min-heap, so push negative weights to get max behaviour.
+- 'heap = negated stones; while len > 1: pop x, pop y; push y - x if they differ; return -heap[0] or 0'
+solution: "import heapq\n\ndef last_stone_weight(stones: list[int]) -> int:\n    heap = [-s for s in stones]\n\
+  \    heapq.heapify(heap)\n    while len(heap) > 1:\n        x = -heapq.heappop(heap)\n        y = -heapq.heappop(heap)\n\
+  \        if x != y:\n            heapq.heappush(heap, y - x)\n    return -heap[0] if heap else 0\n"
+pitfalls:
+  timeout: Re-sorting the list every round is O(n^2 log n); a max-heap (negated values with heapq) makes
+    it O(n log n).
+  edge-case: When all stones cancel out, return 0, and a single stone returns its own weight.
+  wrong-answer: Pushing back x + y or y - x with the wrong sign when using negated values in heapq.
+  exception: Popping two stones when only one is left raises IndexError; loop while len(heap) > 1.

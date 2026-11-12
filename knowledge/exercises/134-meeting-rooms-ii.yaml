@@ -1,0 +1,82 @@
+id: meeting-rooms-ii
+order: 134
+pattern: intervals
+difficulty: medium
+title: How many rooms?
+leetcode: meeting-rooms-ii
+lesson: 'The rooms needed equal the most meetings running at once. Sort starts and ends separately and
+  sweep: a start takes a room, an end frees one. A min-heap of end times works too.
+
+  '
+statement: 'Given meeting times as `[start, end]` pairs, return the fewest rooms needed so no two meetings
+  in the same room overlap. A room freed at time t can host a meeting starting at t.
+
+  '
+function: min_meeting_rooms
+signature: 'def min_meeting_rooms(intervals: list[list[int]]) -> int:'
+starter: "def min_meeting_rooms(intervals: list[list[int]]) -> int:\n    pass\n"
+tests:
+- args:
+  - - - 0
+      - 30
+    - - 5
+      - 10
+    - - 15
+      - 20
+  expected: 2
+- args:
+  - - - 7
+      - 10
+    - - 2
+      - 4
+  expected: 1
+- args:
+  - []
+  expected: 0
+  note: no meetings
+- args:
+  - - - 1
+      - 5
+    - - 5
+      - 10
+  expected: 1
+  note: back to back share a room
+- args:
+  - - - 1
+      - 10
+    - - 1
+      - 10
+    - - 1
+      - 10
+  expected: 3
+  note: identical
+- args:
+  - - - 1
+      - 4
+    - - 2
+      - 5
+    - - 3
+      - 6
+    - - 7
+      - 8
+  expected: 3
+scale:
+  generator: "def make(n):\n    return [[[i, i + 50] for i in range(n)]]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n log n)
+hints:
+- Think of the moment when the most meetings are happening.
+- Sort start times and end times in two lists and walk them together.
+- 'for s in starts: if s >= ends[j]: j += 1 else rooms += 1.'
+solution: "def min_meeting_rooms(intervals: list[list[int]]) -> int:\n    starts = sorted(s for s, _ in\
+  \ intervals)\n    ends = sorted(e for _, e in intervals)\n    rooms = j = 0\n    for s in starts:\n\
+  \        if s >= ends[j]:\n            j += 1\n        else:\n            rooms += 1\n    return rooms\n"
+pitfalls:
+  edge-case: Back-to-back meetings [1,5] and [5,8] share a room; an empty list needs 0 rooms.
+  timeout: Checking every room for every meeting is O(n^2); a min-heap of end times or two sorted pointer
+    lists is O(n log n).
+  wrong-answer: Popping the heap only when end < start (not <=) gives one extra room for back-to-back
+    meetings.
+  exception: heap[0] on an empty heap raises IndexError; check the heap is non-empty before peeking.

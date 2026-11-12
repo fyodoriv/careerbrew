@@ -1,0 +1,107 @@
+id: car-fleet
+order: 26
+pattern: stack
+difficulty: medium
+title: Convoys to the finish
+leetcode: car-fleet
+lesson: |
+  Sort cars by starting position, closest to the target first, and compute each one's arrival time alone. A car behind that would arrive no later than the convoy ahead catches it and joins; a slower one starts a new convoy. Count the convoys.
+statement: |
+  Cars on a one-lane road drive toward mile `target`. Car `i` starts at `position[i]` (all distinct) with constant `speed[i]`. A faster car that catches a slower one cannot pass; they continue together at the slower speed as one fleet. Catching up exactly at the target also counts as joining. Return how many fleets reach the target.
+function: car_fleet
+signature: 'def car_fleet(target: int, position: list[int], speed: list[int]) -> int:'
+starter: |
+  def car_fleet(target: int, position: list[int], speed: list[int]) -> int:
+      pass
+tests:
+- args:
+  - 12
+  - - 10
+    - 8
+    - 0
+    - 5
+    - 3
+  - - 2
+    - 4
+    - 1
+    - 1
+    - 3
+  expected: 3
+- args:
+  - 10
+  - - 3
+  - - 3
+  expected: 1
+  note: one car
+- args:
+  - 100
+  - - 0
+    - 2
+    - 4
+  - - 4
+    - 2
+    - 1
+  expected: 1
+  note: everyone catches the front car
+- args:
+  - 10
+  - - 0
+    - 4
+    - 2
+  - - 2
+    - 1
+    - 3
+  expected: 1
+- args:
+  - 10
+  - - 6
+    - 8
+  - - 3
+    - 2
+  expected: 2
+  note: back car is slower
+- args:
+  - 10
+  - []
+  - []
+  expected: 0
+  note: no cars
+- args:
+  - 10
+  - - 0
+    - 5
+  - - 2
+    - 1
+  expected: 1
+  note: meet exactly at the target
+scale:
+  generator: |
+    def make(n):
+        return [10 * n + 1, list(range(n)), [1 + i % 7 for i in range(n)]]
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n log n)
+hints:
+- Which car decides the speed of a fleet?
+- Process cars from closest to the target to farthest, using time = (target - pos) / speed.
+- Keep the arrival time of the current lead fleet; a car with a larger time starts a new fleet.
+solution: |
+  def car_fleet(target: int, position: list[int], speed: list[int]) -> int:
+      fleets, lead = 0, 0.0
+      for p, s in sorted(zip(position, speed), reverse=True):
+          t = (target - p) / s
+          if t > lead:
+              fleets += 1
+              lead = t
+      return fleets
+pitfalls:
+  edge-case: Cars that reach the target at exactly the same time form one fleet, and one car alone is
+    one fleet.
+  timeout: Simulating the road step by step is slow and imprecise; sort by position and compare arrival
+    times in O(n log n).
+  wrong-answer: Sorting by position ascending instead of from the car closest to the target, or comparing
+    with < instead of <=; walk from the front and start a new fleet only when a car's time is strictly
+    greater than the fleet ahead.
+  exception: Integer division for time makes different speeds look equal and dividing by speed 0 would
+    crash; use (target - pos) / speed as a float.

@@ -1,0 +1,122 @@
+id: cheapest-flights-k-stops
+order: 98
+pattern: advanced graphs
+difficulty: medium
+title: Cheap fare, few layovers
+leetcode: cheapest-flights-within-k-stops
+lesson: 'Bellman-Ford limited to k+1 rounds finds the cheapest price using at most k+1 flights. Each round
+  relaxes every edge from a copy of the previous round''s prices, so a single round never chains two flights.
+
+  '
+statement: 'There are `n` cities numbered `0` to `n - 1` and `flights` given as `[from, to, price]`. Return
+  the cheapest price from `src` to `dst` using at most `k` intermediate stops, or `-1` if no such trip
+  exists.
+
+  '
+function: find_cheapest_price
+signature: 'def find_cheapest_price(n: int, flights: list[list[int]], src: int, dst: int, k: int) -> int:'
+starter: "def find_cheapest_price(n: int, flights: list[list[int]], src: int, dst: int, k: int) -> int:\n\
+  \    pass\n"
+tests:
+- args:
+  - 4
+  - - - 0
+      - 1
+      - 100
+    - - 1
+      - 2
+      - 100
+    - - 2
+      - 0
+      - 100
+    - - 1
+      - 3
+      - 600
+    - - 2
+      - 3
+      - 200
+  - 0
+  - 3
+  - 1
+  expected: 700
+- args:
+  - 3
+  - - - 0
+      - 1
+      - 100
+    - - 1
+      - 2
+      - 100
+    - - 0
+      - 2
+      - 500
+  - 0
+  - 2
+  - 1
+  expected: 200
+- args:
+  - 3
+  - - - 0
+      - 1
+      - 100
+    - - 1
+      - 2
+      - 100
+    - - 0
+      - 2
+      - 500
+  - 0
+  - 2
+  - 0
+  expected: 500
+  note: zero stops means direct only
+- args:
+  - 2
+  - []
+  - 0
+  - 1
+  - 1
+  expected: -1
+  note: no flights
+- args:
+  - 3
+  - - - 0
+      - 1
+      - 1
+  - 0
+  - 0
+  - 0
+  expected: 0
+  note: already at destination
+- args:
+  - 4
+  - - - 0
+      - 1
+      - 1
+    - - 1
+      - 2
+      - 1
+    - - 2
+      - 3
+      - 1
+  - 0
+  - 3
+  - 1
+  expected: -1
+  note: path needs too many stops
+hints:
+- Plain Dijkstra ignores the stop limit. Think in rounds of flights.
+- Run Bellman-Ford for k+1 rounds; relax from a snapshot of the previous round.
+- 'prices=[inf]*n; prices[src]=0; repeat k+1: tmp=prices[:]; for u,v,w: tmp[v]=min(tmp[v], prices[u]+w);
+  prices=tmp.'
+solution: "def find_cheapest_price(n: int, flights: list[list[int]], src: int, dst: int, k: int) -> int:\n\
+  \    inf = float(\"inf\")\n    prices = [inf] * n\n    prices[src] = 0\n    for _ in range(k + 1):\n\
+  \        tmp = prices[:]\n        for u, v, w in flights:\n            if prices[u] + w < tmp[v]:\n\
+  \                tmp[v] = prices[u] + w\n        prices = tmp\n    return -1 if prices[dst] == inf else\
+  \ prices[dst]\n"
+pitfalls:
+  wrong: Relaxing in place lets one round use several flights and breaks the stop limit.
+  edge-case: src equal to dst costs 0, and k = 0 allows only direct flights; return -1 if unreachable.
+  timeout: Trying all paths with DFS is exponential; Bellman-Ford limited to k + 1 rounds is O(k * E).
+  wrong-answer: Relaxing in place lets one round use several flights and breaks the stop limit.
+  exception: Plain Dijkstra with a visited set drops a cheaper-but-longer path; track stops in the state.

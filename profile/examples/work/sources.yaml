@@ -1,0 +1,4 @@
+# Evidence sources for your current job.
+sources: []
+#  - {kind: git, path: ~/work/service-repo, authors: [you@example.com]}
+#  - {kind: gh, author: "@me"}                   # add host: github.example.com for Enterprise

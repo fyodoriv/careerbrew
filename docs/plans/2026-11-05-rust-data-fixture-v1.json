@@ -1,0 +1,3314 @@
+{
+  "schema": "careerbrew-data-plan-v1",
+  "source_base": "7fb88f4e2dce78f7f76ba37f7f80bf93d5e258c5",
+  "status": "prospective specification; no store execution or result claimed",
+  "child_umask": "0022",
+  "canary": "SYNTHETIC-DATA-CANARY-8H3",
+  "value_schema": "2026-11-05-rust-data-value-schema.json",
+  "baseline": [
+    {
+      "path": "home",
+      "kind": "directory",
+      "mode": "0700",
+      "content_rule": "precreated setup directory"
+    },
+    {
+      "path": "data",
+      "kind": "directory",
+      "mode": "0700",
+      "content_rule": "precreated setup directory"
+    },
+    {
+      "path": "tmp",
+      "kind": "directory",
+      "mode": "0700",
+      "content_rule": "precreated setup directory"
+    },
+    {
+      "path": "config",
+      "kind": "directory",
+      "mode": "0700",
+      "content_rule": "precreated setup directory"
+    },
+    {
+      "path": "cache",
+      "kind": "directory",
+      "mode": "0700",
+      "content_rule": "precreated setup directory"
+    },
+    {
+      "path": "state",
+      "kind": "directory",
+      "mode": "0700",
+      "content_rule": "precreated setup directory"
+    },
+    {
+      "path": "keys",
+      "kind": "directory",
+      "mode": "0700",
+      "content_rule": "precreated setup directory"
+    },
+    {
+      "path": "commands",
+      "kind": "directory",
+      "mode": "0700",
+      "content_rule": "precreated setup directory"
+    },
+    {
+      "path": "backups",
+      "kind": "directory",
+      "mode": "0700",
+      "content_rule": "precreated setup directory"
+    },
+    {
+      "path": "data/contract",
+      "kind": "directory",
+      "mode": "0755",
+      "content_rule": "precreated setup directory"
+    },
+    {
+      "path": "protocol",
+      "kind": "directory",
+      "mode": "0700",
+      "content_rule": "precreated exact phase-report parent"
+    }
+  ],
+  "cases": [
+    {
+      "case": "1",
+      "name": "missing-default",
+      "phases": [
+        {
+          "role": "reader",
+          "api": "read_json",
+          "target": "data/contract/missing.json",
+          "arguments": {
+            "default": {
+              "kind": "map",
+              "entries": [
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "count"
+                  },
+                  "value": {
+                    "kind": "int",
+                    "decimal": "0"
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "missing"
+                  },
+                  "value": {
+                    "kind": "bool",
+                    "value": true
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "nothing"
+                  },
+                  "value": {
+                    "kind": "null"
+                  }
+                }
+              ]
+            }
+          },
+          "expected_return": {
+            "kind": "map",
+            "entries": [
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "count"
+                },
+                "value": {
+                  "kind": "int",
+                  "decimal": "0"
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "missing"
+                },
+                "value": {
+                  "kind": "bool",
+                  "value": true
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "nothing"
+                },
+                "value": {
+                  "kind": "null"
+                }
+              }
+            ]
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.read_json",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "recursive-typed-literal",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/missing.json"
+              },
+              "expected_bound_arguments": {
+                "default": {
+                  "kind": "map",
+                  "entries": [
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "count"
+                      },
+                      "value": {
+                        "kind": "int",
+                        "decimal": "0"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "missing"
+                      },
+                      "value": {
+                        "kind": "bool",
+                        "value": true
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "nothing"
+                      },
+                      "value": {
+                        "kind": "null"
+                      }
+                    }
+                  ]
+                },
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/missing.json"
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/01-reader-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/01-reader-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "case": "2",
+      "name": "sealed-canary-text",
+      "phases": [
+        {
+          "role": "writer",
+          "api": "write_text",
+          "target": "data/contract/text.txt",
+          "arguments": {
+            "text": {
+              "kind": "str",
+              "encoding": "literal",
+              "value": "café / 東京\nSYNTHETIC-DATA-CANARY-8H3\n"
+            }
+          },
+          "expected_return": {
+            "kind": "null"
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.write_text",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "recursive-typed-literal",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/text.txt"
+              },
+              "expected_bound_arguments": {
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/text.txt"
+                },
+                "text": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "café / 東京\nSYNTHETIC-DATA-CANARY-8H3\n"
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "keys/backup.key",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "generated Fernet key; raw bytes never reported"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "data/contract/text.txt",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "encrypted-sealed"
+              }
+            }
+          ],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/02-writer-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/02-writer-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        },
+        {
+          "role": "reader",
+          "api": "read_text",
+          "target": "data/contract/text.txt",
+          "arguments": {},
+          "expected_return": {
+            "kind": "str",
+            "encoding": "sha256",
+            "utf8_bytes": "41",
+            "sha256": "1581ff7ad2ff0694ff0b9a143126c956527a753713748f23ae1d4b351f95b8f6"
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.read_text",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "str-sha256",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/text.txt"
+              },
+              "expected_bound_arguments": {
+                "default": {
+                  "kind": "null"
+                },
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/text.txt"
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/02-reader-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/02-reader-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        }
+      ],
+      "reader_projection": "top-level str SHA-256 and UTF-8 length only"
+    },
+    {
+      "case": "3",
+      "name": "sealed-json-types",
+      "phases": [
+        {
+          "role": "writer",
+          "api": "write_json",
+          "target": "data/contract/record.json",
+          "arguments": {
+            "data": {
+              "kind": "map",
+              "entries": [
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "large"
+                  },
+                  "value": {
+                    "kind": "int",
+                    "decimal": "1208925819614629174706179"
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "null"
+                  },
+                  "value": {
+                    "kind": "null"
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "one"
+                  },
+                  "value": {
+                    "kind": "int",
+                    "decimal": "1"
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "tag_map"
+                  },
+                  "value": {
+                    "kind": "map",
+                    "entries": [
+                      {
+                        "key": {
+                          "kind": "str",
+                          "encoding": "literal",
+                          "value": "iso"
+                        },
+                        "value": {
+                          "kind": "str",
+                          "encoding": "literal",
+                          "value": "not-a-date"
+                        }
+                      },
+                      {
+                        "key": {
+                          "kind": "str",
+                          "encoding": "literal",
+                          "value": "kind"
+                        },
+                        "value": {
+                          "kind": "str",
+                          "encoding": "literal",
+                          "value": "date"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "truth"
+                  },
+                  "value": {
+                    "kind": "bool",
+                    "value": true
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "z"
+                  },
+                  "value": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "café"
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "zeros"
+                  },
+                  "value": {
+                    "kind": "list",
+                    "items": [
+                      {
+                        "kind": "float64",
+                        "bits": "8000000000000000"
+                      },
+                      {
+                        "kind": "float64",
+                        "bits": "0000000000000000"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "expected_return": {
+            "kind": "null"
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.write_json",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "recursive-typed-literal",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/record.json"
+              },
+              "expected_bound_arguments": {
+                "data": {
+                  "kind": "map",
+                  "entries": [
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "large"
+                      },
+                      "value": {
+                        "kind": "int",
+                        "decimal": "1208925819614629174706179"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "null"
+                      },
+                      "value": {
+                        "kind": "null"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "one"
+                      },
+                      "value": {
+                        "kind": "int",
+                        "decimal": "1"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "tag_map"
+                      },
+                      "value": {
+                        "kind": "map",
+                        "entries": [
+                          {
+                            "key": {
+                              "kind": "str",
+                              "encoding": "literal",
+                              "value": "iso"
+                            },
+                            "value": {
+                              "kind": "str",
+                              "encoding": "literal",
+                              "value": "not-a-date"
+                            }
+                          },
+                          {
+                            "key": {
+                              "kind": "str",
+                              "encoding": "literal",
+                              "value": "kind"
+                            },
+                            "value": {
+                              "kind": "str",
+                              "encoding": "literal",
+                              "value": "date"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "truth"
+                      },
+                      "value": {
+                        "kind": "bool",
+                        "value": true
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "z"
+                      },
+                      "value": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "café"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "zeros"
+                      },
+                      "value": {
+                        "kind": "list",
+                        "items": [
+                          {
+                            "kind": "float64",
+                            "bits": "8000000000000000"
+                          },
+                          {
+                            "kind": "float64",
+                            "bits": "0000000000000000"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/record.json"
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "data/contract/record.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "encrypted-sealed"
+              }
+            }
+          ],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/03-writer-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/03-writer-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        },
+        {
+          "role": "reader",
+          "api": "read_json",
+          "target": "data/contract/record.json",
+          "arguments": {},
+          "expected_return": {
+            "kind": "map",
+            "entries": [
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "large"
+                },
+                "value": {
+                  "kind": "int",
+                  "decimal": "1208925819614629174706179"
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "null"
+                },
+                "value": {
+                  "kind": "null"
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "one"
+                },
+                "value": {
+                  "kind": "int",
+                  "decimal": "1"
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "tag_map"
+                },
+                "value": {
+                  "kind": "map",
+                  "entries": [
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "iso"
+                      },
+                      "value": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "not-a-date"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "kind"
+                      },
+                      "value": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "date"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "truth"
+                },
+                "value": {
+                  "kind": "bool",
+                  "value": true
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "z"
+                },
+                "value": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "café"
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "zeros"
+                },
+                "value": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "float64",
+                      "bits": "8000000000000000"
+                    },
+                    {
+                      "kind": "float64",
+                      "bits": "0000000000000000"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.read_json",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "recursive-typed-literal",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/record.json"
+              },
+              "expected_bound_arguments": {
+                "default": {
+                  "kind": "null"
+                },
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/record.json"
+                }
+              }
+            },
+            {
+              "sequence": "2",
+              "purpose": "serialized-bytes",
+              "scope": "explicit auxiliary caller invocation, not an inferred nested call",
+              "function": "careerbrew.store.read_text",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "str-sha256",
+              "independent_expected_return": {
+                "kind": "str",
+                "encoding": "sha256",
+                "utf8_bytes": "205",
+                "sha256": "c0c44e8831d29c46b1bc59cb74bdf0fdeeae154ea3be05feacba628a21109a32"
+              },
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/record.json"
+              },
+              "expected_bound_arguments": {
+                "default": {
+                  "kind": "null"
+                },
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/record.json"
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/03-reader-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/03-reader-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        }
+      ],
+      "independent_plaintext_spec": {
+        "sha256": "c0c44e8831d29c46b1bc59cb74bdf0fdeeae154ea3be05feacba628a21109a32",
+        "utf8_bytes": "205",
+        "derivation": "planning input specification; not an observed store result"
+      }
+    },
+    {
+      "case": "4",
+      "name": "sealed-yaml-types",
+      "phases": [
+        {
+          "role": "writer",
+          "api": "write_yaml",
+          "target": "data/contract/record.yaml",
+          "arguments": {
+            "data": {
+              "kind": "map",
+              "entries": [
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "at"
+                  },
+                  "value": {
+                    "kind": "datetime",
+                    "iso": "2026-03-01T09:30:00+00:00"
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "count"
+                  },
+                  "value": {
+                    "kind": "int",
+                    "decimal": "8"
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "date"
+                  },
+                  "value": {
+                    "kind": "date",
+                    "iso": "2026-03-01"
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "enabled"
+                  },
+                  "value": {
+                    "kind": "bool",
+                    "value": true
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "literal"
+                  },
+                  "value": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "yes"
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "tag_map"
+                  },
+                  "value": {
+                    "kind": "map",
+                    "entries": [
+                      {
+                        "key": {
+                          "kind": "str",
+                          "encoding": "literal",
+                          "value": "iso"
+                        },
+                        "value": {
+                          "kind": "str",
+                          "encoding": "literal",
+                          "value": "not-a-date"
+                        }
+                      },
+                      {
+                        "key": {
+                          "kind": "str",
+                          "encoding": "literal",
+                          "value": "kind"
+                        },
+                        "value": {
+                          "kind": "str",
+                          "encoding": "literal",
+                          "value": "date"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "expected_return": {
+            "kind": "null"
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.write_yaml",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "recursive-typed-literal",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/record.yaml"
+              },
+              "expected_bound_arguments": {
+                "data": {
+                  "kind": "map",
+                  "entries": [
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "at"
+                      },
+                      "value": {
+                        "kind": "datetime",
+                        "iso": "2026-03-01T09:30:00+00:00"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "count"
+                      },
+                      "value": {
+                        "kind": "int",
+                        "decimal": "8"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "date"
+                      },
+                      "value": {
+                        "kind": "date",
+                        "iso": "2026-03-01"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "enabled"
+                      },
+                      "value": {
+                        "kind": "bool",
+                        "value": true
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "literal"
+                      },
+                      "value": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "yes"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "tag_map"
+                      },
+                      "value": {
+                        "kind": "map",
+                        "entries": [
+                          {
+                            "key": {
+                              "kind": "str",
+                              "encoding": "literal",
+                              "value": "iso"
+                            },
+                            "value": {
+                              "kind": "str",
+                              "encoding": "literal",
+                              "value": "not-a-date"
+                            }
+                          },
+                          {
+                            "key": {
+                              "kind": "str",
+                              "encoding": "literal",
+                              "value": "kind"
+                            },
+                            "value": {
+                              "kind": "str",
+                              "encoding": "literal",
+                              "value": "date"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/record.yaml"
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "data/contract/record.yaml",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "encrypted-sealed"
+              }
+            }
+          ],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/04-writer-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/04-writer-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        },
+        {
+          "role": "reader",
+          "api": "read_yaml",
+          "target": "data/contract/record.yaml",
+          "arguments": {},
+          "expected_return": {
+            "kind": "map",
+            "entries": [
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "at"
+                },
+                "value": {
+                  "kind": "datetime",
+                  "iso": "2026-03-01T09:30:00+00:00"
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "count"
+                },
+                "value": {
+                  "kind": "int",
+                  "decimal": "8"
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "date"
+                },
+                "value": {
+                  "kind": "date",
+                  "iso": "2026-03-01"
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "enabled"
+                },
+                "value": {
+                  "kind": "bool",
+                  "value": true
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "literal"
+                },
+                "value": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "yes"
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "tag_map"
+                },
+                "value": {
+                  "kind": "map",
+                  "entries": [
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "iso"
+                      },
+                      "value": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "not-a-date"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "kind"
+                      },
+                      "value": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "date"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.read_yaml",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "recursive-typed-literal",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/record.yaml"
+              },
+              "expected_bound_arguments": {
+                "default": {
+                  "kind": "null"
+                },
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/record.yaml"
+                }
+              }
+            },
+            {
+              "sequence": "2",
+              "purpose": "serialized-bytes",
+              "scope": "explicit auxiliary caller invocation, not an inferred nested call",
+              "function": "careerbrew.store.read_text",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "str-sha256",
+              "expected_rule": "actual str digest/length are frozen only after independent YAML primary typed return review; no fabricated byte oracle",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/record.yaml"
+              },
+              "expected_bound_arguments": {
+                "default": {
+                  "kind": "null"
+                },
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/record.yaml"
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/04-reader-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/04-reader-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        }
+      ],
+      "serialized_digest_rule": "capture actual decoded bytes, then freeze after independent typed result review; no preclaimed YAML byte oracle"
+    },
+    {
+      "case": "5",
+      "name": "jsonl-create",
+      "phases": [
+        {
+          "role": "writer",
+          "api": "write_jsonl",
+          "target": "data/contract/rows.jsonl",
+          "arguments": {
+            "rows": {
+              "kind": "list",
+              "items": [
+                {
+                  "kind": "map",
+                  "entries": [
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "id"
+                      },
+                      "value": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "a"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "value"
+                      },
+                      "value": {
+                        "kind": "int",
+                        "decimal": "1"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "kind": "map",
+                  "entries": [
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "id"
+                      },
+                      "value": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "b"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "value"
+                      },
+                      "value": {
+                        "kind": "int",
+                        "decimal": "2"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "expected_return": {
+            "kind": "null"
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.write_jsonl",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "recursive-typed-literal",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/rows.jsonl"
+              },
+              "expected_bound_arguments": {
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/rows.jsonl"
+                },
+                "rows": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "map",
+                      "entries": [
+                        {
+                          "key": {
+                            "kind": "str",
+                            "encoding": "literal",
+                            "value": "id"
+                          },
+                          "value": {
+                            "kind": "str",
+                            "encoding": "literal",
+                            "value": "a"
+                          }
+                        },
+                        {
+                          "key": {
+                            "kind": "str",
+                            "encoding": "literal",
+                            "value": "value"
+                          },
+                          "value": {
+                            "kind": "int",
+                            "decimal": "1"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "map",
+                      "entries": [
+                        {
+                          "key": {
+                            "kind": "str",
+                            "encoding": "literal",
+                            "value": "id"
+                          },
+                          "value": {
+                            "kind": "str",
+                            "encoding": "literal",
+                            "value": "b"
+                          }
+                        },
+                        {
+                          "key": {
+                            "kind": "str",
+                            "encoding": "literal",
+                            "value": "value"
+                          },
+                          "value": {
+                            "kind": "int",
+                            "decimal": "2"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "data/contract/rows.jsonl",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "encrypted-sealed"
+              }
+            }
+          ],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/05-writer-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/05-writer-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        },
+        {
+          "role": "reader",
+          "api": "read_jsonl",
+          "target": "data/contract/rows.jsonl",
+          "arguments": {},
+          "expected_return": {
+            "kind": "list",
+            "items": [
+              {
+                "kind": "map",
+                "entries": [
+                  {
+                    "key": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "id"
+                    },
+                    "value": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "a"
+                    }
+                  },
+                  {
+                    "key": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "value"
+                    },
+                    "value": {
+                      "kind": "int",
+                      "decimal": "1"
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "map",
+                "entries": [
+                  {
+                    "key": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "id"
+                    },
+                    "value": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "b"
+                    }
+                  },
+                  {
+                    "key": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "value"
+                    },
+                    "value": {
+                      "kind": "int",
+                      "decimal": "2"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.read_jsonl",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "recursive-typed-literal",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/rows.jsonl"
+              },
+              "expected_bound_arguments": {
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/rows.jsonl"
+                }
+              }
+            },
+            {
+              "sequence": "2",
+              "purpose": "serialized-bytes",
+              "scope": "explicit auxiliary caller invocation, not an inferred nested call",
+              "function": "careerbrew.store.read_text",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "str-sha256",
+              "independent_expected_return": {
+                "kind": "str",
+                "encoding": "sha256",
+                "utf8_bytes": "48",
+                "sha256": "73cfa46dba5cd6ea9d65e98cca64cc3d27464520eca840f9e1f29e65a0230777"
+              },
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/rows.jsonl"
+              },
+              "expected_bound_arguments": {
+                "default": {
+                  "kind": "null"
+                },
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/rows.jsonl"
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/05-reader-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/05-reader-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        }
+      ],
+      "independent_plaintext_spec": {
+        "sha256": "73cfa46dba5cd6ea9d65e98cca64cc3d27464520eca840f9e1f29e65a0230777",
+        "utf8_bytes": "48",
+        "derivation": "planning input specification; not an observed store result"
+      }
+    },
+    {
+      "case": "6",
+      "name": "jsonl-append",
+      "phases": [
+        {
+          "role": "writer",
+          "api": "append_jsonl",
+          "target": "data/contract/rows.jsonl",
+          "arguments": {
+            "rows": {
+              "kind": "list",
+              "items": [
+                {
+                  "kind": "map",
+                  "entries": [
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "id"
+                      },
+                      "value": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "c"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "value"
+                      },
+                      "value": {
+                        "kind": "int",
+                        "decimal": "3"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "expected_return": {
+            "kind": "int",
+            "decimal": "1"
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.append_jsonl",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "recursive-typed-literal",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/rows.jsonl"
+              },
+              "expected_bound_arguments": {
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/rows.jsonl"
+                },
+                "rows": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "map",
+                      "entries": [
+                        {
+                          "key": {
+                            "kind": "str",
+                            "encoding": "literal",
+                            "value": "id"
+                          },
+                          "value": {
+                            "kind": "str",
+                            "encoding": "literal",
+                            "value": "c"
+                          }
+                        },
+                        {
+                          "key": {
+                            "kind": "str",
+                            "encoding": "literal",
+                            "value": "value"
+                          },
+                          "value": {
+                            "kind": "int",
+                            "decimal": "3"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [
+            {
+              "operation": "modify",
+              "entry": {
+                "path": "data/contract/rows.jsonl",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "encrypted-sealed"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "data/contract/.rows.jsonl.lock",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "empty exactly zero bytes"
+              }
+            }
+          ],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/06-writer-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/06-writer-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        },
+        {
+          "role": "reader",
+          "api": "read_jsonl",
+          "target": "data/contract/rows.jsonl",
+          "arguments": {},
+          "expected_return": {
+            "kind": "list",
+            "items": [
+              {
+                "kind": "map",
+                "entries": [
+                  {
+                    "key": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "id"
+                    },
+                    "value": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "a"
+                    }
+                  },
+                  {
+                    "key": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "value"
+                    },
+                    "value": {
+                      "kind": "int",
+                      "decimal": "1"
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "map",
+                "entries": [
+                  {
+                    "key": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "id"
+                    },
+                    "value": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "b"
+                    }
+                  },
+                  {
+                    "key": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "value"
+                    },
+                    "value": {
+                      "kind": "int",
+                      "decimal": "2"
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "map",
+                "entries": [
+                  {
+                    "key": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "id"
+                    },
+                    "value": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "c"
+                    }
+                  },
+                  {
+                    "key": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "value"
+                    },
+                    "value": {
+                      "kind": "int",
+                      "decimal": "3"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.read_jsonl",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "recursive-typed-literal",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/rows.jsonl"
+              },
+              "expected_bound_arguments": {
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/rows.jsonl"
+                }
+              }
+            },
+            {
+              "sequence": "2",
+              "purpose": "serialized-bytes",
+              "scope": "explicit auxiliary caller invocation, not an inferred nested call",
+              "function": "careerbrew.store.read_text",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "str-sha256",
+              "independent_expected_return": {
+                "kind": "str",
+                "encoding": "sha256",
+                "utf8_bytes": "72",
+                "sha256": "b372a256403873dbc5c1c60f47aa5b997894e8af68ec07e95a380a9e5629945c"
+              },
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/rows.jsonl"
+              },
+              "expected_bound_arguments": {
+                "default": {
+                  "kind": "null"
+                },
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/rows.jsonl"
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/06-reader-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/06-reader-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        }
+      ],
+      "independent_plaintext_spec": {
+        "sha256": "b372a256403873dbc5c1c60f47aa5b997894e8af68ec07e95a380a9e5629945c",
+        "utf8_bytes": "72",
+        "derivation": "planning input specification; not an observed store result"
+      }
+    },
+    {
+      "case": "7",
+      "name": "jsonl-upsert",
+      "phases": [
+        {
+          "role": "writer",
+          "api": "upsert_jsonl",
+          "target": "data/contract/rows.jsonl",
+          "arguments": {
+            "rows": {
+              "kind": "list",
+              "items": [
+                {
+                  "kind": "map",
+                  "entries": [
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "id"
+                      },
+                      "value": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "b"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "value"
+                      },
+                      "value": {
+                        "kind": "int",
+                        "decimal": "20"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            "fields": {
+              "kind": "list",
+              "items": [
+                {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "value"
+                }
+              ]
+            }
+          },
+          "expected_return": {
+            "kind": "tuple",
+            "items": [
+              {
+                "kind": "int",
+                "decimal": "0"
+              },
+              {
+                "kind": "int",
+                "decimal": "1"
+              }
+            ]
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.upsert_jsonl",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "recursive-typed-literal",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/rows.jsonl"
+              },
+              "expected_bound_arguments": {
+                "fields": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "value"
+                    }
+                  ]
+                },
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/rows.jsonl"
+                },
+                "rows": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "map",
+                      "entries": [
+                        {
+                          "key": {
+                            "kind": "str",
+                            "encoding": "literal",
+                            "value": "id"
+                          },
+                          "value": {
+                            "kind": "str",
+                            "encoding": "literal",
+                            "value": "b"
+                          }
+                        },
+                        {
+                          "key": {
+                            "kind": "str",
+                            "encoding": "literal",
+                            "value": "value"
+                          },
+                          "value": {
+                            "kind": "int",
+                            "decimal": "20"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [
+            {
+              "operation": "modify",
+              "entry": {
+                "path": "data/contract/rows.jsonl",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "encrypted-sealed"
+              }
+            }
+          ],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/07-writer-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/07-writer-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        },
+        {
+          "role": "reader",
+          "api": "read_jsonl",
+          "target": "data/contract/rows.jsonl",
+          "arguments": {},
+          "expected_return": {
+            "kind": "list",
+            "items": [
+              {
+                "kind": "map",
+                "entries": [
+                  {
+                    "key": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "id"
+                    },
+                    "value": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "a"
+                    }
+                  },
+                  {
+                    "key": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "value"
+                    },
+                    "value": {
+                      "kind": "int",
+                      "decimal": "1"
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "map",
+                "entries": [
+                  {
+                    "key": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "id"
+                    },
+                    "value": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "b"
+                    }
+                  },
+                  {
+                    "key": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "value"
+                    },
+                    "value": {
+                      "kind": "int",
+                      "decimal": "20"
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "map",
+                "entries": [
+                  {
+                    "key": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "id"
+                    },
+                    "value": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "c"
+                    }
+                  },
+                  {
+                    "key": {
+                      "kind": "str",
+                      "encoding": "literal",
+                      "value": "value"
+                    },
+                    "value": {
+                      "kind": "int",
+                      "decimal": "3"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.read_jsonl",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "recursive-typed-literal",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/rows.jsonl"
+              },
+              "expected_bound_arguments": {
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/rows.jsonl"
+                }
+              }
+            },
+            {
+              "sequence": "2",
+              "purpose": "serialized-bytes",
+              "scope": "explicit auxiliary caller invocation, not an inferred nested call",
+              "function": "careerbrew.store.read_text",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "str-sha256",
+              "independent_expected_return": {
+                "kind": "str",
+                "encoding": "sha256",
+                "utf8_bytes": "73",
+                "sha256": "912818664acdd5a1908a7303b0d382b81c3b4cb3d9ece0d8abd17b050f90213a"
+              },
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/rows.jsonl"
+              },
+              "expected_bound_arguments": {
+                "default": {
+                  "kind": "null"
+                },
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/rows.jsonl"
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/07-reader-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/07-reader-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        }
+      ],
+      "independent_plaintext_spec": {
+        "sha256": "912818664acdd5a1908a7303b0d382b81c3b4cb3d9ece0d8abd17b050f90213a",
+        "utf8_bytes": "73",
+        "derivation": "planning input specification; not an observed store result"
+      }
+    },
+    {
+      "case": "8",
+      "name": "text-no-op",
+      "phases": [
+        {
+          "role": "writer",
+          "api": "write_text_if_changed",
+          "target": "data/contract/text.txt",
+          "arguments": {
+            "text": {
+              "kind": "str",
+              "encoding": "literal",
+              "value": "café / 東京\nSYNTHETIC-DATA-CANARY-8H3\n"
+            }
+          },
+          "expected_return": {
+            "kind": "bool",
+            "value": false
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.write_text_if_changed",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "recursive-typed-literal",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/text.txt"
+              },
+              "expected_bound_arguments": {
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/text.txt"
+                },
+                "text": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "café / 東京\nSYNTHETIC-DATA-CANARY-8H3\n"
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/08-writer-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/08-writer-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        },
+        {
+          "role": "reader",
+          "api": "read_text",
+          "target": "data/contract/text.txt",
+          "arguments": {},
+          "expected_return": {
+            "kind": "str",
+            "encoding": "sha256",
+            "utf8_bytes": "41",
+            "sha256": "1581ff7ad2ff0694ff0b9a143126c956527a753713748f23ae1d4b351f95b8f6"
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.read_text",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "str-sha256",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/text.txt"
+              },
+              "expected_bound_arguments": {
+                "default": {
+                  "kind": "null"
+                },
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/text.txt"
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/08-reader-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/08-reader-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        }
+      ],
+      "no_op_identity": [
+        "data/contract/text.txt:raw_ciphertext_sha256",
+        "data/contract/text.txt:inode",
+        "data/contract/text.txt:mtime_ns"
+      ],
+      "reader_projection": "top-level str SHA-256 and UTF-8 length only"
+    },
+    {
+      "case": "9",
+      "name": "json-no-op",
+      "phases": [
+        {
+          "role": "writer",
+          "api": "write_json_if_changed",
+          "target": "data/contract/record.json",
+          "arguments": {
+            "data": {
+              "kind": "map",
+              "entries": [
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "large"
+                  },
+                  "value": {
+                    "kind": "int",
+                    "decimal": "1208925819614629174706179"
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "null"
+                  },
+                  "value": {
+                    "kind": "null"
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "one"
+                  },
+                  "value": {
+                    "kind": "int",
+                    "decimal": "1"
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "tag_map"
+                  },
+                  "value": {
+                    "kind": "map",
+                    "entries": [
+                      {
+                        "key": {
+                          "kind": "str",
+                          "encoding": "literal",
+                          "value": "iso"
+                        },
+                        "value": {
+                          "kind": "str",
+                          "encoding": "literal",
+                          "value": "not-a-date"
+                        }
+                      },
+                      {
+                        "key": {
+                          "kind": "str",
+                          "encoding": "literal",
+                          "value": "kind"
+                        },
+                        "value": {
+                          "kind": "str",
+                          "encoding": "literal",
+                          "value": "date"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "truth"
+                  },
+                  "value": {
+                    "kind": "bool",
+                    "value": true
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "z"
+                  },
+                  "value": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "café"
+                  }
+                },
+                {
+                  "key": {
+                    "kind": "str",
+                    "encoding": "literal",
+                    "value": "zeros"
+                  },
+                  "value": {
+                    "kind": "list",
+                    "items": [
+                      {
+                        "kind": "float64",
+                        "bits": "8000000000000000"
+                      },
+                      {
+                        "kind": "float64",
+                        "bits": "0000000000000000"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "expected_return": {
+            "kind": "bool",
+            "value": false
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.write_json_if_changed",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "recursive-typed-literal",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/record.json"
+              },
+              "expected_bound_arguments": {
+                "data": {
+                  "kind": "map",
+                  "entries": [
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "large"
+                      },
+                      "value": {
+                        "kind": "int",
+                        "decimal": "1208925819614629174706179"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "null"
+                      },
+                      "value": {
+                        "kind": "null"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "one"
+                      },
+                      "value": {
+                        "kind": "int",
+                        "decimal": "1"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "tag_map"
+                      },
+                      "value": {
+                        "kind": "map",
+                        "entries": [
+                          {
+                            "key": {
+                              "kind": "str",
+                              "encoding": "literal",
+                              "value": "iso"
+                            },
+                            "value": {
+                              "kind": "str",
+                              "encoding": "literal",
+                              "value": "not-a-date"
+                            }
+                          },
+                          {
+                            "key": {
+                              "kind": "str",
+                              "encoding": "literal",
+                              "value": "kind"
+                            },
+                            "value": {
+                              "kind": "str",
+                              "encoding": "literal",
+                              "value": "date"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "truth"
+                      },
+                      "value": {
+                        "kind": "bool",
+                        "value": true
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "z"
+                      },
+                      "value": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "café"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "zeros"
+                      },
+                      "value": {
+                        "kind": "list",
+                        "items": [
+                          {
+                            "kind": "float64",
+                            "bits": "8000000000000000"
+                          },
+                          {
+                            "kind": "float64",
+                            "bits": "0000000000000000"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/record.json"
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/09-writer-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/09-writer-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        },
+        {
+          "role": "reader",
+          "api": "read_json",
+          "target": "data/contract/record.json",
+          "arguments": {},
+          "expected_return": {
+            "kind": "map",
+            "entries": [
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "large"
+                },
+                "value": {
+                  "kind": "int",
+                  "decimal": "1208925819614629174706179"
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "null"
+                },
+                "value": {
+                  "kind": "null"
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "one"
+                },
+                "value": {
+                  "kind": "int",
+                  "decimal": "1"
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "tag_map"
+                },
+                "value": {
+                  "kind": "map",
+                  "entries": [
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "iso"
+                      },
+                      "value": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "not-a-date"
+                      }
+                    },
+                    {
+                      "key": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "kind"
+                      },
+                      "value": {
+                        "kind": "str",
+                        "encoding": "literal",
+                        "value": "date"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "truth"
+                },
+                "value": {
+                  "kind": "bool",
+                  "value": true
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "z"
+                },
+                "value": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "café"
+                }
+              },
+              {
+                "key": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "zeros"
+                },
+                "value": {
+                  "kind": "list",
+                  "items": [
+                    {
+                      "kind": "float64",
+                      "bits": "8000000000000000"
+                    },
+                    {
+                      "kind": "float64",
+                      "bits": "0000000000000000"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.read_json",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "recursive-typed-literal",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/record.json"
+              },
+              "expected_bound_arguments": {
+                "default": {
+                  "kind": "null"
+                },
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/record.json"
+                }
+              }
+            },
+            {
+              "sequence": "2",
+              "purpose": "serialized-bytes",
+              "scope": "explicit auxiliary caller invocation, not an inferred nested call",
+              "function": "careerbrew.store.read_text",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "str-sha256",
+              "independent_expected_return": {
+                "kind": "str",
+                "encoding": "sha256",
+                "utf8_bytes": "205",
+                "sha256": "c0c44e8831d29c46b1bc59cb74bdf0fdeeae154ea3be05feacba628a21109a32"
+              },
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/record.json"
+              },
+              "expected_bound_arguments": {
+                "default": {
+                  "kind": "null"
+                },
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/record.json"
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/09-reader-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/09-reader-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        }
+      ],
+      "no_op_identity": [
+        "data/contract/record.json:raw_ciphertext_sha256",
+        "data/contract/record.json:inode",
+        "data/contract/record.json:mtime_ns"
+      ],
+      "independent_plaintext_spec": {
+        "sha256": "c0c44e8831d29c46b1bc59cb74bdf0fdeeae154ea3be05feacba628a21109a32",
+        "utf8_bytes": "205",
+        "derivation": "planning input specification; not an observed store result"
+      }
+    },
+    {
+      "case": "10",
+      "name": "text-change",
+      "phases": [
+        {
+          "role": "writer",
+          "api": "write_text_if_changed",
+          "target": "data/contract/text.txt",
+          "arguments": {
+            "text": {
+              "kind": "str",
+              "encoding": "literal",
+              "value": "changed café\n"
+            }
+          },
+          "expected_return": {
+            "kind": "bool",
+            "value": true
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.write_text_if_changed",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "recursive-typed-literal",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/text.txt"
+              },
+              "expected_bound_arguments": {
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/text.txt"
+                },
+                "text": {
+                  "kind": "str",
+                  "encoding": "literal",
+                  "value": "changed café\n"
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [
+            {
+              "operation": "modify",
+              "entry": {
+                "path": "data/contract/text.txt",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "encrypted-sealed"
+              }
+            }
+          ],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/10-writer-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/10-writer-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        },
+        {
+          "role": "reader",
+          "api": "read_text",
+          "target": "data/contract/text.txt",
+          "arguments": {},
+          "expected_return": {
+            "kind": "str",
+            "encoding": "literal",
+            "value": "changed café\n"
+          },
+          "ledger": [
+            {
+              "sequence": "1",
+              "purpose": "primary",
+              "scope": "top-level invocation of actual original provider; nested calls remain source-bound",
+              "function": "careerbrew.store.read_text",
+              "entries": "1",
+              "completed": "1",
+              "argument_rule": "Observe actual original-function bound arguments including path and applied defaults. Compare typed bindings and digest; never hash fixture declarations as a substitute.",
+              "return_projection": "recursive-typed-literal",
+              "observed_target": {
+                "kind": "path",
+                "root": "owned",
+                "relative": "data/contract/text.txt"
+              },
+              "expected_bound_arguments": {
+                "default": {
+                  "kind": "null"
+                },
+                "path": {
+                  "kind": "path",
+                  "root": "owned",
+                  "relative": "data/contract/text.txt"
+                }
+              }
+            }
+          ],
+          "allowed_retained_delta": [],
+          "allowed_instrumentation_delta": [
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/10-reader-api.json",
+                "kind": "file",
+                "mode": "0600",
+                "content_rule": "strict data-phase report schema; no literal canary/key bytes"
+              }
+            },
+            {
+              "operation": "add",
+              "entry": {
+                "path": "protocol/10-reader-observer.json",
+                "kind": "file",
+                "mode": "0644",
+                "content_rule": "pinned shared source observer report; no canary/key bytes"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "phase_count_per_trial": "19",
+  "trial_count": "2",
+  "key_rule": "only generated keys/backup.key allowed; outside data; 0600; raw bytes never enter protocol/receipts",
+  "mutation_rules": "Exact per-phase data/key deltas plus exactly the two declared instrumentation outputs. No other add/modify/delete/mode changes. Reader data/key delta is empty. Directory ctime/atime/mtime are not a no-change claim; designated no-op file inode/mtime_ns/ciphertext hash must match exactly.",
+  "immutable_input_rule": "this exact repository fixture path outside every mutable root; hash before and after every trial; no blanket scanner exception",
+  "both_wrong_rule": "In both trials actually write integer 2 instead of 1 at record.one in cases 3 and 9, preserving the case 9 no-op invariant. Defer only resulting typed JSON/serialized-byte semantic mismatches until two complete 19-phase corpora; source, privacy, schema, ledger, retained effects, no-op identity, wait and cleanup checks stay immediate.",
+  "fault": "none",
+  "bootstrap": {
+    "argv": [
+      "-B",
+      "-S",
+      "<pinned-data-driver.py>"
+    ],
+    "order": [
+      "import standard-library os",
+      "set this Python child umask to 0022",
+      "import site and run site.main() to restore the selected environment",
+      "load pinned shared observer and provider modules",
+      "perform the registered phase"
+    ],
+    "scope": "No Rust parent process umask or environment mutation; interpreter bootstrap precedes the os call, but application/site imports follow it.",
+    "shared_observer_rule": "-S prevents sitecustomize/provider imports before child umask. After child-only umask, site.main loads the pinned shared observer from an exact PYTHONPATH. Observer input is this immutable fixture (fault none), not a copied plaintext canary control file. Selected negative phase/mode is separate nonsecret invocation metadata."
+  },
+  "top_level_api_call_count_per_trial": "25",
+  "input_location_rule": "Repository docs/plans/2026-11-05-rust-data-fixture-v1.json is outside every mutable owned root and immutable by SHA-256 before/after each trial. Shared observer reads this exact no-fault control file; per-negative selection is separate nonsecret phase metadata. No duplicate plaintext canary control file or blanket scanner exception.",
+  "negative_subcontrols": [
+    {
+      "group": "2",
+      "name": "wrong-one-first-trial",
+      "effect": "actual JSON writer payload record.one becomes int 2 for cases 3 and 9 in first trial only",
+      "expect": "semantic_mismatch"
+    },
+    {
+      "group": "3",
+      "name": "wrong-one-both-trials",
+      "effect": "actual JSON writer payload record.one becomes int 2 for cases 3 and 9 in both full trials",
+      "expect": "semantic_mismatch_after_two_complete_corpora",
+      "evidence": "two independent owned roots; actual 19 phase results/25 calls per trial, all zero waits and full exact phase ledgers; source/privacy/no-op/effects remain immediate"
+    },
+    {
+      "group": "4",
+      "name": "plaintext-canary-writer",
+      "phase": "2-writer",
+      "effect": "real declared store.write_text completes with encryption off",
+      "expect": "plaintext_canary",
+      "evidence": "actual provider source and completed declared call, actual PID/zero wait/reap before scanner refusal; missing-call refusal is not a pass"
+    },
+    {
+      "group": "5",
+      "name": "stdout-canary",
+      "phase": "2-writer",
+      "effect": "real child emits immutable fixture canary after real call",
+      "expect": "stream_canary"
+    },
+    {
+      "group": "6",
+      "name": "stderr-canary",
+      "phase": "2-writer",
+      "effect": "real child emits immutable fixture canary after real call",
+      "expect": "stream_canary"
+    },
+    {
+      "group": "7",
+      "name": "unexpected-write",
+      "phase": "2-writer",
+      "effect": "real child creates undeclared retained owned file",
+      "expect": "unexpected_retained_change"
+    },
+    {
+      "group": "8",
+      "name": "skip-writer",
+      "phase": "2-writer",
+      "effect": "child records an actual empty API ledger and exits zero without invoking the declared API",
+      "expect": "missing_api_evidence",
+      "evidence": "actual PID/exit0/reap; exact calls empty, not inferred from a missing file"
+    },
+    {
+      "group": "8",
+      "name": "skip-reader",
+      "phase": "2-reader",
+      "effect": "child records an actual empty API ledger and exits zero without invoking the declared API",
+      "expect": "missing_api_evidence",
+      "evidence": "actual PID/exit0/reap; exact calls empty, not inferred from a missing file"
+    },
+    {
+      "group": "9",
+      "name": "nonzero-writer",
+      "phase": "2-writer",
+      "effect": "child exits 17 in the selected role",
+      "expect": "nonzero_exit",
+      "evidence": "actual PID/exit17/reap; no generic error acceptance"
+    },
+    {
+      "group": "9",
+      "name": "nonzero-reader",
+      "phase": "2-reader",
+      "effect": "child exits 17 in the selected role",
+      "expect": "nonzero_exit",
+      "evidence": "actual PID/exit17/reap; no generic error acceptance"
+    },
+    {
+      "group": "12",
+      "name": "hang-writer",
+      "phase": "2-writer",
+      "effect": "selected role remains running until shared owner deadline",
+      "expect": "deadline_exceeded",
+      "evidence": "Borrowed callback records actual PID. Shared sole owner must expose a typed deadline cause plus actual wait status/signal/reaped/cleanup result; original text is diagnostic only. Caller observes exact PID absent after return. cleanup_failed, missing evidence or a timeout substring alone never passes."
+    },
+    {
+      "group": "12",
+      "name": "hang-reader",
+      "phase": "2-reader",
+      "effect": "selected role remains running until shared owner deadline",
+      "expect": "deadline_exceeded",
+      "evidence": "Borrowed callback records actual PID. Shared sole owner must expose a typed deadline cause plus actual wait status/signal/reaped/cleanup result; original text is diagnostic only. Caller observes exact PID absent after return. cleanup_failed, missing evidence or a timeout substring alone never passes."
+    },
+    {
+      "group": "10",
+      "name": "wrong-root",
+      "effect": "actual provider imported from copied wrong root",
+      "expect": "source_identity_mismatch"
+    },
+    {
+      "group": "10",
+      "name": "changed-source",
+      "effect": "actual source mutation in an explicitly marked owned synthetic source copy",
+      "expect": "source_identity_mismatch"
+    },
+    {
+      "group": "11",
+      "name": "identical-rewrite",
+      "phase": "8-writer",
+      "effect": "Run original store.write_text_if_changed entry. Only while its nested store.read_text executes, return None via pinned fixture instrumentation, making the original provider really call write_text and return True. Restore nested reader afterward; fresh read is normal. Record actual original entry/source and return True rather than forging False.",
+      "expect": "no_op_identity_mismatch",
+      "evidence": "Require source/call/actual target/lifecycle/privacy success first. Then compare the designated raw ciphertext hash, inode and mtime_ns before generic return-value or retained-delta checks. Exact refusal no_op_identity_mismatch takes priority over True-vs-False semantic mismatch and modified text-file delta."
+    },
+    {
+      "group": "2",
+      "name": "bool-for-int",
+      "effect": "first trial actual JSON writer stores bool true rather than integer 1 at record.one in cases 3 and 9",
+      "expect": "semantic_mismatch"
+    },
+    {
+      "group": "2",
+      "name": "large-int-value-loss",
+      "effect": "first trial actual JSON writer stores canonical integer 1208925819614629174706176 rather than 1208925819614629174706179 at record.large in cases 3 and 9",
+      "expect": "semantic_mismatch"
+    },
+    {
+      "group": "2",
+      "name": "negative-zero-loss",
+      "effect": "first trial actual JSON writer stores positive zero bits 0000000000000000 rather than negative zero bits 8000000000000000 at record.zeros[0] in cases 3 and 9",
+      "expect": "semantic_mismatch"
+    },
+    {
+      "group": "2",
+      "name": "literal-map-replaced-with-date",
+      "effect": "first trial actual YAML writer stores date 2026-03-01 instead of the literal tag-looking map at tag_map in case 4",
+      "expect": "semantic_mismatch"
+    }
+  ],
+  "argument_digest_rule": "At the actual original API entry, bind the arguments received using that original signature and apply defaults. Encode the ACTUAL bound path as an owned-relative path Node and all actual other values as typed Nodes. Hash UTF-8 JSON of those observed argument-name to Node bindings with sorted object keys, ensure_ascii true, compact comma/colon separators and allow_nan false. Compare with independent expected_bound_arguments; fixture declarations never stand in for observed arguments.",
+  "target_binding_rule": "Every primary and auxiliary call reports target from the actual bound path parameter. Canonicalize only the trusted supplied owned root once. Before any target resolve/normalization, require the current os.fspath argument to equal owned-root plus the exact registered relative target; reject outside, .., alias spellings and symlink components/leaf. Validate the immutable fixture relative spelling before constructing Path. A Path object may already have discarded redundant separators before entry; do not claim to observe its earlier construction history. Never use actual target.resolve to turn an alias into an accepted target.",
+  "projection_rule": "Select by exact case/role/ledger purpose: reader primary 2/8 str-sha256; reader serialized-bytes calls 3/4/5/6/7/9 str-sha256; reader primary 10 recursive typed literal str; all other primary returns recursive typed literal. Never guess from content.",
+  "validation_precedence": [
+    "actual lifecycle/owner outcome: reject process failure, missing wait or cleanup failure",
+    "bounded streams/protocol schema and source/actual API function/count/target binding",
+    "raw canary checks before any retained acceptance/hash; plaintext control must already have actual declared completed writer evidence",
+    "designated no-op raw ciphertext/inode/mtime identity: no_op_identity_mismatch before generic semantic/delta rejection",
+    "exact allowed data/key/instrumentation path/mode/content deltas",
+    "typed argument/return/serialized semantics with only registered cases 3/9 deferrals",
+    "frozen actual reference and two-complete-corpus evidence"
+  ]
+}

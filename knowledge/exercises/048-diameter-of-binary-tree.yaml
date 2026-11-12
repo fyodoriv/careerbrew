@@ -1,0 +1,59 @@
+id: diameter-of-binary-tree
+order: 48
+pattern: trees
+difficulty: easy
+title: Longest walk in a tree
+leetcode: diameter-of-binary-tree
+lesson: |
+  The longest path bends at some node, using the height of its left subtree plus the height of its right. Compute heights bottom-up and, as a side effect, track the best left+right sum seen. One pass returns a value (height) while updating another (the answer).
+statement: |
+  Given the root of a binary tree, return the number of edges on the longest path between any two nodes. The path does not have to pass through the root. An empty tree or a single node has answer 0.
+function: diameter
+signature: "def diameter(root: Optional[TreeNode]) -> int:"
+starter: |
+  def diameter(root: Optional[TreeNode]) -> int:
+      pass
+tests:
+  - {args: [{tree: [1, 2, 3, 4, 5]}], expected: 3}
+  - {args: [{tree: [1, 2]}], expected: 1}
+  - {args: [{tree: []}], expected: 0, note: empty tree}
+  - {args: [{tree: [1]}], expected: 0, note: single node}
+  - {args: [{tree: [1, 2, null, 3, 4, 5, null, null, 6]}], expected: 4, note: longest path avoids the root}
+scale:
+  generator: |
+    def make(n):
+        def b(lo, hi):
+            if lo > hi:
+                return None
+            m = (lo + hi) // 2
+            return TreeNode(m, b(lo, m - 1), b(m + 1, hi))
+        return [b(1, n)]
+  sizes: [10000, 100000]
+  expected: O(n)
+hints:
+  - For a path that bends at node X, how long is it in terms of X's subtrees?
+  - Write a height helper; at each node, update best with height(left) + height(right).
+  - "def h(n): if not n: return 0; l, r = h(n.left), h(n.right); best = max(best, l + r); return 1 + max(l, r)"
+solution: |
+  def diameter(root: Optional[TreeNode]) -> int:
+      best = 0
+
+      def height(node):
+          nonlocal best
+          if not node:
+              return 0
+          left, right = height(node.left), height(node.right)
+          best = max(best, left + right)
+          return 1 + max(left, right)
+
+      height(root)
+      return best
+pitfalls:
+  edge-case: A single node or a straight chain has a diameter of n - 1 edges; count edges, not nodes,
+    and an empty tree gives 0.
+  timeout: Calling a separate height function at every node is O(n^2) on skewed trees; return height and
+    update the best diameter in one pass.
+  wrong-answer: Measuring only through the root misses paths that bend lower down; update the answer with
+    left + right at every node.
+  exception: Reading node.left.val or recursing without a None base case raises AttributeError; return
+    height 0 for None.

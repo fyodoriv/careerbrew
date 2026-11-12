@@ -1,0 +1,747 @@
+# Interview research for careerbrew.
+# Researched on 2026-10-18. Every fact cites at least one source URL that was opened.
+# Source quality labels in notes: "official" = company page or filing;
+# "third-party" = public prep guide (interviewing.io, Hello Interview, etc.).
+# Company loops vary by role, level, and team. Confirm details with the recruiter.
+
+meta:
+  researched_on: "2026-10-18"
+  scope: "Software engineering interview loops (mid to senior), shared step patterns, and strategy evidence."
+  caveats:
+    - "Company processes change often. Re-verify before a real loop."
+
+steps:
+  recruiter-screen:
+    name: "Recruiter screen"
+    description: >-
+      A short phone or video call with a recruiter. It checks basic fit, motivation, logistics, and pay range.
+      The recruiter also explains the next steps and who you will meet.
+    evaluated:
+      - "Why you want this company and role."
+      - "Fit of your skills with the job description."
+      - "Logistics such as location, work permit, and notice period."
+      - "Whether your pay expectations fit the role's range."
+      - "Clear, concise communication about your background."
+    tips:
+      - "Prepare a short, tailored self-introduction. Cover background, one or two highlights with numbers, and why this role."
+      - "Prepare a specific answer to 'Why this company?'."
+      - "Do not give a salary number first. Deflect or ask for the role's range."
+      - "Ask who you will meet and what technical exercises to expect."
+      - "Be on time. GitLab waits only 5 minutes before it marks a no-show."
+      - "Be honest about location, visa needs, and notice period."
+    traps:
+      - "Giving a specific salary number or your pay history early."
+      - "A chronological 'history lesson' instead of a focused pitch."
+      - "A generic 'why us' answer that could fit any company."
+      - "Not asking about the process, so you prepare for the wrong rounds."
+    typical_minutes: "15-40"
+    sources:
+      - title: "GitLab Candidate Handbook (Screening Call)"
+        url: "https://handbook.gitlab.com/handbook/hiring/candidate-faq/"
+      - title: "Google Careers: Our hiring process"
+        url: "https://www.google.com/about/careers/applications/how-we-hire/"
+      - title: "Tech Interview Handbook: Self introduction"
+        url: "https://www.techinterviewhandbook.org/self-introduction/"
+      - title: "interviewing.io: Stripe interview guide (recruiter call advice)"
+        url: "https://interviewing.io/stripe-interview-questions"
+      - title: "Patrick McKenzie: Salary Negotiation"
+        url: "https://www.kalzumeus.com/2012/01/23/salary-negotiation/"
+
+  hiring-manager:
+    name: "Hiring manager interview"
+    description: >-
+      A conversation with the manager of the team you would join. It mixes behavioral questions, a review of past
+      projects, and a check of team fit. The manager often also sells the role.
+    evaluated:
+      - "Teamwork and how you work with others."
+      - "How fast you learn and adapt."
+      - "Proactive ownership of problems."
+      - "Depth on your past projects and decisions."
+      - "Fit with the team's needs and the company's values."
+    tips:
+      - "Prepare 3-5 high-impact project stories that you can adapt to many questions."
+      - "Explain your own actions and reasons, not only what the team did."
+      - "Research the company's values and recent products before the call."
+      - "Prepare questions for the manager, such as the most important problem you would solve and how success is measured."
+      - "Ask about management style, 1:1s, and how the team decides what to work on."
+    traps:
+      - "Having no questions, which can look like low interest."
+      - "Describing the project but not your role in it."
+      - "Blaming former teammates or managers."
+      - "Skipping the result and the lesson learned."
+    typical_minutes: "30-60"
+    sources:
+      - title: "Levels.fyi: How to prepare for a software engineer interview"
+        url: "https://www.levels.fyi/blog/interview-guides/software-engineer.html"
+      - title: "Tech Interview Handbook: Final questions to ask"
+        url: "https://www.techinterviewhandbook.org/final-questions/"
+      - title: "Tech Interview Handbook: Behavioral interview"
+        url: "https://www.techinterviewhandbook.org/behavioral-interview/"
+
+  technical-phone-screen:
+    name: "Technical phone screen"
+    description: >-
+      A live coding interview with an engineer, usually over video in a shared editor. It filters candidates before the
+      onsite. Some companies turn off code execution in this round.
+    evaluated:
+      - "Communication: clarifying questions and narrating your approach."
+      - "Problem solving and choice of an optimal approach."
+      - "Working, clean code."
+      - "Testing with normal and edge cases."
+      - "Time and space complexity analysis."
+    tips:
+      - "Ask 2-3 clarifying questions and work a small example before coding."
+      - "Outline approaches and their trade-offs, then code after the interviewer agrees."
+      - "Practice coding without running code or an IDE, because some screens do not allow it."
+      - "Use a headset, test your setup, and keep both hands free to type."
+      - "Trace your code with test inputs before you say you are done."
+    traps:
+      - "Jumping into code before explaining the plan."
+      - "Saying 'done' while obvious bugs remain."
+      - "Going silent or ignoring the interviewer's hints."
+      - "Missing details in the prompt, such as a sorted input."
+    typical_minutes: "45-60"
+    sources:
+      - title: "Tech Interview Handbook: Coding interview cheatsheet"
+        url: "https://www.techinterviewhandbook.org/coding-interview-cheatsheet/"
+      - title: "Tech Interview Handbook: Coding interview rubrics"
+        url: "https://www.techinterviewhandbook.org/coding-interview-rubrics/"
+      - title: "Tech Interview Handbook: Coding interview techniques"
+        url: "https://www.techinterviewhandbook.org/coding-interview-techniques/"
+      - title: "interviewing.io: Google interview guide"
+        url: "https://interviewing.io/google-interview-questions"
+
+  online-assessment:
+    name: "Online assessment (OA)"
+    description: >-
+      A timed, often unproctored coding test on a platform such as CodeSignal or HackerRank. Some include system design
+      or work-style questions. Companies use it to filter before human interviews.
+    evaluated:
+      - "Correct code that passes hidden test cases."
+      - "Coverage of edge cases and detailed rules."
+      - "Speed within a fixed time window."
+      - "Work style or values fit, in some OAs (for example Amazon's Work Style Survey)."
+    tips:
+      - "Read the invitation for the exact format and time limit. Companies can customize it."
+      - "Scan all questions first and choose an order that fits your strengths."
+      - "Submit working progress often. Partial credit counts on CodeSignal."
+      - "Turn long prompts into explicit rules before coding."
+      - "Run full-length timed mock sessions before the real test."
+    traps:
+      - "Perfecting one question while others stay blank."
+      - "Waiting until the end to submit, then losing work to a timeout."
+      - "Using outside help or AI against the test rules."
+      - "Missing specification details in data-manipulation questions."
+    typical_minutes: "70-120"
+    sources:
+      - title: "PracHub: CodeSignal OA guide"
+        url: "https://prachub.com/resources/codesignal-oa-guide-scoring-question-types-and-how-companies-read-your-report"
+      - title: "Amazon: SDE II interview prep (OA format)"
+        url: "https://www.amazon.jobs/content/en/how-we-hire/sde-ii-interview-prep"
+
+  take-home:
+    name: "Take-home assignment"
+    description: >-
+      A project or review task you do on your own time and then submit. Some companies follow it with a live
+      discussion. It shows how you plan, build, test, and document real work.
+    evaluated:
+      - "Meeting all stated requirements."
+      - "Code quality, naming, and structure."
+      - "Tests and handling of edge cases."
+      - "Clear README and setup steps."
+      - "Clear written communication of decisions (for example GitLab's async merge request review)."
+    tips:
+      - "Read the brief carefully and ask about unclear requirements early."
+      - "Plan first. List decisions, sketch the design, and break work into small tasks."
+      - "Get it working first, then polish, then optimize."
+      - "Write tests even if not required."
+      - "Write a README with setup steps, versions, and how each requirement is met. Test the steps yourself."
+      - "Remove debug logging and commented-out code before you submit."
+    traps:
+      - "Scope creep: adding many extra features and not finishing."
+      - "Learning several new technologies at once."
+      - "Making silent assumptions instead of asking or documenting them."
+      - "Coding right away without a plan."
+    typical_minutes: "varies (GitLab suggests up to 60 minutes for its async review)"
+    sources:
+      - title: "freeCodeCamp: The essential guide to take-home coding challenges"
+        url: "https://www.freecodecamp.org/news/the-essential-guide-to-take-home-coding-challenges-a0e746220dd7/"
+      - title: "GitLab Handbook: Technical Interviews"
+        url: "https://handbook.gitlab.com/handbook/hiring/interviewing/technical/"
+      - title: "Datadog: The Candidate Experience (Take-Home Project)"
+        url: "https://careers.datadoghq.com/candidate-experience/"
+
+  coding-onsite:
+    name: "Onsite coding round"
+    description: >-
+      One or more live coding rounds in the final loop, now often virtual. Formats range from algorithm problems to
+      practical work such as debugging a codebase or integrating an API.
+    evaluated:
+      - "Communication while solving."
+      - "Problem solving and optimization."
+      - "Technical competency: clean, working code."
+      - "Testing and bug fixing."
+    tips:
+      - "Use the same routine every round: clarify, discuss approaches, code, then test."
+      - "Draw diagrams for trees, graphs, and matrices."
+      - "Split big problems into helper functions."
+      - "State the time and space complexity when done."
+      - "Ask your recruiter which formats to expect, such as debugging or integration rounds."
+    traps:
+      - "Arguing with the interviewer or interrupting hints."
+      - "Writing pseudocode or too many comments instead of working code."
+      - "Poor variable names and repeated code."
+      - "Ending without asking any questions."
+    typical_minutes: "45-60"
+    sources:
+      - title: "Tech Interview Handbook: Coding interview cheatsheet"
+        url: "https://www.techinterviewhandbook.org/coding-interview-cheatsheet/"
+      - title: "Tech Interview Handbook: Coding interview prep"
+        url: "https://www.techinterviewhandbook.org/coding-interview-prep/"
+      - title: "Tech Interview Handbook: Coding interview rubrics"
+        url: "https://www.techinterviewhandbook.org/coding-interview-rubrics/"
+      - title: "Amazon: SDE II interview prep (55-minute loop interviews)"
+        url: "https://www.amazon.jobs/content/en/how-we-hire/sde-ii-interview-prep"
+
+  system-design:
+    name: "System design interview"
+    description: >-
+      An open-ended discussion where you design a real-world system with several components. It is common for mid and
+      senior roles and often affects your level.
+    evaluated:
+      - "Problem navigation: requirements, priorities, and a working design."
+      - "Solution design: core concepts, scaling, and performance."
+      - "Technical excellence: current technologies and common patterns."
+      - "Communication and collaboration with the interviewer."
+    tips:
+      - "Start with a short list of top functional requirements and quantified non-functional requirements."
+      - "Define core entities and the API before the high-level design."
+      - "Reach a complete working design first, then deep-dive on bottlenecks."
+      - "Discuss trade-offs out loud and leave room for interviewer probes."
+      - "Ask clarifying questions about dependencies and SLAs."
+      - "Practice the drawing tool before the interview."
+    traps:
+      - "Adding complexity too early and never finishing a working design."
+      - "Vague requirements such as 'low latency' with no target."
+      - "Capacity estimates that never change the design."
+      - "Talking over the interviewer or getting defensive about feedback."
+    typical_minutes: "45-60"
+    sources:
+      - title: "Hello Interview: System Design in a Hurry, Delivery framework"
+        url: "https://www.hellointerview.com/learn/system-design/in-a-hurry/delivery"
+      - title: "Hello Interview: System Design in a Hurry, Introduction"
+        url: "https://www.hellointerview.com/learn/system-design/in-a-hurry/introduction"
+      - title: "Tech Interview Handbook: System design"
+        url: "https://www.techinterviewhandbook.org/system-design/"
+      - title: "interviewing.io: Google interview guide (system design tips)"
+        url: "https://interviewing.io/google-interview-questions"
+
+  behavioral:
+    name: "Behavioral interview"
+    description: >-
+      Questions about how you acted in past situations, such as conflict, failure, or leadership. Companies use
+      past behavior to predict future behavior. It also helps set your level.
+    evaluated:
+      - "Communication and collaboration."
+      - "Leading and influencing others."
+      - "Conflict resolution."
+      - "Ownership, learning from mistakes, and growth."
+      - "Fit with the company's published values or principles."
+    tips:
+      - "Answer with STAR: Situation, Task, Action, Result. Add a Reflection to show growth."
+      - "Build a story bank of 3-5 rich projects. One story can answer several questions."
+      - "Map your stories to the company's values before the loop."
+      - "Use bullet-point outlines, not scripts, and practice out loud."
+      - "Include metrics and data in results."
+    traps:
+      - "Memorizing word-for-word answers."
+      - "Under-preparing because coding gets more attention. Weak behavioral rounds do cause rejections."
+      - "Talking about the team's work instead of your own actions."
+      - "Hiding mistakes or blaming others."
+    typical_minutes: "45-60"
+    sources:
+      - title: "Tech Interview Handbook: Behavioral interview"
+        url: "https://www.techinterviewhandbook.org/behavioral-interview/"
+      - title: "Amazon: SDE II interview prep (STAR, Leadership Principles)"
+        url: "https://www.amazon.jobs/content/en/how-we-hire/sde-ii-interview-prep"
+      - title: "Amazon: Interview tips from Bar Raisers"
+        url: "https://www.aboutamazon.com/news/workplace/amazon-job-interview-questions-tips-bar-raisers"
+
+  pair-programming:
+    name: "Pair programming interview"
+    description: >-
+      You build or fix code together with an engineer, as you would on the job. The focus is on collaboration and
+      reasoning, not only on a correct final answer. Some companies now allow or expect AI tools in this round.
+    evaluated:
+      - "How you think and explain your reasoning."
+      - "How you take suggestions and collaborate."
+      - "Incremental, working progress on a multi-part problem."
+      - "Code quality and testing as you go."
+    tips:
+      - "Clarify requirements, then agree on an approach before typing."
+      - "Think out loud so your partner can follow and help."
+      - "Build the core feature first, then edge cases and optimizations."
+      - "Test small pieces as you go."
+      - "Structure code so new requirements can be added without a rewrite."
+      - "Ask the recruiter if AI tools are allowed. Some companies expect them; Stripe and Amazon forbid them."
+    traps:
+      - "Coding silently."
+      - "Ignoring or dismissing your partner's input."
+      - "Perfecting edge cases before the core works."
+      - "Losing track of time."
+    typical_minutes: "60-90"
+    sources:
+      - title: "Design Gurus: Tips for pair programming exercises in interviews"
+        url: "https://www.designgurus.io/answers/detail/what-are-the-tips-for-pair-programming-exercises-in-interviews"
+      - title: "GitLab Handbook: Technical Interviews (90-minute call)"
+        url: "https://handbook.gitlab.com/handbook/hiring/interviewing/technical/"
+      - title: "interviewing.io: Stripe interview guide (no AI)"
+        url: "https://interviewing.io/stripe-interview-questions"
+      - title: "interviewing.io: Amazon interview guide (no AI)"
+        url: "https://interviewing.io/amazon-interview-questions"
+
+  bar-raiser:
+    name: "Bar Raiser interview (Amazon)"
+    description: >-
+      An interview in the Amazon loop led by a trained interviewer from outside the hiring team. The Bar Raiser acts as
+      an objective third party and steward of the Leadership Principles. They help run a fair debrief.
+    evaluated:
+      - "Long-term success at Amazon, not only fit for this one role."
+      - "Leadership Principles shown through real stories."
+      - "Data-driven results and clear decision reasons."
+      - "Whether you raise the bar. Amazon's stated goal is that each hire beats 50 percent of people in similar roles."
+    tips:
+      - "Prepare one or two stories for each Leadership Principle."
+      - "Show the principles through your actions; do not just name them."
+      - "End every answer with a measurable result."
+      - "Explain technical points more fully. The Bar Raiser may come from another field."
+      - "Be honest about your mistakes."
+    traps:
+      - "Force-fitting principle names into answers."
+      - "Blaming others for failures."
+      - "Answers that end without a result."
+      - "Oversharing or negative talk about past employers."
+    typical_minutes: "55"
+    sources:
+      - title: "Amazon: Exploring Amazon's unique interview process (Bar Raiser)"
+        url: "https://www.aboutamazon.com/news/workplace/how-amazon-hires"
+      - title: "Amazon: Interview tips from Bar Raisers"
+        url: "https://www.aboutamazon.com/news/workplace/amazon-job-interview-questions-tips-bar-raisers"
+      - title: "Amazon: SDE II interview prep"
+        url: "https://www.amazon.jobs/content/en/how-we-hire/sde-ii-interview-prep"
+      - title: "interviewing.io: Amazon interview guide (Bar Raiser veto)"
+        url: "https://interviewing.io/amazon-interview-questions"
+
+  team-match:
+    name: "Team matching"
+    description: >-
+      After you pass the loop, you talk with managers of teams that have openings. Both sides must opt in. At
+      Google this step can decide whether and when you get an offer.
+    evaluated:
+      - "Mutual fit between your skills and the team's needs."
+      - "Your interest in the team's problems."
+      - "Fit with the manager's working style."
+    tips:
+      - "Ask the recruiter to send an updated, tailored resume to managers or the hiring committee."
+      - "Prepare questions about team structure, day-to-day work, and the most important problem you would solve."
+      - "Talk to several teams if you can, then choose deliberately."
+      - "Expect this to take days to weeks and plan other offers around it."
+    traps:
+      - "Assuming a passed onsite means a guaranteed offer. The offer can depend on a successful match."
+      - "Going in with no questions for the manager."
+      - "Being surprised by a short decision window. Ask the recruiter how long you have to decide."
+    typical_minutes: "varies (several conversations over days or weeks)"
+    sources:
+      - title: "interviewing.io: Google interview guide (team matching)"
+        url: "https://interviewing.io/google-interview-questions"
+      - title: "Tech Interview Handbook: Final questions to ask"
+        url: "https://www.techinterviewhandbook.org/final-questions/"
+
+  offer-negotiation:
+    name: "Offer and negotiation"
+    description: >-
+      The recruiter presents an offer and you negotiate the package. Pay usually has base salary, bonus, equity, and
+      sometimes a signing bonus. This is often the highest-value hour of the whole search.
+    evaluated:
+      - "Your clarity about what you want and your timeline."
+      - "Credible alternatives, such as competing offers."
+      - "Reasons that the recruiter can take to the decision-maker."
+    tips:
+      - "Negotiate every offer. Harvard PON reports negotiators gained about 5,000 USD in starting pay on average."
+      - "Get every detail in writing, including vesting schedule and signing bonus conditions."
+      - "Give a reason for each request."
+      - "Compare total compensation, not only base salary."
+      - "Tell other companies you have an offer and ask them to speed up."
+      - "Negotiate beyond money too, such as team, start date, or learning budget."
+    traps:
+      - "Revealing your current pay or a number first."
+      - "Accepting on the spot under time pressure."
+      - "Sounding negative about the company while negotiating."
+      - "Bluffing about offers you do not have."
+    typical_minutes: "varies"
+    sources:
+      - title: "Tech Interview Handbook: Negotiation rules"
+        url: "https://www.techinterviewhandbook.org/negotiation-rules/"
+      - title: "Tech Interview Handbook: Understanding compensation"
+        url: "https://www.techinterviewhandbook.org/understanding-compensation/"
+      - title: "Patrick McKenzie: Salary Negotiation"
+        url: "https://www.kalzumeus.com/2012/01/23/salary-negotiation/"
+      - title: "Harvard PON: Salary negotiation, how to ask for a higher salary"
+        url: "https://www.pon.harvard.edu/daily/salary-negotiations/salary-negotiation-how-to-ask-for-a-higher-salary/"
+
+  reference-check:
+    name: "Reference check"
+    description: >-
+      The company contacts people who worked with you, usually late in the process. It confirms your story and how
+      you work. GitLab lists references as a formal stage before the offer.
+    evaluated:
+      - "Consistency between your references and your resume."
+      - "Your strengths and working style from people who saw your work."
+      - "Recent, relevant performance."
+    tips:
+      - "Pick people who worked closely with you in the last five years."
+      - "Ask permission first and confirm their title and contact details."
+      - "Send each reference your resume and the job description."
+      - "Tell them who will call and when, and remind them of a few key wins."
+      - "Thank them and tell them the outcome."
+    traps:
+      - "Listing someone without asking."
+      - "Stale contact details."
+      - "Short-notice requests."
+      - "References whose story contradicts your resume."
+    typical_minutes: "varies"
+    sources:
+      - title: "INFORMS Career Center: How to prepare references"
+        url: "https://connect.informs.org/careercenter/resources/how-to-prepare-references"
+      - title: "GitLab Candidate Handbook (References stage)"
+        url: "https://handbook.gitlab.com/handbook/hiring/candidate-faq/"
+
+companies:
+  google:
+    name: "Google"
+    careers_url: "https://www.google.com/about/careers/applications/"
+    remote_policy:
+      summary: "Hybrid since 2021: most Googlers about 3 days in the office, with up to 4 weeks a year of temporary work from elsewhere. Policy post is from May 2021."
+      sources:
+        - title: "Google blog: A hybrid approach to work"
+          url: "https://blog.google/inside-google/life-at-google/hybrid-approach-work/"
+    loop:
+      - step: online-assessment
+        notes: "May include the Google Hiring Assessment (work-style) and a role-related coding exercise (official)."
+      - step: recruiter-screen
+        notes: "One or two short recruiter conversations that assess key skills and preferences such as location (official)."
+      - step: take-home
+        notes: "Some roles ask for small project work before interviews, such as a case study or code sample (official)."
+      - step: technical-phone-screen
+        notes: "Third-party: data structures and algorithms in a Google Doc, with syntactically correct code expected. A second screen may follow."
+      - step: coding-onsite
+        notes: "A panel of structured interviews with clear rubrics, over video or in person. Third-party: usually 4-6 rounds, mostly coding."
+      - step: system-design
+        notes: "Third-party: more system design and domain questions for experienced candidates."
+      - step: behavioral
+        notes: "Official tips ask you to prepare leadership and past-experience examples. Third-party: behavioral rounds are optional."
+      - step: team-match
+        notes: "Third-party: a hiring committee reviews your packet, then team matching; both you and the manager must opt in."
+    company_tips:
+      - "AI tools are not permitted during Google interviews (official)."
+      - "Build a library of examples by cross-referencing your resume with the job description (official)."
+      - "Practice coding in a plain doc with no IDE (third-party)."
+      - "If you are not selected, Google typically asks you to wait at least a year before reapplying for the same type of role (official)."
+    values_or_principles: []
+    sources:
+      - title: "Google Careers: Our hiring process"
+        url: "https://www.google.com/about/careers/applications/how-we-hire/"
+      - title: "Google Careers: Interview tips"
+        url: "https://www.google.com/about/careers/applications/interview-tips/"
+      - title: "interviewing.io: Google interview guide"
+        url: "https://interviewing.io/google-interview-questions"
+
+  amazon:
+    name: "Amazon"
+    careers_url: "https://www.amazon.jobs/"
+    remote_policy:
+      summary: "In the office 5 days a week since January 2, 2025, except for extenuating circumstances or an approved exception."
+      sources:
+        - title: "Amazon: CEO Andy Jassy's update on return to office"
+          url: "https://www.aboutamazon.com/news/company-news/ceo-andy-jassy-latest-update-on-amazon-return-to-office-manager-team-ratio"
+    loop:
+      - step: online-assessment
+        notes: "SDE II OA (official): 90 minutes for 2 coding questions, 20 minutes of system design scenarios, and an 8-minute Work Style Survey tied to the Leadership Principles."
+      - step: recruiter-screen
+        notes: "A recruiter sets up the loop after the OA (official). Third-party: experienced candidates may get a recruiter call instead of the OA."
+      - step: technical-phone-screen
+        notes: "Third-party: if the OA is skipped, a 30-40 minute coding screen, sometimes with Leadership Principle questions."
+      - step: coding-onsite
+        notes: "Loop of four 55-minute interviews (official). Write real code, not pseudocode, and test edge cases."
+      - step: system-design
+        notes: "At least one system design question (official), judged on practicality, reliability, scalability, and more."
+      - step: behavioral
+        notes: "Every interviewer asks 2-3 Leadership Principle questions (official). Use STAR."
+      - step: bar-raiser
+        notes: "A trained Bar Raiser from outside the team joins the loop as an objective steward of the Leadership Principles (official). Third-party: can veto a hire."
+    company_tips:
+      - "Prepare one or two STAR stories for each Leadership Principle, with metrics."
+      - "Expect a decision within 5 business days after the loop (official SDE II page)."
+      - "AI use in interviews is prohibited (third-party)."
+    values_or_principles:
+      - "Customer Obsession"
+      - "Ownership"
+      - "Invent and Simplify"
+      - "Are Right, A Lot"
+      - "Learn and Be Curious"
+      - "Hire and Develop the Best"
+      - "Insist on the Highest Standards"
+      - "Think Big"
+      - "Bias for Action"
+      - "Frugality"
+      - "Earn Trust"
+      - "Dive Deep"
+      - "Have Backbone; Disagree and Commit"
+      - "Deliver Results"
+      - "Strive to be Earth's Best Employer"
+      - "Success and Scale Bring Broad Responsibility"
+    sources:
+      - title: "Amazon: Interviewing at Amazon"
+        url: "https://amazon.jobs/content/en/how-we-hire/interviewing-at-amazon"
+      - title: "Amazon: SDE II interview prep"
+        url: "https://www.amazon.jobs/content/en/how-we-hire/sde-ii-interview-prep"
+      - title: "Amazon: Leadership Principles"
+        url: "https://www.amazon.jobs/content/en/our-workplace/leadership-principles"
+      - title: "Amazon: Exploring Amazon's unique interview process"
+        url: "https://www.aboutamazon.com/news/workplace/how-amazon-hires"
+      - title: "interviewing.io: Amazon interview guide"
+        url: "https://interviewing.io/amazon-interview-questions"
+
+  stripe:
+    name: "Stripe"
+    careers_url: "https://stripe.com/jobs"
+    remote_policy:
+      summary: "Office hubs plus remote roles. Stripe made 'Remote' an engineering hub in 2019, and current postings include remote roles."
+      sources:
+        - title: "Stripe blog: Stripe's fifth engineering hub is Remote (2019)"
+          url: "https://stripe.com/blog/remote-hub"
+    loop:
+      - step: recruiter-screen
+        notes: "Third-party: 30 minutes, plus a second 30-minute recruiter call to prepare for the onsite."
+      - step: technical-phone-screen
+        notes: "Third-party: 1 hour in your own IDE or CoderPad; not standard LeetCode-style."
+      - step: coding-onsite
+        notes: "Third-party: 1-hour practical coding focused on decisions and issues that affect client integrations."
+      - step: coding-onsite
+        notes: "Third-party: 'Bug bash' / bug squash, 1 hour finding bugs in given code. A methodical approach matters."
+      - step: coding-onsite
+        notes: "Third-party: 'Integrations', 1 hour using the Stripe API for merchant scenarios (below Staff). Staff and above present a written one-pager instead."
+      - step: system-design
+        notes: "Third-party: 1 hour on scalability, reliability, and usability."
+      - step: behavioral
+        notes: "Third-party: 1 hour with a hiring manager or 'Leveler', often referencing Stripe's operating principles."
+    company_tips:
+      - "AI use in interviews is prohibited (third-party)."
+      - "Practice reading and debugging unfamiliar code and calling real APIs, not only LeetCode."
+      - "Explain why you chose an approach. Reasoning and trade-offs are scored."
+    values_or_principles:
+      - "Users first"
+      - "Create with craft and beauty"
+      - "Move with urgency and focus"
+      - "Collaborate egolessly"
+      - "Stay curious"
+      - "Obsess over talent"
+    sources:
+      - title: "Stripe Jobs: Culture (How we operate)"
+        url: "https://stripe.com/jobs/culture"
+      - title: "Stripe Jobs"
+        url: "https://stripe.com/jobs"
+      - title: "interviewing.io: Stripe interview guide"
+        url: "https://interviewing.io/stripe-interview-questions"
+
+  gitlab:
+    name: "GitLab"
+    careers_url: "https://about.gitlab.com/jobs/"
+    remote_policy:
+      summary: "All-remote: 100% remote workforce in 65+ countries, async-first."
+      sources:
+        - title: "GitLab Handbook: Guide to All-Remote"
+          url: "https://handbook.gitlab.com/handbook/company/culture/all-remote/guide/"
+    loop:
+      - step: recruiter-screen
+        notes: "Screening call, 30-40 minutes. Covers why GitLab, past roles, location, visa, notice period, and the salary range. Offers use market pay, not pay history (official)."
+      - step: online-assessment
+        notes: "An assessment is required for certain roles (official)."
+      - step: take-home
+        notes: "Technical interview part 1: an async review of a self-contained merge request, sent at least 72 hours ahead. Spend up to an hour and finish 24 hours before the call (official)."
+      - step: pair-programming
+        notes: "Technical interview part 2: a 90-minute video call where you walk through your review and write code to improve the MR. AI use is encouraged (official)."
+      - step: behavioral
+        notes: "Team interviews: behavioral, panel, and/or technical, depending on the role (official)."
+      - step: reference-check
+        notes: "References stage, with an optional chat with a Team Member Resource Group member (official)."
+      - step: offer-negotiation
+        notes: "Offer and background screening (official)."
+    company_tips:
+      - "Write clear, kind MR comments. Async written communication is a core signal."
+      - "Map your stories to the CREDIT values."
+      - "After rejection for qualifications, wait 6 months to reapply for the same role. Technical feedback stays valid 6 months for the same job family."
+      - "A 2026 working group proposed redesigning the technical interview for AI-assisted work, so ask the recruiter for the current format."
+    values_or_principles:
+      - "Collaboration"
+      - "Results for Customers"
+      - "Efficiency"
+      - "Diversity, Inclusion & Belonging"
+      - "Iteration"
+      - "Transparency"
+    sources:
+      - title: "GitLab Candidate Handbook"
+        url: "https://handbook.gitlab.com/handbook/hiring/candidate-faq/"
+      - title: "GitLab Handbook: Technical Interviews"
+        url: "https://handbook.gitlab.com/handbook/hiring/interviewing/technical/"
+      - title: "GitLab Handbook: Values (CREDIT)"
+        url: "https://handbook.gitlab.com/handbook/values/"
+      - title: "GitLab Handbook: AI-Native Hiring Working Group"
+        url: "https://handbook.gitlab.com/handbook/company/working-groups/ai-native-hiring/"
+
+  datadog:
+    name: "Datadog"
+    careers_url: "https://careers.datadoghq.com/"
+    remote_policy:
+      summary: "Hybrid for office roles (days vary by team), plus some remote roles. One interview step is expected in person."
+      sources:
+        - title: "Datadog: The Candidate Experience"
+          url: "https://careers.datadoghq.com/candidate-experience/"
+        - title: "Datadog Careers"
+          url: "https://careers.datadoghq.com/"
+    loop:
+      - step: recruiter-screen
+        notes: "Initial screen by phone or Zoom with the recruiter and/or hiring manager (official)."
+      - step: technical-phone-screen
+        notes: "Third-party: about 1 hour, two coding questions in CoderPad."
+      - step: coding-onsite
+        notes: "Face-to-face interviews, possibly several rounds or panels (official). Third-party: 1-2 coding rounds, medium problems with practical twists."
+      - step: system-design
+        notes: "Third-party: 1 hour with a narrower scope than 'design Twitter'; used for leveling."
+      - step: take-home
+        notes: "Some roles get a take-home project, scoped by the recruiter (official)."
+      - step: hiring-manager
+        notes: "Third-party: behavioral round led by a hiring manager or director. For some roles, a final executive interview (official)."
+      - step: team-match
+        notes: "Third-party: a hiring committee decides, then team matching happens."
+    company_tips:
+      - "Follow Datadog's AI guidelines for interviews. Misuse or failure to disclose AI use can disqualify you (official)."
+      - "Tell your recruiter about any deadlines you have (official)."
+      - "Be ready to explain design choices and impact on past projects (third-party)."
+    values_or_principles: []
+    sources:
+      - title: "Datadog: The Candidate Experience"
+        url: "https://careers.datadoghq.com/candidate-experience/"
+      - title: "Datadog Careers"
+        url: "https://careers.datadoghq.com/"
+      - title: "interviewing.io: Datadog interview guide"
+        url: "https://interviewing.io/datadog-interview-questions"
+
+claims:
+  - claim_id: retrieval-practice
+    claim: "Testing yourself (retrieval practice) improves long-term retention more than restudying."
+    sources:
+      - title: "Roediger & Karpicke (2006), Test-Enhanced Learning, Psychological Science"
+        url: "https://doi.org/10.1111/j.1467-9280.2006.01693.x"
+      - title: "Roediger & Butler (2011), The critical role of retrieval practice in long-term retention, Trends in Cognitive Sciences"
+        url: "https://doi.org/10.1016/j.tics.2010.09.003"
+
+  - claim_id: worked-examples
+    claim: "Novices learn problem solving faster from studying worked examples than from solving problems unaided; examples work best when their steps are clearly structured."
+    sources:
+      - title: "Atkinson, Derry, Renkl, Wortham (2000), Learning from Examples: Instructional Principles from the Worked Examples Research, Review of Educational Research"
+        url: "https://doi.org/10.3102/00346543070002181"
+
+  - claim_id: self-explanation
+    claim: "Explaining to yourself why a step or answer is right is a useful learning technique (rated moderate utility); practice testing and distributed practice rate highest."
+    sources:
+      - title: "Dunlosky, Rawson, Marsh, Nathan, Willingham (2013), Improving Students' Learning With Effective Learning Techniques, Psychological Science in the Public Interest"
+        url: "https://doi.org/10.1177/1529100612453266"
+
+  - claim_id: effective-feedback
+    claim: "Feedback strongly affects learning, positively or negatively; it helps most when it says where the learner is going, how they are doing, and what to do next, at the level of the task and process rather than the self."
+    sources:
+      - title: "Hattie & Timperley (2007), The Power of Feedback, Review of Educational Research"
+        url: "https://doi.org/10.3102/003465430298487"
+
+  - claim_id: spacing-effect
+    claim: "Spaced practice beats massed practice. The best gap between sessions grows with how long you need to remember."
+    sources:
+      - title: "Cepeda, Pashler, Vul, Wixted, Rohrer (2006), Distributed practice in verbal recall tasks, Psychological Bulletin"
+        url: "https://doi.org/10.1037/0033-2909.132.3.354"
+
+  - claim_id: fsrs-scheduler
+    claim: "FSRS models each card with difficulty, stability, and retrievability. Its docs report about 20-30% fewer reviews than SM-2 for the same retention, based on simulations."
+    sources:
+      - title: "ABC of FSRS (open-spaced-repetition wiki)"
+        url: "https://github.com/open-spaced-repetition/awesome-fsrs/wiki/ABC-of-FSRS"
+      - title: "free-spaced-repetition-scheduler (GitHub)"
+        url: "https://github.com/open-spaced-repetition/free-spaced-repetition-scheduler"
+
+  - claim_id: structured-interviews-predict-performance
+    claim: "Structured interviews are among the most valid predictors of job performance. A 2022 re-analysis ranks them first."
+    sources:
+      - title: "Schmidt & Hunter (1998), The validity and utility of selection methods in personnel psychology, Psychological Bulletin"
+        url: "https://doi.org/10.1037/0033-2909.124.2.262"
+      - title: "Sackett, Zhang, Berry, Lievens (2022), Revisiting meta-analytic estimates of validity in personnel selection, Journal of Applied Psychology"
+        url: "https://doi.org/10.1037/apl0000994"
+      - title: "Google Careers: Our hiring process (structured interviewing with clear rubrics)"
+        url: "https://www.google.com/about/careers/applications/how-we-hire/"
+
+  - claim_id: practice-interviews-before-target-companies
+    claim: "Practice interviews are linked to higher pass rates. interviewing.io reports that after 5 mock interviews, chances of passing real interviews double on average. This is observational platform data, not a controlled trial."
+    sources:
+      - title: "interviewing.io: We analyzed 100K technical interviews"
+        url: "https://interviewing.io/blog/we-analyzed-100k-technical-interviews-to-see-where-the-best-performers-work-here-are-the-results"
+      - title: "interviewing.io: How do I know if I'm ready to interview at FAANG?"
+        url: "https://interviewing.io/blog/how-know-ready-interview-faang"
+
+  - claim_id: company-cooldown-periods
+    claim: "Companies often ask rejected candidates to wait 6-12 months before reapplying. Google says at least a year; GitLab says 6 months."
+    sources:
+      - title: "Google Careers: Our hiring process (FAQ on reapplying)"
+        url: "https://www.google.com/about/careers/applications/how-we-hire/"
+      - title: "GitLab Candidate Handbook (reapplying)"
+        url: "https://handbook.gitlab.com/handbook/hiring/candidate-faq/"
+
+  - claim_id: wsjf-prioritization
+    claim: "Weighted Shortest Job First ranks work by cost of delay divided by job duration. SAFe credits the cost-of-delay idea to Don Reinertsen."
+    sources:
+      - title: "SAFe: Weighted Shortest Job First (WSJF)"
+        url: "https://framework.scaledagile.com/wsjf"
+
+  - claim_id: planning-fallacy
+    claim: "People underestimate how long their own tasks will take (the planning fallacy)."
+    sources:
+      - title: "Buehler, Griffin, Ross (1994), Exploring the 'planning fallacy', Journal of Personality and Social Psychology"
+        url: "https://doi.org/10.1037/0022-3514.67.3.366"
+
+  - claim_id: brag-document
+    claim: "Keep a running brag document of your work and impact, so you and your manager do not rely on memory at review or interview time."
+    sources:
+      - title: "Julia Evans: Get your work recognized, write a brag document"
+        url: "https://jvns.ca/blog/brag-documents/"
+
+  - claim_id: goal-question-metric
+    claim: "Define measurement top-down. Set goals first, derive questions, then pick metrics that answer them."
+    sources:
+      - title: "Basili, Caldiera, Rombach (1994), The Goal Question Metric Approach"
+        url: "https://www.cs.umd.edu/~mvz/handouts/gqm.pdf"
+
+  - claim_id: salary-negotiation
+    claim: "Negotiate every offer, avoid naming a number first, and give reasons. Harvard PON reports negotiators gained about 5,000 USD in starting pay on average."
+    sources:
+      - title: "Patrick McKenzie: Salary Negotiation"
+        url: "https://www.kalzumeus.com/2012/01/23/salary-negotiation/"
+      - title: "Harvard PON: Salary negotiation, how to ask for a higher salary"
+        url: "https://www.pon.harvard.edu/daily/salary-negotiations/salary-negotiation-how-to-ask-for-a-higher-salary/"
+      - title: "Tech Interview Handbook: Negotiation rules"
+        url: "https://www.techinterviewhandbook.org/negotiation-rules/"
+
+  - claim_id: star-method
+    claim: "Structure behavioral answers with STAR (Situation, Task, Action, Result). Amazon recommends it."
+    sources:
+      - title: "Amazon: SDE II interview prep (STAR)"
+        url: "https://www.amazon.jobs/content/en/how-we-hire/sde-ii-interview-prep"
+      - title: "Tech Interview Handbook: Behavioral interview"
+        url: "https://www.techinterviewhandbook.org/behavioral-interview/"

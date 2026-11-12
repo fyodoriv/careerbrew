@@ -1,0 +1,112 @@
+id: merge-two-sorted-lists
+order: 36
+pattern: linked list
+difficulty: easy
+title: Zip two sorted chains
+leetcode: merge-two-sorted-lists
+lesson: |
+  A dummy head node removes the special case for the first element. Repeatedly attach the smaller front node, then attach whatever remains of the other list. O(m + n) time and no new nodes.
+statement: |
+  Given heads of two ascending linked lists `a` and `b`, splice their nodes into one ascending list and return its head.
+function: merge_two_lists
+signature: 'def merge_two_lists(a: ListNode | None, b: ListNode | None) -> ListNode | None:'
+starter: |
+  def merge_two_lists(a, b):
+      pass
+tests:
+- args:
+  - list:
+    - 1
+    - 2
+    - 4
+  - list:
+    - 1
+    - 3
+    - 4
+  expected:
+    list:
+    - 1
+    - 1
+    - 2
+    - 3
+    - 4
+    - 4
+- args:
+  - list: []
+  - list: []
+  expected:
+    list: []
+  note: both empty
+- args:
+  - list: []
+  - list:
+    - 0
+  expected:
+    list:
+    - 0
+  note: one empty
+- args:
+  - list:
+    - 5
+  - list:
+    - 1
+    - 2
+    - 3
+  expected:
+    list:
+    - 1
+    - 2
+    - 3
+    - 5
+  note: one list entirely first
+- args:
+  - list:
+    - -3
+    - 0
+  - list:
+    - -2
+    - 7
+    - 9
+  expected:
+    list:
+    - -3
+    - -2
+    - 0
+    - 7
+    - 9
+  note: negatives and leftover tail
+scale:
+  generator: |
+    def make(n):
+        a = b = None
+        for v in range(n, 0, -1):
+            a = ListNode(2 * v, a)
+            b = ListNode(2 * v + 1, b)
+        return [a, b]
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- Which node must come next in the merged list?
+- Use a dummy node and a tail pointer.
+- While both exist, attach the smaller and advance it; then tail.next = a or b; return dummy.next.
+solution: |
+  def merge_two_lists(a, b):
+      dummy = tail = ListNode()
+      while a and b:
+          if a.val <= b.val:
+              tail.next, a = a, a.next
+          else:
+              tail.next, b = b, b.next
+          tail = tail.next
+      tail.next = a or b
+      return dummy.next
+pitfalls:
+  edge-case: One or both lists can be empty; merging [] with [0] returns [0], and two empty lists return
+    None.
+  timeout: Collecting all values and sorting is O((m + n) log(m + n)); walk both lists once with a dummy
+    head for O(m + n).
+  wrong-answer: Forgetting to attach the leftover tail after the loop drops nodes; set tail.next = a or
+    b at the end.
+  exception: Reading a.val when a is None raises AttributeError; loop while both a and b exist.

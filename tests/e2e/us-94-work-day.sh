@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# US-94: the /work day runner (issue #257): plan from settings and plugin manifests, update a row, render the page.
+source "$(dirname "$0")/lib.sh"
+export CAREERBREW_NOW="2026-10-28T09:00+00:00"
+cb init >/dev/null
+cb config set work_steps "/standup, review-prs" >/dev/null
+mkdir -p "$SCRATCH/plugin-steps"
+printf 'name: steps-co\nversion: 1.0.0\nwork_steps: [/review-prs, {step: /team-sync, about: Sync with the synthetic team}]\n' >"$SCRATCH/plugin-steps/careerbrew-plugin.yaml"
+cb plugin add "$SCRATCH/plugin-steps" >/dev/null
+plan="$(cb day run --json)"
+order="$(python3 -c 'import json,sys; p=json.load(sys.stdin); print(" ".join(s["step"]+"@"+s["from"] for s in p["steps"]))' <<<"$plan")"
+expect "$order" "/careerbrew@careerbrew /standup@settings /review-prs@settings /team-sync@plugin:steps-co" "plan: careerbrew, then settings, then the plugin; first declaration wins"
+expect "$plan" '"title": "Work day Wed Oct 28"' "the dashboard has the day's title"
+expect "$(cb day run)" "4 step(s); 0 done, 0 running, 4 waiting" "the text plan counts the rows"
+refute "$plan" 'Sync with the synthetic team' "privacy: a plugin's about text is hidden from a restricted agent"
+expect "$(cb day run)" "warn: /standup has no \`about\`" "a step with no about and no description gets a warning"
+expect "$(cb day update /standup --status done --summary 'Synthetic standup posted')" "work day: /standup is done (1/4 done)" "update a row"
+expect "$(cb day update team-sync --status running --needs-you 'Pick a synthetic slot')" "/team-sync is running; needs you" "a row that needs the owner"
+expect "$(cb day update /nope --status done 2>&1 || true)" "breaks US-94" "error case: a step not in the plan names the story"
+expect "$(cb day update /standup --link ftp://example.com/x 2>&1 || true)" "full http(s)" "error case: a link must be http(s)"
+expect "$(cb config set work_steps 'not a step' 2>&1 || true)" "work_steps" "error case: a bad step name is refused"
+event_seen workday.update
+rows="$(cb day run --json)"
+refute "$rows" "Synthetic standup posted" "privacy: an agent sees no row text"
+expect "$rows" '"needs_you": true' "an agent sees which row needs the owner"
+out="$(cb day render)"
+expect "$out" "page: " "render writes the page"
+expect "$out" "work-day: ok: work day 2026-10-28: 1 done, 1 running, 2 waiting, 0 blocked, 0 failed, 1 need(s) you" "one summary line with the counts"
+refute "$out" "Synthetic" "privacy: the summary line has no row text"
+page="$(sed -n 's/^page: //p' <<<"$out")"
+expect "$(cat "$page")" "Synthetic standup posted" "the page shows the row text to the owner"
+expect "$(cat "$page")" "Sync with the synthetic team" "the page shows the plugin step's about text to the owner"
+items="$(cb report latest --run work-day)"
+expect "$items" "done     /standup done" "the done row"
+expect "$items" "next 1. /team-sync needs you" "the ask comes first in Next"
+expect "$(cb report latest --run work-day --json)" '"run": "work-day"' "agents read the page's summary"
+echo "ok US-94 work day"

@@ -1,0 +1,73 @@
+id: jump-game
+order: 123
+pattern: greedy
+difficulty: medium
+title: Can you hop to the end?
+leetcode: jump-game
+lesson: 'Keep the farthest index you can reach so far. If you ever stand on an index beyond that reach,
+  you are stuck; otherwise extend the reach. Greedy beats exploring every jump path.
+
+  '
+statement: 'Each value `nums[i]` is the maximum number of steps you may jump forward from index `i`. Starting
+  at index 0, return `True` if you can land on the last index.
+
+  '
+function: can_jump
+signature: 'def can_jump(nums: list[int]) -> bool:'
+starter: "def can_jump(nums: list[int]) -> bool:\n    pass\n"
+tests:
+- args:
+  - - 2
+    - 3
+    - 1
+    - 1
+    - 4
+  expected: true
+- args:
+  - - 3
+    - 2
+    - 1
+    - 0
+    - 4
+  expected: false
+  note: blocked by a zero
+- args:
+  - - 0
+  expected: true
+  note: already at the end
+- args:
+  - - 0
+    - 1
+  expected: false
+  note: stuck at start
+- args:
+  - - 1
+    - 0
+    - 1
+    - 0
+  expected: false
+- args:
+  - - 2
+    - 0
+    - 0
+  expected: true
+  note: jump over zeros
+scale:
+  generator: "def make(n):\n    return [[1] * n]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- Instead of simulating jumps, track how far you could possibly get.
+- Walk left to right keeping `reach`; if i > reach you cannot be standing here.
+- reach = max(reach, i + nums[i]); return False if i > reach; True at the end.
+solution: "def can_jump(nums: list[int]) -> bool:\n    reach = 0\n    for i, n in enumerate(nums):\n \
+  \       if i > reach:\n            return False\n        reach = max(reach, i + n)\n    return True\n"
+pitfalls:
+  edge-case: A single element [0] is True because you already stand on the last index; [0, 1] is False.
+  timeout: Recursion trying every jump length without memo is exponential; track the farthest reachable
+    index greedily in O(n).
+  wrong-answer: Stopping when nums[i]==0 is wrong; it only blocks you if i is beyond the farthest reachable
+    index.
+  exception: Jumping to i+nums[i] past the end raises IndexError in a dp array; clamp to len(nums)-1.

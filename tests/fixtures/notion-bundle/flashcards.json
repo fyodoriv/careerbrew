@@ -1,0 +1,6 @@
+[
+  {"id": "f1", "question": "How to insert into a heap?", "answer": "Add at the end, then sift up.", "tags": ["Computer Science", "Leetcode"], "confidence": "No clue", "priority": "High"},
+  {"id": "f2", "question": "Tell me about a conflict.", "answer": "STAR: situation, task, action, result.", "tags": ["Behavioural"], "confidence": "Basic", "priority": "Medium"},
+  {"id": "f3", "question": "Design a rate limiter.", "answer": "Token bucket per key.", "tags": ["System design"], "confidence": "Advanced"},
+  {"id": "f4", "question": "What is CSS compositing?", "answer": "Layers drawn by the GPU.", "tags": ["Frontend dev"]}
+]

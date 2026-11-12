@@ -1,0 +1,66 @@
+id: decode-ways
+order: 105
+pattern: 1-d dynamic programming
+difficulty: medium
+title: Digits back to letters
+leetcode: decode-ways
+lesson: 'State: ways[i] is the number of decodings of the first i digits. Transition: add ways[i-1] if
+  digit i is 1-9, and ways[i-2] if the last two digits form 10-26. Base case: ways[0] = 1 for the empty
+  prefix.
+
+  '
+statement: 'Letters A-Z are encoded as `"1"` to `"26"`. Given a digit string `s`, return how many ways
+  it can be split back into letters. A piece may not have a leading zero.
+
+  '
+function: num_decodings
+signature: 'def num_decodings(s: str) -> int:'
+starter: "def num_decodings(s: str) -> int:\n    pass\n"
+tests:
+- args:
+  - '12'
+  expected: 2
+- args:
+  - '226'
+  expected: 3
+- args:
+  - '06'
+  expected: 0
+  note: leading zero
+- args:
+  - '10'
+  expected: 1
+  note: zero must pair
+- args:
+  - '0'
+  expected: 0
+  note: lone zero
+- args:
+  - '2611055971756562'
+  expected: 4
+- args:
+  - '27'
+  expected: 1
+  note: 27 is not a letter
+scale:
+  generator: "def make(n):\n    return [\"1\" * n]\n"
+  sizes:
+  - 2000
+  - 20000
+  expected: O(n)
+hints:
+- Look at the last one or two digits.
+- ways[i] = (one-digit valid ? ways[i-1]) + (two-digit 10..26 ? ways[i-2]).
+- a, b = 1, 1 (empty, first); roll through s computing c from those checks.
+solution: "def num_decodings(s: str) -> int:\n    prev, cur = 1, (1 if s[0] != \"0\" else 0)\n    for\
+  \ i in range(1, len(s)):\n        nxt = cur if s[i] != \"0\" else 0\n        if 10 <= int(s[i - 1:i\
+  \ + 1]) <= 26:\n            nxt += prev\n        prev, cur = cur, nxt\n    return cur\n"
+pitfalls:
+  edge-case: A leading '0' or a '0' not preceded by 1 or 2 (like '30' or '100') means 0 ways; '10' and
+    '20' have exactly one.
+  timeout: Plain recursion that tries one and two digits is O(2^n) on '1111...'; memoize by index or keep
+    two rolling counts for O(n).
+  wrong-answer: Allowing '0' as a single letter or accepting two-digit values like '27' or '05' overcounts;
+    a pair is valid only for 10-26.
+  exception: int(s[i-2:i]) on i<2 reads a short slice or IndexError; set dp[0]=1 and only look two back
+    when i>=2.

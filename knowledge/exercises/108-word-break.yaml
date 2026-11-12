@@ -1,0 +1,76 @@
+id: word-break
+order: 108
+pattern: 1-d dynamic programming
+difficulty: medium
+title: Split into dictionary words
+leetcode: word-break
+lesson: 'State: ok[i] says whether the first i characters split into dictionary words. Transition: ok[i]
+  is true if some ok[j] is true and s[j:i] is a word; only lengths present in the dictionary need checking.
+  Base case: ok[0] = True.
+
+  '
+statement: 'Given a string `s` and a list of words `word_dict`, return `True` if `s` can be cut into a
+  sequence of one or more dictionary words (words may repeat), else `False`.
+
+  '
+function: word_break
+signature: 'def word_break(s: str, word_dict: list[str]) -> bool:'
+starter: "def word_break(s: str, word_dict: list[str]) -> bool:\n    pass\n"
+tests:
+- args:
+  - leetcode
+  - - leet
+    - code
+  expected: true
+- args:
+  - applepenapple
+  - - apple
+    - pen
+  expected: true
+  note: word reused
+- args:
+  - catsandog
+  - - cats
+    - dog
+    - sand
+    - and
+    - cat
+  expected: false
+- args:
+  - a
+  - - b
+  expected: false
+  note: no match
+- args:
+  - aaaaaaa
+  - - aaaa
+    - aaa
+  expected: true
+  note: needs the right mix
+- args:
+  - ab
+  - - a
+    - b
+    - ab
+  expected: true
+scale:
+  generator: "def make(n):\n    return [\"a\" * n + \"b\", [\"a\", \"aa\", \"aaa\"]]\n"
+  sizes:
+  - 10000
+  - 100000
+  expected: O(n)
+hints:
+- Can the first i characters be split?
+- ok[i] = any(ok[j] and s[j:i] in words).
+- 'words=set(d); ok=[True]+[False]*n; loop i, then each word length L: if ok[i-L] and s[i-L:i] in words.'
+solution: "def word_break(s: str, word_dict: list[str]) -> bool:\n    words = set(word_dict)\n    lengths\
+  \ = {len(w) for w in words}\n    ok = [True] + [False] * len(s)\n    for i in range(1, len(s) + 1):\n\
+  \        ok[i] = any(L <= i and ok[i - L] and s[i - L:i] in words for L in lengths)\n    return ok[-1]\n"
+pitfalls:
+  edge-case: Words may be reused, so 'aaaa' with ['a'] is True; an empty dict with any non-empty s is
+    False.
+  timeout: Recursion without memo explodes on inputs like 'aaaa...b'; a dp over prefix ends with a set
+    lookup is O(n^2) or O(n*maxword).
+  wrong-answer: Setting dp[0]=False (the empty prefix) makes everything False; dp[0] must be True.
+  exception: Slicing past the end or indexing dp[i+len(w)] beyond len(s) raises IndexError; check the
+    bound before writing.

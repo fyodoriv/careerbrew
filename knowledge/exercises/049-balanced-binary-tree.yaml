@@ -1,0 +1,60 @@
+id: balanced-binary-tree
+order: 49
+pattern: trees
+difficulty: easy
+title: Is it evenly built?
+leetcode: balanced-binary-tree
+lesson: |
+  Checking balance top-down recomputes heights again and again. Instead, return the height bottom-up and use a sentinel such as -1 to mean "already unbalanced", so one pass decides it in O(n).
+statement: |
+  Given the root of a binary tree, return `True` if, at every node, the heights of the left and right subtrees differ by at most one. An empty tree counts as balanced.
+function: is_balanced
+signature: "def is_balanced(root: Optional[TreeNode]) -> bool:"
+starter: |
+  def is_balanced(root: Optional[TreeNode]) -> bool:
+      pass
+tests:
+  - {args: [{tree: [3, 9, 20, null, null, 15, 7]}], expected: true}
+  - {args: [{tree: [1, 2, 2, 3, 3, null, null, 4, 4]}], expected: false}
+  - {args: [{tree: []}], expected: true, note: empty tree}
+  - {args: [{tree: [1]}], expected: true, note: single node}
+  - {args: [{tree: [1, 2, 2, 3, null, null, 3, 4, null, null, 4]}], expected: false, note: root looks balanced but children are not}
+  - {args: [{tree: [1, null, 2, null, 3]}], expected: false, note: skewed tree}
+scale:
+  generator: |
+    def make(n):
+        def b(lo, hi):
+            if lo > hi:
+                return None
+            m = (lo + hi) // 2
+            return TreeNode(m, b(lo, m - 1), b(m + 1, hi))
+        return [b(1, n)]
+  sizes: [10000, 100000]
+  expected: O(n)
+hints:
+  - Balance depends on subtree heights. Can you compute heights and the verdict in the same pass?
+  - Return -1 from the helper when a subtree is unbalanced, and propagate it upward.
+  - "l = h(n.left); r = h(n.right); if l < 0 or r < 0 or abs(l - r) > 1: return -1; return 1 + max(l, r)"
+solution: |
+  def is_balanced(root: Optional[TreeNode]) -> bool:
+      def height(node):
+          if not node:
+              return 0
+          left = height(node.left)
+          if left < 0:
+              return -1
+          right = height(node.right)
+          if right < 0 or abs(left - right) > 1:
+              return -1
+          return 1 + max(left, right)
+
+      return height(root) >= 0
+pitfalls:
+  edge-case: An empty tree is balanced, and a tree whose root is balanced but a subtree is not, like a
+    long chain under one side, is not.
+  timeout: Calling height() at every node is O(n^2) on skewed trees; return -1 for an unbalanced subtree
+    from a single height pass so the check is O(n).
+  wrong-answer: Checking heights only at the root misses imbalance deeper down; every node must have children
+    whose heights differ by at most 1.
+  exception: Reading root.left.left without checking for None raises AttributeError; the height of None
+    is 0, handled as the base case.

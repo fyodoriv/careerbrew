@@ -1,0 +1,7 @@
+{"jobs": [
+ {"id": "f-1", "title": "Senior Software Engineer, AI", "location": "Remote", "isRemote": true, "jobUrl": "https://example.com/fabrikam/f-1",
+  "descriptionHtml": "<p>LLM products in Python and TypeScript. Distributed systems, system design.</p>",
+  "compensation": {"summaryComponents": [{"compensationType": "Salary", "minValue": 190000, "maxValue": 240000}]}},
+ {"id": "f-2", "title": "Senior iOS Engineer", "location": "Remote", "isRemote": true, "jobUrl": "https://example.com/fabrikam/f-2",
+  "descriptionHtml": "<p>Swift, mobile.</p>", "compensation": {"summaryComponents": [{"compensationType": "Salary", "minValue": 150000, "maxValue": 175000}]}}
+]}

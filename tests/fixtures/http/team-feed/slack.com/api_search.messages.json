@@ -1,0 +1,4 @@
+{"ok": true, "messages": {"matches": [
+  {"ts": "1792591200.000100", "user": "U0SAM", "username": "sam", "channel": {"id": "C0ENG", "name": "eng"}, "permalink": "https://example.slack.com/archives/C0ENG/p1792591200000100", "text": "the export spec is ready: <https://docs.example.com/d/1|spec>"},
+  {"ts": "1792591500.000200", "user": "U0SAM", "username": "sam", "channel": {"id": "D0SAM", "name": "U0SAM", "is_im": true}, "permalink": "https://example.slack.com/archives/D0SAM/p1792591500000200", "text": "got a minute?"}
+]}}

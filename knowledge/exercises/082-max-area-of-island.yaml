@@ -1,0 +1,91 @@
+id: max-area-of-island
+order: 82
+pattern: graphs
+difficulty: medium
+title: Biggest island
+leetcode: max-area-of-island
+lesson: 'Same flood fill as counting islands, but each fill returns how many cells it covered. Track the
+  largest.
+
+  '
+statement: 'Given a grid of 0s and 1s (1 = land), return the area (cell count) of the largest island of
+  4-directionally connected land, or 0 if there is no land.
+
+  '
+function: max_area_of_island
+signature: 'def max_area_of_island(grid: list[list[int]]) -> int:'
+starter: "def max_area_of_island(grid: list[list[int]]) -> int:\n    pass\n"
+tests:
+- args:
+  - - - 0
+      - 0
+      - 1
+      - 0
+      - 0
+    - - 0
+      - 1
+      - 1
+      - 0
+      - 0
+    - - 0
+      - 0
+      - 0
+      - 1
+      - 1
+    - - 1
+      - 0
+      - 0
+      - 1
+      - 1
+  expected: 4
+- args:
+  - - - 0
+      - 0
+      - 0
+  expected: 0
+  note: no land
+- args:
+  - - - 1
+  expected: 1
+  note: single cell
+- args:
+  - - - 1
+      - 1
+    - - 1
+      - 1
+  expected: 4
+  note: all land
+- args:
+  - - - 1
+      - 0
+      - 1
+    - - 0
+      - 1
+      - 0
+  expected: 1
+  note: diagonals only
+scale:
+  generator: "def make(n):\n    s = int(n ** 0.5)\n    return [[[1 if (r * c) % 3 else 0 for c in range(s)]\
+    \ for r in range(s)]]\n"
+  sizes:
+  - 10000
+  - 100000
+  expected: O(n)
+hints:
+- How is this related to counting islands?
+- Make the flood fill return the number of cells it visited.
+- 'for each unseen land cell: iterative DFS counting cells; best = max(best, area)'
+solution: "def max_area_of_island(grid: list[list[int]]) -> int:\n    rows, cols = len(grid), len(grid[0])\n\
+  \    seen = set()\n    best = 0\n    for r in range(rows):\n        for c in range(cols):\n        \
+  \    if grid[r][c] != 1 or (r, c) in seen:\n                continue\n            seen.add((r, c))\n\
+  \            stack, area = [(r, c)], 0\n            while stack:\n                i, j = stack.pop()\n\
+  \                area += 1\n                for a, b in ((i + 1, j), (i - 1, j), (i, j + 1), (i, j -\
+  \ 1)):\n                    if 0 <= a < rows and 0 <= b < cols and grid[a][b] == 1 and (a, b) not in\
+  \ seen:\n                        seen.add((a, b))\n                        stack.append((a, b))\n  \
+  \          best = max(best, area)\n    return best\n"
+pitfalls:
+  edge-case: A grid with no land returns 0, and a grid that is all land returns rows * cols.
+  timeout: Re-counting each island from every one of its cells is quadratic; mark visited cells to 0 as
+    you go.
+  wrong-answer: Counting a cell before marking it, so neighbours count it again.
+  exception: Recursive DFS on a big island exceeds the recursion limit; use an explicit stack.

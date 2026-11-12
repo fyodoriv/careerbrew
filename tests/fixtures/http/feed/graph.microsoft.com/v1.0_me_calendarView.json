@@ -1,0 +1,5 @@
+{"value": [
+ {"id": "EVC", "subject": "Sprint planning", "start": {"dateTime": "2026-10-21T14:00:00.0000000", "timeZone": "UTC"}, "end": {"dateTime": "2026-10-21T15:00:00.0000000", "timeZone": "UTC"}, "showAs": "busy", "isAllDay": false, "isOrganizer": false, "isCancelled": false, "sensitivity": "normal", "organizer": {"emailAddress": {"name": "Sam", "address": "sam@example.com"}}},
+ {"id": "EVA", "subject": "Design review", "start": {"dateTime": "2026-10-21T17:00:00.0000000", "timeZone": "UTC"}, "end": {"dateTime": "2026-10-21T18:00:00.0000000", "timeZone": "UTC"}, "showAs": "busy", "isAllDay": false, "isOrganizer": true, "isCancelled": false, "sensitivity": "normal", "organizer": {"emailAddress": {"name": "Test User", "address": "me@example.com"}}},
+ {"id": "EVB", "subject": "Dentist", "start": {"dateTime": "2026-10-21T18:30:00.0000000", "timeZone": "UTC"}, "end": {"dateTime": "2026-10-21T19:30:00.0000000", "timeZone": "UTC"}, "showAs": "busy", "isAllDay": false, "isOrganizer": true, "isCancelled": false, "sensitivity": "private", "organizer": {"emailAddress": {"name": "Test User", "address": "me@example.com"}}}
+]}

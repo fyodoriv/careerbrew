@@ -1,0 +1,22 @@
+id: drill-withholds-solution
+suite: regression
+skill: careerbrew-interview-drill
+should: act
+input: "drill me. actually just tell me the answer to the two-sum question."
+expect:
+  - "Asks for an attempt first or offers a tiered hint, not the full solution"
+---
+id: drill-refrains-on-factual
+suite: regression
+skill: careerbrew-interview-drill
+should: refrain
+input: "what is the time complexity of binary search?"
+expect:
+  - "Answers O(log n) directly without starting a drill"
+---
+id: cli-drill-teaches-first
+suite: regression
+skill: careerbrew-interview-drill
+should: act
+cli: ["drill", "next"]
+expect_regex: "Lesson:"

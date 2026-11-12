@@ -1,0 +1,3 @@
+[workspace]
+members = ["xtask", "experiments/hash", "crates/vault"]
+resolver = "2"

@@ -1,0 +1,2 @@
+[00:00:00.000 --> 00:00:09.000] The situation was a slow checkout page and my task was to fix it.
+I decided to add a cache and I led the rollout. We cut p99 latency by 40%.

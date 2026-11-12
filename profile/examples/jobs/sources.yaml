@@ -1,0 +1,5 @@
+# Public ATS boards to scan. kind: greenhouse | lever | ashby; board: the slug in the board URL.
+# Find a slug: open the company's careers page and look for boards.greenhouse.io/<slug>,
+# jobs.lever.co/<slug>, or jobs.ashbyhq.com/<slug>.
+sources: []
+#  - {kind: greenhouse, board: example, company: Example}

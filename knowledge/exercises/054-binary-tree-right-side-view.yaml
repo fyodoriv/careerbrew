@@ -1,0 +1,87 @@
+id: binary-tree-right-side-view
+order: 54
+pattern: trees
+difficulty: medium
+title: View from the right
+leetcode: binary-tree-right-side-view
+lesson: 'Standing on the right you see the last node of each row. Run a level-order BFS and keep the final
+  value of every round. A DFS that visits right before left and records the first node at each new depth
+  works too.
+
+  '
+statement: 'Given the root of a binary tree, return the values you would see looking at the tree from
+  its right side, from top to bottom: for each depth, the rightmost node at that depth.
+
+  '
+function: right_side_view
+signature: 'def right_side_view(root: Optional[TreeNode]) -> list[int]:'
+starter: "def right_side_view(root: Optional[TreeNode]) -> list[int]:\n    pass\n"
+tests:
+- args:
+  - tree:
+    - 1
+    - 2
+    - 3
+    - null
+    - 5
+    - null
+    - 4
+  expected:
+  - 1
+  - 3
+  - 4
+- args:
+  - tree:
+    - 1
+    - 2
+    - 3
+    - 4
+  expected:
+  - 1
+  - 3
+  - 4
+  note: a left node is visible when the right side is shorter
+- args:
+  - tree: []
+  expected: []
+  note: empty tree
+- args:
+  - tree:
+    - 7
+  expected:
+  - 7
+  note: single node
+- args:
+  - tree:
+    - 1
+    - 2
+    - null
+    - 3
+  expected:
+  - 1
+  - 2
+  - 3
+  note: left-skewed tree
+scale:
+  generator: "def make(n):\n    def b(lo, hi):\n        if lo > hi:\n            return None\n       \
+    \ m = (lo + hi) // 2\n        return TreeNode(m, b(lo, m - 1), b(m + 1, hi))\n    return [b(1, n)]\n"
+  sizes:
+  - 10000
+  - 100000
+  expected: O(n)
+hints:
+- Which node in each row is visible from the right?
+- Do a level-order traversal and record the last node popped in each round.
+- 'for i in range(len(q)): node = q.popleft(); if i == size - 1: out.append(node.val)'
+solution: "def right_side_view(root: Optional[TreeNode]) -> list[int]:\n    from collections import deque\n\
+  \    out, q = [], deque([root] if root else [])\n    while q:\n        size = len(q)\n        for i\
+  \ in range(size):\n            node = q.popleft()\n            if i == size - 1:\n                out.append(node.val)\n\
+  \            if node.left:\n                q.append(node.left)\n            if node.right:\n      \
+  \          q.append(node.right)\n    return out\n"
+pitfalls:
+  right_only: Following only right pointers misses left nodes that stick out below a short right side.
+  edge-case: A left node that sticks out below a short right side must appear, e.g. root 1 with left 2
+    -> 4 and right 3 gives [1, 3, 4].
+  timeout: Re-walking the tree for each depth is O(n*h); one BFS taking the last node of each row is O(n).
+  wrong-answer: Following only right pointers misses left nodes that stick out below a short right side.
+  exception: 'Empty tree: return [] before touching root.val.'

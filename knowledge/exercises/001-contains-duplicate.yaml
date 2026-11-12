@@ -1,0 +1,48 @@
+id: contains-duplicate
+order: 1
+pattern: arrays and hashing
+difficulty: easy
+title: Any value twice?
+leetcode: contains-duplicate
+lesson: |
+  A set answers "have I seen this before?" in O(1) on average. Walk the list once and stop at the first value already in the set.
+statement: |
+  Given a list of integers `nums`, return `True` if any value appears at least twice, and `False` if every value is distinct.
+function: contains_duplicate
+signature: "def contains_duplicate(nums: list[int]) -> bool:"
+starter: |
+  def contains_duplicate(nums: list[int]) -> bool:
+      pass
+tests:
+  - {args: [[1, 2, 3, 1]], expected: true}
+  - {args: [[1, 2, 3, 4]], expected: false}
+  - {args: [[]], expected: false, note: empty list}
+  - {args: [[7]], expected: false, note: single element}
+  - {args: [[-1, -1]], expected: true, note: negative duplicates}
+scale:
+  generator: |
+    def make(n):
+        return [list(range(n))]
+  sizes: [20000, 200000]
+  expected: O(n)
+hints:
+  - What data structure tells you in O(1) whether you have seen a value?
+  - Keep a set; for each number, return True if it is already in the set, otherwise add it.
+  - "seen = set(); for x in nums: if x in seen: return True; seen.add(x); return False"
+solution: |
+  def contains_duplicate(nums: list[int]) -> bool:
+      seen = set()
+      for x in nums:
+          if x in seen:
+              return True
+          seen.add(x)
+      return False
+pitfalls:
+  edge-case: 'An empty list or a single value has no duplicates: return False, and do not stop early on
+    the first distinct pair.'
+  timeout: Comparing every pair is O(n^2); keep a set of seen values and check membership in one O(n)
+    pass.
+  wrong-answer: Adding the value to the set before checking it makes every number look like a duplicate;
+    check first, then add.
+  exception: Indexing nums[i + 1] in a sort-and-compare loop runs off the end; loop to len(nums) - 1,
+    or use a set.

@@ -1,0 +1,8 @@
+# Binary sub-criteria for a coding round. The same rubric drives feedback and grading.
+id: coding
+criteria:
+  - {id: clarify, text: Asked clarifying questions or stated assumptions and edge cases before coding, cues: [clarify, assume, assumption, edge case, edge cases, empty, constraints]}
+  - {id: approach, text: Explained a brute-force idea and an improved approach before coding, cues: [brute force, naive, improve, optimize, better approach, two pointers, hash map]}
+  - {id: correct, text: Final code is correct on normal and edge cases, cues: [correct, works for, handles, returns]}
+  - {id: complexity, text: Stated correct time and space complexity, cues: [o(n), o(1), o(log n), o(n log n), o(n^2), time complexity, space complexity, linear, constant space]}
+  - {id: test, text: Walked through at least one test case by hand, cues: [test case, example, walk through, dry run, for instance]}

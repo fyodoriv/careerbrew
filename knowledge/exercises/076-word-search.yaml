@@ -1,0 +1,99 @@
+id: word-search
+order: 76
+pattern: backtracking
+difficulty: medium
+title: Spell it on the grid
+leetcode: word-search
+lesson: 'Depth-first search from each cell, matching one letter per step and marking the current path
+  so a cell isn''t reused. Undo the mark on the way back so other paths can use it.
+
+  '
+statement: 'Given a grid of letters `board` and a string `word`, return True if the word can be traced
+  through a chain of horizontally or vertically adjacent cells, using each cell at most once in that chain.
+
+  '
+function: exist
+signature: 'def exist(board: list[list[str]], word: str) -> bool:'
+starter: "def exist(board: list[list[str]], word: str) -> bool:\n    pass\n"
+tests:
+- args:
+  - - - A
+      - B
+      - C
+      - E
+    - - S
+      - F
+      - C
+      - S
+    - - A
+      - D
+      - E
+      - E
+  - ABCCED
+  expected: true
+- args:
+  - - - A
+      - B
+      - C
+      - E
+    - - S
+      - F
+      - C
+      - S
+    - - A
+      - D
+      - E
+      - E
+  - SEE
+  expected: true
+- args:
+  - - - A
+      - B
+      - C
+      - E
+    - - S
+      - F
+      - C
+      - S
+    - - A
+      - D
+      - E
+      - E
+  - ABCB
+  expected: false
+  note: would need to reuse a cell
+- args:
+  - - - A
+  - A
+  expected: true
+  note: single cell
+- args:
+  - - - A
+      - B
+  - BA
+  expected: true
+  note: path goes left
+- args:
+  - - - A
+  - AA
+  expected: false
+  note: word longer than the grid
+hints:
+- What do you try from a cell whose letter matches the next character?
+- DFS in four directions; temporarily overwrite the cell to mark it used.
+- 'dfs(r, c, i): bounds/letter check; mark; try 4 neighbours with i+1; restore; return'
+solution: "def exist(board: list[list[str]], word: str) -> bool:\n    rows, cols = len(board), len(board[0])\n\
+  \n    def dfs(r, c, i):\n        if i == len(word):\n            return True\n        if r < 0 or c\
+  \ < 0 or r >= rows or c >= cols or board[r][c] != word[i]:\n            return False\n        ch, board[r][c]\
+  \ = board[r][c], \"#\"\n        found = dfs(r + 1, c, i + 1) or dfs(r - 1, c, i + 1) or dfs(r, c + 1,\
+  \ i + 1) or dfs(r, c - 1, i + 1)\n        board[r][c] = ch\n        return found\n\n    return any(dfs(r,\
+  \ c, 0) for r in range(rows) for c in range(cols))\n"
+pitfalls:
+  wrong: Forgetting to restore the cell after exploring breaks later starting points.
+  edge-case: A word longer than the number of cells, or one needing the same cell twice like 'ABA' on
+    a 1x2 board 'AB', must return False.
+  timeout: Copying a visited set per path is slow; mark cells in place and restore them, and bail early
+    if a letter count in word exceeds the board's.
+  wrong-answer: Forgetting to restore the cell after exploring breaks later starting points.
+  exception: Reading board[r][c] before the bounds check gives IndexError or wraps to the other side with
+    negative indexes; check 0 <= r < rows first.

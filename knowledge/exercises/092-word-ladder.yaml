@@ -1,0 +1,87 @@
+id: word-ladder
+order: 92
+pattern: graphs
+difficulty: hard
+title: One letter at a time
+leetcode: word-ladder
+lesson: 'Words are nodes and a one-letter change is an edge, so the shortest transformation is a BFS.
+  Grouping words by wildcard patterns like ''h*t'' finds neighbours without comparing every pair.
+
+  '
+statement: 'Given `begin`, `end`, and a list `words` of equal-length lowercase words, find the length
+  of the shortest chain begin -> ... -> end where each step changes exactly one letter and every word
+  after `begin` is in `words`. The length counts every word in the chain including begin and end. Return
+  0 if no chain exists.
+
+  '
+function: ladder_length
+signature: 'def ladder_length(begin: str, end: str, words: list[str]) -> int:'
+starter: "def ladder_length(begin: str, end: str, words: list[str]) -> int:\n    pass\n"
+tests:
+- args:
+  - hit
+  - cog
+  - - hot
+    - dot
+    - dog
+    - lot
+    - log
+    - cog
+  expected: 5
+- args:
+  - hit
+  - cog
+  - - hot
+    - dot
+    - dog
+    - lot
+    - log
+  expected: 0
+  note: end not in list
+- args:
+  - a
+  - c
+  - - a
+    - b
+    - c
+  expected: 2
+  note: single letters
+- args:
+  - hot
+  - dog
+  - - hot
+    - dog
+  expected: 0
+  note: no path
+- args:
+  - abc
+  - abd
+  - - abd
+  expected: 2
+  note: one step
+scale:
+  generator: "def make(n):\n    import itertools\n    words = [''.join(p) for p in itertools.islice(itertools.product('abcdefghij',\
+    \ repeat=5), n)]\n    return [words[0], words[-1], words]\n"
+  sizes:
+  - 5000
+  - 50000
+  expected: O(n)
+hints:
+- What kind of search finds a shortest path in an unweighted graph?
+- BFS over words; find neighbours via wildcard patterns like 'h*t'.
+- bucket words by pattern; BFS from begin with depth; pop each bucket after use so it is scanned once
+solution: "from collections import defaultdict, deque\n\ndef ladder_length(begin: str, end: str, words:\
+  \ list[str]) -> int:\n    if end not in words:\n        return 0\n    buckets = defaultdict(list)\n\
+  \    for w in words:\n        for i in range(len(w)):\n            buckets[w[:i] + \"*\" + w[i + 1:]].append(w)\n\
+  \    seen = {begin}\n    q = deque([(begin, 1)])\n    while q:\n        w, d = q.popleft()\n       \
+  \ if w == end:\n            return d\n        for i in range(len(w)):\n            key = w[:i] + \"\
+  *\" + w[i + 1:]\n            for nxt in buckets.pop(key, []):\n                if nxt not in seen:\n\
+  \                    seen.add(nxt)\n                    q.append((nxt, d + 1))\n    return 0\n"
+pitfalls:
+  edge-case: When end is not in words, return 0; begin does not have to be in words.
+  timeout: Comparing every pair of words is O(n^2 * L); generate the 26*L one-letter variants per word
+    and look them up in a set.
+  wrong-answer: Counting edges instead of words (the answer counts begin and end), or marking words visited
+    only when popped so they are enqueued many times.
+  exception: Removing from the word set while iterating it raises RuntimeError; iterate over a copy or
+    use a separate visited set.

@@ -1,0 +1,92 @@
+id: binary-tree-maximum-path-sum
+order: 59
+pattern: trees
+difficulty: hard
+title: Richest path
+leetcode: binary-tree-maximum-path-sum
+lesson: 'Like the diameter, the best path bends at one node and uses the best downward chain from each
+  side. A helper returns the best chain going down from a node (clamped at 0 so negative branches are
+  dropped), while a running maximum tracks node + left + right. Values can be negative, so start the answer
+  at minus infinity.
+
+  '
+statement: 'Given the root of a non-empty binary tree with integer values, a path is any sequence of nodes
+  linked by edges in which no node repeats; it has at least one node and need not pass through the root.
+  Return the largest possible sum of the values on a path.
+
+  '
+function: max_path_sum
+signature: 'def max_path_sum(root: TreeNode) -> int:'
+starter: "def max_path_sum(root: TreeNode) -> int:\n    pass\n"
+tests:
+- args:
+  - tree:
+    - 1
+    - 2
+    - 3
+  expected: 6
+- args:
+  - tree:
+    - -10
+    - 9
+    - 20
+    - null
+    - null
+    - 15
+    - 7
+  expected: 42
+  note: best path skips the root
+- args:
+  - tree:
+    - -3
+  expected: -3
+  note: single negative node
+- args:
+  - tree:
+    - -2
+    - -1
+  expected: -1
+  note: all negative
+- args:
+  - tree:
+    - 2
+    - -1
+    - -2
+  expected: 2
+  note: drop negative branches
+- args:
+  - tree:
+    - 1
+    - 2
+    - null
+    - 3
+    - null
+    - 4
+  expected: 10
+  note: skewed tree
+scale:
+  generator: "def make(n):\n    def b(lo, hi):\n        if lo > hi:\n            return None\n       \
+    \ m = (lo + hi) // 2\n        return TreeNode(m, b(lo, m - 1), b(m + 1, hi))\n    return [b(1, n)]\n"
+  sizes:
+  - 10000
+  - 100000
+  expected: O(n)
+hints:
+- Every path has a highest node where it turns. What does the best path through that node look like?
+- Let gain(node) be the best downward chain starting at node, ignoring negative children (use max(0, ...)).
+- l = max(0, gain(n.left)); r = max(0, gain(n.right)); best = max(best, n.val + l + r); return n.val +
+  max(l, r)
+solution: "def max_path_sum(root: TreeNode) -> int:\n    best = float(\"-inf\")\n\n    def gain(node):\n\
+  \        nonlocal best\n        if not node:\n            return 0\n        left = max(0, gain(node.left))\n\
+  \        right = max(0, gain(node.right))\n        best = max(best, node.val + left + right)\n     \
+  \   return node.val + max(left, right)\n\n    gain(root)\n    return best\n"
+pitfalls:
+  zero_start: Starting best at 0 gives the wrong answer when every value is negative.
+  both_sides: The value returned upward may use only one child; a path cannot fork.
+  edge-case: When every value is negative the answer is the largest single value, not 0.
+  timeout: Computing the best path through each node with fresh subtree walks is O(n^2); one post-order
+    pass returning the best downward gain is O(n).
+  wrong-answer: 'Returning a forked path upward: the value sent to the parent may use only one child,
+    while the answer may use both.'
+  exception: Deep skewed trees can exceed the recursion limit; raise it carefully or use an iterative
+    post-order.

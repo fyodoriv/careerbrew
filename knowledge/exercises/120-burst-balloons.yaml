@@ -1,0 +1,61 @@
+id: burst-balloons
+order: 120
+pattern: 2-d dynamic programming
+difficulty: hard
+title: Pop for points
+leetcode: burst-balloons
+lesson: 'Choose the LAST balloon popped inside an interval, not the first: its neighbours are then the
+  interval''s fixed borders. State: dp[l][r] is the best score for balloons strictly between l and r (with
+  1s padded at both ends). Transition: max over k of dp[l][k] + dp[k][r] + v[l]*v[k]*v[r]. Base case:
+  adjacent l, r give 0.
+
+  '
+statement: '`nums[i]` is the number on balloon `i`. Popping balloon `i` scores the product of its number
+  and its current left and right neighbours'' numbers (a missing neighbour counts as 1); then it disappears.
+  Return the highest total score from popping them all.
+
+  '
+function: max_coins
+signature: 'def max_coins(nums: list[int]) -> int:'
+starter: "def max_coins(nums: list[int]) -> int:\n    pass\n"
+tests:
+- args:
+  - - 3
+    - 1
+    - 5
+    - 8
+  expected: 167
+- args:
+  - - 1
+    - 5
+  expected: 10
+- args:
+  - - 7
+  expected: 7
+  note: single balloon
+- args:
+  - - 0
+    - 0
+  expected: 0
+  note: zeros
+- args:
+  - - 2
+    - 3
+  expected: 9
+  note: pop smaller first
+hints:
+- Popping first changes neighbours unpredictably. What if you fix the last pop?
+- The last balloon k in (l, r) sees v[l] and v[r] as neighbours.
+- 'Pad with 1s; fill dp by increasing interval length: dp[l][r] = max(dp[l][k]+dp[k][r]+v[l]*v[k]*v[r]).'
+solution: "def max_coins(nums: list[int]) -> int:\n    v = [1] + nums + [1]\n    n = len(v)\n    dp =\
+  \ [[0] * n for _ in range(n)]\n    for gap in range(2, n):\n        for l in range(n - gap):\n     \
+  \       r = l + gap\n            dp[l][r] = max(dp[l][k] + dp[k][r] + v[l] * v[k] * v[r] for k in range(l\
+  \ + 1, r))\n    return dp[0][n - 1]\n"
+pitfalls:
+  edge-case: A single balloon scores nums[0], and an empty list scores 0; pad with a 1 on each side.
+  timeout: Trying every popping order is O(n!); choose the last balloon in each range with interval dp
+    for O(n^3).
+  wrong-answer: Choosing the first balloon to pop makes the neighbours unknown; pick the last one popped
+    so its neighbours are the range ends.
+  exception: Forgetting the padding 1s makes nums[left-1] or nums[right+1] go out of range; pad then index
+    the padded list.

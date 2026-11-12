@@ -1,0 +1,6 @@
+{"value": [
+ {"id": "M4", "conversationId": "C2", "subject": "Vendor contract", "from": {"emailAddress": {"name": "Vendor", "address": "vendor@example.com"}}, "toRecipients": [{"emailAddress": {"address": "me@example.com"}}], "receivedDateTime": "2026-10-21T11:00:00Z", "importance": "normal", "flag": {"flagStatus": "flagged"}},
+ {"id": "M1", "conversationId": "C1", "subject": "Q4 plan: need your numbers by Friday", "from": {"emailAddress": {"name": "Boss", "address": "boss@example.com"}}, "toRecipients": [{"emailAddress": {"address": "me@example.com"}}], "receivedDateTime": "2026-10-21T12:00:00Z", "importance": "high", "flag": {"flagStatus": "notFlagged"}},
+ {"id": "M3", "conversationId": "C2", "subject": "Re: Vendor contract", "from": {"emailAddress": {"name": "Test User", "address": "me@example.com"}}, "toRecipients": [{"emailAddress": {"address": "vendor@example.com"}}], "receivedDateTime": "2026-10-21T13:00:00Z", "importance": "normal", "flag": {"flagStatus": "notFlagged"}},
+ {"id": "M2", "conversationId": "C3", "subject": "Weekly digest", "from": {"emailAddress": {"name": "Tools", "address": "noreply@tools.example.com"}}, "toRecipients": [{"emailAddress": {"address": "me@example.com"}}], "receivedDateTime": "2026-10-21T09:00:00Z", "importance": "normal", "flag": {"flagStatus": "notFlagged"}}
+]}

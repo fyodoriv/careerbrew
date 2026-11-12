@@ -1,0 +1,13 @@
+# Your profile. Lives only in the data root (private/). Synthetic example values.
+name: Your Name               # also treated as a sensitive term
+employer: Your Employer       # also treated as a sensitive term
+current_level: 3              # 1 junior, 2 mid, 3 senior, 4 staff, 5 principal
+target_salary: 180000
+remote_preference: remote     # remote | any | office
+skills:                       # 1-5 self-rating
+  python: 4
+  typescript: 3
+  sql: 3
+  system design: 2
+want_to_learn: [rust, llm]
+sensitive: []                 # extra words that must never leave this folder (project codenames, people)

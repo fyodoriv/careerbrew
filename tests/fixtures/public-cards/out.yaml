@@ -1,0 +1,58 @@
+- source_id: synthetic01
+  question: What is a queue?
+  answer: 'A first in, first out collection: add at the back, remove from the front, both in constant
+    time with the right structure.'
+  topic: computer science
+  tags:
+  - queue
+  - data structures
+  explanation: '## In plain words
+
+    A queue is a line at a shop: the first person to arrive is the first person served. In code it holds
+    items and gives them back in the order they came in, which is called first in, first out.
+
+
+    ## How it works
+
+    - `enqueue` adds an item at the back.
+
+    - `dequeue` removes the item at the front.
+
+    - A linked list or a ring buffer makes both operations take constant time.
+
+    - A plain array with removal from index 0 is slow, because every other item shifts left.
+
+
+    ## Example
+
+    ```python
+
+    from collections import deque
+
+    q = deque()
+
+    q.append(1)
+
+    q.append(2)
+
+    print(q.popleft())  # 1
+
+    ```
+
+    Both `append` and `popleft` are O(1).
+
+
+    ## Common mistakes
+
+    - Using `list.pop(0)` in Python, which is O(n).
+
+    - Mixing up a queue with a stack, which is last in, first out.
+
+    - Forgetting to handle an empty queue before removing an item.
+
+
+    ## In the interview
+
+    Name the operations and their cost first, then say which structure backs them. Expect follow-ups on
+    breadth-first search, which uses a queue, and on bounded queues for producer and consumer threads,
+    where a full queue must block or drop items.'

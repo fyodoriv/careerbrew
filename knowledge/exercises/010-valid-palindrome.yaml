@@ -1,0 +1,56 @@
+id: valid-palindrome
+order: 10
+pattern: two pointers
+difficulty: easy
+title: Reads the same both ways
+leetcode: valid-palindrome
+lesson: |
+  Two pointers start at opposite ends and walk inward, skipping characters that do not count. Comparing as you go uses O(1) extra space instead of building a cleaned copy.
+statement: |
+  Given a string `s`, ignore every character that is not a letter or digit and treat upper and lower case as equal. Return `True` if what remains reads the same forwards and backwards.
+function: is_palindrome
+signature: "def is_palindrome(s: str) -> bool:"
+starter: |
+  def is_palindrome(s: str) -> bool:
+      pass
+tests:
+  - {args: ["Was it a car or a cat I saw?"], expected: true}
+  - {args: ["hello"], expected: false}
+  - {args: [""], expected: true, note: empty string}
+  - {args: [" .,!"], expected: true, note: only punctuation}
+  - {args: ["0P"], expected: false, note: digit vs letter}
+  - {args: ["Ab1bA"], expected: true, note: mixed case with a digit}
+scale:
+  generator: |
+    def make(n):
+        half = "a,B " * (n // 8)
+        return [half + half[::-1]]
+  sizes: [20000, 200000]
+  expected: O(n)
+hints:
+  - You can compare the first and last characters that matter, then move inward.
+  - Use left and right indices; skip non-alphanumeric characters on each side before comparing lowercase forms.
+  - "while l < r: advance l and retreat r past non-alnum; if s[l].lower() != s[r].lower(): return False; l += 1; r -= 1"
+solution: |
+  def is_palindrome(s: str) -> bool:
+      l, r = 0, len(s) - 1
+      while l < r:
+          if not s[l].isalnum():
+              l += 1
+          elif not s[r].isalnum():
+              r -= 1
+          else:
+              if s[l].lower() != s[r].lower():
+                  return False
+              l += 1
+              r -= 1
+      return True
+pitfalls:
+  edge-case: 'A string of only punctuation or spaces, like ".,", is a palindrome: after filtering nothing
+    is left, so return True.'
+  timeout: Building a filtered copy and reversing it is fine at O(n), but slicing a new substring at every
+    step is O(n^2); move two indexes inward instead.
+  wrong-answer: Forgetting to lowercase, or treating digits as non-alphanumeric; compare c.lower() and
+    keep characters where c.isalnum().
+  exception: 'Skipping non-alphanumerics with `while not s[l].isalnum(): l += 1` runs past the end; also
+    check l < r in that inner loop.'

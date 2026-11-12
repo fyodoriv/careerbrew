@@ -1,0 +1,42 @@
+id: same-tree
+order: 50
+pattern: trees
+difficulty: easy
+title: Twin trees
+leetcode: same-tree
+lesson: |
+  Two trees match when their roots hold the same value and both pairs of subtrees match. Handle the "one or both missing" cases first, then recurse. It is the building block for subtree checks.
+statement: |
+  Given the roots of two binary trees `p` and `q`, return `True` if they have identical shape and identical values at every position.
+function: is_same_tree
+signature: "def is_same_tree(p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:"
+starter: |
+  def is_same_tree(p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:
+      pass
+tests:
+  - {args: [{tree: [1, 2, 3]}, {tree: [1, 2, 3]}], expected: true}
+  - {args: [{tree: [1, 2]}, {tree: [1, null, 2]}], expected: false, note: same values, different shape}
+  - {args: [{tree: [1, 2, 1]}, {tree: [1, 1, 2]}], expected: false}
+  - {args: [{tree: []}, {tree: []}], expected: true, note: both empty}
+  - {args: [{tree: [1]}, {tree: []}], expected: false, note: one empty}
+  - {args: [{tree: [0]}, {tree: [0]}], expected: true, note: single node zero value}
+hints:
+  - What must be true at the roots, and what about the subtrees?
+  - If both are None, True; if only one is None or values differ, False; otherwise recurse.
+  - "return is_same_tree(p.left, q.left) and is_same_tree(p.right, q.right)"
+solution: |
+  def is_same_tree(p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:
+      if not p and not q:
+          return True
+      if not p or not q or p.val != q.val:
+          return False
+      return is_same_tree(p.left, q.left) and is_same_tree(p.right, q.right)
+pitfalls:
+  edge-case: Two empty trees are the same, and one empty and one not are different; compare structure,
+    not just values.
+  timeout: Serialising both trees to strings and comparing works but uses O(n) extra space and is easy
+    to get wrong without None markers; one recursive pass is O(n).
+  wrong-answer: Testing `if p.val` treats a value of 0 as missing; test `p is None`, and comparing only
+    in-order values says [1, 2] and [1, null, 2] are the same.
+  exception: Reading p.val when only one of p and q is None raises AttributeError; return p is q when
+    either is None.

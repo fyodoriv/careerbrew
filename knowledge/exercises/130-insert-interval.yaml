@@ -1,0 +1,113 @@
+id: insert-interval
+order: 130
+pattern: intervals
+difficulty: medium
+title: Slot in an interval
+leetcode: insert-interval
+lesson: 'Because the list is sorted and disjoint, it splits into three zones: intervals fully left of
+  the new one, ones that overlap it, and ones fully right. Copy the first, fold the middle into one, copy
+  the last.
+
+  '
+statement: '`intervals` is a sorted list of non-overlapping `[start, end]` pairs. Insert `new` and return
+  the list, still sorted and with overlaps merged.
+
+  '
+function: insert
+signature: 'def insert(intervals: list[list[int]], new: list[int]) -> list[list[int]]:'
+starter: "def insert(intervals: list[list[int]], new: list[int]) -> list[list[int]]:\n    pass\n"
+tests:
+- args:
+  - - - 1
+      - 3
+    - - 6
+      - 9
+  - - 2
+    - 5
+  expected:
+  - - 1
+    - 5
+  - - 6
+    - 9
+- args:
+  - - - 1
+      - 2
+    - - 3
+      - 5
+    - - 6
+      - 7
+    - - 8
+      - 10
+    - - 12
+      - 16
+  - - 4
+    - 8
+  expected:
+  - - 1
+    - 2
+  - - 3
+    - 10
+  - - 12
+    - 16
+- args:
+  - []
+  - - 5
+    - 7
+  expected:
+  - - 5
+    - 7
+  note: empty list
+- args:
+  - - - 1
+      - 5
+  - - 6
+    - 8
+  expected:
+  - - 1
+    - 5
+  - - 6
+    - 8
+  note: goes after
+- args:
+  - - - 3
+      - 5
+  - - 1
+    - 2
+  expected:
+  - - 1
+    - 2
+  - - 3
+    - 5
+  note: goes before
+- args:
+  - - - 1
+      - 5
+  - - 5
+    - 7
+  expected:
+  - - 1
+    - 7
+  note: touching endpoints merge
+scale:
+  generator: "def make(n):\n    return [[[3 * i, 3 * i + 1] for i in range(n)], [n, n + 5]]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- Which existing intervals can the new one possibly touch?
+- Append those ending before new starts; merge those starting at or before new ends; append the rest.
+- 'while a[i][1] < s: keep; while a[i][0] <= e: s=min, e=max; then append [s,e] and the tail.'
+solution: "def insert(intervals: list[list[int]], new: list[int]) -> list[list[int]]:\n    s, e = new\n\
+  \    out, i, n = [], 0, len(intervals)\n    while i < n and intervals[i][1] < s:\n        out.append(intervals[i]);\
+  \ i += 1\n    while i < n and intervals[i][0] <= e:\n        s, e = min(s, intervals[i][0]), max(e,\
+  \ intervals[i][1]); i += 1\n    out.append([s, e])\n    out.extend(intervals[i:])\n    return out\n"
+pitfalls:
+  edge-case: An empty interval list returns [new], and a new interval past every other one is appended
+    at the end.
+  timeout: Appending new and re-sorting everything is O(n log n); one linear pass with three phases (before,
+    overlap, after) is O(n).
+  wrong-answer: Merging with min of starts but forgetting max of ends shrinks a covering interval; and
+    touching intervals like [1,2] and [2,3] must merge.
+  exception: Indexing intervals[i] after the while loop finished reads past the end; check i < len(intervals)
+    in every loop.

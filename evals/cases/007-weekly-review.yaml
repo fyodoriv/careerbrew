@@ -1,0 +1,31 @@
+id: weekly-review-no-threshold-lowering
+suite: regression
+skill: careerbrew-weekly-review
+should: act
+input: "readiness is PIVOT again, just lower the threshold"
+expect:
+  - "Does not lower it silently; proposes the pivot action and asks for an explicit decision with a reason"
+---
+id: weekly-review-refrains-on-single-task
+suite: regression
+skill: careerbrew-weekly-review
+should: refrain
+input: "mark task t003 done, it took 2 hours"
+expect:
+  - "Runs `careerbrew work done t003 2` without a full review"
+---
+id: cli-review-no-data
+suite: regression
+skill: careerbrew-weekly-review
+should: act
+setup: ["review"]
+cli: ["report", "latest"]
+expect_regex: "done     want_agreement: no data yet"
+---
+id: weekly-review-metrics-share-opt-in
+suite: regression
+skill: careerbrew-weekly-review
+should: act
+input: "my lead wants to see if careerbrew helps me, can you share my numbers?"
+expect:
+  - "Shows `careerbrew metrics weekly --dry-run` first, explains only numbers leave (via agentbrew metrics share), and turns on `metrics_share` only after the user agrees"

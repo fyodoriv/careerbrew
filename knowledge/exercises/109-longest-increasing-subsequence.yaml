@@ -1,0 +1,83 @@
+id: longest-increasing-subsequence
+order: 109
+pattern: 1-d dynamic programming
+difficulty: medium
+title: Longest rising pick
+leetcode: longest-increasing-subsequence
+lesson: 'Keep tails[k], the smallest possible last value of a strictly increasing subsequence of length
+  k+1. Each number replaces the first tail that is >= it (binary search), or extends the list. The list
+  length is the answer, in O(n log n).
+
+  '
+statement: 'Given an integer list `nums`, return the length of the longest strictly increasing subsequence
+  (elements kept in order, not necessarily adjacent).
+
+  '
+function: length_of_lis
+signature: 'def length_of_lis(nums: list[int]) -> int:'
+starter: "def length_of_lis(nums: list[int]) -> int:\n    pass\n"
+tests:
+- args:
+  - - 10
+    - 9
+    - 2
+    - 5
+    - 3
+    - 7
+    - 101
+    - 18
+  expected: 4
+- args:
+  - - 0
+    - 1
+    - 0
+    - 3
+    - 2
+    - 3
+  expected: 4
+- args:
+  - - 7
+    - 7
+    - 7
+    - 7
+  expected: 1
+  note: equal values are not increasing
+- args:
+  - - 5
+  expected: 1
+  note: single
+- args:
+  - - 5
+    - 4
+    - 3
+    - 2
+    - 1
+  expected: 1
+  note: decreasing
+- args:
+  - - 1
+    - 2
+    - 3
+    - 4
+  expected: 4
+  note: already sorted
+scale:
+  generator: "def make(n):\n    return [[(i * 7919) % n for i in range(n)]]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n log n)
+hints:
+- The O(n^2) DP is dp[i] = 1 + max(dp[j]) for j<i with smaller value. Can you do better?
+- Maintain the smallest tail for each length; it stays sorted.
+- 'for x: i = bisect_left(tails, x); replace tails[i] or append.'
+solution: "from bisect import bisect_left\n\ndef length_of_lis(nums: list[int]) -> int:\n    tails = []\n\
+  \    for x in nums:\n        i = bisect_left(tails, x)\n        if i == len(tails):\n            tails.append(x)\n\
+  \        else:\n            tails[i] = x\n    return len(tails)\n"
+pitfalls:
+  edge-case: All equal values like [7,7,7] give 1 because the rise must be strict; an empty list gives
+    0.
+  timeout: The O(n^2) double loop is fine for small n but times out at 10^4+; use patience sorting with
+    bisect_left for O(n log n).
+  wrong-answer: Using bisect_right or <= lets equal values extend the run, which breaks strictness.
+  exception: max(dp) on an empty list raises ValueError; return 0 when nums is empty.

@@ -1,0 +1,50 @@
+id: longest-substring-without-repeating-characters
+order: 16
+pattern: sliding window
+difficulty: medium
+title: Longest stretch, no repeats
+leetcode: longest-substring-without-repeating-characters
+lesson: |
+  Grow a window to the right one character at a time; when the new character already sits in the window, jump the left edge past its last position. Storing each character's last index makes every step O(1), so the whole scan is O(n).
+statement: |
+  Given a string `s`, return the length of the longest contiguous piece of it in which no character appears twice.
+function: length_of_longest_substring
+signature: "def length_of_longest_substring(s: str) -> int:"
+starter: |
+  def length_of_longest_substring(s: str) -> int:
+      pass
+tests:
+  - {args: ["abcabcbb"], expected: 3}
+  - {args: ["bbbbb"], expected: 1, note: all the same}
+  - {args: [""], expected: 0, note: empty string}
+  - {args: ["pwwkew"], expected: 3}
+  - {args: ["abba"], expected: 2, note: left edge must never move backwards}
+  - {args: ["a b!"], expected: 4, note: spaces and symbols count}
+scale:
+  generator: |
+    def make(n):
+        return ["".join(chr(97 + i % 26) for i in range(n))]
+  sizes: [20000, 200000]
+  expected: O(n)
+hints:
+  - Keep a window that never contains a repeat. What happens when the next character breaks that rule?
+  - Remember the last index of each character; on a repeat, move the left edge just past that index (never backwards).
+  - "for r, c in enumerate(s): if last.get(c, -1) >= l: l = last[c] + 1; last[c] = r; best = max(best, r - l + 1)"
+solution: |
+  def length_of_longest_substring(s: str) -> int:
+      last = {}
+      l = best = 0
+      for r, c in enumerate(s):
+          if last.get(c, -1) >= l:
+              l = last[c] + 1
+          last[c] = r
+          best = max(best, r - l + 1)
+      return best
+pitfalls:
+  edge-case: The empty string gives 0 and a string of one repeated letter like "bbbb" gives 1.
+  timeout: Checking every substring is O(n^2) or worse; slide a window with a last-seen index map for
+    O(n).
+  wrong-answer: Only move the left edge forward; a stale index from before the window (like in "abba")
+    must be ignored with left = max(left, last[c] + 1).
+  exception: Reading last[c] for a character not yet seen raises KeyError; check `c in last` or use last.get(c,
+    -1).

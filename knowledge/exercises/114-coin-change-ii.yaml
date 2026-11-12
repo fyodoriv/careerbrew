@@ -1,0 +1,67 @@
+id: coin-change-ii
+order: 114
+pattern: 2-d dynamic programming
+difficulty: medium
+title: Ways to make change
+leetcode: coin-change-ii
+lesson: 'State: ways[a] counts combinations summing to a with the coins processed so far. Transition:
+  for each coin, ways[a] += ways[a - coin] for a from coin up. Base case: ways[0] = 1. Looping coins outside
+  amounts counts each combination once, not each ordering.
+
+  '
+statement: 'Given coin values `coins` (unlimited supply) and a target `amount`, return the number of different
+  combinations of coins that sum to `amount`. Order does not matter.
+
+  '
+function: change
+signature: 'def change(amount: int, coins: list[int]) -> int:'
+starter: "def change(amount: int, coins: list[int]) -> int:\n    pass\n"
+tests:
+- args:
+  - 5
+  - - 1
+    - 2
+    - 5
+  expected: 4
+- args:
+  - 3
+  - - 2
+  expected: 0
+  note: impossible
+- args:
+  - 10
+  - - 10
+  expected: 1
+  note: one coin exact
+- args:
+  - 0
+  - - 7
+  expected: 1
+  note: zero amount has one way
+- args:
+  - 4
+  - - 1
+    - 2
+  expected: 3
+  note: orderings not counted twice
+scale:
+  generator: "def make(n):\n    return [n, [1, 2, 5]]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- Counting orderings is the mistake to avoid. Which loop goes outside?
+- Coins in the outer loop, amounts in the inner loop.
+- 'ways=[1]+[0]*amount; for c in coins: for a in range(c, amount+1): ways[a]+=ways[a-c]'
+solution: "def change(amount: int, coins: list[int]) -> int:\n    ways = [1] + [0] * amount\n    for c\
+  \ in coins:\n        for a in range(c, amount + 1):\n            ways[a] += ways[a - c]\n    return\
+  \ ways[amount]\n"
+pitfalls:
+  edge-case: amount=0 has exactly one way (take nothing), even when coins is empty.
+  timeout: Recursion trying every coin at every step without memo is exponential; a 1D dp is O(amount
+    * len(coins)).
+  wrong-answer: Amounts outside, coins inside counts permutations, not combinations; put the coin loop
+    outside.
+  exception: dp[a-c] with a<c becomes a negative index and silently reads the end of the list; start the
+    inner loop at a=c.

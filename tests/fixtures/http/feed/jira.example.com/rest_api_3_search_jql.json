@@ -1,0 +1,5 @@
+{"issues": [
+ {"key": "PROJ-7", "fields": {"summary": "Freeze the billing schema", "resolutiondate": "2026-10-20T15:00:00.000+0000", "issuetype": {"name": "Task"}}},
+ {"key": "PROJ-3", "fields": {"summary": "Old billing cleanup", "resolutiondate": "2026-09-01T12:00:00.000+0000", "issuetype": {"name": "Task"}}},
+ {"key": "OPS-9", "fields": {"summary": "Reindex search", "resolutiondate": "2026-10-20T16:00:00.000+0000", "issuetype": {"name": "Task"}}}
+], "isLast": true}

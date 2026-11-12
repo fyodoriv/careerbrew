@@ -1,0 +1,8 @@
+{"jobs": [
+ {"id": 101, "title": "Staff Software Engineer, Platform", "absolute_url": "https://example.com/northwind/101", "location": {"name": "Remote - US"},
+  "content": "&lt;p&gt;Build distributed systems in Go and Kubernetes. Kafka, system design, mentoring. $210,000 - $260,000&lt;/p&gt;"},
+ {"id": 102, "title": "Senior Frontend Engineer", "absolute_url": "https://example.com/northwind/102", "location": {"name": "Example City"},
+  "content": "&lt;p&gt;React and TypeScript, GraphQL. $160,000 - $190,000&lt;/p&gt;"},
+ {"id": 103, "title": "Engineering Manager", "absolute_url": "https://example.com/northwind/103", "location": {"name": "Remote"}, "content": "Lead a team."},
+ {"id": 104, "title": "Software Engineering Intern", "absolute_url": "https://example.com/northwind/104", "location": {"name": "Remote"}, "content": "Python."}
+]}

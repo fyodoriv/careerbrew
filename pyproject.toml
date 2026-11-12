@@ -1,0 +1,52 @@
+[project]
+name = "careerbrew"
+version = "0.1.0"
+description = "Private, local-first career assistant for programmers"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Fyodor Ivanischev", email = "fyodor@sent.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "cryptography>=50.0.2",
+    "fsrs>=6.3.2",
+    "icalendar>=7.3.0",
+    "pyyaml>=6.0.3",
+    "recurring-ical-events>=3.8.2",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.414",
+    "pytest>=9.1.1",
+    "pytest-xdist>=3.8.0",
+    "ruff>=0.17.1",
+]
+
+[project.scripts]
+careerbrew = "careerbrew.cli:main"
+
+[tool.ruff]
+line-length = 240
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "S"]
+ignore = ["S603", "S607", "S101", "S310", "E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "B"]
+
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]

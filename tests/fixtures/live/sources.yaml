@@ -1,0 +1,19 @@
+# A synthetic live-feed source config (issue #267): @DIR@ is replaced with the story's scratch folder.
+sources:
+  - name: chat
+    kind: chat
+    required: true
+    adapter: file
+    inbox: "@DIR@/chat.json"
+    pull: {hosts: [chat.example.com], channels: [team-alpha]}
+  - name: tickets
+    kind: tickets
+    required: true
+    adapter: file
+    inbox: "@DIR@/tickets.json"
+    pull: {hosts: [tickets.example.com], projects: [PROJ]}
+  - name: mail
+    kind: mail
+    required: false
+    adapter: file
+    inbox: "@DIR@/mail.json"

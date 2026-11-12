@@ -1,0 +1,101 @@
+id: network-delay-time
+order: 95
+pattern: advanced graphs
+difficulty: medium
+title: When does everyone hear it?
+leetcode: network-delay-time
+lesson: 'Dijkstra''s algorithm finds shortest times from one source when all edge weights are non-negative:
+  pop the closest unsettled node from a min-heap and relax its edges. The answer is the largest shortest
+  time, or -1 if some node is never reached.
+
+  '
+statement: 'There are `n` nodes labeled `1` to `n`. `times` holds directed edges `[u, v, w]`: a signal
+  sent from `u` reaches `v` after `w` time units. A signal starts at node `k`. Return how long it takes
+  until every node has received it, or `-1` if some node never does.
+
+  '
+function: network_delay_time
+signature: 'def network_delay_time(times: list[list[int]], n: int, k: int) -> int:'
+starter: "def network_delay_time(times: list[list[int]], n: int, k: int) -> int:\n    pass\n"
+tests:
+- args:
+  - - - 2
+      - 1
+      - 1
+    - - 2
+      - 3
+      - 1
+    - - 3
+      - 4
+      - 1
+  - 4
+  - 2
+  expected: 2
+- args:
+  - - - 1
+      - 2
+      - 1
+  - 2
+  - 1
+  expected: 1
+- args:
+  - - - 1
+      - 2
+      - 1
+  - 2
+  - 2
+  expected: -1
+  note: edges are one way
+- args:
+  - []
+  - 1
+  - 1
+  expected: 0
+  note: single node, no edges
+- args:
+  - - - 1
+      - 2
+      - 5
+    - - 1
+      - 3
+      - 1
+    - - 3
+      - 2
+      - 1
+  - 3
+  - 1
+  expected: 2
+  note: indirect path is faster
+- args:
+  - - - 1
+      - 2
+      - 0
+  - 2
+  - 1
+  expected: 0
+  note: zero-weight edge
+scale:
+  generator: "def make(n):\n    return [[[i, i + 1, 1] for i in range(1, n)] + [[1, i, n] for i in range(2,\
+    \ n + 1)], n, 1]\n"
+  sizes:
+  - 5000
+  - 50000
+  expected: O(n log n)
+hints:
+- 'Shortest paths from one source with non-negative weights: which classic algorithm?'
+- Dijkstra with a min-heap of (time, node); skip entries already settled.
+- Push (0,k); pop; if settled skip; record time; push neighbours with t+w. Answer max of times if all
+  n settled, else -1.
+solution: "import heapq\nfrom collections import defaultdict\n\ndef network_delay_time(times: list[list[int]],\
+  \ n: int, k: int) -> int:\n    graph = defaultdict(list)\n    for u, v, w in times:\n        graph[u].append((v,\
+  \ w))\n    best = {}\n    heap = [(0, k)]\n    while heap:\n        t, u = heapq.heappop(heap)\n   \
+  \     if u in best:\n            continue\n        best[u] = t\n        for v, w in graph[u]:\n    \
+  \        if v not in best:\n                heapq.heappush(heap, (t + w, v))\n    return max(best.values())\
+  \ if len(best) == n else -1\n"
+pitfalls:
+  edge-case: When some node is unreachable return -1; the source alone has time 0.
+  timeout: Bellman-Ford over all edges n times is O(n*E); Dijkstra with a heap is O(E log n).
+  wrong-answer: Returning the sum of times instead of the maximum of shortest times, or not skipping stale
+    heap entries.
+  exception: Indexing an adjacency list with 1-based labels sized n raises IndexError; use n + 1 or a
+    dict.

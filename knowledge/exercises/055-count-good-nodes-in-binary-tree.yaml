@@ -1,0 +1,89 @@
+id: count-good-nodes-in-binary-tree
+order: 55
+pattern: trees
+difficulty: medium
+title: Nodes that top their path
+leetcode: count-good-nodes-in-binary-tree
+lesson: 'Pass state down the recursion: the largest value seen on the way from the root. A node counts
+  when it is at least that maximum, and then it becomes the new maximum for its children. One DFS, O(n)
+  time.
+
+  '
+statement: 'Given the root of a binary tree, a node is "good" when no node on the path from the root to
+  it (inclusive) has a larger value. Return how many good nodes the tree has. An empty tree has 0.
+
+  '
+function: good_nodes
+signature: 'def good_nodes(root: Optional[TreeNode]) -> int:'
+starter: "def good_nodes(root: Optional[TreeNode]) -> int:\n    pass\n"
+tests:
+- args:
+  - tree:
+    - 3
+    - 1
+    - 4
+    - 3
+    - null
+    - 1
+    - 5
+  expected: 4
+- args:
+  - tree:
+    - 3
+    - 3
+    - null
+    - 4
+    - 2
+  expected: 3
+  note: equal values count as good
+- args:
+  - tree:
+    - 1
+  expected: 1
+  note: single node
+- args:
+  - tree: []
+  expected: 0
+  note: empty tree
+- args:
+  - tree:
+    - -1
+    - -5
+    - -2
+  expected: 1
+  note: negative values
+- args:
+  - tree:
+    - 1
+    - 2
+    - null
+    - 3
+    - null
+    - 4
+  expected: 4
+  note: increasing skewed tree
+scale:
+  generator: "def make(n):\n    def b(lo, hi):\n        if lo > hi:\n            return None\n       \
+    \ m = (lo + hi) // 2\n        return TreeNode(m, b(lo, m - 1), b(m + 1, hi))\n    return [b(1, n)]\n"
+  sizes:
+  - 10000
+  - 100000
+  expected: O(n)
+hints:
+- What single number about the path above a node decides whether it is good?
+- DFS with an extra argument, the maximum value seen so far on the path.
+- 'def dfs(n, hi): if not n: return 0; good = n.val >= hi; hi = max(hi, n.val); return good + dfs(n.left,
+  hi) + dfs(n.right, hi)'
+solution: "def good_nodes(root: Optional[TreeNode]) -> int:\n    def dfs(node, high):\n        if not\
+  \ node:\n            return 0\n        good = 1 if node.val >= high else 0\n        high = max(high,\
+  \ node.val)\n        return good + dfs(node.left, high) + dfs(node.right, high)\n\n    return dfs(root,\
+  \ float(\"-inf\"))\n"
+pitfalls:
+  strict: Using > instead of >= drops nodes equal to the path maximum.
+  edge-case: A node equal to the path maximum counts as good, and the root is always good.
+  timeout: Recomputing the path max by walking back up for each node is O(n*h); pass the running max down
+    in O(n).
+  wrong-answer: Using > instead of >= drops nodes equal to the path maximum, or updating the max before
+    comparing.
+  exception: Deep skewed trees can hit Python's recursion limit; use an explicit stack of (node, max)
+    pairs.

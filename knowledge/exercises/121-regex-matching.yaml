@@ -1,0 +1,69 @@
+id: regex-matching
+order: 121
+pattern: 2-d dynamic programming
+difficulty: hard
+title: Dots and stars
+leetcode: regular-expression-matching
+lesson: 'State: dp[i][j] says whether s[i:] matches p[j:]. Transition: if p[j+1] is ''*'', either skip
+  the pair (dp[i][j+2]) or, if the current chars match, consume one char of s (dp[i+1][j]); otherwise
+  require a match and move both. Base case: an empty pattern matches only the empty string.
+
+  '
+statement: 'Implement matching where `.` matches any single character and `x*` matches zero or more copies
+  of the preceding element `x`. Return `True` only if pattern `p` matches the whole string `s`.
+
+  '
+function: is_match
+signature: 'def is_match(s: str, p: str) -> bool:'
+starter: "def is_match(s: str, p: str) -> bool:\n    pass\n"
+tests:
+- args:
+  - aa
+  - a
+  expected: false
+- args:
+  - aa
+  - a*
+  expected: true
+- args:
+  - ab
+  - .*
+  expected: true
+  note: dot star matches anything
+- args:
+  - ''
+  - a*b*
+  expected: true
+  note: stars can match empty
+- args:
+  - aab
+  - c*a*b
+  expected: true
+  note: zero copies
+- args:
+  - mississippi
+  - mis*is*p*.
+  expected: false
+- args:
+  - ''
+  - ''
+  expected: true
+  note: both empty
+hints:
+- Treat 'x*' as one unit that can match zero or more.
+- Define match(i, j) on suffixes and memoise.
+- 'first = i<len(s) and p[j] in (s[i], ''.''); if star: match(i,j+2) or (first and match(i+1,j)); else
+  first and match(i+1,j+1).'
+solution: "from functools import cache\n\ndef is_match(s: str, p: str) -> bool:\n    @cache\n    def match(i,\
+  \ j):\n        if j == len(p):\n            return i == len(s)\n        first = i < len(s) and p[j]\
+  \ in (s[i], \".\")\n        if j + 1 < len(p) and p[j + 1] == \"*\":\n            return match(i, j\
+  \ + 2) or (first and match(i + 1, j))\n        return first and match(i + 1, j + 1)\n    return match(0,\
+  \ 0)\n"
+pitfalls:
+  edge-case: A pattern like 'a*' or '.*' matches the empty string, and s='' with p='' is True.
+  timeout: Backtracking recursion without memo is exponential on 'aaaaaaab' vs 'a*a*a*c'; memoize on (i,
+    j) for O(len(s)*len(p)).
+  wrong-answer: Treating '*' as matching one or more instead of zero or more, or matching it alone instead
+    of with the previous char, breaks 'c*a*b' vs 'aab'.
+  exception: Reading p[j+1] for the star check at the last character raises IndexError; check j+1 < len(p)
+    first.

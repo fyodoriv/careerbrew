@@ -1,0 +1,4 @@
+{"value": [
+ {"id": "AAA1", "internetMessageId": "<a1@mail.example.com>", "subject": "Interview invite: Senior Engineer", "from": {"emailAddress": {"name": "Recruiter", "address": "Recruiter@NorthCo.example.com"}}, "receivedDateTime": "2026-10-17T14:03:00Z"},
+ {"id": "AAA2", "internetMessageId": "<a2@mail.example.com>", "subject": "Lunch?", "from": {"emailAddress": {"name": "Pal", "address": "pal@example.com"}}, "receivedDateTime": "2026-10-17T15:03:00Z"}
+]}

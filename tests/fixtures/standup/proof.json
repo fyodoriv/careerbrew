@@ -1,0 +1,1 @@
+{"Order export": {"verdict": "pass", "proofs": [{"source": "github", "url": "https://github.example.com/acme/shop/pull/12", "checked_at": "2026-10-19T09:35", "quote": "Merged on Friday"}], "reason": "the PR merged"}}

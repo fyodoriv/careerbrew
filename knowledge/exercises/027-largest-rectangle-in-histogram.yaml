@@ -1,0 +1,87 @@
+id: largest-rectangle-in-histogram
+order: 27
+pattern: stack
+difficulty: hard
+title: Biggest block in a bar chart
+leetcode: largest-rectangle-in-histogram
+lesson: |
+  Keep a stack of bars with increasing heights. When a shorter bar arrives, every taller bar on the stack can no longer extend right, so pop it and measure its rectangle: its height times the distance back to the bar below it. A sentinel height 0 at the end flushes the stack.
+statement: |
+  `heights` lists bars of width 1 side by side. Return the area of the largest axis-aligned rectangle that fits entirely inside the bars.
+function: largest_rectangle_area
+signature: 'def largest_rectangle_area(heights: list[int]) -> int:'
+starter: |
+  def largest_rectangle_area(heights: list[int]) -> int:
+      pass
+tests:
+- args:
+  - - 2
+    - 1
+    - 5
+    - 6
+    - 2
+    - 3
+  expected: 10
+- args:
+  - - 2
+    - 4
+  expected: 4
+- args:
+  - - 5
+  expected: 5
+  note: single bar
+- args:
+  - []
+  expected: 0
+  note: no bars
+- args:
+  - - 3
+    - 3
+    - 3
+  expected: 9
+  note: flat
+- args:
+  - - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  expected: 9
+  note: increasing only
+- args:
+  - - 0
+    - 0
+  expected: 0
+  note: zero heights
+scale:
+  generator: |
+    def make(n):
+        return [list(range(n))]
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- For each bar, how far can a rectangle of exactly its height stretch left and right?
+- An increasing stack tells you, at pop time, both the right limit (current index) and the left limit (new top).
+- 'Append 0; for each i, while heights[i] < height of top: pop h, width = i - stack[-1] - 1 (or i if empty), update best.'
+solution: |
+  def largest_rectangle_area(heights: list[int]) -> int:
+      best, stack = 0, []
+      hs = heights + [0]
+      for i, h in enumerate(hs):
+          while stack and hs[stack[-1]] >= h:
+              top = hs[stack.pop()]
+              width = i - stack[-1] - 1 if stack else i
+              best = max(best, top * width)
+          stack.append(i)
+      return best
+pitfalls:
+  edge-case: A single bar is a rectangle of its own height, and equal bars like [2, 2, 2] give 6, using
+    the full width.
+  timeout: Expanding left and right from every bar is O(n^2); a monotonic stack of increasing heights
+    is O(n).
+  wrong-answer: 'Using the wrong width when popping: it is i - stack[-1] - 1 after the pop, or i when
+    the stack is empty.'
+  exception: Forgetting the bars still on the stack at the end, or popping an empty stack; append a sentinel
+    0 height and check `while stack and ...`.

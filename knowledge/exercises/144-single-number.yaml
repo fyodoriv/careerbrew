@@ -1,0 +1,72 @@
+id: single-number
+order: 144
+pattern: bit manipulation
+difficulty: easy
+title: The unpaired value
+leetcode: single-number
+lesson: 'XOR cancels equal values (a ^ a = 0) and is order-independent, so XOR-ing everything leaves only
+  the value without a twin. O(n) time and O(1) memory, no set needed.
+
+  '
+statement: 'In the non-empty list `nums`, every value appears exactly twice except one, which appears
+  once. Return that one value using constant extra memory.
+
+  '
+function: single_number
+signature: 'def single_number(nums: list[int]) -> int:'
+starter: "def single_number(nums: list[int]) -> int:\n    pass\n"
+tests:
+- args:
+  - - 2
+    - 2
+    - 1
+  expected: 1
+- args:
+  - - 4
+    - 1
+    - 2
+    - 1
+    - 2
+  expected: 4
+- args:
+  - - 1
+  expected: 1
+  note: single element
+- args:
+  - - -3
+    - 7
+    - 7
+  expected: -3
+  note: negative answer
+- args:
+  - - 0
+    - 5
+    - 5
+  expected: 0
+  note: zero answer
+- args:
+  - - 9
+    - 8
+    - 9
+  expected: 8
+  note: twins not adjacent
+scale:
+  generator: "def make(n):\n    return [list(range(n)) + list(range(n)) + [-1]]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- Which operation turns a pair of equal numbers into nothing?
+- 'XOR: x ^ x == 0 and x ^ 0 == x.'
+- 'r = 0; for x in nums: r ^= x; return r.'
+solution: "def single_number(nums: list[int]) -> int:\n    r = 0\n    for x in nums:\n        r ^= x\n\
+  \    return r\n"
+pitfalls:
+  edge-case: A single-element list returns that element, and negative values work with XOR too.
+  timeout: Counting each value with nums.count inside a loop is O(n^2); XOR all values in O(n) and O(1)
+    space.
+  wrong-answer: Starting the XOR accumulator at nums[0] then XORing all of nums cancels it out; start
+    at 0.
+  exception: Using a dict and calling min on keys of count 1 crashes if you deleted the key; XOR avoids
+    extra structures.

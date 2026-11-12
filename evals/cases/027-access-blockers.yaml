@@ -1,0 +1,14 @@
+id: work-day-access-blocker-links-open-thread
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "a teammate posts: blocked, missing the sso group, permission denied; the IT access channel already has an open thread asking for the same group"
+expect:
+  - "Runs `careerbrew draft route` with the channel directory and follows `link`: drafts a reply in the open thread (or links it), never a second thread"
+  - "Has a fresh-context judge run `careerbrew draft judge` on the draft before `draft replace`, fixes and re-judges on exit 1, and never sends"
+---
+id: cli-draft-judge-missing-directory-fails
+suite: regression
+skill: careerbrew-work-day
+cli: ["draft", "judge", "--draft", "/nonexistent/d.txt", "--channel", "C1", "--directory", "/nonexistent/dir.json"]
+expect_regex: "could not read"

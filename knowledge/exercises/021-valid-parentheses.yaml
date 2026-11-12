@@ -1,0 +1,73 @@
+id: valid-parentheses
+order: 21
+pattern: stack
+difficulty: easy
+title: Balanced brackets
+leetcode: valid-parentheses
+lesson: |
+  Brackets close in the reverse order they open, which is exactly last-in, first-out. Push each opener; on a closer, the top of the stack must be its partner. The string is balanced only if the stack ends empty.
+statement: |
+  A string `s` holds only the characters `()[]{}`. Return `True` when every opening bracket is closed by the same kind of bracket, in the right nesting order, and no closer appears without an opener.
+function: is_valid
+signature: 'def is_valid(s: str) -> bool:'
+starter: |
+  def is_valid(s: str) -> bool:
+      pass
+tests:
+- args:
+  - ()[]{}
+  expected: true
+- args:
+  - ([{}])
+  expected: true
+- args:
+  - (]
+  expected: false
+  note: wrong kind of closer
+- args:
+  - ([)]
+  expected: false
+  note: crossed nesting
+- args:
+  - ''
+  expected: true
+  note: empty string is balanced
+- args:
+  - (((
+  expected: false
+  note: openers left over
+- args:
+  - ']'
+  expected: false
+  note: closer with empty stack
+scale:
+  generator: |
+    def make(n):
+        return ['([{' * (n // 3) + '}])' * (n // 3)]
+  sizes:
+  - 30000
+  - 300000
+  expected: O(n)
+hints:
+- 'Which bracket must the next closer match: the first one opened or the most recent?'
+- Use a stack of openers and a map from each closer to its opener.
+- For a closer, fail if the stack is empty or its top is not the partner; pop otherwise. At the end return not stack.
+solution: |
+  def is_valid(s: str) -> bool:
+      pair = {")": "(", "]": "[", "}": "{"}
+      stack = []
+      for c in s:
+          if c in pair:
+              if not stack or stack.pop() != pair[c]:
+                  return False
+          else:
+              stack.append(c)
+      return not stack
+pitfalls:
+  edge-case: A lone closing bracket like ")" and leftover openers like "((" are both invalid; the stack
+    must be empty at the end.
+  timeout: Repeatedly removing "()" pairs with replace() is O(n^2); one pass with a stack is O(n).
+  wrong-answer: Counting each bracket kind separately misses crossed pairs like ([)]; the closer must
+    match the most recent opener.
+  exception: 'Calling stack.pop() on an empty stack raises IndexError when the string starts with a closer;
+    check `if not stack: return False` first.'

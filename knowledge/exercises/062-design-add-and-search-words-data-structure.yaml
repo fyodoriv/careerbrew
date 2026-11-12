@@ -1,0 +1,140 @@
+id: design-add-and-search-words-data-structure
+order: 62
+pattern: tries
+difficulty: medium
+title: Word lookup with wildcards
+leetcode: design-add-and-search-words-data-structure
+lesson: 'Store words in a trie. A plain letter follows one child; a wildcard has to try every child, which
+  is a small DFS. Exact lookups stay O(length), and wildcard lookups only branch where a dot appears.
+
+  '
+statement: 'Build a class `WordDictionary` with:
+
+  - `add_word(word)`: store a lowercase word.
+
+  - `search(pattern)`: return `True` if some stored word has the same length as `pattern` and matches
+  it letter for letter, where a `.` in the pattern matches any single letter.
+
+  '
+function: WordDictionary
+signature: 'class WordDictionary:  # add_word(word) -> None; search(pattern) -> bool'
+starter: "class WordDictionary:\n    def __init__(self):\n        pass\n\n    def add_word(self, word:\
+  \ str) -> None:\n        pass\n\n    def search(self, pattern: str) -> bool:\n        pass\n"
+tests:
+- ops:
+  - WordDictionary
+  - add_word
+  - add_word
+  - add_word
+  - search
+  - search
+  - search
+  - search
+  args:
+  - []
+  - - bad
+  - - dad
+  - - mad
+  - - pad
+  - - bad
+  - - .ad
+  - - b..
+  expected:
+  - null
+  - null
+  - null
+  - null
+  - false
+  - true
+  - true
+  - true
+- ops:
+  - WordDictionary
+  - search
+  - search
+  args:
+  - []
+  - - a
+  - - .
+  expected:
+  - null
+  - false
+  - false
+  note: empty dictionary
+- ops:
+  - WordDictionary
+  - add_word
+  - search
+  - search
+  - search
+  args:
+  - []
+  - - a
+  - - .
+  - - ..
+  - - a.
+  expected:
+  - null
+  - null
+  - true
+  - false
+  - false
+  note: single letter word, length must match
+- ops:
+  - WordDictionary
+  - add_word
+  - add_word
+  - search
+  - search
+  args:
+  - []
+  - - ab
+  - - abc
+  - - ab
+  - - '...'
+  expected:
+  - null
+  - null
+  - null
+  - true
+  - true
+  note: one word is a prefix of another
+- ops:
+  - WordDictionary
+  - add_word
+  - add_word
+  - search
+  - search
+  args:
+  - []
+  - - at
+  - - at
+  - - .t
+  - - t.
+  expected:
+  - null
+  - null
+  - null
+  - true
+  - false
+  note: duplicate words
+hints:
+- Start from a trie. What changes when a character can be any letter?
+- Write a recursive search(node, i); on '.', try every child at position i + 1.
+- 'if ch == ''.'': return any(dfs(child, i + 1) for child in node.children.values())'
+solution: "class WordDictionary:\n    def __init__(self):\n        self.root = {}\n\n    def add_word(self,\
+  \ word: str) -> None:\n        node = self.root\n        for ch in word:\n            node = node.setdefault(ch,\
+  \ {})\n        node[\"$\"] = True\n\n    def search(self, pattern: str) -> bool:\n        def dfs(node,\
+  \ i):\n            if i == len(pattern):\n                return \"$\" in node\n            ch = pattern[i]\n\
+  \            if ch == \".\":\n                return any(dfs(child, i + 1) for key, child in node.items()\
+  \ if key != \"$\")\n            return ch in node and dfs(node[ch], i + 1)\n\n        return dfs(self.root,\
+  \ 0)\n"
+pitfalls:
+  prefix_match: A pattern must match a whole word, not just its beginning; check the end flag.
+  edge-case: A pattern of all dots must match a word of exactly that length only, e.g. '..' does not match
+    'a' or 'abc'.
+  timeout: Scanning every stored word with a regex per search is O(words*length); a trie with branching
+    only on '.' is much faster.
+  wrong-answer: A pattern must match a whole word, not just its beginning; check the end flag.
+  exception: Recursing past the end of the pattern or indexing a missing child; check `i == len(pattern)`
+    first and use .get().

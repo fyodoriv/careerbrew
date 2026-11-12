@@ -1,0 +1,47 @@
+id: two-sum
+order: 3
+pattern: arrays and hashing
+difficulty: easy
+title: Pair that hits the target
+leetcode: two-sum
+lesson: |
+  Instead of checking every pair, remember each value's index in a dictionary as you scan. For each number, the partner you need is target minus it, and the dictionary tells you in O(1) whether you have already passed it.
+statement: |
+  Given a list of integers `nums` and an integer `target`, exactly one pair of different positions adds up to `target`. Return those two indices as a list `[i, j]` with `i < j`.
+function: two_sum
+signature: "def two_sum(nums: list[int], target: int) -> list[int]:"
+starter: |
+  def two_sum(nums: list[int], target: int) -> list[int]:
+      pass
+tests:
+  - {args: [[2, 7, 11, 15], 9], expected: [0, 1]}
+  - {args: [[3, 2, 4], 6], expected: [1, 2]}
+  - {args: [[3, 3], 6], expected: [0, 1], note: duplicate values form the pair}
+  - {args: [[-4, 1, -2, 8], -6], expected: [0, 2], note: negatives}
+  - {args: [[0, 5, 0], 0], expected: [0, 2], note: zeros}
+scale:
+  generator: |
+    def make(n):
+        return [list(range(n)), 2 * n - 3]
+  sizes: [20000, 200000]
+  expected: O(n)
+hints:
+  - For a given number x, which single value would complete the pair?
+  - Keep a dictionary from value to index of what you have seen; look up target - x before storing x.
+  - "for i, x in enumerate(nums): if target - x in seen: return [seen[target - x], i]; seen[x] = i"
+solution: |
+  def two_sum(nums: list[int], target: int) -> list[int]:
+      seen = {}
+      for i, x in enumerate(nums):
+          if target - x in seen:
+              return [seen[target - x], i]
+          seen[x] = i
+      return []
+pitfalls:
+  edge-case: 'The same value can be used twice only if it appears twice: [3, 3] with target 6 is [0, 1],
+    but [3] alone is no answer.'
+  timeout: Two nested loops are O(n^2); a value-to-index dictionary finds each partner in one O(n) pass.
+  wrong-answer: Look up the partner before inserting the current value, so a number is not paired with
+    itself.
+  exception: Using nums.index(partner) raises ValueError when the partner is missing; check `partner in
+    seen` before reading it.

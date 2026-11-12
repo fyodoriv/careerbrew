@@ -1,0 +1,43 @@
+"""Observe the type-check cache with a changed synthetic external runner."""
+
+import os
+import shutil
+import subprocess
+
+from tests.unit.test_gate_cache import GIT, ROOT, _stub
+
+
+def test_changed_type_checker_cannot_reuse_a_stale_pass(tmp_path):
+    root, bin_dir = tmp_path / "repo", tmp_path / "bin"
+    (root / "scripts").mkdir(parents=True)
+    bin_dir.mkdir()
+    for name in ("check.sh", "input-key.sh"):
+        shutil.copy(ROOT / "scripts" / name, root / "scripts" / name)
+    for name in ("check-docs.sh", "leak-check.sh", "e2e.sh"):
+        _stub(root / "scripts" / name)
+    for name in ("uv", "gitleaks"):
+        _stub(bin_dir / name)
+    (root / ".gitignore").write_text(".metrics/\n")
+    (root / "pyproject.toml").write_text("# synthetic gate fixture\n")
+    env = {"PATH": f"{bin_dir}{os.pathsep}{os.defpath}", "HOME": str(tmp_path), "LC_ALL": "C", "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull, "GIT_TERMINAL_PROMPT": "0", "GIT_ALLOW_PROTOCOL": "", "UNIT_JOBS": "0"}
+
+    def run(argv, **overrides):
+        return subprocess.run(argv, cwd=root, env=env | overrides, capture_output=True, text=True, timeout=60, check=False)
+
+    for args in (("init", "-q", "-b", "main"), ("add", "-A"), ("commit", "-qm", "fixture")):
+        assert run([*GIT, *args]).returncode == 0
+    assert run(["bash", "scripts/check.sh", "fast"]).returncode == 0
+    scope = run(["bash", "scripts/check.sh", "inputs", "types"])
+    assert scope.returncode == 0 and scope.stdout.startswith("types\t")
+    key = run(["bash", "scripts/input-key.sh", *scope.stdout.split("\t", 1)[1].split()])
+    assert key.returncode == 0 and key.stdout.strip()
+    cache = root / ".metrics/cache/types"
+    cache.write_text(key.stdout)
+    _stub(bin_dir / "uv", 'if [ "$1" = run ] && [ "$2" = pyright ]; then exit 17; fi\nexit 0')
+    after = run(["bash", "scripts/input-key.sh", *scope.stdout.split("\t", 1)[1].split()])
+    cached = run(["bash", "scripts/check.sh", "fast"])
+    fresh = run(["bash", "scripts/check.sh", "fast"], NO_CACHE="1")
+    assert after.returncode == 0 and after.stdout == key.stdout
+    assert cached.returncode != 0 and "step 'types' failed" in cached.stderr
+    assert fresh.returncode != 0 and "step 'types' failed" in fresh.stderr
+    assert cache.read_text() == key.stdout

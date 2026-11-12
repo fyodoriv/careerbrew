@@ -1,0 +1,15 @@
+id: work-companion-promises-are-tracked-not-handed-off
+suite: regression
+skill: careerbrew-work-companion
+should: act
+input: "I told Sam in a DM I'll look into the timeout tomorrow. Make sure I don't forget."
+expect:
+  - "Checks `careerbrew work promise list` (the promise is tracked from the sent message) instead of adding a handoff item by hand"
+  - "Offers to work it (research, then a follow-up draft it never sends) and records each step with `careerbrew work promise step`"
+---
+id: cli-work-promise-list-empty
+suite: regression
+skill: careerbrew-work-companion
+should: act
+cli: ["work", "promise", "list"]
+expect_regex: "promises: none open"

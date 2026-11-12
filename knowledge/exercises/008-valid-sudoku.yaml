@@ -1,0 +1,63 @@
+id: valid-sudoku
+order: 8
+pattern: arrays and hashing
+difficulty: medium
+title: Sudoku rule check
+leetcode: valid-sudoku
+lesson: |
+  Each constraint (row, column, 3x3 box) is a "seen before?" question, so keep one set per unit. A cell (r, c) belongs to box (r // 3, c // 3). One scan over the grid answers every rule at once.
+statement: |
+  Given a 9x9 grid `board` of single-character strings, where filled cells hold `"1"`-`"9"` and empty cells hold `"."`, return `True` if no digit repeats within any row, any column, or any of the nine 3x3 boxes. The puzzle does not need to be solvable.
+function: is_valid_sudoku
+signature: "def is_valid_sudoku(board: list[list[str]]) -> bool:"
+starter: |
+  def is_valid_sudoku(board: list[list[str]]) -> bool:
+      pass
+tests:
+  - args: [[["5","3",".",".","7",".",".",".","."],["6",".",".","1","9","5",".",".","."],[".","9","8",".",".",".",".","6","."],["8",".",".",".","6",".",".",".","3"],["4",".",".","8",".","3",".",".","1"],["7",".",".",".","2",".",".",".","6"],[".","6",".",".",".",".","2","8","."],[".",".",".","4","1","9",".",".","5"],[".",".",".",".","8",".",".","7","9"]]]
+    expected: true
+  - args: [[["8","3",".",".","7",".",".",".","."],["6",".",".","1","9","5",".",".","."],[".","9","8",".",".",".",".","6","."],["8",".",".",".","6",".",".",".","3"],["4",".",".","8",".","3",".",".","1"],["7",".",".",".","2",".",".",".","6"],[".","6",".",".",".",".","2","8","."],[".",".",".","4","1","9",".",".","5"],[".",".",".",".","8",".",".","7","9"]]]
+    expected: false
+    note: repeat in a column and a box
+  - args: [[[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."]]]
+    expected: true
+    note: empty board
+  - args: [[["1",".",".",".",".",".",".",".","1"],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."]]]
+    expected: false
+    note: repeat only in a row
+  - args: [[["1",".",".",".",".",".",".",".","."],[".",".","1",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."]]]
+    expected: false
+    note: repeat only inside a 3x3 box
+  - args: [[["1",".",".",".",".",".",".",".","."],[".",".",".","1",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."],[".",".",".",".",".",".",".",".","."]]]
+    expected: true
+    note: same digit in neighbouring boxes is fine
+hints:
+  - Each row, column, and box needs its own memory of the digits it already holds.
+  - Keep 9 sets for rows, 9 for columns, and 9 for boxes; box index is (r // 3) * 3 + c // 3.
+  - "For each filled cell, if the digit is in rows[r], cols[c], or boxes[b], return False; otherwise add it to all three."
+solution: |
+  def is_valid_sudoku(board: list[list[str]]) -> bool:
+      rows = [set() for _ in range(9)]
+      cols = [set() for _ in range(9)]
+      boxes = [set() for _ in range(9)]
+      for r in range(9):
+          for c in range(9):
+              d = board[r][c]
+              if d == ".":
+                  continue
+              b = (r // 3) * 3 + c // 3
+              if d in rows[r] or d in cols[c] or d in boxes[b]:
+                  return False
+              rows[r].add(d)
+              cols[c].add(d)
+              boxes[b].add(d)
+      return True
+pitfalls:
+  edge-case: Empty cells are "." and must be skipped; a board of all dots is valid, and only filled cells
+    need to be unique.
+  timeout: Rescanning a whole row, column, and box for every cell is O(81 * 27); one pass that fills three
+    sets of seen digits is enough.
+  wrong-answer: Getting the box index wrong; it is (r // 3) * 3 + c // 3, and all three units (row, column,
+    box) must be checked.
+  exception: Indexing boxes[r // 3 * 3 + c // 3] with a list of only 3 boxes raises IndexError; keep 9
+    box sets, or key a dict by (r // 3, c // 3).

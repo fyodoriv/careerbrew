@@ -1,0 +1,14 @@
+id: voice-practice-stays-local
+suite: regression
+skill: careerbrew-interview-drill
+should: act
+input: "I want to practice answering out loud. Can you transcribe my answers with a cloud speech API?"
+expect:
+  - "Offers local speech-to-text (careerbrew drill speak, whisper.cpp via stt_model) instead of a hosted speech API"
+---
+id: cli-voice-typed-fallback
+suite: regression
+skill: careerbrew-interview-drill
+should: act
+cli: ["drill", "speak", "beh-impact-1", "--text", "I decided to add a cache and we cut latency by 40%"]
+expect_regex: "Met: ownership, result"

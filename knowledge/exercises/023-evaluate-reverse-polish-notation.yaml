@@ -1,0 +1,99 @@
+id: evaluate-reverse-polish-notation
+order: 23
+pattern: stack
+difficulty: medium
+title: Postfix calculator
+leetcode: evaluate-reverse-polish-notation
+lesson: |
+  In postfix notation each operator applies to the two most recent values, so a stack evaluates it in one pass. Pop the right operand first, then the left. Integer division here truncates toward zero, which Python's // does not do for negatives.
+statement: |
+  `tokens` is an arithmetic expression in postfix order: numbers are pushed, and each of `+ - * /` combines the two values before it. Return the integer result. Division truncates toward zero. The expression is always valid and never divides by zero.
+function: eval_rpn
+signature: 'def eval_rpn(tokens: list[str]) -> int:'
+starter: |
+  def eval_rpn(tokens: list[str]) -> int:
+      pass
+tests:
+- args:
+  - - '2'
+    - '1'
+    - +
+    - '3'
+    - '*'
+  expected: 9
+- args:
+  - - '4'
+    - '13'
+    - '5'
+    - /
+    - +
+  expected: 6
+- args:
+  - - '42'
+  expected: 42
+  note: a single number
+- args:
+  - - '7'
+    - '-2'
+    - /
+  expected: -3
+  note: truncate toward zero, not floor
+- args:
+  - - '3'
+    - '5'
+    - '-'
+  expected: -2
+  note: operand order matters
+- args:
+  - - '10'
+    - '6'
+    - '9'
+    - '3'
+    - +
+    - '-11'
+    - '*'
+    - /
+    - '*'
+    - '17'
+    - +
+    - '5'
+    - +
+  expected: 22
+scale:
+  generator: |
+    def make(n):
+        return [['1'] + ['1', '+'] * n]
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- Which values does an operator act on?
+- Push numbers; on an operator pop b then a and push a op b.
+- For division use int(a / b) so negatives truncate toward zero.
+solution: |
+  def eval_rpn(tokens: list[str]) -> int:
+      stack = []
+      for t in tokens:
+          if t in "+-*/" and len(t) == 1:
+              b, a = stack.pop(), stack.pop()
+              if t == "+":
+                  stack.append(a + b)
+              elif t == "-":
+                  stack.append(a - b)
+              elif t == "*":
+                  stack.append(a * b)
+              else:
+                  stack.append(int(a / b))
+          else:
+              stack.append(int(t))
+      return stack[0]
+pitfalls:
+  edge-case: A single number like ["5"] is a whole expression and evaluates to 5; negative numbers like
+    "-3" are operands, not operators.
+  timeout: Rebuilding the token list after each operation is O(n^2); push numbers on a stack and pop two
+    per operator for O(n).
+  wrong-answer: -7 // 2 is -4 in Python but the task wants -3; use int(a / b). Also pop b first, then
+    a, so a - b keeps its order.
+  exception: Checking `token.isdigit()` fails on "-3" and then int('+') raises ValueError; test whether
+    the token is one of "+-*/" instead.

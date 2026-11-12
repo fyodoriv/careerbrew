@@ -1,0 +1,178 @@
+id: lru-cache
+order: 43
+pattern: linked list
+difficulty: medium
+title: Evict the stalest entry
+leetcode: lru-cache
+lesson: |
+  An LRU cache needs O(1) lookup and O(1) "move to most recent", which a hash map plus a doubly linked list provide. In Python, OrderedDict is exactly that pair: move_to_end on each use and popitem(last=False) to evict.
+statement: |
+  Design `LRUCache(capacity)` with `get(key)` (return the value or `-1`) and `put(key, value)` (insert or update). Both `get` and `put` count as using a key. When an insert would exceed `capacity`, first remove the key that was used least recently. Both operations must be O(1). Tests call the constructor first and compare every return value (`None` for put).
+function: LRUCache
+signature: 'class LRUCache:'
+starter: |
+  class LRUCache:
+      def __init__(self, capacity: int):
+          pass
+
+      def get(self, key: int) -> int:
+          pass
+
+      def put(self, key: int, value: int) -> None:
+          pass
+tests:
+- ops:
+  - LRUCache
+  - put
+  - put
+  - get
+  - put
+  - get
+  - put
+  - get
+  - get
+  - get
+  args:
+  - - 2
+  - - 1
+    - 1
+  - - 2
+    - 2
+  - - 1
+  - - 3
+    - 3
+  - - 2
+  - - 4
+    - 4
+  - - 1
+  - - 3
+  - - 4
+  expected:
+  - null
+  - null
+  - null
+  - 1
+  - null
+  - -1
+  - null
+  - -1
+  - 3
+  - 4
+- ops:
+  - LRUCache
+  - put
+  - put
+  - get
+  args:
+  - - 1
+  - - 1
+    - 1
+  - - 2
+    - 2
+  - - 1
+  expected:
+  - null
+  - null
+  - null
+  - -1
+  note: capacity one
+- ops:
+  - LRUCache
+  - get
+  args:
+  - - 2
+  - - 5
+  expected:
+  - null
+  - -1
+  note: missing key
+- ops:
+  - LRUCache
+  - put
+  - put
+  - put
+  - put
+  - get
+  - get
+  args:
+  - - 2
+  - - 1
+    - 1
+  - - 2
+    - 2
+  - - 1
+    - 10
+  - - 3
+    - 3
+  - - 1
+  - - 2
+  expected:
+  - null
+  - null
+  - null
+  - null
+  - null
+  - 10
+  - -1
+  note: update refreshes recency
+- ops:
+  - LRUCache
+  - put
+  - put
+  - get
+  - put
+  - get
+  - get
+  args:
+  - - 2
+  - - 2
+    - 1
+  - - 1
+    - 1
+  - - 2
+  - - 4
+    - 1
+  - - 1
+  - - 2
+  expected:
+  - null
+  - null
+  - null
+  - 1
+  - null
+  - -1
+  - 1
+  note: get refreshes recency
+hints:
+- Which two operations must be O(1), and which structures give each?
+- Map key -> node for lookup; a doubly linked list orders keys by recency.
+- 'With OrderedDict: on get/put move_to_end(key); after put, if len > capacity: popitem(last=False).'
+solution: |
+  from collections import OrderedDict
+
+
+  class LRUCache:
+      def __init__(self, capacity: int):
+          self.cap = capacity
+          self.data = OrderedDict()
+
+      def get(self, key: int) -> int:
+          if key not in self.data:
+              return -1
+          self.data.move_to_end(key)
+          return self.data[key]
+
+      def put(self, key: int, value: int) -> None:
+          self.data[key] = value
+          self.data.move_to_end(key)
+          if len(self.data) > self.cap:
+              self.data.popitem(last=False)
+pitfalls:
+  edge-case: A capacity of 1 evicts on every new key, and putting an existing key must update it and mark
+    it most recent without evicting.
+  timeout: Keeping recency in a plain list makes each move O(n); a dict plus a doubly linked list, or
+    OrderedDict with move_to_end, is O(1).
+  wrong-answer: Forgetting that get also counts as a use, so the wrong key is evicted; move the key to
+    the most recent end on every get and put.
+  exception: Reading self.cache[key] for a missing key raises KeyError; return -1 when the key is absent,
+    and pop the oldest only when the size goes over capacity.

@@ -1,0 +1,128 @@
+id: combination-sum
+order: 72
+pattern: backtracking
+difficulty: medium
+title: Reusable coins to a target
+leetcode: combination-sum
+lesson: 'Backtrack over candidates in a fixed order and only move forward (or stay) in that order; that
+  avoids producing the same multiset twice. Stop a branch once the remaining target goes negative.
+
+  '
+statement: 'Given distinct positive integers `candidates` and a positive `target`, return every unique
+  combination of candidates that sums to target. A candidate may be used any number of times. Two combinations
+  are the same if they use the same counts of each value; order does not matter.
+
+  '
+function: combination_sum
+signature: 'def combination_sum(candidates: list[int], target: int) -> list[list[int]]:'
+starter: "def combination_sum(candidates: list[int], target: int) -> list[list[int]]:\n    pass\n"
+compare: set
+tests:
+- args:
+  - - 2
+    - 3
+    - 6
+    - 7
+  - 7
+  expected:
+  - - 2
+    - 2
+    - 3
+  - - 7
+- args:
+  - - 2
+    - 3
+    - 5
+  - 8
+  expected:
+  - - 2
+    - 2
+    - 2
+    - 2
+  - - 2
+    - 3
+    - 3
+  - - 3
+    - 5
+- args:
+  - - 2
+  - 1
+  expected: []
+  note: impossible
+- args:
+  - - 1
+  - 2
+  expected:
+  - - 1
+    - 1
+  note: reuse one value
+- args:
+  - - 7
+    - 3
+    - 2
+  - 18
+  expected:
+  - - 2
+    - 2
+    - 2
+    - 2
+    - 2
+    - 2
+    - 2
+    - 2
+    - 2
+  - - 2
+    - 2
+    - 2
+    - 2
+    - 2
+    - 2
+    - 3
+    - 3
+  - - 2
+    - 2
+    - 2
+    - 2
+    - 3
+    - 7
+  - - 2
+    - 2
+    - 2
+    - 3
+    - 3
+    - 3
+    - 3
+  - - 2
+    - 2
+    - 7
+    - 7
+  - - 2
+    - 3
+    - 3
+    - 3
+    - 7
+  - - 3
+    - 3
+    - 3
+    - 3
+    - 3
+    - 3
+  note: unsorted candidates
+hints:
+- How do you avoid listing [2,3] and [3,2] as different answers?
+- Recurse with a start index; at each step you may reuse the current candidate or move to later ones.
+- 'go(start, left): if left == 0 record; for i from start: if nums[i] <= left: push, go(i, left - nums[i]),
+  pop'
+solution: "def combination_sum(candidates: list[int], target: int) -> list[list[int]]:\n    nums = sorted(candidates)\n\
+  \    out, path = [], []\n\n    def go(start, left):\n        if left == 0:\n            out.append(path[:])\n\
+  \            return\n        for i in range(start, len(nums)):\n            if nums[i] > left:\n   \
+  \             break\n            path.append(nums[i])\n            go(i, left - nums[i])\n         \
+  \   path.pop()\n\n    go(0, target)\n    return out\n"
+pitfalls:
+  edge-case: When target is smaller than every candidate, return []; a candidate may repeat, e.g. [2,2,3]
+    for target 7.
+  timeout: Trying every candidate at every step without sorting and pruning explodes; sort and break once
+    a candidate exceeds the remainder.
+  wrong-answer: Restarting from index 0 each call, which produces duplicate combinations like [2,3,2]
+    and [3,2,2].
+  exception: Recursing on a negative remainder forever; return as soon as remaining < 0.

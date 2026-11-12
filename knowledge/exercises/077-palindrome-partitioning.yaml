@@ -1,0 +1,74 @@
+id: palindrome-partitioning
+order: 77
+pattern: backtracking
+difficulty: medium
+title: Cut into mirror pieces
+leetcode: palindrome-partitioning
+lesson: 'Choose the first piece as any palindromic prefix, then recurse on the rest. Every complete path
+  through the string is one valid partition.
+
+  '
+statement: 'Given a string `s`, return every way to split it into consecutive pieces such that each piece
+  reads the same forwards and backwards. Any order of partitions is accepted (the pieces within a partition
+  stay in string order).
+
+  '
+function: partition
+signature: 'def partition(s: str) -> list[list[str]]:'
+starter: "def partition(s: str) -> list[list[str]]:\n    pass\n"
+compare: sorted
+tests:
+- args:
+  - aab
+  expected:
+  - - a
+    - a
+    - b
+  - - aa
+    - b
+- args:
+  - a
+  expected:
+  - - a
+  note: single char
+- args:
+  - ab
+  expected:
+  - - a
+    - b
+  note: no multi-char palindromes
+- args:
+  - aaa
+  expected:
+  - - a
+    - a
+    - a
+  - - a
+    - aa
+  - - aa
+    - a
+  - - aaa
+  note: all equal
+- args:
+  - aba
+  expected:
+  - - a
+    - b
+    - a
+  - - aba
+hints:
+- What choices do you have for the first piece?
+- Try every prefix that is a palindrome and recurse on the remainder.
+- 'go(start): if start == n record; for end in start+1..n: if s[start:end] is a palindrome: push, go(end),
+  pop'
+solution: "def partition(s: str) -> list[list[str]]:\n    out, path = [], []\n\n    def go(start):\n \
+  \       if start == len(s):\n            out.append(path[:])\n            return\n        for end in\
+  \ range(start + 1, len(s) + 1):\n            piece = s[start:end]\n            if piece == piece[::-1]:\n\
+  \                path.append(piece)\n                go(end)\n                path.pop()\n\n    go(0)\n\
+  \    return out\n"
+pitfalls:
+  edge-case: A single character string returns [[s]]; the empty string returns [[]].
+  timeout: Checking palindromes with s[i:j] == s[i:j][::-1] at every step repeats work; precompute an
+    is_pal table in O(n^2).
+  wrong-answer: Appending the partition list itself instead of a copy, or cutting at j instead of j+1.
+  exception: Off-by-one slicing past the end; loop end from start+1 to len(s) inclusive.

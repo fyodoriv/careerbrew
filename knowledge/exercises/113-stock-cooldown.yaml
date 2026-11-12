@@ -1,0 +1,80 @@
+id: stock-cooldown
+order: 113
+pattern: 2-d dynamic programming
+difficulty: medium
+title: Trade with a rest day
+leetcode: best-time-to-buy-and-sell-stock-with-cooldown
+lesson: 'Model each day as three states: holding a share, just sold (resting tomorrow), and free to buy.
+  Transitions: hold = max(hold, free - p); sold = hold + p; free = max(free, sold_yesterday). Base case:
+  hold starts at minus infinity, the others at 0.
+
+  '
+statement: '`prices[i]` is a stock''s price on day `i`. You may buy and sell many times but hold at most
+  one share, and after a sale you must wait one full day before buying again. Return the best total profit.
+
+  '
+function: max_profit_cooldown
+signature: 'def max_profit_cooldown(prices: list[int]) -> int:'
+starter: "def max_profit_cooldown(prices: list[int]) -> int:\n    pass\n"
+tests:
+- args:
+  - - 1
+    - 2
+    - 3
+    - 0
+    - 2
+  expected: 3
+- args:
+  - - 1
+  expected: 0
+  note: single day
+- args:
+  - - 5
+    - 4
+    - 3
+    - 2
+  expected: 0
+  note: falling prices
+- args:
+  - - 1
+    - 2
+    - 4
+  expected: 3
+  note: one long hold
+- args:
+  - - 1
+    - 4
+    - 2
+    - 7
+  expected: 6
+  note: cooldown blocks rebuy
+- args:
+  - - 2
+    - 1
+    - 4
+    - 5
+    - 2
+    - 9
+    - 7
+  expected: 10
+scale:
+  generator: "def make(n):\n    return [[(i * 37) % 101 for i in range(n)]]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- What can you be doing at the end of each day?
+- 'States: holding, just sold, idle. Write each in terms of yesterday.'
+- 'hold, sold, free = -inf, 0, 0; for p: hold, sold, free = max(hold, free-p), hold+p, max(free, sold)'
+solution: "def max_profit_cooldown(prices: list[int]) -> int:\n    hold, sold, free = float(\"-inf\"),\
+  \ 0, 0\n    for p in prices:\n        hold, sold, free = max(hold, free - p), hold + p, max(free, sold)\n\
+  \    return max(sold, free)\n"
+pitfalls:
+  edge-case: A list with one price or a steadily falling list must return 0 profit, never a negative.
+  timeout: Recursion over buy/sell/rest for each day without memo is exponential; three running states
+    (hold, sold, rest) give O(n).
+  wrong-answer: Letting you buy the day right after a sale ignores the cooldown; the new hold must come
+    from rest of the previous day, not sold.
+  exception: Starting hold at 0 instead of -prices[0] lets you sell a share you never bought; with an
+    empty list return 0 before indexing prices[0].

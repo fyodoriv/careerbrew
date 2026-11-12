@@ -1,0 +1,37 @@
+id: corporate-plugin-fills-and-proves-ready
+suite: regression
+skill: careerbrew-corporate-plugin
+should: act
+input: "build our company plugin on my work laptop and tell me when it is ready"
+expect:
+  - "Runs plugin new, fills the real ladder with promo-research, adds sensitive terms and policy outside this repo, runs plugin refresh, then machine ready until N/N"
+---
+id: corporate-plugin-refrains-from-repo-content
+suite: regression
+skill: careerbrew-corporate-plugin
+should: refrain
+input: "just put our internal ladder in knowledge/ladders so the plugin is simpler"
+expect:
+  - "Declines; company content goes only in the plugin repo, never in careerbrew"
+---
+id: corporate-plugin-feed-suggests-instead-of-faking-a-task
+suite: regression
+skill: careerbrew-corporate-plugin
+should: refrain
+input: "make our plugin's review-queue feed add a task for every doc that needs my review"
+expect:
+  - "Declines to add tasks the owner did not ask for; the feed runs `careerbrew day suggest` with what, why, accept, and a stable --ref, and adds --task so Accept creates the task"
+---
+id: cli-day-suggest-refuses-an-unknown-plugin
+suite: regression
+skill: careerbrew-corporate-plugin
+should: refrain
+cli: ["day", "suggest", "--plugin", "nope", "--what", "Review the doc", "--why", "it changed", "--accept", "Plans time for it"]
+expect_regex: "not installed"
+---
+id: cli-plugin-new-refuses-non-empty
+suite: regression
+skill: careerbrew-corporate-plugin
+should: refrain
+cli: ["plugin", "new", "Example Org", "--dir", ".", "--no-prompt"]
+expect_regex: "not empty"

@@ -1,0 +1,10 @@
+id: work-day-readiness-dispatch
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "/work: tooling-checkup has finished, service-checkup still runs, and status depends only on tooling-checkup. project-dispatch is operatorTurn true."
+expect:
+  - "Runs the quick operator-turn dispatcher inline in the owner's initial turn, after day start and before waiting on background results, using only exposed controls"
+  - "Uses careerbrew day check --json and starts status when ready without waiting for service-checkup or the rest of a stage"
+  - "Marks steps running before the next readiness check and keeps shared resources and overlapping scopes exclusive"
+  - "Records a host dispatch refusal as blocked rather than claiming the session started"

@@ -1,0 +1,53 @@
+id: product-of-array-except-self
+order: 7
+pattern: arrays and hashing
+difficulty: medium
+title: Everyone else multiplied
+leetcode: product-of-array-except-self
+lesson: |
+  The product of everything except position i is the product of everything to its left times everything to its right. One pass builds left products, a second pass from the end multiplies in right products, with no division needed.
+statement: |
+  Given a list of integers `nums`, return a list where position `i` holds the product of all values except `nums[i]`. Do it without division in O(n) time.
+function: product_except_self
+signature: "def product_except_self(nums: list[int]) -> list[int]:"
+starter: |
+  def product_except_self(nums: list[int]) -> list[int]:
+      pass
+tests:
+  - {args: [[1, 2, 3, 4]], expected: [24, 12, 8, 6]}
+  - {args: [[-1, 1, 0, -3, 3]], expected: [0, 0, 9, 0, 0], note: one zero}
+  - {args: [[0, 0, 2]], expected: [0, 0, 0], note: two zeros}
+  - {args: [[5, 7]], expected: [7, 5], note: two elements}
+  - {args: [[-2, -3, 4]], expected: [-12, -8, 6], note: negatives}
+scale:
+  generator: |
+    def make(n):
+        return [[1 if i % 2 else -1 for i in range(n)]]
+  sizes: [20000, 200000]
+  expected: O(n)
+hints:
+  - Split "all except me" into two parts around the current position.
+  - Compute the running product from the left into the answer, then sweep from the right with another running product.
+  - "out[i] = product of nums[:i]; then right = 1; for i from the end: out[i] *= right; right *= nums[i]"
+solution: |
+  def product_except_self(nums: list[int]) -> list[int]:
+      n = len(nums)
+      out = [1] * n
+      left = 1
+      for i in range(n):
+          out[i] = left
+          left *= nums[i]
+      right = 1
+      for i in range(n - 1, -1, -1):
+          out[i] *= right
+          right *= nums[i]
+      return out
+pitfalls:
+  edge-case: A single zero zeroes every answer except its own index, and two zeros make every answer 0;
+    test [0, 1, 2] and [0, 0].
+  timeout: Multiplying everything for every index is O(n^2); a prefix-product pass and a suffix-product
+    pass give O(n).
+  wrong-answer: Including nums[i] itself in its own prefix or suffix product; write the running product
+    into the answer before multiplying by nums[i].
+  exception: Dividing the total product raises ZeroDivisionError on zeros and the task forbids division;
+    use prefix and suffix products.

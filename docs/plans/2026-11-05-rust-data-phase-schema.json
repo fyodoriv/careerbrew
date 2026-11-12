@@ -1,0 +1,374 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:careerbrew:prospective-data-phase-v1",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "careerbrew-data-phase-v1"
+    },
+    "trial": {
+      "enum": [
+        "first",
+        "second"
+      ]
+    },
+    "case": {
+      "enum": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10"
+      ]
+    },
+    "role": {
+      "enum": [
+        "writer",
+        "reader"
+      ]
+    },
+    "pid": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4294967295
+    },
+    "fixture_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "api_calls": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "properties": {
+          "sequence": {
+            "enum": [
+              "1",
+              "2"
+            ]
+          },
+          "purpose": {
+            "enum": [
+              "primary",
+              "serialized-bytes"
+            ]
+          },
+          "function": {
+            "enum": [
+              "careerbrew.store.read_json",
+              "careerbrew.store.write_text",
+              "careerbrew.store.read_text",
+              "careerbrew.store.write_json",
+              "careerbrew.store.write_yaml",
+              "careerbrew.store.read_yaml",
+              "careerbrew.store.write_jsonl",
+              "careerbrew.store.read_jsonl",
+              "careerbrew.store.append_jsonl",
+              "careerbrew.store.upsert_jsonl",
+              "careerbrew.store.write_text_if_changed",
+              "careerbrew.store.write_json_if_changed"
+            ]
+          },
+          "arguments_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "module_path": {
+            "type": "string"
+          },
+          "loader_origin": {
+            "type": "string"
+          },
+          "function_source": {
+            "type": "string"
+          },
+          "source_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "started": {
+            "const": true
+          },
+          "completed": {
+            "const": true
+          },
+          "returned": {
+            "$ref": "urn:careerbrew:prospective-data-value-v1#/$defs/value"
+          },
+          "target": {
+            "$ref": "urn:careerbrew:prospective-data-value-v1#/$defs/ownedTarget"
+          }
+        },
+        "required": [
+          "sequence",
+          "purpose",
+          "function",
+          "arguments_sha256",
+          "module_path",
+          "loader_origin",
+          "function_source",
+          "source_sha256",
+          "started",
+          "completed",
+          "returned",
+          "target"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "driver_provenance": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "const": "careerbrew-data-driver-provenance-v1"
+        },
+        "pid": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "entry": {
+          "type": "object",
+          "properties": {
+            "stage": {
+              "const": "main-entry"
+            },
+            "globals_file": {
+              "type": "string",
+              "minLength": 1
+            },
+            "globals_file_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "globals_name": {
+              "const": "__main__"
+            },
+            "globals_spec_name": {
+              "type": "null"
+            },
+            "globals_spec_origin": {
+              "type": "null"
+            },
+            "main_code_filename": {
+              "type": "string",
+              "minLength": 1
+            },
+            "main_code_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "sys_modules_main_present": {
+              "const": true
+            },
+            "sys_modules_main_file": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sys_modules_main_file_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "sys_modules_main_name": {
+              "const": "__main__"
+            },
+            "sys_modules_main_spec_name": {
+              "type": "null"
+            },
+            "sys_modules_main_spec_origin": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "stage",
+            "globals_file",
+            "globals_file_sha256",
+            "globals_name",
+            "globals_spec_name",
+            "globals_spec_origin",
+            "main_code_filename",
+            "main_code_sha256",
+            "sys_modules_main_present",
+            "sys_modules_main_file",
+            "sys_modules_main_file_sha256",
+            "sys_modules_main_name",
+            "sys_modules_main_spec_name",
+            "sys_modules_main_spec_origin"
+          ],
+          "additionalProperties": false
+        },
+        "api_complete": {
+          "type": "object",
+          "properties": {
+            "stage": {
+              "const": "api-complete"
+            },
+            "globals_file": {
+              "type": "string",
+              "minLength": 1
+            },
+            "globals_file_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "globals_name": {
+              "const": "__main__"
+            },
+            "globals_spec_name": {
+              "type": "null"
+            },
+            "globals_spec_origin": {
+              "type": "null"
+            },
+            "main_code_filename": {
+              "type": "string",
+              "minLength": 1
+            },
+            "main_code_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "sys_modules_main_present": {
+              "const": true
+            },
+            "sys_modules_main_file": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sys_modules_main_file_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "sys_modules_main_name": {
+              "const": "__main__"
+            },
+            "sys_modules_main_spec_name": {
+              "type": "null"
+            },
+            "sys_modules_main_spec_origin": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "stage",
+            "globals_file",
+            "globals_file_sha256",
+            "globals_name",
+            "globals_spec_name",
+            "globals_spec_origin",
+            "main_code_filename",
+            "main_code_sha256",
+            "sys_modules_main_present",
+            "sys_modules_main_file",
+            "sys_modules_main_file_sha256",
+            "sys_modules_main_name",
+            "sys_modules_main_spec_name",
+            "sys_modules_main_spec_origin"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schema",
+        "pid",
+        "entry",
+        "api_complete"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema",
+    "trial",
+    "case",
+    "role",
+    "pid",
+    "fixture_sha256",
+    "api_calls",
+    "driver_provenance"
+  ],
+  "additionalProperties": false,
+  "semantic_rules": [
+    "Reject duplicate JSON object members before decoding; reject all unknown fields.",
+    "Match case/role/trial/PID to the actual parent invocation and pinned phase fixture.",
+    "Every recorded call must match the exact ledger sequence, original provider function/source and actual typed return or explicit digest policy. Empty calls are schema-valid only for refused skip evidence, never a successful phase.",
+    "Parent-observed process wait/exit/reap data are separate fields in the capture receipt; never trust a child-reported exit or infer it from this file.",
+    "All pid and ordinal metadata are bounded control values, not user payload integers. Arbitrary user integers remain canonical decimal strings inside typed nodes.",
+    "On callback failure retain the actual PID and a typed outcome from the same child owner: cause, actual wait code/signal, reaped and cleanup_succeeded. The diagnostic string and timeout substring are never authority.",
+    "Report no raw key bytes or literal canary, including function arguments. Hash typed invocation arguments instead.",
+    "Resolve the value grammar by the pinned local schema registry for its urn; never fetch network schemas.",
+    "Observed target and argument digest come from the actual arguments bound at the original API entry, for primary and auxiliary calls. Compare target with expected phase path; never hash the declared fixture arguments as execution evidence.",
+    "Before generic semantic or retained-delta rejection, check designated no-op file ciphertext/inode/mtime identity after lifecycle, source, actual call/target and privacy checks.",
+    "Choose string projection by the exact case/role/purpose matrix in the fixture, never by content.",
+    "Mandatory entry and API-complete source paths/hashes/main membership/script specs match actual PID and frozen trusted driver; no exit-time file fallback. Missing driver_provenance refuses as driver_identity_missing before generic key validation."
+  ],
+  "$defs": {
+    "parentProcessOutcome": {
+      "type": "object",
+      "properties": {
+        "pid": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "cause": {
+          "enum": [
+            "completed",
+            "deadline_exceeded",
+            "output_limit",
+            "callback_refusal",
+            "spawn_failed",
+            "ownership_failed",
+            "cleanup_failed"
+          ]
+        },
+        "wait_observed": {
+          "type": "boolean"
+        },
+        "exit_code": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "terminating_signal": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "reaped": {
+          "type": "boolean"
+        },
+        "cleanup_succeeded": {
+          "type": "boolean"
+        },
+        "exact_pid_absent_after_return": {
+          "type": "boolean"
+        },
+        "diagnostic": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "pid",
+        "cause",
+        "wait_observed",
+        "exit_code",
+        "terminating_signal",
+        "reaped",
+        "cleanup_succeeded",
+        "exact_pid_absent_after_return",
+        "diagnostic"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

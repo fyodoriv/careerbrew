@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "disposition": "retained synthetic replay data; never executed",
+  "original_trial": "FAILED at missing child open; no retrospective pass",
+  "normalization": "none; full original bytes",
+  "image": "sha256:49a40cea1045b08d757533d31dc9182bade988fdacc60b8799cc25d90da1b1c0",
+  "image_working_directory": "/work",
+  "source_tree": "7c96ec74d08db7546a4123e5aaf7dbd5dd93289b",
+  "executed_binary_sha256": "686e4f5da82643305234bb96222c2de4d8ef0e26d40a2adb59556c686b17e710",
+  "files": {
+    "trace.10": {
+      "bytes": 167570,
+      "sha256": "e1e48db2e65ebef62e292a3786203aa510457a5031f2aeb229c7a84c89084996"
+    },
+    "trace.11": {
+      "bytes": 113415,
+      "sha256": "5ac8d3455b53ecdb253e786a94469d2d5131d52c68fb0c0a9680ae4bf0233ed6"
+    },
+    "status.json": {
+      "bytes": 436,
+      "sha256": "c382f032b3584530f8d69b656593af85425ea5578e28cbf9c0462d59e2156e1f"
+    }
+  }
+}

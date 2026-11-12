@@ -1,0 +1,86 @@
+id: phone-letter-combinations
+order: 78
+pattern: backtracking
+difficulty: medium
+title: Keypad words
+leetcode: letter-combinations-of-a-phone-number
+lesson: 'Each digit multiplies the possibilities by its letters. Build strings digit by digit, either
+  recursively or by extending a running list.
+
+  '
+statement: 'Old phone keypads map digits to letters: 2=abc, 3=def, 4=ghi, 5=jkl, 6=mno, 7=pqrs, 8=tuv,
+  9=wxyz. Given a string of digits 2-9, return every letter string it could spell, sorted alphabetically.
+  An empty input returns an empty list.
+
+  '
+function: letter_combinations
+signature: 'def letter_combinations(digits: str) -> list[str]:'
+starter: "def letter_combinations(digits: str) -> list[str]:\n    pass\n"
+tests:
+- args:
+  - '23'
+  expected:
+  - ad
+  - ae
+  - af
+  - bd
+  - be
+  - bf
+  - cd
+  - ce
+  - cf
+- args:
+  - ''
+  expected: []
+  note: empty input
+- args:
+  - '2'
+  expected:
+  - a
+  - b
+  - c
+  note: single digit
+- args:
+  - '7'
+  expected:
+  - p
+  - q
+  - r
+  - s
+  note: four-letter key
+- args:
+  - '99'
+  expected:
+  - ww
+  - wx
+  - wy
+  - wz
+  - xw
+  - xx
+  - xy
+  - xz
+  - yw
+  - yx
+  - yy
+  - yz
+  - zw
+  - zx
+  - zy
+  - zz
+  note: repeated digit
+hints:
+- How many strings do two digits with three letters each make?
+- Keep a list of prefixes and extend each with every letter of the next digit.
+- 'out = ['''']; for d in digits: out = [p + ch for p in out for ch in keys[d]]'
+solution: "def letter_combinations(digits: str) -> list[str]:\n    if not digits:\n        return []\n\
+  \    keys = {\"2\": \"abc\", \"3\": \"def\", \"4\": \"ghi\", \"5\": \"jkl\", \"6\": \"mno\", \"7\":\
+  \ \"pqrs\", \"8\": \"tuv\", \"9\": \"wxyz\"}\n    out = [\"\"]\n    for d in digits:\n        out =\
+  \ [p + ch for p in out for ch in keys[d]]\n    return out\n"
+pitfalls:
+  wrong: Returning [''] for empty input instead of [].
+  edge-case: Empty input must return [], not [''].
+  timeout: Building strings with nested loops per digit is fine; avoid re-copying the whole result list
+    repeatedly when one backtrack does it in O(4^n * n).
+  wrong-answer: Returning [''] for empty input instead of [].
+  exception: A dict lookup on '0' or '1' raises KeyError; the input is 2-9 only, but guard with .get if
+    unsure.

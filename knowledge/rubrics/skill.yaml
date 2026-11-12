@@ -1,0 +1,7 @@
+# Generic rubric for generated skill-gap items.
+id: skill
+criteria:
+  - {id: core, text: Explained the core concept correctly, cues: [is a, means, the idea, core, works by]}
+  - {id: when, text: Said when to use it and when not to, cues: [when to use, use it when, avoid it when, not use, would not]}
+  - {id: example, text: Gave a concrete example from real work or code, cues: [for example, example, at work, we used, i used, in production]}
+  - {id: pitfall, text: Named a common pitfall, cues: [pitfall, gotcha, mistake, trap, careful, watch out]}

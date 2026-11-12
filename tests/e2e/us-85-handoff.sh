@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# US-85: a next-day handoff, kept per day and shown first the next morning (issue #210).
+source "$(dirname "$0")/lib.sh"
+export CAREERBREW_NOW="2026-10-21T17:00+00:00"
+cb init >/dev/null
+expect "$(cb day handoff show)" "handoff: none from an earlier day" "no handoff yet"
+expect "$(cb day handoff add promises 'Send the synthetic design doc' --link https://example.com/doc)" "added h-" "add a promise"
+expect "$(cb day handoff add waiting 'Synthetic review on PR 12')" "to waiting for tomorrow" "add a wait"
+expect "$(cb day handoff add nope x 2>&1 || true)" "breaks US-85" "error case: an unknown section names the story"
+wid="$(cb day handoff show --today --json | python3 -c 'import json,sys; print([i["id"] for i in json.load(sys.stdin)["items"] if i["section"]=="waiting"][0])')"
+expect "$(cb day handoff done "$wid")" "dropped $wid" "drop a done item"
+expect "$(cb day handoff done "$wid" 2>&1 || true)" "no handoff item" "error case: an unknown id"
+export CAREERBREW_NOW="2026-10-22T09:00+00:00"
+out="$(cb day handoff show)"
+expect "$out" "handoff from 2026-10-21: 1 item(s). Verify each one live before acting." "the next morning shows yesterday's handoff"
+expect "$out" "Promises you made (1):" "grouped by section"
+refute "$out" "Synthetic review" "a dropped item is gone"
+refute "$out" "Send the synthetic design doc" "privacy: an agent sees no item text"
+expect "$(cb day handoff show --json)" '"verify_live_before_acting": true' "agents read ids and the verify rule"
+echo "ok US-85 handoff"

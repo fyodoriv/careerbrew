@@ -1,0 +1,50 @@
+id: group-anagrams
+order: 4
+pattern: arrays and hashing
+difficulty: medium
+title: Bucket the rearrangements
+leetcode: group-anagrams
+lesson: |
+  When items belong together if they share some property, compute a canonical key for that property and bucket by it in a dictionary. For anagrams, the sorted letters (or a 26-letter count tuple) is the key.
+statement: |
+  Given a list of lowercase strings `strs`, group the strings that are rearrangements of each other. Return a list of groups; the order of groups and the order inside each group do not matter.
+function: group_anagrams
+signature: "def group_anagrams(strs: list[str]) -> list[list[str]]:"
+starter: |
+  def group_anagrams(strs: list[str]) -> list[list[str]]:
+      pass
+compare: set
+tests:
+  - {args: [["eat", "tea", "tan", "ate", "nat", "bat"]], expected: [["bat"], ["nat", "tan"], ["ate", "eat", "tea"]]}
+  - {args: [[""]], expected: [[""]], note: one empty string}
+  - {args: [["a"]], expected: [["a"]], note: single element}
+  - {args: [[]], expected: [], note: empty list}
+  - {args: [["ab", "ba", "ab"]], expected: [["ab", "ab", "ba"]], note: duplicates stay in the group}
+  - {args: [["abc", "def"]], expected: [["abc"], ["def"]]}
+scale:
+  generator: |
+    def make(n):
+        return [["".join(chr(97 + (i + k) % 26) for k in range(5)) for i in range(n)]]
+  sizes: [10000, 100000]
+  expected: O(n)
+hints:
+  - What value would every word in one group have in common?
+  - Use sorted letters as a dictionary key and append each word to its key's list.
+  - "groups = defaultdict(list); for w in strs: groups[''.join(sorted(w))].append(w); return list(groups.values())"
+solution: |
+  from collections import defaultdict
+
+
+  def group_anagrams(strs: list[str]) -> list[list[str]]:
+      groups = defaultdict(list)
+      for w in strs:
+          groups["".join(sorted(w))].append(w)
+      return list(groups.values())
+pitfalls:
+  edge-case: 'An empty string is a word too: [""] groups into [[""]], and "" and "" share one group.'
+  timeout: Comparing every word with every other is O(n^2 * k); a canonical key (sorted letters or a 26-count
+    tuple) groups in one pass.
+  wrong-answer: Using sorted(word) as the key gives a list; join it or turn it into a tuple, or the key
+    will not match across words.
+  exception: A list is unhashable, so groups[sorted(w)] raises TypeError; use ''.join(sorted(w)) or tuple(counts)
+    as the key.

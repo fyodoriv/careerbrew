@@ -1,0 +1,73 @@
+id: counting-bits
+order: 146
+pattern: bit manipulation
+difficulty: easy
+title: Bit counts up to n
+leetcode: counting-bits
+lesson: 'Reuse earlier answers: i has the same bits as i >> 1 plus its own lowest bit. That gives every
+  count in one O(n) pass, a small dynamic program over integers.
+
+  '
+statement: 'Given a non-negative integer `n`, return a list `ans` of length `n + 1` where `ans[i]` is
+  the number of 1 bits in `i`.
+
+  '
+function: count_bits
+signature: 'def count_bits(n: int) -> list[int]:'
+starter: "def count_bits(n: int) -> list[int]:\n    pass\n"
+tests:
+- args:
+  - 2
+  expected:
+  - 0
+  - 1
+  - 1
+- args:
+  - 5
+  expected:
+  - 0
+  - 1
+  - 1
+  - 2
+  - 1
+  - 2
+- args:
+  - 0
+  expected:
+  - 0
+  note: only zero
+- args:
+  - 1
+  expected:
+  - 0
+  - 1
+- args:
+  - 8
+  expected:
+  - 0
+  - 1
+  - 1
+  - 2
+  - 1
+  - 2
+  - 2
+  - 3
+  - 1
+  note: ends on a power of two
+scale:
+  generator: "def make(n):\n    return [n]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- Counting each number from scratch repeats work.
+- How does i relate to i // 2 in binary?
+- ans[i] = ans[i >> 1] + (i & 1).
+solution: "def count_bits(n: int) -> list[int]:\n    ans = [0] * (n + 1)\n    for i in range(1, n + 1):\n\
+  \        ans[i] = ans[i >> 1] + (i & 1)\n    return ans\n"
+pitfalls:
+  edge-case: n=0 returns [0], a list of length 1.
+  timeout: Counting bits of each i separately is O(n log n); use ans[i] = ans[i >> 1] + (i & 1) for O(n).
+  wrong-answer: Using ans[i-1] + 1 is wrong whenever i is a power of two; use the half or i & (i-1) relation.
+  exception: Building the list with length n instead of n+1 raises IndexError on ans[n].

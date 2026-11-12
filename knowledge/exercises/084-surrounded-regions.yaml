@@ -1,0 +1,131 @@
+id: surrounded-regions
+order: 84
+pattern: graphs
+difficulty: medium
+title: Capture enclosed regions
+leetcode: surrounded-regions
+lesson: 'An ''O'' survives only if it connects to the border. Mark everything reachable from border ''O''s
+  first, then flip every unmarked ''O'' to ''X''.
+
+  '
+statement: 'Given a board of ''X'' and ''O'', flip every ''O'' that is not connected (up/down/left/right
+  through other ''O''s) to an ''O'' on the board''s edge into ''X''. Return the resulting board (you may
+  modify the input).
+
+  '
+function: solve
+signature: 'def solve(board: list[list[str]]) -> list[list[str]]:'
+starter: "def solve(board: list[list[str]]) -> list[list[str]]:\n    pass\n"
+tests:
+- args:
+  - - - X
+      - X
+      - X
+      - X
+    - - X
+      - O
+      - O
+      - X
+    - - X
+      - X
+      - O
+      - X
+    - - X
+      - O
+      - X
+      - X
+  expected:
+  - - X
+    - X
+    - X
+    - X
+  - - X
+    - X
+    - X
+    - X
+  - - X
+    - X
+    - X
+    - X
+  - - X
+    - O
+    - X
+    - X
+- args:
+  - - - X
+  expected:
+  - - X
+  note: single X
+- args:
+  - - - O
+  expected:
+  - - O
+  note: single O on the edge
+- args:
+  - - - O
+      - O
+      - O
+    - - O
+      - X
+      - O
+    - - O
+      - O
+      - O
+  expected:
+  - - O
+    - O
+    - O
+  - - O
+    - X
+    - O
+  - - O
+    - O
+    - O
+  note: all O on the border survive
+- args:
+  - - - X
+      - X
+      - X
+    - - X
+      - O
+      - X
+    - - X
+      - O
+      - X
+  expected:
+  - - X
+    - X
+    - X
+  - - X
+    - O
+    - X
+  - - X
+    - O
+    - X
+  note: inner O reaches the edge
+scale:
+  generator: "def make(n):\n    s = int(n ** 0.5)\n    return [[['O' if (r + c) % 3 else 'X' for c in\
+    \ range(s)] for r in range(s)]]\n"
+  sizes:
+  - 10000
+  - 100000
+  expected: O(n)
+hints:
+- Which 'O's can never be captured?
+- Start from border 'O's and mark everything connected to them.
+- mark border-connected O as S; then O -> X and S -> O
+solution: "def solve(board: list[list[str]]) -> list[list[str]]:\n    rows, cols = len(board), len(board[0])\n\
+  \    stack = [(r, c) for r in range(rows) for c in range(cols) if (r in (0, rows - 1) or c in (0, cols\
+  \ - 1)) and board[r][c] == \"O\"]\n    for r, c in stack:\n        board[r][c] = \"S\"\n    while stack:\n\
+  \        r, c = stack.pop()\n        for a, b in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):\n\
+  \            if 0 <= a < rows and 0 <= b < cols and board[a][b] == \"O\":\n                board[a][b]\
+  \ = \"S\"\n                stack.append((a, b))\n    for r in range(rows):\n        for c in range(cols):\n\
+  \            board[r][c] = \"O\" if board[r][c] == \"S\" else \"X\"\n    return board\n"
+pitfalls:
+  edge-case: An 'O' on the edge and every 'O' connected to it must stay; a board with one row or column
+    never changes.
+  timeout: Checking for an escape path from each 'O' separately is quadratic; flood from edge 'O's once,
+    then flip the rest, O(rows*cols).
+  wrong-answer: Flipping regions that touch the edge only diagonally is wrong too; connection is only
+    up/down/left/right.
+  exception: An empty board crashes on board[0]; return early, and avoid deep recursion by using a stack.

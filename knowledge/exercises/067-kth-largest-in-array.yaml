@@ -1,0 +1,77 @@
+id: kth-largest-in-array
+order: 67
+pattern: heap
+difficulty: medium
+title: K-th biggest value
+leetcode: kth-largest-element-in-an-array
+lesson: 'You don''t need a full sort. A min-heap of size k leaves the k-th largest at its root in O(n
+  log k); quickselect gets average O(n).
+
+  '
+statement: 'Given a list of integers `nums` and `k` (1 <= k <= len(nums)), return the k-th largest value
+  counting duplicates separately (so in [3, 3, 1] the 2nd largest is 3).
+
+  '
+function: find_kth_largest
+signature: 'def find_kth_largest(nums: list[int], k: int) -> int:'
+starter: "def find_kth_largest(nums: list[int], k: int) -> int:\n    pass\n"
+tests:
+- args:
+  - - 3
+    - 2
+    - 1
+    - 5
+    - 6
+    - 4
+  - 2
+  expected: 5
+- args:
+  - - 3
+    - 2
+    - 3
+    - 1
+    - 2
+    - 4
+    - 5
+    - 5
+    - 6
+  - 4
+  expected: 4
+- args:
+  - - 1
+  - 1
+  expected: 1
+  note: single element
+- args:
+  - - 3
+    - 3
+    - 1
+  - 2
+  expected: 3
+  note: duplicates count separately
+- args:
+  - - -1
+    - -5
+    - -3
+  - 3
+  expected: -5
+  note: k = n gives the minimum
+scale:
+  generator: "def make(n):\n    return [[(i * 7919) % 100003 for i in range(n)], 50]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n log n)
+hints:
+- Which values can you safely forget while scanning?
+- Keep the k largest so far in a min-heap; the root is the k-th largest.
+- 'heap = nums[:k]; heapify; for x in rest: if x > heap[0]: heapreplace(heap, x); return heap[0]'
+solution: "import heapq\n\ndef find_kth_largest(nums: list[int], k: int) -> int:\n    heap = nums[:k]\n\
+  \    heapq.heapify(heap)\n    for x in nums[k:]:\n        if x > heap[0]:\n            heapq.heapreplace(heap,\
+  \ x)\n    return heap[0]\n"
+pitfalls:
+  edge-case: 'Duplicates count separately: in [3, 3, 1] the 2nd largest is 3, so do not use a set.'
+  timeout: Full sort is O(n log n); a size-k min-heap is O(n log k) or quickselect is O(n) average.
+  wrong-answer: Returning the k-th smallest by indexing sorted(nums)[k-1] instead of [-k].
+  exception: Quickselect with a fixed first-element pivot can recurse too deep on sorted input; pick a
+    random pivot.

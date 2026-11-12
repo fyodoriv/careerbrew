@@ -1,0 +1,85 @@
+id: generate-parentheses
+order: 24
+pattern: stack
+difficulty: medium
+title: All balanced strings
+leetcode: generate-parentheses
+lesson: |
+  Build the string one character at a time and only take a step that can still lead to a valid answer: add an opener while you have some left, and a closer only when it would not outnumber the openers. Backtracking with these two rules never produces an invalid string.
+statement: |
+  Given `n`, return every string of `n` pairs of round brackets that is correctly balanced, in any order.
+function: generate_parenthesis
+signature: 'def generate_parenthesis(n: int) -> list[str]:'
+starter: |
+  def generate_parenthesis(n: int) -> list[str]:
+      pass
+compare: sorted
+tests:
+- args:
+  - 1
+  expected:
+  - ()
+  note: smallest input
+- args:
+  - 2
+  expected:
+  - (())
+  - ()()
+- args:
+  - 3
+  expected:
+  - ((()))
+  - (()())
+  - (())()
+  - ()(())
+  - ()()()
+- args:
+  - 0
+  expected:
+  - ''
+  note: zero pairs gives the empty string
+- args:
+  - 4
+  expected:
+  - (((())))
+  - ((()()))
+  - ((())())
+  - ((()))()
+  - (()(()))
+  - (()()())
+  - (()())()
+  - (())(())
+  - (())()()
+  - ()((()))
+  - ()(()())
+  - ()(())()
+  - ()()(())
+  - ()()()()
+hints:
+- When is adding '(' allowed? When is adding ')' allowed?
+- Track how many openers and closers you used so far.
+- 'Recurse: add ''('' if open < n; add '')'' if close < open; record when the length is 2n.'
+solution: |
+  def generate_parenthesis(n: int) -> list[str]:
+      out = []
+
+      def go(s, opened, closed):
+          if len(s) == 2 * n:
+              out.append(s)
+              return
+          if opened < n:
+              go(s + "(", opened + 1, closed)
+          if closed < opened:
+              go(s + ")", opened, closed + 1)
+
+      go("", 0, 0)
+      return out
+pitfalls:
+  edge-case: n = 1 gives exactly ["()"]; make sure the base case adds the string when its length is 2
+    * n.
+  timeout: Generating all 2^(2n) strings and filtering the balanced ones is far slower; backtrack and
+    only add ")" when closers < openers.
+  wrong-answer: Allowing a closer when closed == open, or more than n openers, produces invalid strings;
+    add "(" while open < n and ")" while closed < open.
+  exception: Mutating one shared list and appending it to the result gives a list of identical (or empty)
+    strings; append ''.join(path) or pass new strings down.

@@ -1,0 +1,71 @@
+id: partition-labels
+order: 128
+pattern: greedy
+difficulty: medium
+title: Cut where letters end
+leetcode: partition-labels
+lesson: 'Record the last position of every letter. Sweep, stretching the current piece''s end to the last
+  position of every letter you meet; when the index reaches that end, cut.
+
+  '
+statement: 'Split the string `s` into as many pieces as possible so that each letter appears in at most
+  one piece. Return the lengths of the pieces in order.
+
+  '
+function: partition_labels
+signature: 'def partition_labels(s: str) -> list[int]:'
+starter: "def partition_labels(s: str) -> list[int]:\n    pass\n"
+tests:
+- args:
+  - ababcbacadefegdehijhklij
+  expected:
+  - 9
+  - 7
+  - 8
+- args:
+  - eccbbbbdec
+  expected:
+  - 10
+  note: one piece
+- args:
+  - a
+  expected:
+  - 1
+  note: single char
+- args:
+  - abc
+  expected:
+  - 1
+  - 1
+  - 1
+  note: all distinct
+- args:
+  - aaaa
+  expected:
+  - 4
+  note: one repeated letter
+- args:
+  - abca
+  expected:
+  - 4
+scale:
+  generator: "def make(n):\n    return ['abcdefghij' * (n // 10)]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- A piece cannot end before the last occurrence of any letter inside it.
+- Precompute last[c]; keep `end` as the max last index seen in the current piece.
+- 'end = max(end, last[c]); if i == end: append i - start + 1; start = i + 1.'
+solution: "def partition_labels(s: str) -> list[int]:\n    last = {c: i for i, c in enumerate(s)}\n  \
+  \  out, start, end = [], 0, 0\n    for i, c in enumerate(s):\n        end = max(end, last[c])\n    \
+  \    if i == end:\n            out.append(i - start + 1)\n            start = i + 1\n    return out\n"
+pitfalls:
+  edge-case: A string with one repeated letter like 'aaaa' is one piece [4]; all distinct letters give
+    all 1s.
+  timeout: For each piece rescanning the rest of the string for every letter is O(n^2); record each letter's
+    last index first, then one pass is O(n).
+  wrong-answer: Cutting when i equals the last index of s[i] alone is wrong; cut when i equals the running
+    max of last indices seen.
+  exception: Appending i - start without +1 gives off-by-one sizes; the size is end - start + 1.

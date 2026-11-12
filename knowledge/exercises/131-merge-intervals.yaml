@@ -1,0 +1,96 @@
+id: merge-intervals
+order: 131
+pattern: intervals
+difficulty: medium
+title: Fuse overlaps
+leetcode: merge-intervals
+lesson: 'Sort by start; then any interval overlapping the last merged one must start before that one ends.
+  Extend or append. Sorting dominates at O(n log n).
+
+  '
+statement: 'Given a list of `[start, end]` intervals in any order, merge all that overlap (touching counts)
+  and return the result sorted by start.
+
+  '
+function: merge
+signature: 'def merge(intervals: list[list[int]]) -> list[list[int]]:'
+starter: "def merge(intervals: list[list[int]]) -> list[list[int]]:\n    pass\n"
+tests:
+- args:
+  - - - 1
+      - 3
+    - - 2
+      - 6
+    - - 8
+      - 10
+    - - 15
+      - 18
+  expected:
+  - - 1
+    - 6
+  - - 8
+    - 10
+  - - 15
+    - 18
+- args:
+  - - - 1
+      - 4
+    - - 4
+      - 5
+  expected:
+  - - 1
+    - 5
+  note: touching
+- args:
+  - - - 1
+      - 4
+  expected:
+  - - 1
+    - 4
+  note: single
+- args:
+  - - - 5
+      - 6
+    - - 1
+      - 2
+  expected:
+  - - 1
+    - 2
+  - - 5
+    - 6
+  note: unsorted input
+- args:
+  - - - 1
+      - 10
+    - - 2
+      - 3
+    - - 4
+      - 5
+  expected:
+  - - 1
+    - 10
+  note: nested intervals
+- args:
+  - []
+  expected: []
+  note: empty
+scale:
+  generator: "def make(n):\n    return [[[(i * 7919) % n, (i * 7919) % n + 1] for i in range(n)]]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n log n)
+hints:
+- What order makes overlaps adjacent?
+- Sort by start and compare each interval with the last one in the output.
+- 'if out and s <= out[-1][1]: out[-1][1] = max(out[-1][1], e) else out.append([s, e]).'
+solution: "def merge(intervals: list[list[int]]) -> list[list[int]]:\n    out = []\n    for s, e in sorted(intervals):\n\
+  \        if out and s <= out[-1][1]:\n            out[-1][1] = max(out[-1][1], e)\n        else:\n \
+  \           out.append([s, e])\n    return out\n"
+pitfalls:
+  edge-case: Touching intervals like [1,4] and [4,5] merge into [1,5]; one interval returns itself.
+  timeout: Comparing every pair repeatedly is O(n^2); sort by start then one pass is O(n log n).
+  wrong-answer: Setting the end to the new interval's end instead of the max shrinks a containing interval
+    like [1,10] and [2,3].
+  exception: Reading merged[-1] on an empty result raises IndexError; push the first interval before the
+    loop or check merged is empty.

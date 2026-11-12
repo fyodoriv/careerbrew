@@ -1,0 +1,5 @@
+{"projects": [
+  {"name": "search", "title": "Search relevance", "group": "q1-cutline", "links": ["checkout"], "trackers": ["SRCH-1"]},
+  {"name": "search-ranking", "title": "Learning to rank", "group": "q1-cutline", "parent": "search", "trackers": "SRCH-4; SRCH-5"},
+  {"name": "checkout", "title": "Faster checkout"}
+]}

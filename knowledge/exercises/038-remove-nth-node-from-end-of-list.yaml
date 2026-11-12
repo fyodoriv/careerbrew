@@ -1,0 +1,100 @@
+id: remove-nth-node-from-end-of-list
+order: 38
+pattern: linked list
+difficulty: medium
+title: Drop the nth from the back
+leetcode: remove-nth-node-from-end-of-list
+lesson: |
+  Move a lead pointer n steps ahead, then move it and a trailing pointer together; when the lead reaches the end, the trailer sits just before the node to delete. A dummy head handles deleting the first node. One pass.
+statement: |
+  Given the head of a linked list and `n` (1 <= n <= length), remove the `n`-th node counting from the end and return the head.
+function: remove_nth_from_end
+signature: 'def remove_nth_from_end(head: ListNode | None, n: int) -> ListNode | None:'
+starter: |
+  def remove_nth_from_end(head, n):
+      pass
+tests:
+- args:
+  - list:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  - 2
+  expected:
+    list:
+    - 1
+    - 2
+    - 3
+    - 5
+- args:
+  - list:
+    - 1
+  - 1
+  expected:
+    list: []
+  note: only node removed
+- args:
+  - list:
+    - 1
+    - 2
+  - 1
+  expected:
+    list:
+    - 1
+  note: remove the tail
+- args:
+  - list:
+    - 1
+    - 2
+  - 2
+  expected:
+    list:
+    - 2
+  note: remove the head
+- args:
+  - list:
+    - 1
+    - 2
+    - 3
+  - 3
+  expected:
+    list:
+    - 2
+    - 3
+  note: n equals length
+scale:
+  generator: |
+    def make(n):
+        head = None
+        for v in range(n, 0, -1):
+            head = ListNode(v, head)
+        return [head, n // 2]
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- How can one pointer know it is n nodes from the end?
+- Start a fast pointer n steps ahead of a slow one, both from a dummy node.
+- Advance both until fast.next is None; then slow.next = slow.next.next; return dummy.next.
+solution: |
+  def remove_nth_from_end(head, n):
+      dummy = ListNode(0, head)
+      fast = slow = dummy
+      for _ in range(n):
+          fast = fast.next
+      while fast.next:
+          fast, slow = fast.next, slow.next
+      slow.next = slow.next.next
+      return dummy.next
+pitfalls:
+  edge-case: Removing the head, when n equals the list length, must return head.next; a one-node list
+    becomes None.
+  timeout: Counting the length and then walking again is fine at O(n), but walking from the head for each
+    step is O(n^2); use a gap of n between two pointers.
+  wrong-answer: Stopping the slow pointer on the node to delete instead of the node before it; start both
+    from a dummy node in front of the head.
+  exception: Advancing the fast pointer n steps without a dummy can reach None and then fast.next crashes;
+    start at a dummy so the gap fits.

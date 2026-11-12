@@ -1,0 +1,92 @@
+id: combination-sum-once
+order: 75
+pattern: backtracking
+difficulty: medium
+title: Use each card once to hit a target
+leetcode: combination-sum-ii
+lesson: 'Sort, then each element is used at most once by recursing from i + 1, and equal neighbours at
+  the same level are skipped to avoid duplicate combinations. Sorting also lets you stop as soon as a
+  value exceeds what''s left.
+
+  '
+statement: 'Given a list of positive integers `candidates` (may contain repeats) and a `target`, return
+  every distinct combination whose values sum to target, where each list position may be used at most
+  once. Combinations with the same multiset of values count once. Any order is accepted.
+
+  '
+function: combination_sum2
+signature: 'def combination_sum2(candidates: list[int], target: int) -> list[list[int]]:'
+starter: "def combination_sum2(candidates: list[int], target: int) -> list[list[int]]:\n    pass\n"
+compare: set
+tests:
+- args:
+  - - 10
+    - 1
+    - 2
+    - 7
+    - 6
+    - 1
+    - 5
+  - 8
+  expected:
+  - - 1
+    - 1
+    - 6
+  - - 1
+    - 2
+    - 5
+  - - 1
+    - 7
+  - - 2
+    - 6
+- args:
+  - - 2
+    - 5
+    - 2
+    - 1
+    - 2
+  - 5
+  expected:
+  - - 1
+    - 2
+    - 2
+  - - 5
+- args:
+  - - 3
+  - 2
+  expected: []
+  note: impossible
+- args:
+  - - 1
+    - 1
+    - 1
+    - 1
+  - 2
+  expected:
+  - - 1
+    - 1
+  note: many duplicates, one answer
+- args:
+  - - 4
+  - 4
+  expected:
+  - - 4
+  note: single exact value
+hints:
+- How does this differ from the version where values are reusable?
+- Recurse from i + 1, and skip a value equal to the previous one at the same depth.
+- 'sorted; go(start, left): for i from start: break if too big; skip if i > start and equal to previous;
+  push, go(i+1, ...), pop'
+solution: "def combination_sum2(candidates: list[int], target: int) -> list[list[int]]:\n    nums = sorted(candidates)\n\
+  \    out, path = [], []\n\n    def go(start, left):\n        if left == 0:\n            out.append(path[:])\n\
+  \            return\n        for i in range(start, len(nums)):\n            if nums[i] > left:\n   \
+  \             break\n            if i > start and nums[i] == nums[i - 1]:\n                continue\n\
+  \            path.append(nums[i])\n            go(i + 1, left - nums[i])\n            path.pop()\n\n\
+  \    go(0, target)\n    return out\n"
+pitfalls:
+  edge-case: Repeated candidates must not produce the same combination twice, e.g. [1,1,2] target 3 gives
+    [1,2] once.
+  timeout: Generating all subsets and deduplicating is O(2^n); sort, skip equal values at the same depth,
+    and break when a value exceeds the remainder.
+  wrong-answer: Recursing with i instead of i + 1, which reuses the same card.
+  exception: Using a set of lists to dedupe raises TypeError; use tuples or the skip rule.

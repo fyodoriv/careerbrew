@@ -1,0 +1,61 @@
+id: project-explain-from-record
+suite: regression
+skill: careerbrew-project-explainer
+should: act
+input: "explain the billing project to me"
+expect:
+  - "Runs `careerbrew work project show billing` and uses its sources as the reading list"
+  - "Re-reads each source and records a read date or sha; the primary source wins a contradiction"
+  - "Ships the doc only after `careerbrew work project explain billing --check <file>` prints pass, then has a grader check quotes"
+---
+id: project-explain-bare-repo
+suite: regression
+skill: careerbrew-project-explainer
+should: act
+input: "give me the five-minute version of the repo at ~/apps/some-service"
+expect:
+  - "Uses the repo's AGENTS.md, README, and top-level code folders as sources, cited as repo@sha"
+  - "Follows the fixed headings and passes the checker before reporting"
+---
+id: project-explain-ambiguous
+suite: regression
+skill: careerbrew-project-explainer
+should: ask
+input: "explain the project"
+expect:
+  - "Asks exactly one question: which project or repo path"
+  - "Writes no doc before the answer"
+---
+id: project-explainer-deep-runs-first
+suite: regression
+skill: careerbrew-project-explainer
+should: act
+input: "run the billing service and explain how it works, then open a PR with the doc"
+expect:
+  - "Runs the repo's start command and fast tests first, and cites what it ran as a source"
+  - "Writes the outline with `careerbrew work project explain billing --deep` and fills How it runs with each command in backticks"
+  - "Asks once before the PR and runs `careerbrew privacy scan --file <doc>` before it adds the doc"
+---
+id: project-explainer-prd-pushes-back
+suite: regression
+skill: careerbrew-project-explainer
+should: act
+input: "write a PRD for the billing export; the plan gives it 2 weeks, and my estimate is 3 sprints"
+expect:
+  - "Writes the outline with `careerbrew work project prd billing --slot 2` and gives every estimate in dev weeks, not sprints"
+  - "Adds a Pushback section with both numbers in dev weeks and what to cut or add, instead of shrinking the estimate"
+  - "Ships only after `careerbrew work project prd billing --check <file>` prints pass"
+---
+id: project-explainer-refrains-on-teaching
+suite: regression
+skill: careerbrew-project-explainer
+should: refrain
+input: "teach me the billing repo over the next week and quiz me on it"
+expect:
+  - "Hands off to learn-project (deep depth) instead of writing a one-off explanation"
+---
+id: cli-prd-unfilled-outline-fails
+suite: regression
+skill: careerbrew-project-explainer
+cli: ["work", "project", "prd", "nope"]
+expect_regex: "careerbrew work project add nope"

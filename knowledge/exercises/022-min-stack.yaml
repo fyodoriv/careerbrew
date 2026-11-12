@@ -1,0 +1,177 @@
+id: min-stack
+order: 22
+pattern: stack
+difficulty: medium
+title: Stack with a minimum
+leetcode: min-stack
+lesson: |
+  Store, next to every pushed value, the minimum of the stack at that moment. Popping then restores the previous minimum for free, so every operation stays O(1).
+statement: |
+  Design a class `MinStack` with `push(x)`, `pop()`, `top()` (returns the top value), and `get_min()` (returns the smallest value currently on the stack). Every method must run in O(1). `pop`, `top`, and `get_min` are only called on a non-empty stack. Tests call the constructor first, then the listed methods, and compare each return value (`None` for push and pop).
+function: MinStack
+signature: 'class MinStack:'
+starter: |
+  class MinStack:
+      def __init__(self):
+          pass
+
+      def push(self, x: int) -> None:
+          pass
+
+      def pop(self) -> None:
+          pass
+
+      def top(self) -> int:
+          pass
+
+      def get_min(self) -> int:
+          pass
+tests:
+- ops:
+  - MinStack
+  - push
+  - push
+  - push
+  - get_min
+  - pop
+  - top
+  - get_min
+  args:
+  - []
+  - - -2
+  - - 0
+  - - -3
+  - []
+  - []
+  - []
+  - []
+  expected:
+  - null
+  - null
+  - null
+  - null
+  - -3
+  - null
+  - 0
+  - -2
+- ops:
+  - MinStack
+  - push
+  - get_min
+  - top
+  args:
+  - []
+  - - 5
+  - []
+  - []
+  expected:
+  - null
+  - null
+  - 5
+  - 5
+  note: single element
+- ops:
+  - MinStack
+  - push
+  - push
+  - get_min
+  - pop
+  - get_min
+  args:
+  - []
+  - - 1
+  - - 1
+  - []
+  - []
+  - []
+  expected:
+  - null
+  - null
+  - null
+  - 1
+  - null
+  - 1
+  note: duplicate minimum survives one pop
+- ops:
+  - MinStack
+  - push
+  - push
+  - push
+  - get_min
+  - pop
+  - get_min
+  - pop
+  - get_min
+  args:
+  - []
+  - - 3
+  - - 2
+  - - 1
+  - []
+  - []
+  - []
+  - []
+  - []
+  expected:
+  - null
+  - null
+  - null
+  - null
+  - 1
+  - null
+  - 2
+  - null
+  - 3
+  note: decreasing pushes
+- ops:
+  - MinStack
+  - push
+  - push
+  - get_min
+  - pop
+  - get_min
+  args:
+  - []
+  - - -1
+  - - 4
+  - []
+  - []
+  - []
+  expected:
+  - null
+  - null
+  - null
+  - -1
+  - null
+  - -1
+  note: larger value on top does not change min
+hints:
+- What would you need to remember to know the old minimum after a pop?
+- Keep a second stack (or pairs) holding the running minimum.
+- On push append (x, min(x, current_min)); get_min reads the second item of the top pair.
+solution: |
+  class MinStack:
+      def __init__(self):
+          self.items = []
+
+      def push(self, x: int) -> None:
+          m = min(x, self.items[-1][1]) if self.items else x
+          self.items.append((x, m))
+
+      def pop(self) -> None:
+          self.items.pop()
+
+      def top(self) -> int:
+          return self.items[-1][0]
+
+      def get_min(self) -> int:
+          return self.items[-1][1]
+pitfalls:
+  edge-case: getMin after pushing the same minimum twice and popping one must still return that minimum;
+    keep duplicates in the min stack.
+  timeout: Scanning for the minimum on each getMin call is O(n), not O(1); push the current minimum alongside
+    every value.
+  wrong-answer: Only pushing to the min stack when a value is strictly smaller loses track of duplicates;
+    push when value <= current min, or store pairs.
+  exception: Reading min_stack[-1] on the first push raises IndexError; compare against the new value
+    when the stack is empty.

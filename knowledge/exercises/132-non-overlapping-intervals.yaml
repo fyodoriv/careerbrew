@@ -1,0 +1,84 @@
+id: non-overlapping-intervals
+order: 132
+pattern: intervals
+difficulty: medium
+title: Fewest to drop
+leetcode: non-overlapping-intervals
+lesson: 'Keeping as many intervals as possible is the classic activity-selection problem: always keep
+  the one that ends earliest, since it leaves the most room. The answer is total minus kept.
+
+  '
+statement: 'Given `[start, end]` intervals, return the minimum number to remove so the rest do not overlap.
+  Intervals that only touch at an endpoint do not overlap.
+
+  '
+function: erase_overlap_intervals
+signature: 'def erase_overlap_intervals(intervals: list[list[int]]) -> int:'
+starter: "def erase_overlap_intervals(intervals: list[list[int]]) -> int:\n    pass\n"
+tests:
+- args:
+  - - - 1
+      - 2
+    - - 2
+      - 3
+    - - 3
+      - 4
+    - - 1
+      - 3
+  expected: 1
+- args:
+  - - - 1
+      - 2
+    - - 1
+      - 2
+    - - 1
+      - 2
+  expected: 2
+  note: duplicates
+- args:
+  - - - 1
+      - 2
+    - - 2
+      - 3
+  expected: 0
+  note: touching is fine
+- args:
+  - []
+  expected: 0
+  note: empty
+- args:
+  - - - 1
+      - 100
+    - - 2
+      - 3
+    - - 4
+      - 5
+  expected: 1
+  note: drop the long one
+- args:
+  - - - 0
+      - 1
+  expected: 0
+  note: single
+scale:
+  generator: "def make(n):\n    return [[[i, i + 2] for i in range(n)]]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n log n)
+hints:
+- 'Flip it: maximize the number you keep.'
+- Sort by end time and keep an interval whenever it starts at or after the last kept end.
+- 'sort by e; for s,e: if s >= last: kept += 1; last = e. Return len - kept.'
+solution: "def erase_overlap_intervals(intervals: list[list[int]]) -> int:\n    kept, last = 0, float(\"\
+  -inf\")\n    for s, e in sorted(intervals, key=lambda x: x[1]):\n        if s >= last:\n           \
+  \ kept += 1\n            last = e\n    return len(intervals) - kept\n"
+pitfalls:
+  edge-case: Touching intervals like [1,2] and [2,3] do not overlap, so nothing is removed; an empty list
+    returns 0.
+  timeout: Trying every subset to keep is exponential; sort by end and greedily keep the earliest finisher,
+    O(n log n).
+  wrong-answer: Sorting by start and keeping the first interval keeps long ones that block many others;
+    sort by end instead.
+  exception: Starting prev_end at intervals[0][1] crashes on an empty list; use float('-inf') as the first
+    end.

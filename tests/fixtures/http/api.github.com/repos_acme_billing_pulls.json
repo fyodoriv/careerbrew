@@ -1,0 +1,2 @@
+[{"number": 41, "title": "Move invoices to the new API", "state": "closed", "merged_at": "2026-10-04T12:00:00Z", "updated_at": "2026-10-04T12:00:00Z"},
+ {"number": 42, "title": "Backfill old invoices", "state": "open", "merged_at": null, "updated_at": "2026-10-06T09:00:00Z"}]

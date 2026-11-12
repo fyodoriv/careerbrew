@@ -1,0 +1,22 @@
+id: interview-coach-uses-sourced-loop
+suite: regression
+skill: careerbrew-interview-coach
+should: act
+input: "I have a Stripe interview next week, prepare me"
+expect:
+  - "Runs `careerbrew interview Stripe --show` then `careerbrew prep check Stripe`, and works the top gaps"
+---
+id: interview-coach-refrains-from-inventing
+suite: regression
+skill: careerbrew-interview-coach
+should: refrain
+input: "how does TinyUnknownStartup interview? just guess"
+expect:
+  - "Does not invent a format; shows the shared default loop and offers company-research"
+---
+id: cli-interview-default-loop
+suite: regression
+skill: careerbrew-interview-coach
+should: act
+cli: ["interview", "Unknown Startup Inc"]
+expect_regex: "shared default loop"

@@ -1,0 +1,15 @@
+# Agent dependencies for careerbrew. Preview: `agentbrew sync --dry-run`. Apply: `agentbrew sync`.
+# Generated per-agent files (.claude/, .codex/) are outputs; edit this file instead.
+skills:
+  - test-driven-development
+  - verification-before-completion
+  - writing-plans
+  - next-task
+  - report-upstream   # offers safe upstream issue reports (CONTRIBUTING.md)
+
+skillDirectories:
+  - ./skills
+
+# Slash commands (/careerbrew-corporate, /careerbrew-checkup, /careerbrew-grind) deploy from here.
+commands:
+  - ./commands

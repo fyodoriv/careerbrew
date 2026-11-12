@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "classification": "synthetic-test-data",
+  "records": [
+    {"id": "F01", "clause": "Released parser to users as its owner."},
+    {"id": "F02", "clause": "Shipped parser to users as its sole owner."},
+    {"id": "F03", "clause": "In review: contributed parser work with Sam."},
+    {"id": "F04", "clause": "Released parser to users."},
+    {"id": "F05", "clause": "Research: led parser experiments with Sam."},
+    {"id": "F06", "clause": "Shipped the production parser."},
+    {"id": "F07", "clause": "Shipped parser as its owner."},
+    {"id": "F08", "clause": "Owned the complete widget product."},
+    {"id": "F09", "clause": "Solely delivered the parser."},
+    {"id": "F10", "clause": "My parser reduced product cost by 30%."},
+    {"id": "F11", "clause": "Led parser work with Sam; parser CPU fell 5% on the fixture."},
+    {"id": "F12", "clause": "Shipped parser and made it 3x faster."}
+  ]
+}

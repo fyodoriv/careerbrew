@@ -1,0 +1,171 @@
+id: copy-list-with-random-pointer
+order: 39
+pattern: linked list
+difficulty: medium
+title: Clone a list with extra links
+leetcode: copy-list-with-random-pointer
+lesson: |
+  A random link can point forward to a node you have not copied yet, so copy in two passes: first create a clone for every original and remember the mapping, then wire next and random through that map. O(n) time and space.
+statement: |
+  Each `Node` has `val`, `next`, and `random` (any node in the list, or `None`). Write `copy_random_list(head)` that returns a deep copy: brand-new nodes whose `next` and `random` links mirror the original, with no link pointing back into the original list.
+
+  The starter includes a provided wrapper `copy_random_encoded(pairs)`, which the tests call. It builds the list from `[val, random_index]` pairs (`None` means no random link), calls your function, fails if any original node is reused, and returns the copy in the same encoding. Keep the wrapper as it is.
+function: copy_random_encoded
+signature: 'def copy_random_list(head: Node | None) -> Node | None:'
+starter: |
+  class Node:
+      def __init__(self, val, next=None, random=None):
+          self.val, self.next, self.random = val, next, random
+
+
+  def copy_random_list(head):
+      """Return a deep copy of the list starting at head. Write this."""
+      pass
+
+
+  # Provided: turns [val, random_index] pairs into nodes, runs your copy, checks it, and encodes the result.
+  def copy_random_encoded(pairs: list[list]) -> list[list]:
+      nodes = [Node(v) for v, _ in pairs]
+      for i, (_, r) in enumerate(pairs):
+          nodes[i].next = nodes[i + 1] if i + 1 < len(nodes) else None
+          nodes[i].random = nodes[r] if r is not None else None
+      copy = copy_random_list(nodes[0] if nodes else None)
+      originals = {id(x) for x in nodes}
+      out, index, cur = [], {}, copy
+      while cur:
+          if id(cur) in originals:
+              raise AssertionError("the copy reuses an original node")
+          index[id(cur)] = len(out)
+          out.append(cur)
+          cur = cur.next
+      return [[x.val, index[id(x.random)] if x.random else None] for x in out]
+tests:
+- args:
+  - - - 7
+      - null
+    - - 13
+      - 0
+    - - 11
+      - 4
+    - - 10
+      - 2
+    - - 1
+      - 0
+  expected:
+  - - 7
+    - null
+  - - 13
+    - 0
+  - - 11
+    - 4
+  - - 10
+    - 2
+  - - 1
+    - 0
+- args:
+  - - - 1
+      - 1
+    - - 2
+      - 1
+  expected:
+  - - 1
+    - 1
+  - - 2
+    - 1
+  note: random points to itself
+- args:
+  - []
+  expected: []
+  note: empty list
+- args:
+  - - - 5
+      - null
+  expected:
+  - - 5
+    - null
+  note: single node, no random
+- args:
+  - - - 3
+      - null
+    - - 3
+      - 0
+    - - 3
+      - null
+  expected:
+  - - 3
+    - null
+  - - 3
+    - 0
+  - - 3
+    - null
+  note: 'equal values: map by node, not by value'
+- args:
+  - - - 1
+      - 2
+    - - 2
+      - 2
+    - - 3
+      - 0
+  expected:
+  - - 1
+    - 2
+  - - 2
+    - 2
+  - - 3
+    - 0
+  note: forward random link
+scale:
+  generator: |
+    def make(n):
+        return [[[i, (i * 7) % n] for i in range(n)]]
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n)
+hints:
+- Why can't you set random while creating the copies in a single pass?
+- Map each original node to its clone in a dictionary.
+- 'Pass 1: clone[node] = Node(node.val). Pass 2: clone[node].next = clone[node.next]; clone[node].random = clone[node.random] (with clone[None] = None).'
+solution: |
+  class Node:
+      def __init__(self, val, next=None, random=None):
+          self.val, self.next, self.random = val, next, random
+
+
+  def copy_random_list(head):
+      clone = {None: None}
+      cur = head
+      while cur:
+          clone[cur] = Node(cur.val)
+          cur = cur.next
+      cur = head
+      while cur:
+          clone[cur].next = clone[cur.next]
+          clone[cur].random = clone[cur.random]
+          cur = cur.next
+      return clone[head]
+
+
+  # Provided: turns [val, random_index] pairs into nodes, runs your copy, checks it, and encodes the result.
+  def copy_random_encoded(pairs: list[list]) -> list[list]:
+      nodes = [Node(v) for v, _ in pairs]
+      for i, (_, r) in enumerate(pairs):
+          nodes[i].next = nodes[i + 1] if i + 1 < len(nodes) else None
+          nodes[i].random = nodes[r] if r is not None else None
+      copy = copy_random_list(nodes[0] if nodes else None)
+      originals = {id(x) for x in nodes}
+      out, index, cur = [], {}, copy
+      while cur:
+          if id(cur) in originals:
+              raise AssertionError("the copy reuses an original node")
+          index[id(cur)] = len(out)
+          out.append(cur)
+          cur = cur.next
+      return [[x.val, index[id(x.random)] if x.random else None] for x in out]
+pitfalls:
+  edge-case: An empty list returns None, and a random pointer can be None or point back to its own node.
+  timeout: Searching the copy list for each random target is O(n^2); a map from old node to new node,
+    or interleaving copies, is O(n).
+  wrong-answer: Keying the map by value breaks when values repeat; key it by the node.
+  exception: Looking up old_to_new[node.random] when random is None raises KeyError; map None to None
+    or check before the lookup.

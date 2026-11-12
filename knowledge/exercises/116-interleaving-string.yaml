@@ -1,0 +1,75 @@
+id: interleaving-string
+order: 116
+pattern: 2-d dynamic programming
+difficulty: medium
+title: Shuffle two strings
+leetcode: interleaving-string
+lesson: 'State: ok[i][j] says whether the first i chars of s1 and first j chars of s2 interleave into
+  the first i+j chars of s3. Transition: take s3''s next char from s1 (if it matches and ok[i-1][j]) or
+  from s2. Base case: ok[0][0] = True, and lengths must add up.
+
+  '
+statement: 'Given strings `s1`, `s2`, and `s3`, return `True` if `s3` can be formed by merging all characters
+  of `s1` and `s2` while keeping each string''s own order.
+
+  '
+function: is_interleave
+signature: 'def is_interleave(s1: str, s2: str, s3: str) -> bool:'
+starter: "def is_interleave(s1: str, s2: str, s3: str) -> bool:\n    pass\n"
+tests:
+- args:
+  - aabcc
+  - dbbca
+  - aadbbcbcac
+  expected: true
+- args:
+  - aabcc
+  - dbbca
+  - aadbbbaccc
+  expected: false
+- args:
+  - ''
+  - ''
+  - ''
+  expected: true
+  note: all empty
+- args:
+  - a
+  - ''
+  - a
+  expected: true
+  note: one side empty
+- args:
+  - a
+  - b
+  - a
+  expected: false
+  note: length mismatch
+- args:
+  - ab
+  - ab
+  - abab
+  expected: true
+scale:
+  generator: "def make(n):\n    return [\"a\" * n, \"a\" * n, \"a\" * (2 * n)]\n"
+  sizes:
+  - 100
+  - 1000
+  expected: O(n^2)
+hints:
+- Check lengths first.
+- 'ok[i][j]: last char came from s1 or s2.'
+- 'Use one row: ok[j] = (ok[j] and s1[i-1]==s3[i+j-1]) or (ok[j-1] and s2[j-1]==s3[i+j-1]).'
+solution: "def is_interleave(s1: str, s2: str, s3: str) -> bool:\n    m, n = len(s1), len(s2)\n    if\
+  \ m + n != len(s3):\n        return False\n    ok = [True] + [False] * n\n    for j in range(1, n +\
+  \ 1):\n        ok[j] = ok[j - 1] and s2[j - 1] == s3[j - 1]\n    for i in range(1, m + 1):\n       \
+  \ ok[0] = ok[0] and s1[i - 1] == s3[i - 1]\n        for j in range(1, n + 1):\n            ch = s3[i\
+  \ + j - 1]\n            ok[j] = (ok[j] and s1[i - 1] == ch) or (ok[j - 1] and s2[j - 1] == ch)\n   \
+  \ return ok[n]\n"
+pitfalls:
+  edge-case: If len(s1)+len(s2) != len(s3) return False at once; empty s1 and s2 with empty s3 is True.
+  timeout: Branching recursion on which string to take without memo is exponential; a (len1+1) x (len2+1)
+    dp is O(n*m).
+  wrong-answer: Using greedy two pointers that prefer s1 on a tie fails on 'aabcc','dbbca','aadbbcbcac';
+    you must try both sides.
+  exception: s3[i+j-1] with an unchecked length mismatch raises IndexError; do the length check first.

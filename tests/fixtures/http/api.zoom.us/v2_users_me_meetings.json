@@ -1,0 +1,4 @@
+{"meetings": [
+ {"uuid": "z1", "topic": "1:1 mentoring with new hire", "start_time": "2026-09-03T15:00:00Z"},
+ {"uuid": "z2", "topic": "Design review: search v2", "start_time": "2026-09-12T15:00:00Z"}
+]}

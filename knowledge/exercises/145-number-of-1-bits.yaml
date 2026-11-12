@@ -1,0 +1,52 @@
+id: number-of-1-bits
+order: 145
+pattern: bit manipulation
+difficulty: easy
+title: Count set bits
+leetcode: number-of-1-bits
+lesson: '`n & (n - 1)` clears the lowest set bit, so looping until n is zero runs once per 1-bit. It is
+  a neat trick that shows up in many bit puzzles.
+
+  '
+statement: 'Given a non-negative integer `n` (below 2^32), return how many 1 bits its binary form has.
+
+  '
+function: hamming_weight
+signature: 'def hamming_weight(n: int) -> int:'
+starter: "def hamming_weight(n: int) -> int:\n    pass\n"
+tests:
+- args:
+  - 11
+  expected: 3
+- args:
+  - 128
+  expected: 1
+  note: power of two
+- args:
+  - 0
+  expected: 0
+  note: zero
+- args:
+  - 4294967295
+  expected: 32
+  note: all 32 bits set
+- args:
+  - 2147483645
+  expected: 30
+- args:
+  - 1
+  expected: 1
+hints:
+- You could check the low bit and shift, 32 times.
+- There is a trick that removes one set bit per step.
+- 'while n: n &= n - 1; count += 1.'
+solution: "def hamming_weight(n: int) -> int:\n    count = 0\n    while n:\n        n &= n - 1\n     \
+  \   count += 1\n    return count\n"
+pitfalls:
+  edge-case: n=0 has 0 set bits; n=2^32-1 has 32.
+  timeout: Converting to a binary string is fine, but looping 32 times is slower than n &= n-1, which
+    runs once per set bit.
+  wrong-answer: Using n >> 1 on a value treated as signed in other languages loops forever; in Python
+    keep n non-negative.
+  exception: Using bin(n).count('1') on a negative input counts the minus sign wrongly; inputs are non-negative,
+    so check before.

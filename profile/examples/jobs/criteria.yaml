@@ -1,0 +1,9 @@
+# Hard filters. A posting must pass every line.
+titles_any: [engineer, developer]
+titles_none: [intern, manager, director, recruiter]
+min_seniority: 3              # 3 = senior and above
+remote: any                   # required | any
+locations_any: [Remote, Example City]
+min_salary: 150000
+exclude_companies: []
+company_scores: {}            # Company: 0..1, how much you want to work there

@@ -1,0 +1,120 @@
+id: merge-k-sorted-lists
+order: 44
+pattern: linked list
+difficulty: hard
+title: Merge many sorted chains
+leetcode: merge-k-sorted-lists
+lesson: |
+  A min-heap of the current front node of each list always yields the smallest remaining node. Pop it, attach it, and push its successor. With N nodes and k lists this is O(N log k). Put an index in each heap entry so ties never compare nodes.
+statement: |
+  Your function receives `k` ascending linked lists as separate arguments (`merge_k_lists(*lists)`; `k` may be 0). Merge all their nodes into one ascending list and return its head.
+function: merge_k_lists
+signature: 'def merge_k_lists(*lists: ListNode | None) -> ListNode | None:'
+starter: |
+  def merge_k_lists(*lists):
+      pass
+tests:
+- args:
+  - list:
+    - 1
+    - 4
+    - 5
+  - list:
+    - 1
+    - 3
+    - 4
+  - list:
+    - 2
+    - 6
+  expected:
+    list:
+    - 1
+    - 1
+    - 2
+    - 3
+    - 4
+    - 4
+    - 5
+    - 6
+- args: []
+  expected:
+    list: []
+  note: no lists
+- args:
+  - list: []
+  expected:
+    list: []
+  note: one empty list
+- args:
+  - list: []
+  - list:
+    - 1
+  expected:
+    list:
+    - 1
+  note: mix of empty and non-empty
+- args:
+  - list:
+    - 2
+  - list:
+    - 1
+  - list:
+    - 3
+  expected:
+    list:
+    - 1
+    - 2
+    - 3
+  note: single-node lists
+- args:
+  - list:
+    - 5
+    - 5
+  - list:
+    - 5
+  expected:
+    list:
+    - 5
+    - 5
+    - 5
+  note: ties across lists
+scale:
+  generator: |
+    def make(n):
+        lists = []
+        for k in range(10):
+            head = None
+            for v in range(n // 10, 0, -1):
+                head = ListNode(v * 10 + k, head)
+            lists.append(head)
+        return lists
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n log n)
+hints:
+- How do you find the smallest front among k lists quickly?
+- Keep a heap of (value, list index, node).
+- Pop the smallest, attach it, push (node.next.val, i, node.next) if it exists.
+solution: |
+  import heapq
+
+
+  def merge_k_lists(*lists):
+      heap = [(node.val, i, node) for i, node in enumerate(lists) if node]
+      heapq.heapify(heap)
+      dummy = tail = ListNode()
+      while heap:
+          _, i, node = heapq.heappop(heap)
+          tail.next = tail = node
+          if node.next:
+              heapq.heappush(heap, (node.next.val, i, node.next))
+      return dummy.next
+pitfalls:
+  edge-case: An empty list of lists, or lists that are all empty like [[], []], returns None.
+  timeout: Merging lists one by one into a growing result is O(k * N); a heap of list heads, or pairwise
+    merging, gives O(N log k).
+  wrong-answer: Pushing only the first node of each list and never the next one drops nodes; after popping
+    a node, push its node.next.
+  exception: Without the index in the tuple, equal values make the heap compare ListNode objects and crash
+    with TypeError; push (val, i, node), and skip None heads.

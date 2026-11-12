@@ -1,0 +1,1 @@
+- Use the internal ladder for promotion docs.

@@ -1,0 +1,75 @@
+id: meeting-rooms
+order: 133
+pattern: intervals
+difficulty: easy
+title: One room enough?
+leetcode: meeting-rooms
+lesson: 'Sort meetings by start; a clash can only happen between neighbours in that order. One pass over
+  adjacent pairs settles it.
+
+  '
+statement: 'Given meeting times as `[start, end]` pairs, return `True` if a single person could attend
+  all of them. A meeting ending at 10 and another starting at 10 do not clash.
+
+  '
+function: can_attend_meetings
+signature: 'def can_attend_meetings(intervals: list[list[int]]) -> bool:'
+starter: "def can_attend_meetings(intervals: list[list[int]]) -> bool:\n    pass\n"
+tests:
+- args:
+  - - - 0
+      - 30
+    - - 5
+      - 10
+    - - 15
+      - 20
+  expected: false
+- args:
+  - - - 7
+      - 10
+    - - 2
+      - 4
+  expected: true
+  note: unsorted
+- args:
+  - []
+  expected: true
+  note: no meetings
+- args:
+  - - - 1
+      - 5
+    - - 5
+      - 8
+  expected: true
+  note: back to back
+- args:
+  - - - 1
+      - 5
+  expected: true
+  note: single
+- args:
+  - - - 1
+      - 5
+    - - 2
+      - 3
+  expected: false
+  note: nested
+scale:
+  generator: "def make(n):\n    return [[[2 * i, 2 * i + 1] for i in range(n)][::-1]]\n"
+  sizes:
+  - 20000
+  - 200000
+  expected: O(n log n)
+hints:
+- When do two meetings clash?
+- After sorting by start, only consecutive meetings need comparing.
+- sort; any(a[i][0] < a[i-1][1]) means a clash.
+solution: "def can_attend_meetings(intervals: list[list[int]]) -> bool:\n    iv = sorted(intervals)\n\
+  \    return all(iv[i][0] >= iv[i - 1][1] for i in range(1, len(iv)))\n"
+pitfalls:
+  edge-case: A meeting ending at 10 and another starting at 10 do not clash; an empty list is True.
+  timeout: Comparing every pair is O(n^2); sort by start and compare neighbours in O(n log n).
+  wrong-answer: Using <= instead of < when comparing start to the previous end marks back-to-back meetings
+    as clashing.
+  exception: Looking at intervals[i+1] at the last index raises IndexError; loop from 1 and compare to
+    i-1.

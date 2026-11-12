@@ -1,0 +1,2 @@
+items:
+  - {id: acme-values-1, topic: behavioral, round: behavioral, rubric: behavioral, teach: Map your story to the company values., prompt: Tell me about a time you raised the bar on quality.}

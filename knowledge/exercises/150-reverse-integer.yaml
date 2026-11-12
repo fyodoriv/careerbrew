@@ -1,0 +1,61 @@
+id: reverse-integer
+order: 150
+pattern: bit manipulation
+difficulty: medium
+title: Flip the digits
+leetcode: reverse-integer
+lesson: 'Pop digits off with % and // and push them onto the result. Handle the sign separately, and check
+  the 32-bit signed range at the end (return 0 if outside), since the problem pretends you cannot hold
+  larger values.
+
+  '
+statement: 'Given a 32-bit signed integer `x`, return it with its decimal digits reversed, keeping the
+  sign. If the reversed value falls outside the range -2^31 to 2^31 - 1, return 0.
+
+  '
+function: reverse
+signature: 'def reverse(x: int) -> int:'
+starter: "def reverse(x: int) -> int:\n    pass\n"
+tests:
+- args:
+  - 123
+  expected: 321
+- args:
+  - -123
+  expected: -321
+  note: negative
+- args:
+  - 120
+  expected: 21
+  note: trailing zero dropped
+- args:
+  - 0
+  expected: 0
+  note: zero
+- args:
+  - 1534236469
+  expected: 0
+  note: overflow returns 0
+- args:
+  - -2147483648
+  expected: 0
+  note: minimum int overflows
+- args:
+  - 1463847412
+  expected: 2147483641
+  note: just fits
+hints:
+- Take the last digit with % 10 and drop it with // 10.
+- Work on abs(x) and reapply the sign; Python's % on negatives is surprising.
+- r = r*10 + n%10; n //= 10; r *= sign; return r if -2**31 <= r <= 2**31-1 else 0.
+solution: "def reverse(x: int) -> int:\n    sign = -1 if x < 0 else 1\n    n, r = abs(x), 0\n    while\
+  \ n:\n        r = r * 10 + n % 10\n        n //= 10\n    r *= sign\n    return r if -(2 ** 31) <= r\
+  \ <= 2 ** 31 - 1 else 0\n"
+pitfalls:
+  edge-case: Results outside -2^31..2^31-1 like reversing 1534236469 must return 0, and trailing zeros
+    like 120 give 21.
+  timeout: Reversing the digits is already O(digits); no slow approach to worry about besides string concatenation
+    in a long loop.
+  wrong-answer: Python's % and // round toward minus infinity on negatives; reverse abs(x) and reapply
+    the sign.
+  exception: int(str(x)[::-1]) on a negative number crashes on '321-'; strip the sign first.

@@ -1,0 +1,66 @@
+id: minimum-window-substring
+order: 19
+pattern: sliding window
+difficulty: hard
+title: Smallest covering slice
+leetcode: minimum-window-substring
+lesson: |
+  Expand the right edge until the window covers every needed character, then shrink the left edge while it still covers, recording the smallest. A counter of how many requirements are met avoids re-checking all counts. Each edge moves at most n times, so the scan is O(n).
+statement: |
+  Given strings `s` and `t`, return the shortest contiguous piece of `s` that contains every character of `t`, counting repeats. If none exists return `""`. If several shortest pieces exist, return the one that starts first.
+function: min_window
+signature: "def min_window(s: str, t: str) -> str:"
+starter: |
+  def min_window(s: str, t: str) -> str:
+      pass
+tests:
+  - {args: ["ADOBECODEBANC", "ABC"], expected: "BANC"}
+  - {args: ["a", "a"], expected: "a", note: single character}
+  - {args: ["a", "aa"], expected: "", note: not enough repeats}
+  - {args: ["", "a"], expected: "", note: empty s}
+  - {args: ["abcab", "ab"], expected: "ab", note: ties return the earliest}
+  - {args: ["aaflslflsldkalskaaa", "aaa"], expected: "aaa"}
+scale:
+  generator: |
+    def make(n):
+        return ["ab" * (n // 2) + "c", "abc"]
+  sizes: [20000, 200000]
+  expected: O(n)
+hints:
+  - Grow a window until it is valid, then see how far you can shrink it.
+  - Count what t needs; track how many distinct characters currently meet their required count.
+  - "Expand r; when formed == len(need), update the best and move l forward, un-meeting a requirement when a count drops below need."
+solution: |
+  from collections import Counter
+
+
+  def min_window(s: str, t: str) -> str:
+      if not t or not s:
+          return ""
+      need = Counter(t)
+      have = {}
+      formed = 0
+      best = (float("inf"), 0, 0)
+      l = 0
+      for r, c in enumerate(s):
+          have[c] = have.get(c, 0) + 1
+          if c in need and have[c] == need[c]:
+              formed += 1
+          while formed == len(need):
+              if r - l + 1 < best[0]:
+                  best = (r - l + 1, l, r + 1)
+              d = s[l]
+              have[d] -= 1
+              if d in need and have[d] < need[d]:
+                  formed -= 1
+              l += 1
+      return "" if best[0] == float("inf") else s[best[1] : best[2]]
+pitfalls:
+  edge-case: If t is longer than s, or a letter of t is missing from s, return ""; when s equals t, return
+    s.
+  timeout: Checking every substring is O(n^2) or worse; expand the right edge, then shrink the left edge
+    while the window still covers t, for O(n).
+  wrong-answer: 'Count repeats in t: "aa" needs two a''s, so track how many letters have reached their
+    full required count, not just whether they appear.'
+  exception: Slicing s[best_l:best_r] when no window was ever found returns junk or uses unset indexes;
+    start with best length infinity and return "" if it never changed.
