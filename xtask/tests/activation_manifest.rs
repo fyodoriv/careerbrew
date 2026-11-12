@@ -816,7 +816,7 @@ fn workday_keeps_seven_runtime_boundaries() {
         BTreeSet::from([
             ("day.watch.run_cycle", 334, "fn(day)"),
             ("day.watch._rebuild", 307, "fn()"),
-            ("workday.watch.run_pass", 454, "runner(s[\"cycle\"]"),
+            ("workday.watch.run_pass", 460, "runner(s[\"cycle\"]"),
             ("workday.gate.run_verify", 62, "subprocess.run(argv"),
             ("day.watch.start", 496, "subprocess.Popen(cmd"),
             ("day.watch._reexec", 431, "os.execv(sys.executable, args)"),

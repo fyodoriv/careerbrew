@@ -23,6 +23,7 @@ import re
 import urllib.error
 import urllib.parse
 from collections import Counter
+from datetime import datetime
 from pathlib import PurePosixPath
 from typing import Any
 
@@ -86,6 +87,81 @@ def _get(url: str, hdr: dict[str, str], missing: Any = None) -> Any:
         if e.code in (403, 404):
             return missing
         raise
+
+
+REVIEW_PR_URL = re.compile(
+    r"https://(?P<host>[a-z0-9][a-z0-9.-]*)/(?P<owner>[a-z0-9][a-z0-9-]*)/(?P<repo>[a-z0-9_.-]+)/pull/(?P<number>[1-9][0-9]{0,15})",
+    re.ASCII | re.I,
+)
+REVIEW_PAGE_SIZE = 100
+
+
+def recheck_pr_link(url: str) -> dict[str, str]:
+    match = REVIEW_PR_URL.fullmatch(url)
+    if match is None or match["repo"] in {".", ".."}:
+        raise ValueError("--recheck: use one HTTPS pull request link")
+    return match.groupdict()
+
+
+def _recheck_pr(url: str) -> tuple[str, str]:
+    ref = recheck_pr_link(url)
+    source = _connector()
+    api = str(source.get("api") or "https://api.github.com").rstrip("/")
+    parsed = urllib.parse.urlsplit(api)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username is not None or parsed.password is not None or parsed.query or parsed.fragment or ref["host"].lower() != _web_host(api):
+        raise ReviewAskError("review recheck source mismatch")
+    connectors.check_host(api)
+    token = secrets.resolve(source["token"])
+    if not token:
+        raise ReviewAskError("review recheck authorization missing")
+    headers = {"Authorization": f"Bearer {token}"}
+    endpoint = f"{api}/repos/{ref['owner']}/{ref['repo']}/pulls/{ref['number']}"
+    pr = connectors.http_json(endpoint, headers, allow_redirects=False)
+    reported = recheck_pr_link(pr["html_url"])
+    if type(pr["number"]) is not int or pr["number"] != int(ref["number"]) or {k: v.lower() for k, v in reported.items()} != {k: v.lower() for k, v in ref.items()} or type(pr["merged"]) is not bool:
+        raise ReviewAskError("review recheck identity mismatch")
+    if pr["state"] == "closed":
+        return "closed", "review recheck: PR is closed"
+    if pr["state"] != "open" or pr["merged"]:
+        raise ReviewAskError("review recheck state mismatch")
+
+    author = pr["user"]["login"].casefold()
+    requested = pr["requested_reviewers"]
+    teams = pr["requested_teams"]
+    if (
+        not author
+        or not isinstance(requested, list)
+        or not isinstance(teams, list)
+        or any(not isinstance(person["login"], str) or not person["login"] or person["type"] not in {"User", "Bot"} for person in requested)
+        or any(not isinstance(team["slug"], str) or not team["slug"] for team in teams)
+    ):
+        raise ReviewAskError("review recheck requests are incomplete")
+    if teams or any(person["type"] == "User" and person["login"].casefold() != author for person in requested):
+        return "closed", "review recheck: reviewer requested"
+
+    reviews = connectors.http_json(f"{endpoint}/reviews?per_page={REVIEW_PAGE_SIZE}", headers, allow_redirects=False)
+    if not isinstance(reviews, list) or len(reviews) >= REVIEW_PAGE_SIZE:
+        raise ReviewAskError("review recheck reviews are incomplete")
+    submitted = False
+    for review in reviews:
+        if review["state"] in {"PENDING", "DISMISSED"}:
+            continue
+        person = review["user"]
+        login = person["login"].casefold()
+        if review["state"] not in {"APPROVED", "CHANGES_REQUESTED", "COMMENTED"} or not login or person["type"] not in {"User", "Bot"} or datetime.fromisoformat(review["submitted_at"]).utcoffset() is None:
+            raise ReviewAskError("review recheck review facts are incomplete")
+        submitted |= person["type"] == "User" and login != author
+    if submitted:
+        return "closed", "review recheck: reviewer has responded"
+    return "open", "review recheck: still open"
+
+
+def recheck_pr(url: str) -> tuple[str, str]:
+    """Return only verified closure and fixed, content-free reasons."""
+    try:
+        return _recheck_pr(url)
+    except (ReviewAskError, connectors.ConnectorError, secrets.SecretError, OSError, ValueError, TypeError, KeyError, AttributeError):
+        return "unknown", "review recheck: could not verify PR state"
 
 
 def is_group(handle: str) -> bool:

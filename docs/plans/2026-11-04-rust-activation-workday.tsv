@@ -50,11 +50,11 @@ node	workday.end.write_handoff	rust-16	src/careerbrew/workday/end.py	164
 node	workday.gate.may_run	rust-16	src/careerbrew/workday/gate.py	48
 node	workday.gate.run_verify	rust-16	src/careerbrew/workday/gate.py	58
 node	workday.plan.build	rust-16	src/careerbrew/workday/plan.py	76
-node	workday.questions.check_one	rust-16	src/careerbrew/workday/questions.py	280
-node	workday.questions.close	rust-15	src/careerbrew/workday/questions.py	240
-node	workday.questions.open_records	rust-15	src/careerbrew/workday/questions.py	227
-node	workday.questions.record	rust-15	src/careerbrew/workday/questions.py	125
-node	workday.questions.save	rust-15	src/careerbrew/workday/questions.py	193
+node	workday.questions.check_one	rust-16	src/careerbrew/workday/questions.py	299
+node	workday.questions.close	rust-15	src/careerbrew/workday/questions.py	256
+node	workday.questions.open_records	rust-15	src/careerbrew/workday/questions.py	243
+node	workday.questions.record	rust-15	src/careerbrew/workday/questions.py	141
+node	workday.questions.save	rust-15	src/careerbrew/workday/questions.py	209
 node	workday.start.checkouts	rust-16	src/careerbrew/workday/start.py	145
 node	workday.start.preflight	rust-16	src/careerbrew/workday/start.py	240
 node	workday.start.probe	rust-16	src/careerbrew/workday/start.py	320
@@ -65,13 +65,13 @@ node	workday.start.signin_steps	rust-16	src/careerbrew/workday/start.py	315
 node	workday.status.handled	rust-15	src/careerbrew/workday/status.py	70
 node	workday.status.save_start	rust-15	src/careerbrew/workday/status.py	120
 node	workday.status.stored	rust-15	src/careerbrew/workday/status.py	65
-node	workday.watch._catchup_due	rust-16	src/careerbrew/workday/watch.py	352
-node	workday.watch._live_cycle	rust-16	src/careerbrew/workday/watch.py	328
-node	workday.watch.catch_up	rust-16	src/careerbrew/workday/watch.py	381
-node	workday.watch.end	rust-16	src/careerbrew/workday/watch.py	258
-node	workday.watch.run	rust-16	src/careerbrew/workday/watch.py	494
-node	workday.watch.run_pass	rust-16	src/careerbrew/workday/watch.py	414
-node	workday.watch.status	rust-16	src/careerbrew/workday/watch.py	481
+node	workday.watch._catchup_due	rust-16	src/careerbrew/workday/watch.py	356
+node	workday.watch._live_cycle	rust-16	src/careerbrew/workday/watch.py	332
+node	workday.watch.catch_up	rust-16	src/careerbrew/workday/watch.py	385
+node	workday.watch.end	rust-16	src/careerbrew/workday/watch.py	262
+node	workday.watch.run	rust-16	src/careerbrew/workday/watch.py	508
+node	workday.watch.run_pass	rust-16	src/careerbrew/workday/watch.py	418
+node	workday.watch.status	rust-16	src/careerbrew/workday/watch.py	495
 cross	workday.start.run	calendar.now	350	now()
 cross	workday.start.run	day.pm_promises.reconcile	350	pm_promises.reconcile(
 cross	workday.start.run	config.get	357	config.get(
@@ -111,15 +111,15 @@ cross	workday.end.morning	events.emit	304	events.emit(
 cross	workday.end.tick	work.sessions.request_wrap	203	sessions.request_wrap(
 cross	workday.end.tick	events.emit	207	events.emit(
 cross	workday.end._remind	notify.remind	184	notify.remind(
-cross	workday.watch.run_pass	day.watch.running	432	day_watch.running()
-cross	workday.watch.run_pass	workday.plan.build	443	plan.build()
-cross	workday.watch.run_pass	workday.gate.may_run	448	gate.may_run(
-cross	workday.watch.run_pass	workday.end.tick	470	end.tick()
-cross	workday.watch._catchup_due	workday.end.times	364	end.times(
-cross	workday.watch._catchup_due	workday.end.phase	365	end.phase(
-cross	workday.watch._catchup_due	workday.end._data	365	end._data(
-cross	workday.watch.end	work.live.stop	274	live.stop()
-cross	workday.watch.end	day.watch.stop	276	day_watch.stop()
+cross	workday.watch.run_pass	day.watch.running	436	day_watch.running()
+cross	workday.watch.run_pass	workday.plan.build	447	plan.build()
+cross	workday.watch.run_pass	workday.gate.may_run	452	gate.may_run(
+cross	workday.watch.run_pass	workday.end.tick	484	end.tick()
+cross	workday.watch._catchup_due	workday.end.times	368	end.times(
+cross	workday.watch._catchup_due	workday.end.phase	369	end.phase(
+cross	workday.watch._catchup_due	workday.end._data	369	end._data(
+cross	workday.watch.end	work.live.stop	278	live.stop()
+cross	workday.watch.end	day.watch.stop	280	day_watch.stop()
 cross	day.watch._src_changes	changes.check	256	changes.check(fetch=False)
 cross	day.watch._learn_sent	day.pm_learn.retained_sent_days	288	pm_learn.retained_sent_days()
 cross	day.watch._learn_sent	day.pm_learn.learn_sent	290	pm_learn.learn_sent(
@@ -143,9 +143,9 @@ local	workday.end.tick	workday.end._remind	205	_remind(
 local	workday.end.tick	workday.end.finish	210	finish(
 local	workday.end.finish	workday.end.write_handoff	242	write_handoff(
 local	workday.end.morning	workday.end.last_handoff_day	282	last_handoff_day(
-local	workday.watch.run	workday.watch.run_pass	500	run_pass(
-local	workday.watch.catch_up	workday.watch.run_pass	401	run_pass(
-local	workday.watch.run_pass	workday.watch._live_cycle	435	_live_cycle()
+local	workday.watch.run	workday.watch.run_pass	514	run_pass(
+local	workday.watch.catch_up	workday.watch.run_pass	405	run_pass(
+local	workday.watch.run_pass	workday.watch._live_cycle	439	_live_cycle()
 local	day.watch.loop	day.watch.run_cycle	470	run_cycle()
 local	day.watch.run_cycle	day.watch._rebuild	345	_rebuild(
 local	day.watch.run_cycle	day.watch._learn_sent	348	_learn_sent(
@@ -156,7 +156,7 @@ local	day.log.save	day.log.build	709	build(
 local	day.log.pm_report	day.log._pm_build	267	_pm_build(
 unresolved	day.watch.run_cycle	334	fn(day)	dispatch through SOURCES; the changes slot binds _src_changes at line 293
 unresolved	day.watch._rebuild	307	fn()	dispatch through rebuild steps; daylog.save is inside the log lambda at line 322
-unresolved	workday.watch.run_pass	454	runner(s["cycle"]	run the configured cycle after permission and fingerprint checks
+unresolved	workday.watch.run_pass	460	runner(s["cycle"]	run the configured cycle after permission and fingerprint checks
 unresolved	workday.gate.run_verify	62	subprocess.run(argv	run the allowed proof command with output discarded
 unresolved	day.watch.start	496	subprocess.Popen(cmd	start the separate background watcher process
 unresolved	day.watch._reexec	431	os.execv(sys.executable, args)	replace the background watcher process image

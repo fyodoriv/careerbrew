@@ -1,0 +1,1143 @@
+{
+  "cases": [
+    {
+      "calls": [
+        {
+          "body": {
+            "html_url": "https://github.com/example/review-demo/pull/41",
+            "merged": true,
+            "number": 41,
+            "requested_reviewers": [],
+            "requested_teams": [],
+            "state": "closed",
+            "user": {
+              "login": "fixture-author",
+              "type": "User"
+            }
+          },
+          "method": "GET",
+          "url": "https://api.github.com/repos/example/review-demo/pulls/41"
+        }
+      ],
+      "id": "R01",
+      "outcome": "closed"
+    },
+    {
+      "calls": [
+        {
+          "body": {
+            "html_url": "https://github.com/example/review-demo/pull/41",
+            "merged": false,
+            "number": 41,
+            "requested_reviewers": [],
+            "requested_teams": [],
+            "state": "closed",
+            "user": {
+              "login": "fixture-author",
+              "type": "User"
+            }
+          },
+          "method": "GET",
+          "url": "https://api.github.com/repos/example/review-demo/pulls/41"
+        }
+      ],
+      "id": "R02",
+      "outcome": "closed"
+    },
+    {
+      "calls": [
+        {
+          "body": {
+            "html_url": "https://github.com/example/review-demo/pull/41",
+            "merged": false,
+            "number": 41,
+            "requested_reviewers": [
+              {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            ],
+            "requested_teams": [],
+            "state": "open",
+            "user": {
+              "login": "fixture-author",
+              "type": "User"
+            }
+          },
+          "method": "GET",
+          "url": "https://api.github.com/repos/example/review-demo/pulls/41"
+        }
+      ],
+      "id": "R03",
+      "outcome": "closed"
+    },
+    {
+      "calls": [
+        {
+          "body": {
+            "html_url": "https://github.com/example/review-demo/pull/41",
+            "merged": false,
+            "number": 41,
+            "requested_reviewers": [],
+            "requested_teams": [],
+            "state": "open",
+            "user": {
+              "login": "fixture-author",
+              "type": "User"
+            }
+          },
+          "method": "GET",
+          "url": "https://api.github.com/repos/example/review-demo/pulls/41"
+        },
+        {
+          "body": [
+            {
+              "id": 1,
+              "state": "APPROVED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            }
+          ],
+          "method": "GET",
+          "url": "https://api.github.com/repos/example/review-demo/pulls/41/reviews?per_page=100"
+        }
+      ],
+      "id": "R04",
+      "outcome": "closed"
+    },
+    {
+      "calls": [
+        {
+          "body": {
+            "html_url": "https://github.com/example/review-demo/pull/41",
+            "merged": false,
+            "number": 41,
+            "requested_reviewers": [],
+            "requested_teams": [],
+            "state": "open",
+            "user": {
+              "login": "fixture-author",
+              "type": "User"
+            }
+          },
+          "method": "GET",
+          "url": "https://api.github.com/repos/example/review-demo/pulls/41"
+        },
+        {
+          "body": [],
+          "method": "GET",
+          "url": "https://api.github.com/repos/example/review-demo/pulls/41/reviews?per_page=100"
+        }
+      ],
+      "id": "R05",
+      "outcome": "open"
+    },
+    {
+      "calls": [
+        {
+          "error": {
+            "kind": "HTTPError",
+            "status": 403
+          },
+          "method": "GET",
+          "url": "https://api.github.com/repos/example/review-demo/pulls/41"
+        }
+      ],
+      "id": "R06",
+      "outcome": "unknown"
+    },
+    {
+      "calls": [
+        {
+          "error": {
+            "kind": "HTTPError",
+            "status": 404
+          },
+          "method": "GET",
+          "url": "https://api.github.com/repos/example/review-demo/pulls/41"
+        }
+      ],
+      "id": "R07",
+      "outcome": "unknown"
+    },
+    {
+      "calls": [
+        {
+          "body": {
+            "html_url": "https://github.com/example/review-demo/pull/41",
+            "merged": false,
+            "number": 41,
+            "requested_reviewers": [],
+            "requested_teams": [],
+            "state": "open",
+            "user": {
+              "login": "fixture-author",
+              "type": "User"
+            }
+          },
+          "method": "GET",
+          "url": "https://api.github.com/repos/example/review-demo/pulls/41"
+        },
+        {
+          "body": [
+            {
+              "id": 1,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 2,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 3,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 4,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 5,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 6,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 7,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 8,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 9,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 10,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 11,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 12,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 13,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 14,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 15,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 16,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 17,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 18,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 19,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 20,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 21,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 22,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 23,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 24,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 25,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 26,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 27,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 28,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 29,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 30,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 31,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 32,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 33,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 34,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 35,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 36,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 37,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 38,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 39,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 40,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 41,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 42,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 43,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 44,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 45,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 46,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 47,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 48,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 49,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 50,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 51,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 52,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 53,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 54,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 55,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 56,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 57,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 58,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 59,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 60,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 61,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 62,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 63,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 64,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 65,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 66,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 67,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 68,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 69,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 70,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 71,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 72,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 73,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 74,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 75,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 76,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 77,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 78,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 79,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 80,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 81,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 82,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 83,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 84,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 85,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 86,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 87,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 88,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 89,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 90,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 91,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 92,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 93,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 94,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 95,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 96,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 97,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 98,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 99,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            },
+            {
+              "id": 100,
+              "state": "DISMISSED",
+              "submitted_at": "2026-11-03T15:00:00Z",
+              "user": {
+                "login": "fixture-reviewer",
+                "type": "User"
+              }
+            }
+          ],
+          "method": "GET",
+          "url": "https://api.github.com/repos/example/review-demo/pulls/41/reviews?per_page=100"
+        }
+      ],
+      "id": "R08",
+      "outcome": "unknown"
+    },
+    {
+      "calls": [
+        {
+          "body": {
+            "html_url": "https://github.com/example/review-demo/pull/42",
+            "merged": false,
+            "number": 42,
+            "requested_reviewers": [],
+            "requested_teams": [],
+            "state": "open",
+            "user": {
+              "login": "fixture-author",
+              "type": "User"
+            }
+          },
+          "method": "GET",
+          "url": "https://api.github.com/repos/example/review-demo/pulls/41"
+        }
+      ],
+      "id": "R09",
+      "outcome": "unknown"
+    },
+    {
+      "before_return_replace_recheck": "https://github.com/example/review-demo/pull/42",
+      "calls": [
+        {
+          "body": {
+            "html_url": "https://github.com/example/review-demo/pull/41",
+            "merged": true,
+            "number": 41,
+            "requested_reviewers": [],
+            "requested_teams": [],
+            "state": "closed",
+            "user": {
+              "login": "fixture-author",
+              "type": "User"
+            }
+          },
+          "method": "GET",
+          "url": "https://api.github.com/repos/example/review-demo/pulls/41"
+        }
+      ],
+      "id": "R10",
+      "outcome": "unknown"
+    }
+  ],
+  "clock": "2026-11-03T12:00:00-05:00",
+  "pr_url": "https://github.com/example/review-demo/pull/41",
+  "synthetic_token": "SYNTHETIC-REVIEW-AUTH-394"
+}
