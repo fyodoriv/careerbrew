@@ -1,0 +1,46 @@
+{
+  "method": "V2.1",
+  "original_groups_sha256": "692f0bf3c4dbb3ef8a1fedc4cd4000415eb0b3977acc21116fd82c381a1444c1",
+  "groups": [
+    {
+      "id": 8,
+      "name": "document scrolling and root clipping",
+      "cases": [
+        { "html": "<!doctype html><html><body><p>Top paragraph.</p><div style=\"height:1600px\"></div><p>Bottom paragraph.</p></body></html>", "expected": "Top paragraph.\n\nBottom paragraph.\n" },
+        { "html": "<!doctype html><html><body style=\"height:800px;overflow:auto\"><p>Top paragraph.</p><div style=\"height:1600px\"></div><p>Bottom paragraph.</p></body></html>", "expected": "Top paragraph.\n\nBottom paragraph.\n" },
+        { "html": "<!doctype html><html style=\"height:40px;overflow:clip\"><body><p>Top paragraph.</p><div style=\"height:1600px\"></div><p>Clipped paragraph.</p></body></html>", "expected": "unavailable" },
+        { "html": "<!doctype html><html><body style=\"height:40px;overflow:hidden\"><p>Top paragraph.</p><div style=\"height:1600px\"></div><p>Clipped paragraph.</p></body></html>", "expected": "unavailable" }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "restored visibility and display-none ancestry",
+      "cases": [
+        { "html": "<!doctype html><html><body><div style=\"visibility:hidden\"><p>HIDDEN_BEFORE <span style=\"visibility:visible\">Restored child.</span> HIDDEN_AFTER</p></div><p>Ordinary visible.</p></body></html>", "expected": "Restored child.\n\nOrdinary visible.\n" },
+        { "html": "<!doctype html><html><body><div style=\"display:none\"><p><span style=\"visibility:visible\">NOT_RESTORED</span></p></div><p>Ordinary visible.</p></body></html>", "expected": "Ordinary visible.\n" },
+        { "html": "<!doctype html><html><body><p>Visible <span style=\"visibility:hidden\">HIDDEN <span style=\"visibility:visible\">restored</span> HIDDEN</span> ending.</p></body></html>", "expected": "Visible restored ending.\n" },
+        { "html": "<!doctype html><html><body><p>Visible <span style=\"opacity:0\">HIDDEN_OPACITY</span> ending.</p></body></html>", "expected": "unavailable" }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "native formatting and inline image surrogate",
+      "cases": [
+        { "html": "<!doctype html><html><body><p style=\"white-space:pre-wrap\">first  line\n  second line</p><p style=\"text-transform:uppercase\">Mixed Case</p><h2 style=\"text-transform:uppercase\">Mixed heading</h2></body></html>", "expected": "first  line\n  second line\n\nMIXED CASE\n\n## MIXED HEADING\n" },
+        { "html": "<!doctype html><html><body><div style=\"white-space:pre-wrap\">inline  text\n  next line</div></body></html>", "expected": "inline  text\n  next line\n" },
+        { "html": "<!doctype html><html><body><p>Before <img src=\"not-read.png\" alt=\"Author illustration\"> after.</p></body></html>", "expected": "Before [Image: Author illustration] after.\n" },
+        { "html": "<!doctype html><html><body><p style=\"text-transform:uppercase\">Before <img src=\"not-read.png\" alt=\"Mixedcase illustration\"> after.</p></body></html>", "expected": "BEFORE [Image: Mixedcase illustration] AFTER.\n" },
+        { "html": "<!doctype html><html><body><div style=\"white-space:pre-wrap\">Opening  line<p>Nested paragraph.</p>Closing  line</div></body></html>", "expected": "unavailable" }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "simple table row order and complex cell refusal",
+      "cases": [
+        { "html": "<!doctype html><html><body><table><tfoot><tr><td>Footer</td><td>3</td></tr></tfoot><tbody><tr><td>Body</td><td>2</td></tr></tbody><thead><tr><th>Header</th><th>1</th></tr></thead></table></body></html>", "expected": "Header | 1\nBody | 2\nFooter | 3\n" },
+        { "html": "<!doctype html><html><body><table><tr><td><p>First cell paragraph.</p><p>Second cell paragraph.</p></td><td>Other cell</td></tr></table></body></html>", "expected": "unavailable" },
+        { "html": "<!doctype html><html><body><table><tr><td>First line<br>Second line</td><td>Other cell</td></tr></table></body></html>", "expected": "unavailable" }
+      ]
+    }
+  ]
+}

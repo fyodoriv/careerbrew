@@ -204,3 +204,7 @@ web/visual/__screenshots__/us-95-standup-proofs.spec.ts/proved-row-desktop-darwi
 web/visual/__screenshots__/us-95-standup-proofs.spec.ts/proved-row-phone-darwin.png	generated	bccb959b0f38548e7b49b93ff567950164b8bc6736029d0a5fb9b32857219537	web/visual/us-95-standup-proofs.spec.ts
 web/visual/__screenshots__/us-99-promises.spec.ts/commitments-desktop-darwin.png	generated	f9f6adc3ae7427f126476bf1c5e76d67c98ed37b15a6ea035b622c446486fa95	web/visual/us-99-promises.spec.ts
 web/visual/__screenshots__/us-99-promises.spec.ts/commitments-phone-darwin.png	generated	77e8b0eef04be60cee2d68aee858224ab2a817c0a60711c62a0f950846fa4d6b	web/visual/us-99-promises.spec.ts
+evals/fixtures/artifact-proof/v3-assets/LiberationSans-Regular.ttf	third-party-licensed	f8ace1f892b2bd9dc1792ba7f097fa7588f84fed48321480e04de5390828221f	-
+evals/fixtures/artifact-proof/v3-assets/clear.png	synthetic	2e1ca551c5e0e11e73f610035a0224587a7545387979a9e8dc85f55a63c5682b	-
+evals/fixtures/artifact-proof/v3-assets/oversizeImage.png	synthetic	228a04d8243b3934028adf8dfddbefd15fc5776d17b177741bf44e4880f5e241	-
+evals/fixtures/artifact-proof/v3-assets/red.png	synthetic	e8eec0d4fd5e30636177b752c42f0809c112f3dea487abb6e805dcdf6b14f229	-

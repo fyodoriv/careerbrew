@@ -1,0 +1,16 @@
+{
+  "name": "careerbrew-source-preflight-tools",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.15.0 <25",
+    "npm": "12.2.1"
+  },
+  "packageManager": "npm@12.2.1",
+  "devDependencies": {
+    "parse5": "8.1.0",
+    "css-tree": "3.2.1",
+    "data-urls": "8.0.0"
+  }
+}

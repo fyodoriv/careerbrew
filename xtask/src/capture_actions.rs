@@ -230,16 +230,219 @@ fn zombie_only_group(_pgid: i32) -> std::io::Result<bool> {
     Ok(false)
 }
 
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[derive(Debug, Clone)]
+enum RawWaitUsage {
+    #[cfg(target_os = "macos")]
+    MacOSWait4BytesUncalibrated {
+        user_sec: libc::time_t,
+        user_usec: libc::suseconds_t,
+        system_sec: libc::time_t,
+        system_usec: libc::suseconds_t,
+        max_rss: libc::c_long,
+    },
+    #[cfg(target_os = "linux")]
+    LinuxWait4KiBUncalibrated {
+        user_sec: libc::time_t,
+        user_usec: libc::suseconds_t,
+        system_sec: libc::time_t,
+        system_usec: libc::suseconds_t,
+        max_rss: libc::c_long,
+    },
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+type RawWaitUsage = ();
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RawUsageIssue {
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    NegativeTime,
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    InvalidTimeval,
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    NegativeRss,
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    CollectorUnsupported,
+}
+
+type RawUsageOutcome = (Option<RawWaitUsage>, Result<(), RawUsageIssue>);
+
+#[derive(Debug)]
+struct ReapedChild {
+    status: std::process::ExitStatus,
+    usage: RawUsageOutcome,
+}
+
+impl ReapedChild {
+    fn into_parts(self) -> (std::process::ExitStatus, RawUsageOutcome) {
+        (self.status, self.usage)
+    }
+}
+
+#[cfg(test)]
+impl std::ops::Deref for ReapedChild {
+    type Target = std::process::ExitStatus;
+    fn deref(&self) -> &Self::Target {
+        &self.status
+    }
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+fn validate_raw(raw: &RawWaitUsage) -> Result<(), RawUsageIssue> {
+    let (user_sec, user_usec, system_sec, system_usec, max_rss) = match *raw {
+        #[cfg(target_os = "macos")]
+        RawWaitUsage::MacOSWait4BytesUncalibrated {
+            user_sec,
+            user_usec,
+            system_sec,
+            system_usec,
+            max_rss,
+        } => (user_sec, user_usec, system_sec, system_usec, max_rss),
+        #[cfg(target_os = "linux")]
+        RawWaitUsage::LinuxWait4KiBUncalibrated {
+            user_sec,
+            user_usec,
+            system_sec,
+            system_usec,
+            max_rss,
+        } => (user_sec, user_usec, system_sec, system_usec, max_rss),
+    };
+    if user_sec < 0 || system_sec < 0 {
+        Err(RawUsageIssue::NegativeTime)
+    } else if !(0..1_000_000).contains(&user_usec) || !(0..1_000_000).contains(&system_usec) {
+        Err(RawUsageIssue::InvalidTimeval)
+    } else if max_rss < 0 {
+        Err(RawUsageIssue::NegativeRss)
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+struct ReapContext<'a> {
+    expected_pid: libc::pid_t,
+    released: &'a mut bool,
+    #[cfg(test)]
+    raw_fault: Option<fn(&mut libc::rusage)>,
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+enum WaitAttempt {
+    Interrupted,
+    Failed(libc::c_int),
+    Returned {
+        pid: libc::pid_t,
+        raw_status: libc::c_int,
+        rusage: libc::rusage,
+    },
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+enum ReapDecision {
+    Retry,
+    Done(std::io::Result<ReapedChild>),
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+fn finish_wait_attempt(context: &mut ReapContext<'_>, attempt: WaitAttempt) -> ReapDecision {
+    use std::os::unix::process::ExitStatusExt;
+    match attempt {
+        WaitAttempt::Interrupted => ReapDecision::Retry,
+        WaitAttempt::Failed(errno) => {
+            *context.released = true;
+            ReapDecision::Done(Err(std::io::Error::from_raw_os_error(errno)))
+        }
+        WaitAttempt::Returned {
+            pid,
+            raw_status,
+            rusage,
+        } => {
+            *context.released = true;
+            if pid != context.expected_pid {
+                return ReapDecision::Done(Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "wait4 returned a different PID",
+                )));
+            }
+            if !libc::WIFEXITED(raw_status) && !libc::WIFSIGNALED(raw_status) {
+                return ReapDecision::Done(Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "wait4 returned a nonterminal status",
+                )));
+            }
+            #[cfg(test)]
+            let rusage = {
+                let mut rusage = rusage;
+                if let Some(fault) = context.raw_fault {
+                    fault(&mut rusage);
+                }
+                rusage
+            };
+            #[cfg(target_os = "macos")]
+            let raw = RawWaitUsage::MacOSWait4BytesUncalibrated {
+                user_sec: rusage.ru_utime.tv_sec,
+                user_usec: rusage.ru_utime.tv_usec,
+                system_sec: rusage.ru_stime.tv_sec,
+                system_usec: rusage.ru_stime.tv_usec,
+                max_rss: rusage.ru_maxrss,
+            };
+            #[cfg(target_os = "linux")]
+            let raw = RawWaitUsage::LinuxWait4KiBUncalibrated {
+                user_sec: rusage.ru_utime.tv_sec,
+                user_usec: rusage.ru_utime.tv_usec,
+                system_sec: rusage.ru_stime.tv_sec,
+                system_usec: rusage.ru_stime.tv_usec,
+                max_rss: rusage.ru_maxrss,
+            };
+            let validation = validate_raw(&raw);
+            ReapDecision::Done(Ok(ReapedChild {
+                status: std::process::ExitStatus::from_raw(raw_status),
+                usage: (Some(raw), validation),
+            }))
+        }
+    }
+}
+
+#[cfg(test)]
+type ProbeTerminal = (Option<i32>, Option<i32>, RawUsageOutcome);
+
+// One owned invocation has one test probe; its last Rc handle releases the probe.
+#[cfg(test)]
+#[derive(Default)]
+struct OwnerProbeState {
+    signals: std::cell::Cell<usize>,
+    wait_attempts: std::cell::Cell<usize>,
+    native_reaps: std::cell::Cell<usize>,
+    pid: std::cell::Cell<Option<u32>>,
+    raw_fault: std::cell::Cell<Option<fn(&mut libc::rusage)>>,
+    terminal: std::cell::RefCell<Option<ProbeTerminal>>,
+}
+
+#[cfg(test)]
+#[derive(Clone, Default)]
+struct OwnerProbe(std::rc::Rc<OwnerProbeState>);
+
+#[cfg(test)]
+impl OwnerProbe {
+    fn get(&self) -> usize {
+        self.0.signals.get()
+    }
+    fn set(&self, count: usize) {
+        self.0.signals.set(count);
+    }
+}
+
 // The command invocation owns this unreaped direct child and its process group.
 struct RunningChild {
     child: Child,
     released: bool,
     #[cfg(test)]
-    group_signals: std::rc::Rc<std::cell::Cell<usize>>,
+    group_signals: OwnerProbe,
 }
 
 impl RunningChild {
-    fn stop_and_reap(&mut self) -> std::io::Result<std::process::ExitStatus> {
+    fn stop_and_reap(&mut self) -> std::io::Result<ReapedChild> {
         if self.released {
             return Err(std::io::Error::from_raw_os_error(libc::ECHILD));
         }
@@ -270,9 +473,76 @@ impl RunningChild {
                 return Err(error);
             }
         }
-        let status = self.child.wait();
-        self.released = true;
-        status
+        #[cfg(any(target_os = "macos", target_os = "linux"))]
+        loop {
+            let expected_pid = self.child.id() as libc::pid_t;
+            let mut raw_status = 0;
+            let mut rusage: libc::rusage = unsafe { std::mem::zeroed() };
+            let pid = unsafe { libc::wait4(expected_pid, &mut raw_status, 0, &mut rusage) };
+            let errno = (pid == -1).then(|| {
+                std::io::Error::last_os_error()
+                    .raw_os_error()
+                    .unwrap_or(libc::EIO)
+            });
+            // A final consuming outcome relinquishes ownership before any validation.
+            if errno != Some(libc::EINTR) {
+                self.released = true;
+            }
+            #[cfg(test)]
+            {
+                self.group_signals
+                    .0
+                    .wait_attempts
+                    .set(self.group_signals.0.wait_attempts.get() + 1);
+                if pid == expected_pid
+                    && (libc::WIFEXITED(raw_status) || libc::WIFSIGNALED(raw_status))
+                {
+                    self.group_signals
+                        .0
+                        .native_reaps
+                        .set(self.group_signals.0.native_reaps.get() + 1);
+                }
+            }
+            let attempt = match errno {
+                Some(libc::EINTR) => WaitAttempt::Interrupted,
+                Some(error) => WaitAttempt::Failed(error),
+                None => WaitAttempt::Returned {
+                    pid,
+                    raw_status,
+                    rusage,
+                },
+            };
+            let mut context = ReapContext {
+                expected_pid,
+                released: &mut self.released,
+                #[cfg(test)]
+                raw_fault: self.group_signals.0.raw_fault.get(),
+            };
+            match finish_wait_attempt(&mut context, attempt) {
+                ReapDecision::Retry => continue,
+                ReapDecision::Done(result) => {
+                    #[cfg(test)]
+                    if let Ok(reaped) = &result {
+                        use std::os::unix::process::ExitStatusExt;
+                        *self.group_signals.0.terminal.borrow_mut() = Some((
+                            reaped.status.code(),
+                            reaped.status.signal(),
+                            reaped.usage.clone(),
+                        ));
+                    }
+                    return result;
+                }
+            }
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+        {
+            let status = self.child.wait();
+            self.released = true;
+            status.map(|status| ReapedChild {
+                status,
+                usage: (None, Err(RawUsageIssue::CollectorUnsupported)),
+            })
+        }
     }
 }
 
@@ -404,9 +674,24 @@ fn execute_during_bounded(
 // One command invocation owns this child observation until actual cleanup/wait.
 #[cfg_attr(test, allow(dead_code))]
 pub(crate) fn execute_during_observed(
+    command: Command,
+    budget: Duration,
+    during: impl FnOnce(u32, &mut dyn FnMut() -> Result<bool, String>) -> Result<(), String>,
+) -> Result<OwnerExecution, OwnerFailure> {
+    execute_during_observed_inner(
+        command,
+        budget,
+        during,
+        #[cfg(test)]
+        None,
+    )
+}
+
+fn execute_during_observed_inner(
     mut command: Command,
     budget: Duration,
     during: impl FnOnce(u32, &mut dyn FnMut() -> Result<bool, String>) -> Result<(), String>,
+    #[cfg(test)] probe: Option<OwnerProbe>,
 ) -> Result<OwnerExecution, OwnerFailure> {
     let before_spawn = |cause, message: &str| OwnerFailure {
         cause,
@@ -444,9 +729,11 @@ pub(crate) fn execute_during_observed(
             .map_err(|_| before_spawn(OwnerFailureCause::Spawn, "cannot execute capture child"))?,
         released: false,
         #[cfg(test)]
-        group_signals: Default::default(),
+        group_signals: probe.unwrap_or_default(),
     };
     let pid = child.child.id();
+    #[cfg(test)]
+    child.group_signals.0.pid.set(Some(pid));
     let mut observation = OwnerObservation {
         pid,
         program,
@@ -491,7 +778,8 @@ pub(crate) fn execute_during_observed(
     })();
     if let Err(primary) = progress {
         let message = match child.stop_and_reap() {
-            Ok(status) => {
+            Ok(reaped) => {
+                let (status, _usage) = reaped.into_parts();
                 let message = format!("{primary}; observed child exit {:?}", status.code());
                 observation = observation.terminal(status);
                 message
@@ -504,11 +792,14 @@ pub(crate) fn execute_during_observed(
             message,
         });
     }
-    let status = child.stop_and_reap().map_err(|error| OwnerFailure {
-        cause: OwnerFailureCause::Cleanup,
-        observation: Some(observation.clone()),
-        message: format!("cannot clean capture child: {error}"),
-    })?;
+    let (status, _usage) = child
+        .stop_and_reap()
+        .map_err(|error| OwnerFailure {
+            cause: OwnerFailureCause::Cleanup,
+            observation: Some(observation.clone()),
+            message: format!("cannot clean capture child: {error}"),
+        })?
+        .into_parts();
     observation = observation.terminal(status);
     let stdout = bounded(&stdout).map_err(|message| OwnerFailure {
         cause: OwnerFailureCause::Output,

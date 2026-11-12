@@ -58,6 +58,18 @@ The receipt remains until replacement or data-root removal; stopping keeps it.
 
 ## Data exits and their guards
 
+Rust00 phase-A wait4 accounting is private developer-harness preparation. It
+retains only the exact waited child's five signed CPU/RSS fields and validation
+outcome internally; normal callers discard them. Accounted and unwaited
+descendants remain unknown. CLI/HTTP JSON, status and error
+projections stay unchanged. The fixed synthetic controls write invocation-owned
+0700 directories and bounded 0600 receipts under `.metrics/`, with numeric
+PID/status/counter evidence and those raw fields. They read no owner data and
+import no metrics from child stdout, environment or JSON. Synthetic checked-unit
+arithmetic exists only in the new test target. Units remain uncalibrated; no
+whole-tree CPU, concurrent peak RSS, resource admission or production switch is
+claimed.
+
 Source-health GETs read existing encrypted declarations and validation receipts.
 Their versioned output contains canonical source ids, finite reasons, times,
 ages, counts and fixed existing repair commands, never titles, raw replies,
@@ -75,6 +87,7 @@ does not certify old row facts or proofs. See [coverage and source health](integ
 | git | allowlist `.gitignore`; `careerbrew privacy scan --staged` reads changed index blobs and gitleaks runs in the pre-commit hook; `scripts/check.sh` also scans tracked working files. Index errors, changed index state, staged gitlinks, and unsupported or oversized staged blobs fail closed. A staged visual snapshot is admitted only in the bounded, metadata-free RGB PNG format used by the visual tests; raw bytes and filtered scanlines are checked for detectable text and UTF-16 literals. The scan does not OCR image pixels. Unchanged non-UTF-8 working files retain the existing skip behavior. The index recheck is not an atomic snapshot or a scan of pushed commit history | `test_privacy_index.py`, `test_repo_scan_*`, US-13 |
 | Issues an agent files (`/careerbrew-checkup` last step) | the draft describes the careerbrew command and its error only, never anything from `private/`; it is posted only after `careerbrew privacy scan --file` finds no sensitive term, no `private/` path (relative, nested, after a placeholder such as `<repo>/private/`, or a leading `/private/`; only the macOS system roots `/private/tmp`, `/private/var`, and `/private/etc` pass), and no data-root path (and refuses a file inside the data root), printing ids only, each with its line and how it matched (whole word, look-alike spelling, inside a longer word, or letters spread across words or lines, the last three marked likely false matches); `--show` prints the matched text to the owner's terminal (`/dev/tty`) only, never stdout, so an agent's pipe cannot read it; the owner's agent files in the owner's repo, anyone else's agent posts through `agentbrew report` only after the user says yes | `test_privacy_scan_file.py`, `test_checkup_command.py`, US-13 |
 | Exercise scaling diagnostics | new metadata and fixed validation summaries contain only an owner-generated category, test/scale stage, observed exit code or signal, and configured wall/CPU/memory limits; child-supplied diagnostic fields are discarded. No new child stdout, stderr, source, exception text, or raw reason is printed. Legacy learner error fields remain unchanged. | `test_exercise_diagnostics.py` (six families, forged metadata, canaries and verdict preservation) |
+| Synthetic artifact source preflight | developer receipts contain fixed reasons, stages, counts, hashes and resource identities; private delivery-graph buffers are copied and hash-checked on access. Semantic receipts exclude source, AST, data payloads and exception text. Parser qualification needs a separate reviewed source release; injected owner decisions are not actual cleanup evidence. | `source-preflight-v3.test.mjs` (registered source-only qualification, execution held until review) |
 | Event log | the writer drops every string that is not an allow-listed short id | `test_events_are_content_free` |
 | Hosted models | personal and business data go only to `private_data: true` routes; text for other routes is scanned for sensitive terms; a plugin policy can narrow routes; on a corporate machine business data goes only to a route on this machine (localhost), whatever `private_data` says | `test_route_guard_*`, `test_plugin_policy_narrows_routes` |
 | Agent transcript (stdout) | output is redacted; business content prints only with `--show` to a real terminal, unless a plugin sets `agent_may_read_business: true`; `careerbrew data show <file>` accepts a data-root-relative path or one leading `private/` (also with a custom data root), prints a data file decrypted and redacted, prints to an agent only the text of personal files (at the top of the data root, or in `jobs/`, `tutor/`, `prep/`, `linkedin/`) and refuses every other file the same way (exit 3; an allowlist, so `work/`, `day/`, `ladders/`, `cache/`, `plugins/`, `out/`, a new folder, or a folder named in another case fail closed), and with `--keys` prints only key names and value types, never a value; for a refused file, a map under a named key prints as `*`, so names that key a map (projects, usernames) stay hidden | `test_cli_show_refuses_*`, `test_data_show.py`, US-13, US-43 |

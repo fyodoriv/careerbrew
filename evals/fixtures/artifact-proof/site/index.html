@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Sample incoming values</title>
+  <style>
+    :root { color-scheme: light dark; font: 16px/1.5 system-ui, sans-serif; }
+    body { margin: 0; color: #171717; background: #fff; }
+    main { max-width: 42rem; padding: 24px; margin: auto; overflow-wrap: anywhere; }
+    h1 { line-height: 1.2; }
+    button, a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; font: inherit; }
+    button { color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 6px; cursor: pointer; }
+    a { color: #154caa; }
+    :focus-visible { outline: 3px solid #154caa; outline-offset: 3px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 16px; }
+    @media (prefers-color-scheme: dark) {
+      body { color: #eee; background: #171717; }
+      a { color: #a6c8ff; }
+      :focus-visible { outline-color: #a6c8ff; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p>Synthetic sample. No personal or service data.</p>
+    <h1>Incoming values</h1>
+    <p>This page displays a sample value from a separate source file.</p>
+    <section aria-labelledby="value-heading">
+      <h2 id="value-heading">Current value</h2>
+      <p id="value" role="status">Loading sample…</p>
+      <div class="actions">
+        <button id="export" type="button">Export value</button>
+        <button id="review" type="button">Mark reviewed</button>
+      </div>
+      <p id="review-state" role="status">Not reviewed</p>
+    </section>
+    <nav aria-label="Sample help">
+      <a href="help/values.html">About incoming values</a>
+      <a id="second-help" href="help/export.html">About exports</a>
+    </nav>
+  </main>
+  <script type="module" src="dashboard.js"></script>
+</body>
+</html>

@@ -133,6 +133,18 @@ it does not assume the hook path is absent.
 Then point the person at [AGENTS.md](AGENTS.md) (the rules every change
 follows) and `TASKS.md` (open work). Never push from a corporate machine.
 
+### 4c. Optional artifact-source developer tools
+
+The app still uses Node 20+. The optional source-preflight fixture needs Node
+24.15+ below 25 and npm 12.2.1. Its three parsers and lock live only in
+`evals/fixtures/artifact-proof/source-preflight-v3-tools`; do not install them
+in `web/` or reuse a shared modules folder. After the reviewed installation,
+run `CAREERBREW_CHECK_ARTIFACT_PREFLIGHT=1 scripts/doctor.sh`. It checks the
+isolated manifest, lock and installed versions without importing a parser.
+The default doctor does not require these tools. Readiness is not source,
+image, browser or reader qualification; use the registered source-only gates
+only after source review and execution release.
+
 ## 5. Check and fix
 
 Run `scripts/doctor.sh`. Fix every failing line with the person: each line

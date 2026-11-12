@@ -1,0 +1,59 @@
+{
+  "method": "V2",
+  "registered_before_implementation": true,
+  "groups": [
+    {
+      "id": 1,
+      "name": "label-only link",
+      "html": "<!doctype html><html><body><p><a href=\"hidden-proof.har\">Browser record</a></p></body></html>",
+      "expected": "Browser record\n"
+    },
+    {
+      "id": 2,
+      "name": "visible filename",
+      "html": "<!doctype html><html><body><p>Visible file: sample-value.json</p><p><a href=\"hidden-other.zip\">Evidence</a></p></body></html>",
+      "expected": "Visible file: sample-value.json\n\nEvidence\n"
+    },
+    {
+      "id": 3,
+      "name": "excluded text",
+      "html": "<!doctype html><html><head><title>HEAD_MARKER</title><style>.gone{display:none}.invisible{visibility:hidden}.transparent{opacity:0}</style><script type=\"application/json\">{\"value\":\"METADATA_MARKER\"}</script></head><body><!-- COMMENT_MARKER --><p>Visible body text.</p><p class=\"gone\">DISPLAY_MARKER</p><p class=\"invisible\">VISIBILITY_MARKER</p><p class=\"transparent\">OPACITY_MARKER</p><p hidden>HIDDEN_MARKER</p></body></html>",
+      "expected": "Visible body text.\n"
+    },
+    {
+      "id": 4,
+      "name": "structure",
+      "html": "<!doctype html><html><body><h1>Sample result</h1><p>First paragraph.</p><p>Second paragraph.<br>Next line.</p><ul><li>First item</li><li>Second item</li></ul><pre>visible_code()\n  indented</pre><table><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody><tr><td>Example</td><td>2</td></tr></tbody></table></body></html>",
+      "expected": "# Sample result\n\nFirst paragraph.\n\nSecond paragraph.\nNext line.\n\n- First item\n- Second item\n\nvisible_code()\n  indented\n\nName | Value\nExample | 2\n"
+    },
+    {
+      "id": 5,
+      "name": "image surrogate",
+      "html": "<!doctype html><html><body><p><img src=\"hidden-source.png\" alt=\"Author illustration\"></p><p><img src=\"hidden-missing-alt.png\"></p><p><img style=\"display:none\" src=\"hidden-image.png\" alt=\"HIDDEN_ALT_MARKER\"></p></body></html>",
+      "expected": "[Image: Author illustration]\n\n[Image: no alternative text supplied]\n"
+    },
+    {
+      "id": 6,
+      "name": "blocked execution and network",
+      "environment_probe_html": "<!doctype html><html><body><script>document.documentElement.dataset.artifactRan='yes'</script><img src=\"https://projection.invalid/resource.png\"></body></html>",
+      "expected_script_marker": null,
+      "expected_aborted_requests": 1,
+      "expected_resource_responses": 0,
+      "public_extractor_result": "unavailable"
+    },
+    {
+      "id": 7,
+      "name": "unsupported dependencies",
+      "reject_html": [
+        "<!doctype html><html><head><link rel=\"stylesheet\" href=\"https://projection.invalid/external.css\"></head><body><p>Text</p></body></html>",
+        "<!doctype html><html><body><iframe src=\"https://projection.invalid/frame\"></iframe></body></html>",
+        "<!doctype html><html><body><script>document.documentElement.dataset.artifactRan='yes'</script><p>Text</p></body></html>",
+        "<!doctype html><html><head><style>p::before{content:'GENERATED_MARKER'}</style></head><body><p>Text</p></body></html>",
+        "<!doctype html><html><body><p style=\"position:absolute;left:-9999px\">Positioned text</p></body></html>",
+        "<!doctype html><html><body><p style=\"transform:translateX(-9999px)\">Transformed text</p></body></html>",
+        "<!doctype html><html><body><div style=\"display:flex\"><p style=\"order:2\">Second</p><p style=\"order:1\">First</p></div></body></html>"
+      ],
+      "expected": "unavailable"
+    }
+  ]
+}
