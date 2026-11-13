@@ -121,6 +121,7 @@ def test_a_failed_send_never_raises_and_keeps_the_events(fake, home, capsys):
 
 def test_an_unreachable_endpoint_never_fails_the_watcher(home, monkeypatch):
     monkeypatch.setenv("CAREERBREW_POSTHOG_KEY", "phc_synthetic_test_key")
+    monkeypatch.delenv("DO_NOT_TRACK", raising=False)  # a hosted runner sets it; this test needs a send attempt
     _log({"ts": "2026-10-26T10:00:00Z", "event": "cli.run"})
     telemetry.notice_once()
     assert telemetry.maybe_send()["status"] == "fail"  # 127.0.0.1:9 refuses

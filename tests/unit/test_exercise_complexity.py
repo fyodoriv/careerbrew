@@ -50,8 +50,9 @@ def test_a_correct_solution_passes_on_a_busy_machine(monkeypatch):
     monkeypatch.delenv("CAREERBREW_EXERCISES", raising=False)
     ex = exercises.get("unique-paths")
     code = ex["solution"].replace("def unique_paths(", "def _unique_paths(") + BUSY
-    cx = exercises._complexity(ex, exercises.run(ex, code)["scale"])
-    assert cx["ok"], f"time spent waiting for a CPU counted as growth: n^{cx['slope']}"
+    scale = exercises.run(ex, code)["scale"]
+    cx = exercises._complexity(ex, scale)
+    assert cx["ok"], f"time spent waiting for a CPU counted as growth: n^{cx['slope']} from {[(s.get('n'), s.get('runs')) for s in scale]}"
 
 
 def test_a_busy_machine_cannot_time_out_a_correct_scaling_run(monkeypatch):

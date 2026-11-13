@@ -32,6 +32,8 @@ env:
   UNIT_JOBS: "2"
   E2E_JOBS: "2"
   GITLEAKS_VERSION: "8.30.1"
+  # A Linux runner has `gh` in /usr/bin, so one readiness test cannot hide it; the test asks for this switch.
+  PUBLIC_READINESS_TESTS_ALLOW_SYSTEM_GH: "1"
 
 jobs:
   gate:
