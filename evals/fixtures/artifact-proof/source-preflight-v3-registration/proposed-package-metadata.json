@@ -1,0 +1,50 @@
+{
+  "parse5": {
+    "name": "parse5",
+    "version": "8.1.0",
+    "license": "MIT",
+    "engines": null,
+    "dependencies": {
+      "entities": "^9.0.0"
+    },
+    "gitHead": "e99029b53795f25c2c2e91cc0b1ac1b361f14daa",
+    "dist": {
+      "integrity": "sha512-sq3qBFpee5jeocbFbO48VHlGr8sT7mbXS0vxlKN6sottBtJzrOG3998sr0llSZcQAGgfpdmEYAIZE0P9z0dE8w==",
+      "shasum": "de2cf56a4f7f47737eae13d46a8acb33a56e4844"
+    }
+  },
+  "css-tree": {
+    "name": "css-tree",
+    "version": "3.2.1",
+    "license": "MIT",
+    "engines": {
+      "node": "^10 || ^12.20.0 || ^14.13.0 || >=15.0.0"
+    },
+    "dependencies": {
+      "mdn-data": "2.27.1",
+      "source-map-js": "^1.2.1"
+    },
+    "gitHead": "8a6caba481be4cae4b0e8690af643ff8e59271f2",
+    "dist": {
+      "integrity": "sha512-X7sjQzceUhu1u7Y/ylrRZFU2FS6LRiFVp6rKLPg23y3x3c3DOKAwuXGDp+PAGjh6CSnCjYeAul8pcT8bAl+lSA==",
+      "shasum": "86cac7011561272b30e6b1e042ba6ce047aa7518"
+    }
+  },
+  "data-urls": {
+    "name": "data-urls",
+    "version": "8.0.0",
+    "license": "MIT",
+    "engines": {
+      "node": "^22.14.0 || >=24.0.0"
+    },
+    "dependencies": {
+      "whatwg-url": "^17.1.2",
+      "whatwg-mimetype": "^5.0.0"
+    },
+    "gitHead": "5bd3a2081dea4a58722ed314adc0962f7fbe5740",
+    "dist": {
+      "integrity": "sha512-JQUCCK+/CAGbGGx618PlFZMXH81Jtj7t73CHv9dd/zVWvxgGT2zLFRjnKb+Ng46GIwcy+f7f88qd4duqllK+WQ==",
+      "shasum": "d4e925beae8249dbe99a1defed36cebb9cc7a84c"
+    }
+  }
+}

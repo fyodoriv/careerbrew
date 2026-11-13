@@ -1,0 +1,739 @@
+{
+  "corpusSha256": "499ced2ab6be789a6b8eb741bf0855c73904d5fa9b79934f090c0daa4cc804ac",
+  "status": "prospective source-only expectations; NOT results",
+  "rows": [
+    {
+      "group": 1,
+      "caseId": "filter-zero",
+      "originalCaseSha256": "cd2d410919d19f4f3d8fce8968fca11d070c04a0203245660d924648aee0bceb",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 1,
+      "caseId": "filter-opaque",
+      "originalCaseSha256": "7ebb54906c0c582fe85b1f61717f1d69b7ecf6c71722bf5fd293ff9000adbbcf",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 2,
+      "caseId": "oklch-zero",
+      "originalCaseSha256": "a58c9852af6cf496d4afabe81daa645cc6cce20c118d0de3bfa1f09be6a263f4",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 2,
+      "caseId": "srgb-zero",
+      "originalCaseSha256": "24d4aa003ff7c6cd867eddd6678957b43c2740988e3370b526dcd167e33863ac",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 2,
+      "caseId": "oklch-opaque",
+      "originalCaseSha256": "f1e0656da922f7723d029a91ce7c21753b88a56a0b7153a43382a049ac3355f3",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 2,
+      "caseId": "srgb-opaque",
+      "originalCaseSha256": "21450a8cca53dc73444162ae1f4d707dd022902574bdb852e451d1eedd465bfa",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 3,
+      "caseId": "display-none",
+      "originalCaseSha256": "1920960519f1750ed8339417ec53630f61de279a3cee595949e79a7435f2d870",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 3,
+      "caseId": "visibility-hidden",
+      "originalCaseSha256": "7637c8cbb468a436513a3806ac5c1aa8390f10dc25f4473584a8a3cfa36c50ef",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 3,
+      "caseId": "opacity-zero",
+      "originalCaseSha256": "650f4711496db01c285ff7ba34d622bba57b6e1aa81f8a59fb06205304a9057c",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 3,
+      "caseId": "opaque-text",
+      "originalCaseSha256": "1bc3bfdda3c662ac3fb8fffb5935d9a9184dc16c67d2248cf8668e6cbaa1c078",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 4,
+      "caseId": "zero-height",
+      "originalCaseSha256": "bd4ba2977b5121d67cbac49387d77f6560f394b9ec16ac106bbaa405377886b2",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 4,
+      "caseId": "clip-path",
+      "originalCaseSha256": "2b7d061ff11ef5da74d1c62d9881d6c943f9bdd22ffb72651c025e632c20c2b5",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 4,
+      "caseId": "unclipped",
+      "originalCaseSha256": "de077e4756a5580b74f74c03ab6045e344a1461d80a18db9afb352ced3d9cd58",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 4,
+      "caseId": "body-clip",
+      "originalCaseSha256": "bfd1f86b4c90eab45b27a5a1ad19a746532726cdffad43e663a97cda5c99c7a8",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 4,
+      "caseId": "root-clip-fixed-outside",
+      "originalCaseSha256": "b04478762e58b58711561da329aa502807dc57ba816223e5bc1d33932e8d6474",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 5,
+      "caseId": "paragraph",
+      "originalCaseSha256": "92fa8653f49e5016abd2c3a25f9f7d10b24881ec0fe33a36c6669333a250fe8f",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 5,
+      "caseId": "native-format",
+      "originalCaseSha256": "b2c65816d2215337c822be224f0cbce3087fe61981af81bb4ca6b9aaf0553d3d",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 5,
+      "caseId": "inline-image",
+      "originalCaseSha256": "2f5de670083fecda4c3242edbd48850b92932832a5c95996b6d30dd9f71f8b10",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "defer-later-metadata",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 5,
+      "caseId": "table",
+      "originalCaseSha256": "30a59054e585cc8062dcfceae8b3936e6a55b9ed001b4d75bae2c2fa43db88f1",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 6,
+      "caseId": "2080-native-scroll",
+      "originalCaseSha256": "6e9bc0a92a37dca4497f54e9ddc67e2c264d5bb83819c5a28418c37d919d7393",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 6,
+      "caseId": "height-over-limit",
+      "originalCaseSha256": "e0e61f2fd372aefadab388d37b8568d53a2660c1c7d4d837d790a4c7df5b40ca",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true,
+      "laterStage": "native geometry/tile decision required; source admission predicts no native outcome"
+    },
+    {
+      "group": 6,
+      "caseId": "horizontal-overflow",
+      "originalCaseSha256": "40a5a02f8d226fc779bc818ec91bdfc643f599a8f364f4a2d031f2cc90c8c59c",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true,
+      "laterStage": "native geometry/tile decision required; source admission predicts no native outcome"
+    },
+    {
+      "group": 6,
+      "caseId": "nested-scroll",
+      "originalCaseSha256": "653467fc956d45bfb8532b995c880cd730c776dc19ff39d5d7ce8dbd8dc08733",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true,
+      "laterStage": "native geometry/tile decision required; source admission predicts no native outcome"
+    },
+    {
+      "group": 7,
+      "caseId": "local-equals-data",
+      "originalCaseSha256": "258c44a8dde8b076a9c67387a44fe4cb4797c47ef4a4e75c784b4a47a8af8415",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "defer-later-metadata",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 7,
+      "caseId": "missing-image",
+      "originalCaseSha256": "14ca722d83ec6d1f84cb8083b7e045c75b95a4c6ae6099b3a10df4cc9a7ddc38",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "missing-asset",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 7,
+      "caseId": "wrong-image-sha",
+      "originalCaseSha256": "152d4476854160219427730547ed37ad4ebf77cb723689c3d0c466568f643278",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "asset-sha",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 7,
+      "caseId": "undecodable-image",
+      "originalCaseSha256": "e23128e231498fb32bb82d6e8219dbb4369eaca61cfa99ae5ac0126701aa9d65",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "defer-later-metadata",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 7,
+      "caseId": "traversal-image",
+      "originalCaseSha256": "0c18ba64a4a4e3104209c0415b2cae47a89e941cd79b1a7744d8c9852d4ba30c",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "path-traversal",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 8,
+      "caseId": "local-css",
+      "originalCaseSha256": "78a1c5b3167e3cd92e28ff30c7bd5a6654d05269b8702cc535b5f2fad1cd19d9",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 8,
+      "caseId": "missing-css",
+      "originalCaseSha256": "4e4a587a0cde6025d80b03980f5de3fd9c9128aad96276aea1c934b8c6035168",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "missing-asset",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 8,
+      "caseId": "custom-font-effect",
+      "originalCaseSha256": "f93d555ace1f4e91f0f7c98cd0c94c127c6fab068342c622791daa3da4b628e5",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 8,
+      "caseId": "missing-font",
+      "originalCaseSha256": "4ed64298f0af0ffdd0a5c4c5d0f20a634c0d12afdf9247f10e10df56d4f9c4e9",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "missing-asset",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 8,
+      "caseId": "wrong-font-sha",
+      "originalCaseSha256": "a1435eb5871ed81c767c10b8fe28b85a252dcda6bde5ad00a635790c2dcee100",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "asset-sha",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 8,
+      "caseId": "nested-relative-resolution",
+      "originalCaseSha256": "519d88a28c9c377fb23b39a42e9fb1c28e9609abbf7000c0ac8b423d46998a3c",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "defer-later-metadata",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 9,
+      "caseId": "ordinary-exact-body",
+      "originalCaseSha256": "9bc5c081f38879e2e554c317ba9c5104098d7cfb9a9891701f035c7fdb8c473f",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 9,
+      "caseId": "inert-metadata",
+      "originalCaseSha256": "05246f0c2edd3a929c2ce35e858124bc69d479fd753b88851b372f3ed9b819a8",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 9,
+      "caseId": "public-active-script",
+      "originalCaseSha256": "ac0d3f44fc28e4e83ff56a3bc62e3749945ffc726ba300c0b6c6ef3974889dd0",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "active-script",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 9,
+      "caseId": "public-foreign-image",
+      "originalCaseSha256": "b40a5b5f92c84446e6ead2e6c1561394c50241889312e42c1f242ab0a96e686b",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "external-dependency",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 9,
+      "caseId": "public-second-navigation",
+      "originalCaseSha256": "9a8235e659feedca5c181f92caad8d28971a23cb68830a937b2028b5c90b5064",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "navigation",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 9,
+      "caseId": "private-context-owner-guard",
+      "originalCaseSha256": "68f00c5584f81abc2c864f1c7d911b8a6789d17b50332f1ebf293daffe797af2",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "active-script",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true,
+      "scope": "Public delivery bytes would source-refuse active-script; original private trusted native guard calibration remains separately held and unchanged"
+    },
+    {
+      "group": 9,
+      "caseId": "admission-delivery-omitted",
+      "originalCaseSha256": "fcff792007f768c51c4ecf8bf862897dea82eef2e0e9a09fcf696f5c34c36821",
+      "inputArms": [],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "delivery-record-unavailable",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 9,
+      "caseId": "admission-delivery-null",
+      "originalCaseSha256": "0fe4a90652536ff344cfe0d3dd0276d11404c6e3dd88cfe3786aeb82d7107cf0",
+      "inputArms": [],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "delivery-record-unavailable",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 9,
+      "caseId": "admission-assets-omitted",
+      "originalCaseSha256": "5a4ea33d57b0521fed23a7a5ec3b7b595f7af27a5ed3547b57193863117b4024",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "asset-manifest-missing",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 9,
+      "caseId": "admission-entry-omitted",
+      "originalCaseSha256": "40846f96a1e23eae44b22292d1c6b1c4c6607c6c232402f0c871a3ee9c6100e8",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "entry-path-missing",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 9,
+      "caseId": "admission-main-hash-omitted",
+      "originalCaseSha256": "49563128ed235a4d5f9aeccebcd76cefeb5ff786ef4987d99ab12d6d2e2796d1",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "main-hash-missing",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 9,
+      "caseId": "admission-main-hash-mismatch",
+      "originalCaseSha256": "ef383bd386eabdeb78f5127d147b0500f7bc92adaafe9c2872cb27beb9bf536d",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "main-hash-mismatch",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 10,
+      "caseId": "static-positive",
+      "originalCaseSha256": "782837ad780a1ff5b14f092ad010769165beb1ea4f3672cd8cc4095d75a77cc6",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 10,
+      "caseId": "main-byte-limit",
+      "originalCaseSha256": "3b3a7265c36674bc30a456f04f890cc2cb1f756cffa3d505a6c7db50a3cb17aa",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "main-byte-limit",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 10,
+      "caseId": "asset-byte-limit",
+      "originalCaseSha256": "94957ab1df1f2987c6384d72056b746ab3f86bebc5322f6ffcd359e487364699",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "asset-byte-limit",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 10,
+      "caseId": "aggregate-byte-limit",
+      "originalCaseSha256": "a69ae6db8ca5ab2ca60c4ca9fa09bbce1cef371e5bb14faac0eb9cd9fc0b196d",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "aggregate-byte-limit",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 10,
+      "caseId": "resource-count-limit",
+      "originalCaseSha256": "2f5528aeba97aa0e1a6cb0a3f78ba1a7cce5f3a6c005bdf239b549c6ca875e0a",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "resource-count-limit",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 10,
+      "caseId": "decoded-image-limit",
+      "originalCaseSha256": "af46684fb9a8be44c8103d72a450f493c2157a7f9499def38ddda731f78e9fb8",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "defer-later-metadata",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 10,
+      "caseId": "animated-image",
+      "originalCaseSha256": "9057e0b64ddab83771bec0c651fb4bb872e99e7bfeb09a12407aca1a2f71ff99",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "defer-later-metadata",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true,
+      "historicalNativeReason": "animated-image",
+      "futureCategoryDecision": "SVG unsupported-image-format not applied; classify source image discovery only"
+    },
+    {
+      "group": 10,
+      "caseId": "active-animation",
+      "originalCaseSha256": "c9bcd072174ca42932cc597d093f817088037cc0a6e89e83021882eebc24374f",
+      "inputArms": [
+        "delivery"
+      ],
+      "sourceDisposition": "expected-source-refusal",
+      "sourceReason": "active-animation",
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 10,
+      "caseId": "aggregate-page-tile-limit",
+      "originalCaseSha256": "227f0449555c1bc4fa603a4fd2074df539a2a22fc94dc968bd0dca93e6a2e626",
+      "inputArms": [
+        "pages/0",
+        "pages/1",
+        "pages/2",
+        "pages/3",
+        "pages/4",
+        "pages/5",
+        "pages/6",
+        "pages/7",
+        "pages/8",
+        "pages/9",
+        "pages/10",
+        "pages/11",
+        "pages/12",
+        "pages/13",
+        "pages/14",
+        "pages/15",
+        "pages/16",
+        "pages/17",
+        "pages/18",
+        "pages/19",
+        "pages/20"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true,
+      "laterStage": "native geometry/tile decision required; source admission predicts no native outcome"
+    },
+    {
+      "group": 10,
+      "caseId": "hidden-href-not-prose",
+      "originalCaseSha256": "97520e0c799ad6125d0d39a05eaf95f1a732cb8cf3f30bb334fff2bef780da16",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    },
+    {
+      "group": 10,
+      "caseId": "visible-filename-persists",
+      "originalCaseSha256": "11198f6667b5d3cb8cfc0d874cb6546ab2bdebae666b74bf2367d935f4aa0a4f",
+      "inputArms": [
+        "left",
+        "right"
+      ],
+      "sourceDisposition": "source-preflight-eligible",
+      "sourceReason": null,
+      "artifactContextsCreated": 0,
+      "nativeExpectedUnchanged": true
+    }
+  ]
+}

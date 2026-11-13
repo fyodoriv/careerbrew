@@ -3,6 +3,18 @@ tests/unit/test_eval_case_loading.py,port,rust-27,Fixed real eval-loader duplica
 .cargo/config.toml,keep-native,rust-00,Native migration workspace source or build configuration
 Cargo.lock,keep-native,rust-00,Native migration workspace source or build configuration
 Cargo.toml,keep-native,rust-00,Native migration workspace source or build configuration
+evals/fixtures/artifact-proof/source-preflight-v3-depth.test.mjs,port,rust-27,Permanent separately registered two-order import-depth source regression; no native delivery
+evals/fixtures/artifact-proof/capture-visual-v3-admission.mjs,port,rust-27,Closed pure delivery admission and path budget helpers; owner-side maintenance
+evals/fixtures/artifact-proof/capture-visual-v3-source.test.mjs,port,rust-27,Closed thirteen-group pure admission regressions; no browser qualification
+evals/fixtures/artifact-proof/source-preflight-v3.mjs,port,rust-27,Pure maintained-parser source graph and injected decision ports; no native controller
+evals/fixtures/artifact-proof/source-preflight-v3.test.mjs,port,rust-27,Fixed source qualification and bounded semantic receipts; no actor or browser
+scripts/check-artifact-preflight.py,port,rust-27,Optional developer-tool manifest readiness; no parser import
+tests/unit/test_artifact_preflight_doctor.py,port,rust-27,Synthetic optional-tool readiness controls; default app setup preserved
+evals/fixtures/artifact-proof/project-visible-v22-checks.mjs,port,rust-27,Fixed synthetic V2.2 selector and native-text checks; no server or agent orchestration
+evals/fixtures/artifact-proof/project-visible-v21-checks.mjs,port,rust-27,Fixed synthetic V2.1 projection checks and receipts; non-UI maintenance with no server or agent orchestration
+evals/fixtures/artifact-proof/project-visible-v2.mjs,port,rust-27,Owner-side static HTML reader projection and registered self-tests; maintenance tooling not a UI exception or production backend
+evals/fixtures/artifact-proof/prepare.mjs,port,rust-27,Static UI fixture preparation only; port owner-side filesystem setup and generated source-write shell tool with the fixture harness; no server or agent orchestration
+evals/fixtures/artifact-proof/site/dashboard.js,keep-ui,,Retain browser-page UI behavior; no backend implementation; fixture setup and external source-write tooling remain assigned to rust-27
 evals/run.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 evals/run.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 hooks/pre-commit,port,rust-27,Executable hook/bootstrap; native tool must retain original policy and exit semantics
@@ -818,6 +830,7 @@ tests/unit/test_doctor_rust_deps.py,port,rust-27,Synthetic dependency doctor ref
 web/e2e/comfort-fixtures.ts,keep-ui,,Keep test-scoped Playwright screen fixture in TypeScript
 web/e2e/comfort-screen.ts,keep-ui,,Keep per-test browser-context ownership and cleanup in TypeScript
 web/src/comfort-screen.test.ts,keep-ui,,Keep actual browser-context ownership helper unit controls in TypeScript
+xtask/tests/wait4_accounting.rs,keep-native,rust-00,Fixed sole-reap lifecycle and synthetic checked-unit controls; no resource admission
 src/careerbrew/work/health.py,port,rust-14,Read-only acquisition health and direct receipt completion owned with live feed
 tests/unit/test_issue_406.py,port,rust-27,Port declared coverage and source health boundary assertions with domain slices
 tests/e2e/live_health_seed.py,port,rust-27,Port isolated source health runtime fixture with backend assertions

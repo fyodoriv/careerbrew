@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "method": "V3-image-interface-toy",
+  "status": "prospective-source-only",
+  "separation": "Not one of the ten transport groups, not an actor delivery or six-case cohort result. No reader context or expected answers enter actual cohort.",
+  "delivery": {
+    "entryPath": "result.html",
+    "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}html{min-height:0}body{height:2080px;min-height:0}</style></head><body><p style=\"margin:0;position:absolute;top:40px;left:40px;font:32px Arial\">Amber kettle.</p><div style=\"position:absolute;top:700px;left:40px;width:64px;height:64px;background:rgb(0,128,0)\"></div><p style=\"margin:0;position:absolute;top:2000px;left:40px;font:32px Arial\">Mint compass.</p><p style=\"position:absolute;top:100px;margin:0;filter:opacity(0)\">INVISIBLE-CODE</p></body></html>",
+    "htmlSha256": "4bbba6625f80211e2fa0efb9c2808b564bf7d005f7b76f75a475cc3d1f9233c6",
+    "assets": []
+  },
+  "expectedPositions": [
+    [
+      0,
+      0
+    ],
+    [
+      0,
+      640
+    ],
+    [
+      0,
+      1280
+    ]
+  ],
+  "readerInput": {
+    "images": "only ordered native PNGs; neutral opaque paths; no source/DOM/author summary",
+    "prompt": "Read all supplied images in order. State the first visible sentence, the last visible sentence, and the color of the square. Report any other visible code."
+  },
+  "ownerOnlyExpected": {
+    "firstVisibleSentence": "Amber kettle.",
+    "lastVisibleSentence": "Mint compass.",
+    "squareColor": "green",
+    "otherVisibleCode": "none"
+  },
+  "success": {
+    "allFourAnswersCorrect": true,
+    "actualNativeImageToolReceipts": true,
+    "everyImageAccessibleAtNativeResolution": true,
+    "isolatedNoContext": true
+  },
+  "pivot": "If native image input/tool receipt, full tile access or any answer is unavailable/incorrect, hold actual readers. No actor reads or fallback to text.",
+  "answerMatching": {
+    "sentences": "Exact words and order; case-insensitive; terminal punctuation optional.",
+    "squareColor": [
+      "green",
+      "#008000",
+      "rgb(0,128,0)"
+    ],
+    "otherVisibleCode": [
+      "none",
+      "no visible code"
+    ]
+  },
+  "actualImageEvidence": {
+    "tools": "Native image tool opens all three actual PNGs at native resolution; externally retain actual call/input records, not agent self-attestation.",
+    "isolation": "Fresh context, toy PNG paths and neutral question only; expected answers/HTML/DOM/transport case keys unavailable.",
+    "hold": "Unavailable image tooling or any missing image/call evidence holds actual readers; no text fallback."
+  }
+}

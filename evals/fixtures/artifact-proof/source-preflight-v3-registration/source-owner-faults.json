@@ -1,0 +1,155 @@
+{
+  "status": "prospective synthetic owner faults, NOT actual process evidence",
+  "cases": [
+    {
+      "id": "child-create-reject",
+      "input": {
+        "fault": "child-create-reject",
+        "deliveryReference": "html-entity-url",
+        "testClock": "fixed synthetic monotonic clock; advance exactly30000ms for deadline;30001ms late result",
+        "faultSeam": "dedicated source owner only; parser/header/browser implementations never replaced for ordinary syntax cases"
+      },
+      "expected": {
+        "sourceEligible": false,
+        "reason": "source-preflight-unavailable",
+        "failedStage": "source-owner-create",
+        "artifactContextsCreated": 0,
+        "metadataContextsCreated": 0,
+        "headerChildrenCreated": 0,
+        "codecCalls": 0,
+        "browserLaunches": 0,
+        "originalSourceBytesUnchanged": true,
+        "lateResultCanRestoreEligibility": false,
+        "sourceOwnerTerminal": "port-reports-never-created",
+        "primaryReason": "source-preflight-unavailable",
+        "ownerEvidenceKind": "injected-unit-port",
+        "actualProcessEvidence": false
+      }
+    },
+    {
+      "id": "child-exit-nonzero",
+      "input": {
+        "fault": "child-exit-nonzero",
+        "deliveryReference": "html-entity-url",
+        "testClock": "fixed synthetic monotonic clock; advance exactly30000ms for deadline;30001ms late result",
+        "faultSeam": "dedicated source owner only; parser/header/browser implementations never replaced for ordinary syntax cases"
+      },
+      "expected": {
+        "sourceEligible": false,
+        "reason": "source-preflight-unavailable",
+        "failedStage": "source-owner",
+        "artifactContextsCreated": 0,
+        "metadataContextsCreated": 0,
+        "headerChildrenCreated": 0,
+        "codecCalls": 0,
+        "browserLaunches": 0,
+        "originalSourceBytesUnchanged": true,
+        "lateResultCanRestoreEligibility": false,
+        "sourceOwnerTerminal": "port-reports-reaped",
+        "primaryReason": "source-preflight-unavailable",
+        "ownerEvidenceKind": "injected-unit-port",
+        "actualProcessEvidence": false
+      }
+    },
+    {
+      "id": "child-never-settle",
+      "input": {
+        "fault": "child-never-settle",
+        "deliveryReference": "html-entity-url",
+        "testClock": "fixed synthetic monotonic clock; advance exactly30000ms for deadline;30001ms late result",
+        "faultSeam": "dedicated source owner only; parser/header/browser implementations never replaced for ordinary syntax cases"
+      },
+      "expected": {
+        "sourceEligible": false,
+        "reason": "source-preflight-unavailable",
+        "failedStage": "source-deadline",
+        "artifactContextsCreated": 0,
+        "metadataContextsCreated": 0,
+        "headerChildrenCreated": 0,
+        "codecCalls": 0,
+        "browserLaunches": 0,
+        "originalSourceBytesUnchanged": true,
+        "lateResultCanRestoreEligibility": false,
+        "sourceOwnerTerminal": "port-reports-reaped",
+        "primaryReason": "source-preflight-unavailable",
+        "ownerEvidenceKind": "injected-unit-port",
+        "actualProcessEvidence": false
+      }
+    },
+    {
+      "id": "child-late-success",
+      "input": {
+        "fault": "child-late-success",
+        "deliveryReference": "html-entity-url",
+        "testClock": "fixed synthetic monotonic clock; advance exactly30000ms for deadline;30001ms late result",
+        "faultSeam": "dedicated source owner only; parser/header/browser implementations never replaced for ordinary syntax cases"
+      },
+      "expected": {
+        "sourceEligible": false,
+        "reason": "source-preflight-unavailable",
+        "failedStage": "source-deadline",
+        "artifactContextsCreated": 0,
+        "metadataContextsCreated": 0,
+        "headerChildrenCreated": 0,
+        "codecCalls": 0,
+        "browserLaunches": 0,
+        "originalSourceBytesUnchanged": true,
+        "lateResultCanRestoreEligibility": false,
+        "sourceOwnerTerminal": "port-reports-reaped",
+        "primaryReason": "source-preflight-unavailable",
+        "ownerEvidenceKind": "injected-unit-port",
+        "actualProcessEvidence": false
+      }
+    },
+    {
+      "id": "child-output-overflow",
+      "input": {
+        "fault": "child-output-overflow",
+        "deliveryReference": "html-entity-url",
+        "testClock": "fixed synthetic monotonic clock; advance exactly30000ms for deadline;30001ms late result",
+        "faultSeam": "dedicated source owner only; parser/header/browser implementations never replaced for ordinary syntax cases"
+      },
+      "expected": {
+        "sourceEligible": false,
+        "reason": "source-preflight-unavailable",
+        "failedStage": "source-output-bound",
+        "artifactContextsCreated": 0,
+        "metadataContextsCreated": 0,
+        "headerChildrenCreated": 0,
+        "codecCalls": 0,
+        "browserLaunches": 0,
+        "originalSourceBytesUnchanged": true,
+        "lateResultCanRestoreEligibility": false,
+        "sourceOwnerTerminal": "port-reports-reaped",
+        "primaryReason": "source-preflight-unavailable",
+        "ownerEvidenceKind": "injected-unit-port",
+        "actualProcessEvidence": false
+      }
+    },
+    {
+      "id": "child-kill-reap-unconfirmed",
+      "input": {
+        "fault": "child-kill-reap-unconfirmed",
+        "deliveryReference": "html-entity-url",
+        "testClock": "fixed synthetic monotonic clock; advance exactly30000ms for deadline;30001ms late result",
+        "faultSeam": "dedicated source owner only; parser/header/browser implementations never replaced for ordinary syntax cases"
+      },
+      "expected": {
+        "sourceEligible": false,
+        "reason": "cleanup-failed",
+        "failedStage": "source-cleanup",
+        "artifactContextsCreated": 0,
+        "metadataContextsCreated": 0,
+        "headerChildrenCreated": 0,
+        "codecCalls": 0,
+        "browserLaunches": 0,
+        "originalSourceBytesUnchanged": true,
+        "lateResultCanRestoreEligibility": false,
+        "sourceOwnerTerminal": "unknown",
+        "primaryReason": "source-preflight-unavailable",
+        "ownerEvidenceKind": "injected-unit-port",
+        "actualProcessEvidence": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,1817 @@
+{
+  "schemaVersion": 1,
+  "method": "V3",
+  "status": "prospective-source-only",
+  "parentPlanCommit": "065855d3",
+  "scope": "Ten synthetic transport groups only; no actor/cohort or image-interface measurements.",
+  "policy": {
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "deviceScaleFactor": 1,
+    "colorScheme": "light",
+    "reducedMotion": "reduce",
+    "locale": "en-US",
+    "timezoneId": "UTC",
+    "javaScriptEnabled": false,
+    "offline": true,
+    "serviceWorkers": "block",
+    "origin": "http://artifact.invalid",
+    "entryUrl": "origin plus original normalized bundle-relative entryPath; never rename entry HTML",
+    "stepY": 640,
+    "maxDocumentHeight": 12800,
+    "maxAggregateTiles": 20,
+    "mainMaxBytes": 2097152,
+    "assetMaxBytes": 5242880,
+    "bundleMaxBytes": 20971520,
+    "maxResources": 64,
+    "imageMaxPixels": 16777216,
+    "csp": "default-src 'none'; style-src 'unsafe-inline' 'self'; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'none'",
+    "repeatFreshBrowserProcesses": 2,
+    "compare": "exact decoded RGBA; any channel difference makes one changed pixel; dimensions must equal",
+    "repeatIdentity": "same coordinates, dimensions and decoded RGBA for every accepted page/tile; refusal reason and zero reader captures equal across runs",
+    "cleanup": "context/browser closed for every public/private success/refusal; failed capture bytes retained outside reader scope",
+    "source": "controller manifest drawn only from frozen participant finished-delivery records/explicit attachments, no new owner action, sibling crawl, author explanation, session context or arbitrary file/network fallback",
+    "screenshot": {
+      "type": "png",
+      "fullPage": false,
+      "scale": "css",
+      "animations": "allow",
+      "omitBackground": false,
+      "caret": "initial",
+      "mask": [],
+      "style": null,
+      "timeout": 30000
+    }
+  },
+  "tools": {
+    "playwrightVersion": "1.59.1",
+    "pngDecoder": {
+      "package": "playwright-core",
+      "version": "1.59.1",
+      "entry": "lib/utilsBundle.js",
+      "entrySha256": "5fc1f839f7d4124d7034db39f687e097e688a22b7122e99157c28d81388b6b65",
+      "implementation": "lib/utilsBundleImpl/index.js",
+      "implementationSha256": "21d4f662e119524abcdfed152b715181017085bb8edc99ea4829b97aca1d5eec",
+      "api": "PNG.sync.read; compare decoded RGBA exactly, no tolerant comparator"
+    },
+    "font": {
+      "package": "pdfjs-dist",
+      "version": "5.6.205",
+      "source": "standard_fonts/LiberationSans-Regular.ttf",
+      "licenseSource": "standard_fonts/LICENSE_LIBERATION",
+      "license": "SIL Open Font License 1.1",
+      "unmodified": true
+    },
+    "browser": {
+      "chromiumRevision": "1217",
+      "version": "147.0.7727.15",
+      "executableSha256": "3ae4a8cdc0e8d19f8799d3031eca038459dcb1fb6879b8e28a6f0c4fb5f75fc2",
+      "versionProvenance": "Previously measured V2.2 frozen runtime; require actual matching version and executable hash at later V3 qualification, no V3 launch yet."
+    }
+  },
+  "assets": {
+    "red": {
+      "encoding": "file",
+      "path": "v3-assets/red.png",
+      "mime": "image/png",
+      "bytes": 100,
+      "sha256": "e8eec0d4fd5e30636177b752c42f0809c112f3dea487abb6e805dcdf6b14f229"
+    },
+    "clear": {
+      "encoding": "file",
+      "path": "v3-assets/clear.png",
+      "mime": "image/png",
+      "bytes": 99,
+      "sha256": "2e1ca551c5e0e11e73f610035a0224587a7545387979a9e8dc85f55a63c5682b"
+    },
+    "oversizeImage": {
+      "encoding": "file",
+      "path": "v3-assets/oversizeImage.png",
+      "mime": "image/png",
+      "bytes": 72538,
+      "sha256": "228a04d8243b3934028adf8dfddbefd15fc5776d17b177741bf44e4880f5e241"
+    },
+    "liberation": {
+      "encoding": "file",
+      "path": "v3-assets/LiberationSans-Regular.ttf",
+      "mime": "font/ttf",
+      "bytes": 139512,
+      "sha256": "f8ace1f892b2bd9dc1792ba7f097fa7588f84fed48321480e04de5390828221f"
+    },
+    "fontLicense": {
+      "encoding": "file",
+      "path": "v3-assets/LICENSE_LIBERATION.txt",
+      "mime": "text/plain",
+      "bytes": 4414,
+      "sha256": "93fed46019c38bbe566b479d22148e2e8a1e85ada614accb0211c37b2c61c19b"
+    },
+    "redCss": {
+      "encoding": "file",
+      "path": "v3-assets/red.css",
+      "mime": "text/css",
+      "bytes": 33,
+      "sha256": "12e7edb5a581b93dc8beb766dad69e900f0bfde65c7d45fd1c8a16d39a56820d"
+    },
+    "invalidImage": {
+      "encoding": "file",
+      "path": "v3-assets/invalid-image.dat",
+      "mime": "image/png",
+      "bytes": 10,
+      "sha256": "dd778cdc97afb06eab2a37a8b6b66ce8dbf21a4155d4f99cd5dea827a7de81ac"
+    },
+    "animatedSvg": {
+      "encoding": "file",
+      "path": "v3-assets/animated.svg",
+      "mime": "image/svg+xml",
+      "bytes": 200,
+      "sha256": "542cf3870ccd5bc21489b9af80c747893e51a00e2136c1c22b810e784b0be8bf"
+    },
+    "overAsset": {
+      "encoding": "repeat-utf8",
+      "prefix": "/*",
+      "unit": "x",
+      "repeat": 5242877,
+      "suffix": "*/",
+      "mime": "text/css",
+      "bytes": 5242881,
+      "sha256": "082ac7b11ce33a8a81d0662992d017c8246d4f09c67d3a50094f80b160c9ee9e"
+    },
+    "aggregateCss": {
+      "encoding": "repeat-utf8",
+      "prefix": "/*",
+      "unit": "x",
+      "repeat": 4194300,
+      "suffix": "*/",
+      "mime": "text/css",
+      "bytes": 4194304,
+      "sha256": "e2ef2089136538ee2b33b2b16f68a2857ec9b4f0e9af8bda4051c89ac5eecf40"
+    },
+    "overHtml": {
+      "encoding": "repeat-utf8",
+      "prefix": "<!doctype html><html><head><meta charset=\"utf-8\"></head><body><!--",
+      "unit": " ",
+      "repeat": 2097070,
+      "suffix": "--></body></html>",
+      "mime": "text/html",
+      "bytes": 2097153,
+      "sha256": "88f0cd018cdac057d8b693765b2e902468ca346f9b348bb9b582de653b09b151"
+    },
+    "nestedCss": {
+      "encoding": "file",
+      "path": "v3-assets/nested.css",
+      "mime": "text/css",
+      "bytes": 136,
+      "sha256": "8e8f72e4d3e1229bd3f94948a9db9dfd4387d6ba1f382e7e1f6024cc2d7c7052"
+    }
+  },
+  "groups": [
+    {
+      "id": 1,
+      "name": "filter-paint",
+      "cases": [
+        {
+          "id": "filter-zero",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"filter:opacity(0)\">PAINT-CONTROL</div></body></html>",
+            "htmlSha256": "d321d0ee558378bca98c30e28dd30d3d6627aaf86b0ca973d66ee0b4377390bc",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"filter:opacity(0)\"></div></body></html>",
+            "htmlSha256": "2ecedc34b806848200553a445d44cfc0c774aa187fa9642f28bff094e572395a",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "equals": 0
+            }
+          }
+        },
+        {
+          "id": "filter-opaque",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"filter:opacity(1)\">PAINT-CONTROL</div></body></html>",
+            "htmlSha256": "013c4aed095e3f86e43f0952af85f4ae6babbeb33a8d449b8b70bdea2bf83470",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"filter:opacity(1)\"></div></body></html>",
+            "htmlSha256": "d04126787ef658640035693006578695a421ed85dd55357f7d4d4763ebb3a020",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "greaterThan": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "modern-color-alpha",
+      "cases": [
+        {
+          "id": "oklch-zero",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"color:oklch(0.5 0.1 20 / 0)\">PAINT-CONTROL</div></body></html>",
+            "htmlSha256": "c8be5ccc3154a2387a46ce6d15d6d501fd1ddcd57e83ee68cd4e86c0d5fcb76f",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"color:oklch(0.5 0.1 20 / 0)\"></div></body></html>",
+            "htmlSha256": "a5d3399bad6fbda0332ec1c88d1ccceba22185d738e9c7ce3ffaa4dd6fe2bdc5",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "equals": 0
+            }
+          }
+        },
+        {
+          "id": "srgb-zero",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"color:color(srgb 1 0 0 / 0)\">PAINT-CONTROL</div></body></html>",
+            "htmlSha256": "9815c2f829d14acf1fdaf660001465c8892fea888abfa45a4851d7fc683eb0e4",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"color:color(srgb 1 0 0 / 0)\"></div></body></html>",
+            "htmlSha256": "6aa5476cf8f11e679e136485ef7685f781f9c4e6f5f4de450683abb0ec5f4adb",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "equals": 0
+            }
+          }
+        },
+        {
+          "id": "oklch-opaque",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"color:oklch(0.5 0.1 20 / 1)\">PAINT-CONTROL</div></body></html>",
+            "htmlSha256": "f3753bb644f9f47de5480df00fe89b1848eb644a9c7e8bdc893a4494e9e9f44a",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"color:oklch(0.5 0.1 20 / 1)\"></div></body></html>",
+            "htmlSha256": "b8b80a77614766c4bffdac0601b19b0392bf3ddb81242eace0a3edd1469377ff",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "greaterThan": 0
+            }
+          }
+        },
+        {
+          "id": "srgb-opaque",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"color:color(srgb 1 0 0 / 1)\">PAINT-CONTROL</div></body></html>",
+            "htmlSha256": "b2748f38a74d41085a2be8145d8cc4f1f300c3f18576fdc02edb17d7937e3e09",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"color:color(srgb 1 0 0 / 1)\"></div></body></html>",
+            "htmlSha256": "cb0935b8d9f836b22bc21e0ae22bece6adc0992899fb3be602a788425b6cec1d",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "greaterThan": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "native-hiding",
+      "cases": [
+        {
+          "id": "display-none",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"display:none\">PAINT-CONTROL</div></body></html>",
+            "htmlSha256": "702a1dd2d713e77d17b71188e65e56bb1f74d7e85e4e89ba5b85717a5da5173d",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"display:none\"></div></body></html>",
+            "htmlSha256": "7cfb5902ce3601d4954fdd98e6be4de7f85db612d86a0093c0766d970d414996",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "equals": 0
+            }
+          }
+        },
+        {
+          "id": "visibility-hidden",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"visibility:hidden\">PAINT-CONTROL</div></body></html>",
+            "htmlSha256": "ddd9328445696170dc1a545252917276b70cfb50dd7c8358160f40870918ac1b",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"visibility:hidden\"></div></body></html>",
+            "htmlSha256": "518f50b819acbd98738104ebb0fe1bd74e93b2aa7514cfd7900035f0143184e1",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "equals": 0
+            }
+          }
+        },
+        {
+          "id": "opacity-zero",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"opacity:0\">PAINT-CONTROL</div></body></html>",
+            "htmlSha256": "d3a84bed803a22f0ef1c6751f6a5dd2d65cf411eeca4f6f5a2425683499f2e71",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"opacity:0\"></div></body></html>",
+            "htmlSha256": "365629ecb33134ee0319d79d29054915ab2f7c1166af208e2e04382074302460",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "equals": 0
+            }
+          }
+        },
+        {
+          "id": "opaque-text",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"color:black\">PAINT-CONTROL</div></body></html>",
+            "htmlSha256": "69eee618ffa0d141800bfb03d2af5d09061c05125ef6f3dd995a750938a3bd07",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"color:black\"></div></body></html>",
+            "htmlSha256": "4046b8170107418380d99868fb4371fa621d0eeab25a3fa141095594b31ea79e",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "greaterThan": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "native-clipping",
+      "cases": [
+        {
+          "id": "zero-height",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"height:0;overflow:hidden\">PAINT-CONTROL</div></body></html>",
+            "htmlSha256": "e1819570e2d551e9d8b4130564607d85c576164e3127108231f4c5ca12746f92",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"height:0;overflow:hidden\"></div></body></html>",
+            "htmlSha256": "98c918b71f9bbc9cf421b5cf3816cc2ebb9465c4cd84e82edd2c26f6e36b1a2f",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "equals": 0
+            }
+          }
+        },
+        {
+          "id": "clip-path",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"clip-path:inset(100%)\">PAINT-CONTROL</div></body></html>",
+            "htmlSha256": "bc1047e5565cfe98818e2ed47e15b414e3633f2e019f4cf6945309403321ee7e",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"clip-path:inset(100%)\"></div></body></html>",
+            "htmlSha256": "5c3decb1bffd7c8a85cd1c2628bdc191c7c7944eb5ddb38b17316ba5ba48854d",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "equals": 0
+            }
+          }
+        },
+        {
+          "id": "unclipped",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">PAINT-CONTROL</div></body></html>",
+            "htmlSha256": "7a59b2475e5ff8ed75ecab9debd0e4f594f42e63f97e6897b027d0fed39fe7f1",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\"></div></body></html>",
+            "htmlSha256": "590a614a8028dded3b163a797c29f0f90c6eff43264af1a54e8e391c795adda7",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "greaterThan": 0
+            }
+          }
+        },
+        {
+          "id": "body-clip",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}html{height:800px;min-height:0;overflow:auto}body{position:relative;height:80px;min-height:0;overflow:clip}#target{top:140px}</style></head><body><div id=\"target\">PAINT-CONTROL</div></body></html>",
+            "htmlSha256": "c7864ab572a828028ae97eb5bfb12a8fc6399d48cd19854082e2382c22f63ce3",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}html{height:800px;min-height:0;overflow:auto}body{position:relative;height:80px;min-height:0;overflow:clip}#target{top:140px}</style></head><body><div id=\"target\"></div></body></html>",
+            "htmlSha256": "6c7a25529e85895a92cef899c2b02ef3b88bca270a2acf8901d5ba875ceeb61a",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "equals": 0
+            },
+            "positions": [
+              [
+                0,
+                0
+              ]
+            ]
+          }
+        },
+        {
+          "id": "root-clip-fixed-outside",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}html,body{height:800px;min-height:0;overflow:clip}#target{position:fixed;top:900px}</style></head><body><div id=\"target\">PAINT-CONTROL</div></body></html>",
+            "htmlSha256": "7ef2b570a07fdc28ae47b4efcb43bfc5257d02e7fe60d612c58d3c196fc5b186",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}html,body{height:800px;min-height:0;overflow:clip}#target{position:fixed;top:900px}</style></head><body><div id=\"target\"></div></body></html>",
+            "htmlSha256": "42bf7cd473a8a70b4fb47ce9712b7b281c47cb439f02bfb87ca8cc5c7ca3ea0b",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "equals": 0
+            },
+            "positions": [
+              [
+                0,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "visible-detail",
+      "cases": [
+        {
+          "id": "paragraph",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><p id=\"target\">Visible paragraph.</p></body></html>",
+            "htmlSha256": "59f95d7ba7062fe0b8c2b607c94ce804f443dcf159172cce714dd0c678eddb15",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><p id=\"target\"></p></body></html>",
+            "htmlSha256": "10e804c97d4169d74032b4dfadf5b0ed713d4b5cdb3ce7b8c7a55a1e049bb6a2",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "greaterThan": 0
+            }
+          }
+        },
+        {
+          "id": "native-format",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"white-space:pre-wrap;text-transform:uppercase\">a  b\nc</div></body></html>",
+            "htmlSha256": "415d3768cde6902ed521d4d85a5fe43fe49e9cc06d5f8b904c1674b82d105b71",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"white-space:pre-wrap;text-transform:uppercase\"></div></body></html>",
+            "htmlSha256": "82523f4ede71aef25d36327a6b4c29594c12b6ea1c2121ebecb437cc398bfbf5",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "greaterThan": 0
+            }
+          }
+        },
+        {
+          "id": "inline-image",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">Before <img width=\"16\" height=\"16\" alt=\"red image\" src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAK0lEQVR4AaXBAQEAAAiDMKR/5xuC7QYjkEgiiSSSSCKJJJJIIokkkkgiiR5YbQIeTyCVoAAAAABJRU5ErkJggg==\"> after</div></body></html>",
+            "htmlSha256": "06d63798d09f99418289445806f183495c31fe860d1f55504c9b3b8d5fa6c325",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">Before <img width=\"16\" height=\"16\" alt=\"red image\" src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAKklEQVR4AaXBAQEAAAiDMKR/5xuC7UYjkUQSSSSRRBJJJJFEEkkkkUQSPVA9AR9i8CQFAAAAAElFTkSuQmCC\"> after</div></body></html>",
+            "htmlSha256": "bccbb0e81a26a6694138e8599f571bbed998dcc1dd9b8573fdda632ada855dcf",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "greaterThan": 0
+            }
+          }
+        },
+        {
+          "id": "table",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}td{width:80px;height:80px}</style></head><body><table id=\"target\"><tbody><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></tbody></table></body></html>",
+            "htmlSha256": "3ac6cb150a551b089d099554b3d25d4e3bd161b657ddbdb7c3d7228885fd611f",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}td{width:80px;height:80px}</style></head><body><table id=\"target\"><tbody><tr><td></td><td></td></tr><tr><td></td><td></td></tr></tbody></table></body></html>",
+            "htmlSha256": "d502f61b76bf3085da0ced67d00b9429bee7e47461d1c4f82dde710dffda29f9",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "greaterThan": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "scroll-transport",
+      "cases": [
+        {
+          "id": "2080-native-scroll",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}html{min-height:0}body{height:2080px;min-height:0}.band{position:absolute;left:400px;width:64px;height:40px}#sticky{position:sticky;top:0;width:300px;height:60px;font-size:24px;background:yellow;z-index:1}</style></head><body><div id=\"sticky\">Sticky label</div><div class=\"band\" style=\"top:0;background:red\"></div><div class=\"band\" style=\"top:700px;background:green\"></div><div class=\"band\" style=\"top:1400px;background:blue\"></div><div class=\"band\" style=\"top:2000px;background:black\"></div></body></html>",
+            "htmlSha256": "dafdeb671ce4dfb84b32d6fbc4456091d1b9a0a35b4948491807a12980e49665",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "positions": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                640
+              ],
+              [
+                0,
+                1280
+              ]
+            ],
+            "documentHeight": 2080,
+            "stickyVisibleInAllTiles": true,
+            "stickyRegion": {
+              "x": 0,
+              "y": 0,
+              "width": 300,
+              "height": 60,
+              "exactRgbaEqualAcrossTiles": true,
+              "rgbaValue": [
+                0,
+                0,
+                0,
+                255
+              ],
+              "minimumMatchingPixels": 1
+            }
+          }
+        },
+        {
+          "id": "height-over-limit",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}html{min-height:0}body{height:12801px;min-height:0}</style></head><body></body></html>",
+            "htmlSha256": "311f9ba6958157567e0a80b6df4f0b550b735796ecc78375439780bae3dd2f6f",
+            "assets": []
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "document-height-limit",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "horizontal-overflow",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div style=\"width:1281px;height:1px\"></div></body></html>",
+            "htmlSha256": "bc485b44cc2dfa1d3310720c0aacfb216ff40e974dd49fa3690e053cd737fcd8",
+            "assets": []
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "horizontal-scroll",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "nested-scroll",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div style=\"width:200px;height:80px;overflow:auto\"><div style=\"height:200px\">Nested prose</div></div></body></html>",
+            "htmlSha256": "7251434365838c27fd598507cda3cd94b72dd115dccd4ca70601dd80aa9d7cad",
+            "assets": []
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "nested-overflow",
+            "readerCaptures": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "image-bundle",
+      "cases": [
+        {
+          "id": "local-equals-data",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><img id=\"target\" style=\"width:16px;height:16px\" width=\"16\" height=\"16\" alt=\"red image\" src=\"assets/red.png\"></body></html>",
+            "htmlSha256": "5575e52d849f73da5466afb326a195de613795d27460a15380f7b0f3ddef8de6",
+            "assets": [
+              {
+                "path": "assets/red.png",
+                "assetId": "red"
+              }
+            ]
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><img id=\"target\" style=\"width:16px;height:16px\" width=\"16\" height=\"16\" alt=\"red image\" src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAK0lEQVR4AaXBAQEAAAiDMKR/5xuC7QYjkEgiiSSSSCKJJJJIIokkkkgiiR5YbQIeTyCVoAAAAABJRU5ErkJggg==\"></body></html>",
+            "htmlSha256": "752c34358327b6f083d08e8fafcea87987c06d9e45cdaa503f441a71f848d243",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "equals": 0
+            }
+          }
+        },
+        {
+          "id": "missing-image",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><img id=\"target\" style=\"width:16px;height:16px\" width=\"16\" height=\"16\" alt=\"red image\" src=\"assets/red.png\"></body></html>",
+            "htmlSha256": "5575e52d849f73da5466afb326a195de613795d27460a15380f7b0f3ddef8de6",
+            "assets": []
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "missing-asset",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "wrong-image-sha",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><img id=\"target\" style=\"width:16px;height:16px\" width=\"16\" height=\"16\" alt=\"red image\" src=\"assets/red.png\"></body></html>",
+            "htmlSha256": "5575e52d849f73da5466afb326a195de613795d27460a15380f7b0f3ddef8de6",
+            "assets": [
+              {
+                "path": "assets/red.png",
+                "assetId": "red",
+                "sha256Override": "0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            ]
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "asset-sha",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "undecodable-image",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><img id=\"target\" style=\"width:16px;height:16px\" width=\"16\" height=\"16\" alt=\"red image\" src=\"assets/invalid.png\"></body></html>",
+            "htmlSha256": "439b05e36184f94d719e0f27ec6a692ada409ed1a0c4a1b9c3b3db642f941c35",
+            "assets": [
+              {
+                "path": "assets/invalid.png",
+                "assetId": "invalidImage"
+              }
+            ]
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "image-decode",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "traversal-image",
+          "delivery": {
+            "entryPath": "proof.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><img id=\"target\" style=\"width:16px;height:16px\" width=\"16\" height=\"16\" alt=\"red image\" src=\"../outside.png\"></body></html>",
+            "htmlSha256": "ac608fb1584e45702a27a7751246b2c607223686bc7e37c184a47e67263b9da0",
+            "assets": []
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "path-traversal",
+            "readerCaptures": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "css-font-and-nested-delivery",
+      "cases": [
+        {
+          "id": "local-css",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}#target{width:100px;height:100px}</style><link rel=\"stylesheet\" href=\"assets/red.css\"></head><body><div id=\"target\" style=\"\"></div></body></html>",
+            "htmlSha256": "c8928b202f75f77f1aeca8df864d37a06c3b8a6e0f5d7b5d85668f7370f4a434",
+            "assets": [
+              {
+                "path": "assets/red.css",
+                "assetId": "redCss"
+              }
+            ]
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}#target{width:100px;height:100px}</style></head><body><div id=\"target\" style=\"\"></div></body></html>",
+            "htmlSha256": "78d650886c8dc27ae060f3cda8a9756aa36a81cfa2660ad698dde5222f3182e9",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "greaterThan": 0
+            }
+          }
+        },
+        {
+          "id": "missing-css",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style><link rel=\"stylesheet\" href=\"assets/red.css\"></head><body><div id=\"target\" style=\"\"></div></body></html>",
+            "htmlSha256": "439c5a54339b045eea27f6289cdf8f1b759020a1d90c29a8a7270af47cf1f1b1",
+            "assets": []
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "missing-asset",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "custom-font-effect",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}@font-face{font-family:FixtureFace;src:url('assets/LiberationSans-Regular.ttf') format('truetype')}#target{font:48px FixtureFace,monospace;width:auto;white-space:pre}</style></head><body><div id=\"target\" style=\"\">WWiiiiMMMM</div></body></html>",
+            "htmlSha256": "b16eb0be8e7c82466774a7612b7f07af375b861abf86126730fba3817a4afea6",
+            "assets": [
+              {
+                "path": "assets/LiberationSans-Regular.ttf",
+                "assetId": "liberation"
+              }
+            ]
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}#target{font:48px monospace;width:auto;white-space:pre}</style></head><body><div id=\"target\" style=\"\">WWiiiiMMMM</div></body></html>",
+            "htmlSha256": "7cabae3f8a92c892e178bcb365dc993cf6fb7986ddeaf116544e91c75b2478b7",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "greaterThan": 0
+            },
+            "fontFamily": "FixtureFace",
+            "fontStatus": "loaded",
+            "fontAssetId": "liberation",
+            "geometry": {
+              "selector": "#target",
+              "width": "not-equal"
+            }
+          }
+        },
+        {
+          "id": "missing-font",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}@font-face{font-family:FixtureFace;src:url('assets/LiberationSans-Regular.ttf') format('truetype')}#target{font:48px FixtureFace,monospace;width:auto;white-space:pre}</style></head><body><div id=\"target\" style=\"\">WWiiiiMMMM</div></body></html>",
+            "htmlSha256": "b16eb0be8e7c82466774a7612b7f07af375b861abf86126730fba3817a4afea6",
+            "assets": []
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "missing-asset",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "wrong-font-sha",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}@font-face{font-family:FixtureFace;src:url('assets/LiberationSans-Regular.ttf') format('truetype')}#target{font:48px FixtureFace,monospace;width:auto;white-space:pre}</style></head><body><div id=\"target\" style=\"\">WWiiiiMMMM</div></body></html>",
+            "htmlSha256": "b16eb0be8e7c82466774a7612b7f07af375b861abf86126730fba3817a4afea6",
+            "assets": [
+              {
+                "path": "assets/LiberationSans-Regular.ttf",
+                "assetId": "liberation",
+                "sha256Override": "0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            ]
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "asset-sha",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "nested-relative-resolution",
+          "left": {
+            "entryPath": "reports/proof.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}#target{width:100px;height:100px}</style><link rel=\"stylesheet\" href=\"styles/proof.css\"></head><body><div id=\"target\"><img width=\"16\" height=\"16\" alt=\"red\" src=\"../assets/red.png\"></div></body></html>",
+            "htmlSha256": "cf0b6efc49311b52e9eae0f0b633b54400fcbd216bb4e63ede648113b333efde",
+            "assets": [
+              {
+                "path": "assets/red.png",
+                "assetId": "red"
+              },
+              {
+                "path": "reports/styles/proof.css",
+                "assetId": "nestedCss"
+              }
+            ]
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}#target{width:100px;height:100px;background:rgb(255,0,0)}</style></head><body><div id=\"target\"><img width=\"16\" height=\"16\" alt=\"red\" src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAK0lEQVR4AaXBAQEAAAiDMKR/5xuC7QYjkEgiiSSSSCKJJJJIIokkkkgiiR5YbQIeTyCVoAAAAABJRU5ErkJggg==\"></div></body></html>",
+            "htmlSha256": "6436daea1f782544d34e9ef0940f6fe0d8e4a392faead19c7199ab41be4e1c8f",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "equals": 0
+            },
+            "fulfilledPathSetEquals": [
+              "reports/proof.html",
+              "reports/styles/proof.css",
+              "assets/red.png"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "security-and-original-bytes",
+      "cases": [
+        {
+          "id": "ordinary-exact-body",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">SAFE</div></body></html>",
+            "htmlSha256": "1fb326ee10dbd7a3a02f8f37565962d584cf88a5d634d4666167c6e3c036dd29",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "positions": [
+              [
+                0,
+                0
+              ]
+            ],
+            "observedMainBodySha": "matches-input",
+            "cspHeader": "exact-policy",
+            "domMutation": false
+          }
+        },
+        {
+          "id": "inert-metadata",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style><script type=\"application/json\">{\"metadata\":\"HIDDEN-METADATA\"}</script></head><body><div id=\"target\" style=\"\">SAFE</div></body></html>",
+            "htmlSha256": "9d074fda4c5e7f5b28f87f11dee788d0872358df4855aa4a54ea8767f6be39da",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">SAFE</div></body></html>",
+            "htmlSha256": "1fb326ee10dbd7a3a02f8f37565962d584cf88a5d634d4666167c6e3c036dd29",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "equals": 0
+            },
+            "metadataNotPainted": true
+          }
+        },
+        {
+          "id": "public-active-script",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><p id=\"target\">SAFE</p><script>document.body.dataset.executed=\"yes\";document.body.style.background=\"red\"</script></body></html>",
+            "htmlSha256": "e0cb729dce4eee582ebb195443faded977c7f87018c4db967f79303e0bfc948e",
+            "assets": []
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "active-script",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "public-foreign-image",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><img id=\"target\" style=\"width:16px;height:16px\" width=\"16\" height=\"16\" alt=\"red image\" src=\"https://blocked.invalid/foreign.png\"></body></html>",
+            "htmlSha256": "a243f43e28bc63ae5f08413e27e4e8e003e071ecea08ee483aa65bc8c430ae70",
+            "assets": []
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "external-dependency",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "public-second-navigation",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style><meta http-equiv=\"refresh\" content=\"0; url=other.html\"></head><body><div id=\"target\" style=\"\">SAFE</div></body></html>",
+            "htmlSha256": "c06797247d31be1c9b086b897c034f7394c7eaa17ffe50eec60f427c04b8324b",
+            "assets": []
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "navigation",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "private-context-owner-guard",
+          "privateGuard": true,
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><p id=\"target\">SAFE</p><img src=\"assets/not-allowlisted.png\"><script>document.body.dataset.executed=\"yes\";document.body.style.background=\"red\"</script></body></html>",
+            "htmlSha256": "8cbee4556b2d8ea67fd0bbfff5d4b66dcae14773d9feac08a6de704a8770a564",
+            "assets": []
+          },
+          "actions": [
+            {
+              "operation": "load-through-production-context-owner"
+            },
+            {
+              "operation": "inspect",
+              "expected": {
+                "datasetExecuted": false,
+                "javaScriptEnabled": false,
+                "mainBodySha": "matches-input",
+                "cspHeader": "exact-policy",
+                "headInjectedNodes": 0
+              }
+            },
+            {
+              "operation": "navigate",
+              "url": "http://artifact.invalid/undeclared.html",
+              "expect": "aborted"
+            }
+          ],
+          "expected": {
+            "readerCaptures": 0,
+            "productionContextOwner": true,
+            "publicCliBypass": false,
+            "missingSameOriginAssetRequest": "aborted",
+            "secondNavigation": "aborted",
+            "outboundNetworkRequests": 0,
+            "contextClosed": true,
+            "browserClosed": true
+          }
+        },
+        {
+          "id": "admission-delivery-omitted",
+          "kind": "admission-negative",
+          "looseCandidate": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">SAFE</div></body></html>",
+            "htmlSha256": "1fb326ee10dbd7a3a02f8f37565962d584cf88a5d634d4666167c6e3c036dd29",
+            "assets": []
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "delivery-record-unavailable",
+            "readerCaptures": 0,
+            "rawDeliveryFieldPresent": false,
+            "contextClosedOrNeverCreated": true,
+            "browserClosedOrNeverCreated": true,
+            "ownedContextsRemaining": 0,
+            "ownedBrowsersRemaining": 0
+          }
+        },
+        {
+          "id": "admission-delivery-null",
+          "kind": "admission-negative",
+          "delivery": null,
+          "looseCandidate": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">SAFE</div></body></html>",
+            "htmlSha256": "1fb326ee10dbd7a3a02f8f37565962d584cf88a5d634d4666167c6e3c036dd29",
+            "assets": []
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "delivery-record-unavailable",
+            "readerCaptures": 0,
+            "rawDeliveryFieldPresent": true,
+            "contextClosedOrNeverCreated": true,
+            "browserClosedOrNeverCreated": true,
+            "ownedContextsRemaining": 0,
+            "ownedBrowsersRemaining": 0
+          }
+        },
+        {
+          "id": "admission-assets-omitted",
+          "kind": "admission-negative",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">SAFE</div></body></html>",
+            "htmlSha256": "1fb326ee10dbd7a3a02f8f37565962d584cf88a5d634d4666167c6e3c036dd29"
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "asset-manifest-missing",
+            "readerCaptures": 0,
+            "rawDeliveryFieldPresent": true,
+            "contextClosedOrNeverCreated": true,
+            "browserClosedOrNeverCreated": true,
+            "ownedContextsRemaining": 0,
+            "ownedBrowsersRemaining": 0
+          }
+        },
+        {
+          "id": "admission-entry-omitted",
+          "kind": "admission-negative",
+          "delivery": {
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">SAFE</div></body></html>",
+            "htmlSha256": "1fb326ee10dbd7a3a02f8f37565962d584cf88a5d634d4666167c6e3c036dd29",
+            "assets": []
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "entry-path-missing",
+            "readerCaptures": 0,
+            "rawDeliveryFieldPresent": true,
+            "contextClosedOrNeverCreated": true,
+            "browserClosedOrNeverCreated": true,
+            "ownedContextsRemaining": 0,
+            "ownedBrowsersRemaining": 0
+          }
+        },
+        {
+          "id": "admission-main-hash-omitted",
+          "kind": "admission-negative",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">SAFE</div></body></html>",
+            "assets": []
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "main-hash-missing",
+            "readerCaptures": 0,
+            "rawDeliveryFieldPresent": true,
+            "contextClosedOrNeverCreated": true,
+            "browserClosedOrNeverCreated": true,
+            "ownedContextsRemaining": 0,
+            "ownedBrowsersRemaining": 0
+          }
+        },
+        {
+          "id": "admission-main-hash-mismatch",
+          "kind": "admission-negative",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">SAFE</div></body></html>",
+            "htmlSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+            "assets": []
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "main-hash-mismatch",
+            "readerCaptures": 0,
+            "rawDeliveryFieldPresent": true,
+            "contextClosedOrNeverCreated": true,
+            "browserClosedOrNeverCreated": true,
+            "ownedContextsRemaining": 0,
+            "ownedBrowsersRemaining": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "limits-cleanup-and-filenames",
+      "cases": [
+        {
+          "id": "static-positive",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+            "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "positions": [
+              [
+                0,
+                0
+              ]
+            ]
+          }
+        },
+        {
+          "id": "main-byte-limit",
+          "delivery": {
+            "entryPath": "result.html",
+            "htmlAssetId": "overHtml",
+            "htmlSha256": "88f0cd018cdac057d8b693765b2e902468ca346f9b348bb9b582de653b09b151",
+            "assets": []
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "main-byte-limit",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "asset-byte-limit",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style><link rel=\"stylesheet\" href=\"assets/large.css\"></head><body><div id=\"target\" style=\"\"></div></body></html>",
+            "htmlSha256": "7be26573dae470dfe7f9d662e66aa026e8abe44267ca9442bf869db5ae9fb57b",
+            "assets": [
+              {
+                "path": "assets/large.css",
+                "assetId": "overAsset"
+              }
+            ]
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "asset-byte-limit",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "aggregate-byte-limit",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\"></div></body></html>",
+            "htmlSha256": "590a614a8028dded3b163a797c29f0f90c6eff43264af1a54e8e391c795adda7",
+            "assets": [
+              {
+                "path": "assets/c0.css",
+                "assetId": "aggregateCss"
+              },
+              {
+                "path": "assets/c1.css",
+                "assetId": "aggregateCss"
+              },
+              {
+                "path": "assets/c2.css",
+                "assetId": "aggregateCss"
+              },
+              {
+                "path": "assets/c3.css",
+                "assetId": "aggregateCss"
+              },
+              {
+                "path": "assets/c4.css",
+                "assetId": "aggregateCss"
+              }
+            ]
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "aggregate-byte-limit",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "resource-count-limit",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\"></div></body></html>",
+            "htmlSha256": "590a614a8028dded3b163a797c29f0f90c6eff43264af1a54e8e391c795adda7",
+            "assets": [
+              {
+                "path": "assets/r0.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r1.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r2.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r3.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r4.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r5.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r6.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r7.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r8.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r9.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r10.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r11.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r12.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r13.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r14.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r15.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r16.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r17.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r18.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r19.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r20.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r21.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r22.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r23.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r24.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r25.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r26.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r27.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r28.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r29.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r30.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r31.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r32.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r33.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r34.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r35.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r36.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r37.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r38.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r39.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r40.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r41.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r42.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r43.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r44.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r45.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r46.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r47.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r48.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r49.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r50.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r51.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r52.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r53.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r54.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r55.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r56.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r57.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r58.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r59.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r60.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r61.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r62.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r63.png",
+                "assetId": "red"
+              },
+              {
+                "path": "assets/r64.png",
+                "assetId": "red"
+              }
+            ]
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "resource-count-limit",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "decoded-image-limit",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><img id=\"target\" style=\"width:16px;height:16px\" width=\"16\" height=\"16\" alt=\"red image\" src=\"assets/large.png\"></body></html>",
+            "htmlSha256": "cf0a2b3d50b8c20ddb67de418a010bb847724df6e13c196352ed2b215ffd6168",
+            "assets": [
+              {
+                "path": "assets/large.png",
+                "assetId": "oversizeImage"
+              }
+            ]
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "decoded-image-pixel-limit",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "animated-image",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><img id=\"target\" style=\"width:16px;height:16px\" width=\"16\" height=\"16\" alt=\"red image\" src=\"assets/animated.svg\"></body></html>",
+            "htmlSha256": "84c77aaf5357ef0d38ce26ad5748c67d1cadd6a25122283fd390326ce381bdd0",
+            "assets": [
+              {
+                "path": "assets/animated.svg",
+                "assetId": "animatedSvg"
+              }
+            ]
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "animated-image",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "active-animation",
+          "delivery": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}@keyframes spin{from{opacity:1}to{opacity:0}}#target{animation:spin 1s infinite}</style></head><body><div id=\"target\" style=\"\">ANIMATION</div></body></html>",
+            "htmlSha256": "502cdfb1f9790fe737502914f7a5e11e08dc9c56686386b8170973c7f822c7c2",
+            "assets": []
+          },
+          "expected": {
+            "eligible": false,
+            "reason": "active-animation",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "aggregate-page-tile-limit",
+          "pages": [
+            {
+              "entryPath": "pages/p0.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p1.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p2.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p3.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p4.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p5.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p6.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p7.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p8.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p9.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p10.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p11.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p12.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p13.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p14.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p15.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p16.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p17.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p18.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p19.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            },
+            {
+              "entryPath": "pages/p20.html",
+              "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><div id=\"target\" style=\"\">STATIC</div></body></html>",
+              "htmlSha256": "f84f6d3ea2cbfd762e0ed2dd072cf12a3506317a769984239a1a443f0281c8e8",
+              "assets": []
+            }
+          ],
+          "expected": {
+            "eligible": false,
+            "reason": "aggregate-tile-limit",
+            "readerCaptures": 0
+          }
+        },
+        {
+          "id": "hidden-href-not-prose",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><a id=\"target\" href=\"first-hidden-file.json\">Open report</a></body></html>",
+            "htmlSha256": "9afb195233140af1bd1affa623e9d7cfcce77d3dcea2f0806dd94935e2afd97d",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><a id=\"target\" href=\"other-hidden-file.json\">Open report</a></body></html>",
+            "htmlSha256": "6c8b40ee7b2baaaef4e7fa8d0de6addf5f87334f82e0987d4af50afd0ab9da60",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "equals": 0
+            }
+          }
+        },
+        {
+          "id": "visible-filename-persists",
+          "left": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><p id=\"target\">visible-file.json</p></body></html>",
+            "htmlSha256": "c5decb468732f70e3ef242797cc404102b706a6f71b1629f15fb819c915232a1",
+            "assets": []
+          },
+          "right": {
+            "entryPath": "result.html",
+            "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>html{margin:0;min-height:800px;background:white;scroll-behavior:auto}body{margin:0;min-height:800px;background:white;color:black;font:48px Arial,sans-serif}#target{position:absolute;left:40px;top:40px;width:240px;height:80px}</style></head><body><p id=\"target\"></p></body></html>",
+            "htmlSha256": "10e804c97d4169d74032b4dfadf5b0ed713d4b5cdb3ce7b8c7a55a1e049bb6a2",
+            "assets": []
+          },
+          "expected": {
+            "eligible": true,
+            "changedPixels": {
+              "greaterThan": 0
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "success": {
+    "groups": 10,
+    "everySubcasePasses": true,
+    "runs": 2,
+    "exactRepeat": true,
+    "invisibleChangedPixels": 0,
+    "opaqueChangedPixelsMinimum": 1
+  },
+  "pivot": "Any subcase failure, changed expectation, unexpected resource failure or unequal repeat rejects candidate; return to planning, no post-result corpus adaptation.",
+  "admissionAmendment": {
+    "version": "V3-admission-1",
+    "previousRegistrationCommit": "b5368fb4903b1fc34e2c06eddf68f43b160ac27b",
+    "previousCorpusSha256": "17581d07a0b6b793e217fd8f3872c6a840cdfa23fec746e2a6bc925d4b09f1d6",
+    "previousSubcases": 51,
+    "addedRawSubcases": 6,
+    "totalSubcases": 57,
+    "requirementClasses": 5,
+    "reasonForSix": "Unavailable delivery has two separate raw controls: omitted field and explicit null; neither may use the looseCandidate.",
+    "productionContract": "Exercise the real production admission path on raw delivery field presence/value without coalescing, assigning defaults or selecting looseCandidate. Omission remains absent/undefined and null remains null. Preserve actual raw presence/value in the owner receipt.",
+    "mandatoryFields": "Delivery evidence/manifest, explicit assets array (which may be empty), original entryPath and frozen htmlSha256 are mandatory. Compare observed main bytes to the frozen expected hash; never compute a replacement expectation, rebind identity, infer an attachment or select/default an entry.",
+    "cleanup": "Each new raw admission case refuses with zero reader captures, no remaining owned context/browser, and closed-or-never-created lifecycle receipts. No actual actor access is permitted by this registration."
+  }
+}

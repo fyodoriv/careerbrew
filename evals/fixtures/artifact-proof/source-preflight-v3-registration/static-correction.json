@@ -1,0 +1,57 @@
+{
+  "status": "premeasurement source arithmetic only; no parser/test execution",
+  "parentFreezeSha256": "ce8f6a946a3a2d0ec14476f927d34e092f687b39d75cc31769c580dba746c72b",
+  "arithmetic": [
+    {
+      "id": "html-ast-nodes-100000",
+      "before": {
+        "encoding": "repeat-utf8",
+        "prefix": "<!doctype html><html><head><meta charset=\"utf-8\"><style></style></head><body>",
+        "unit": "<br>",
+        "repeat": 99993,
+        "suffix": "</body></html>",
+        "bytes": 400063,
+        "sha256": "50959f683eab0b9f3467dbe8fb2f8e942ef34a3a8dadec2c3c43e345c550bead"
+      },
+      "after": {
+        "encoding": "repeat-utf8",
+        "prefix": "<!doctype html><html><head><meta charset=\"utf-8\"><style></style></head><body>",
+        "unit": "<br>",
+        "repeat": 99992,
+        "suffix": "</body></html>",
+        "bytes": 400059,
+        "sha256": "19ba66fd931a3e999350e16d7ce9c29f3101ce8f60a97594a17470c49156de22"
+      },
+      "expectedAstNodesUnchanged": 100000
+    },
+    {
+      "id": "html-ast-nodes-100001",
+      "before": {
+        "encoding": "repeat-utf8",
+        "prefix": "<!doctype html><html><head><meta charset=\"utf-8\"><style></style></head><body>",
+        "unit": "<br>",
+        "repeat": 99994,
+        "suffix": "</body></html>",
+        "bytes": 400067,
+        "sha256": "28e3a0de3661c9e2c4519011fa6467b60db69c7df8990662f7fbe1d8e046b5c1"
+      },
+      "after": {
+        "encoding": "repeat-utf8",
+        "prefix": "<!doctype html><html><head><meta charset=\"utf-8\"><style></style></head><body>",
+        "unit": "<br>",
+        "repeat": 99993,
+        "suffix": "</body></html>",
+        "bytes": 400063,
+        "sha256": "50959f683eab0b9f3467dbe8fb2f8e942ef34a3a8dadec2c3c43e345c550bead"
+      },
+      "expectedAstNodesUnchanged": 100001
+    }
+  ],
+  "allOther68CasesByteObjectEqual": true,
+  "unchangedFiles": [
+    "frozen57-source-classification.json",
+    "source-owner-faults.json",
+    "proposed-package-metadata.json"
+  ],
+  "primaryWalkerBehavior": "walk calls walkNode(root); walkNode invokes enter on root; empty CSS parses as StyleSheet root"
+}

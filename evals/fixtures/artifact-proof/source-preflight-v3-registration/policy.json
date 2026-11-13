@@ -1,0 +1,588 @@
+{
+  "schema": "careerbrew-v3-source-preflight-registration-draft-v2",
+  "status": "UNCOMMITTED PROSPECTIVE DRAFT; no implementation/execution release",
+  "html": {
+    "namespace": "http://www.w3.org/1999/xhtml",
+    "tags": [
+      "html",
+      "head",
+      "body",
+      "title",
+      "div",
+      "span",
+      "p",
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+      "main",
+      "section",
+      "article",
+      "header",
+      "footer",
+      "nav",
+      "aside",
+      "address",
+      "blockquote",
+      "pre",
+      "code",
+      "kbd",
+      "samp",
+      "var",
+      "em",
+      "strong",
+      "b",
+      "i",
+      "u",
+      "s",
+      "small",
+      "sub",
+      "sup",
+      "mark",
+      "abbr",
+      "cite",
+      "q",
+      "time",
+      "br",
+      "wbr",
+      "hr",
+      "ul",
+      "ol",
+      "li",
+      "dl",
+      "dt",
+      "dd",
+      "table",
+      "caption",
+      "colgroup",
+      "col",
+      "thead",
+      "tbody",
+      "tfoot",
+      "tr",
+      "th",
+      "td",
+      "figure",
+      "figcaption",
+      "details",
+      "summary",
+      "button",
+      "label",
+      "form",
+      "fieldset",
+      "legend",
+      "select",
+      "option",
+      "optgroup",
+      "textarea",
+      "output",
+      "progress",
+      "meter",
+      "template",
+      "noscript",
+      "a",
+      "img",
+      "link",
+      "style",
+      "script",
+      "meta"
+    ],
+    "attributes": {
+      "*": [
+        "id",
+        "class",
+        "title",
+        "lang",
+        "dir",
+        "hidden",
+        "tabindex",
+        "role",
+        "aria-label",
+        "aria-hidden",
+        "aria-labelledby",
+        "aria-describedby",
+        "aria-expanded",
+        "aria-controls",
+        "aria-current",
+        "aria-live",
+        "aria-busy",
+        "style"
+      ],
+      "img": [
+        "src",
+        "alt",
+        "width",
+        "height",
+        "loading",
+        "decoding"
+      ],
+      "a": [
+        "href"
+      ],
+      "link": [
+        "rel",
+        "href",
+        "type",
+        "media"
+      ],
+      "script": [
+        "type"
+      ],
+      "meta": [
+        "charset",
+        "name",
+        "content",
+        "http-equiv"
+      ],
+      "col": [
+        "span"
+      ],
+      "colgroup": [
+        "span"
+      ],
+      "td": [
+        "colspan",
+        "rowspan",
+        "headers"
+      ],
+      "th": [
+        "colspan",
+        "rowspan",
+        "headers",
+        "scope"
+      ],
+      "ol": [
+        "start",
+        "reversed",
+        "type"
+      ],
+      "li": [
+        "value"
+      ],
+      "details": [
+        "open"
+      ],
+      "button": [
+        "type",
+        "disabled"
+      ],
+      "select": [
+        "multiple",
+        "size",
+        "disabled"
+      ],
+      "option": [
+        "value",
+        "selected",
+        "disabled",
+        "label"
+      ],
+      "optgroup": [
+        "label",
+        "disabled"
+      ],
+      "textarea": [
+        "rows",
+        "cols",
+        "disabled",
+        "readonly",
+        "placeholder"
+      ],
+      "meter": [
+        "value",
+        "min",
+        "max",
+        "low",
+        "high",
+        "optimum"
+      ],
+      "progress": [
+        "value",
+        "max"
+      ],
+      "time": [
+        "datetime"
+      ]
+    },
+    "unknownTagOrAttribute": "unsupported-reference-syntax",
+    "prefixWildcards": false,
+    "attributeNameCase": "parse5 HTML names; ASCII-lower only for enum matching",
+    "template": "walk childNodes and content DocumentFragment conservatively",
+    "noscript": "scriptingEnabled=false; walk parsed children",
+    "duplicatesOrHTMLParseError": "unsupported-reference-syntax",
+    "documentMode": "no-quirks only",
+    "script": "only type=application/json and no src; all other script or parsed attribute name starting ASCII on => active-script",
+    "meta": "charset only utf-8; name/content inert; http-equiv refresh => navigation before generic attribute refusal; all other http-equiv => unsupported-reference-syntax",
+    "link": "rel exactly stylesheet (ASCII-case-insensitive); one declared local text/css href; no other rel/tokens",
+    "anchors": "retain href bytes; never follow or treat as automatic resource; no img discovery from href",
+    "inputAndForeignNamespaces": "unsupported-reference-syntax",
+    "allRemainingAttributes": "unsupported-reference-syntax"
+  },
+  "css": {
+    "contexts": {
+      "styleElement": "stylesheet",
+      "localStylesheet": "stylesheet",
+      "styleAttribute": "declarationList"
+    },
+    "parseOptions": {
+      "parseValue": true,
+      "parseAtrulePrelude": true,
+      "parseRulePrelude": true,
+      "parseCustomProperty": true,
+      "positions": true
+    },
+    "properties": [
+      "background",
+      "background-image",
+      "background-position",
+      "background-repeat",
+      "clip-path",
+      "color",
+      "display",
+      "filter",
+      "font",
+      "font-family",
+      "font-size",
+      "height",
+      "left",
+      "margin",
+      "min-height",
+      "opacity",
+      "overflow",
+      "position",
+      "scroll-behavior",
+      "text-transform",
+      "top",
+      "visibility",
+      "white-space",
+      "width",
+      "z-index"
+    ],
+    "fontFaceDescriptors": [
+      "font-family",
+      "src"
+    ],
+    "activePropertiesAnyValue": [
+      "animation",
+      "animation-name",
+      "animation-duration",
+      "animation-delay",
+      "animation-direction",
+      "animation-fill-mode",
+      "animation-iteration-count",
+      "animation-play-state",
+      "animation-timing-function",
+      "animation-composition",
+      "animation-timeline",
+      "animation-range",
+      "animation-range-start",
+      "animation-range-end",
+      "transition",
+      "transition-property",
+      "transition-duration",
+      "transition-delay",
+      "transition-timing-function",
+      "transition-behavior"
+    ],
+    "atRules": {
+      "font-face": "only font-family and src; every src URL is declared font resource",
+      "import": "exactly one maintained AST String or Url prelude, no qualifiers/block; traverse local stylesheet graph",
+      "media": "maintained parsed prelude; walk all child rules independent of condition",
+      "supports": "maintained parsed prelude; walk prelude URL nodes conservatively as image edges and all child rules"
+    },
+    "earlyActiveAtRules": [
+      "keyframes",
+      "-webkit-keyframes"
+    ],
+    "unknownAtRule": "unsupported-reference-syntax",
+    "functions": {
+      "rgb": "ordinary value; no resource semantics",
+      "color": "ordinary value; no resource semantics",
+      "oklch": "ordinary value; no resource semantics",
+      "opacity": "ordinary value; no resource semantics",
+      "inset": "ordinary value; no resource semantics",
+      "format": "font-face src only; String argument truetype only"
+    },
+    "url": "maintained Url node only; decoded value once; escaped semantic url remaining Function => unsupported-reference-syntax",
+    "identifierNormalization": "maintained ident.decode then ASCII-lower for policy names",
+    "stringNormalization": "maintained parsed String.value only; no second unescape",
+    "propertyGrammar": "maintained lexer.matchProperty for ordinary declarations; lexer.matchAtruleDescriptor for font-face; error/no matched tree => unsupported-reference-syntax",
+    "sourceLocals": "local() not allowed; system fallback font shorthand unchanged",
+    "rejectNodes": [
+      "Raw",
+      "unknown node type"
+    ],
+    "rejectDynamic": [
+      "custom-property declaration",
+      "var",
+      "attr",
+      "env",
+      "image-set",
+      "-webkit-image-set",
+      "image",
+      "cross-fade",
+      "paint",
+      "any unknown function"
+    ],
+    "selectors": "maintained SelectorList/Selector AST; no selector evaluation or paint classification; parse error/Raw => refuse; no URL grammar in selector strings",
+    "escapedFunctionPolicy": "Decoded Function name outside finite function table (including semantic url) refuses. Url token/node payload escapes are supported; no custom escaped-function parser.",
+    "rawGrammarPhase": "Recognized active markers scan after syntax parse but before generic rule/grammar refusal; parser errors/Raw are deferred until this scan completes.",
+    "atRulePreludeGrammar": "Use lexer.matchAtrulePrelude for media/supports. Plain import must be exactly one String/Url node; font-face has null prelude. Any unmatched/extra node refuses.",
+    "safeSourceEncoding": "UTF-8 only; no @charset allowed; any other CSS encoding or unknown HTML charset refuses source-encoding. Original bytes unchanged."
+  },
+  "referenceRoles": {
+    "img.src": "image",
+    "css.Url outside font/import": "image",
+    "font-face.src.Url": "font",
+    "link.stylesheet.href": "css",
+    "import.StringOrUrl": "css"
+  },
+  "dataUrls": {
+    "parser": "data-urls@8.0.0 default export",
+    "allowedMimes": [
+      "image/png",
+      "image/gif"
+    ],
+    "otherMimeReason": "unsupported-image-format",
+    "malformedReason": "image-decode",
+    "malformedStage": "source-data-url",
+    "textCharsetDecoding": false,
+    "bodyBinding": "origin page/CSS SHA+AST offset+parsed MIME essence+decoded byte SHA; exact source unchanged",
+    "noCommaSplit": true
+  },
+  "limits": {
+    "mainBytes": 2097152,
+    "assetBytes": 5242880,
+    "expandedBundleBytes": 20971520,
+    "resources": 64,
+    "referenceEdges": 64,
+    "importDepth": 8,
+    "astNodes": 100000,
+    "astDepth": 256,
+    "sourceDeadlineMs": 30000,
+    "dataInputUtf8Bytes": 5242880,
+    "dataDecodedBytes": 5242880,
+    "imagePixelsDeferredHeader": 16777216
+  },
+  "accounting": {
+    "bundle": "main bytes once + all declared asset bytes once + each distinct inline(MIME,bodySHA) decoded body once",
+    "resources": "all declared asset identities + new distinct inline(MIME,bodySHA) identities; duplicate reference edges do not add resources",
+    "edges": "each source URL occurrence, including repeated and font/css/image edges;64 maximum",
+    "ast": "Count every maintained HTML and CSS AST node, including empty StyleSheet and DeclarationList roots. Document root depth0; each AST child +1, each separately parsed CSS root depth0. HTML comments/text/template fragments count; CSS comments count only when represented by maintained AST. Empty style in the node-budget fixtures adds one CSS StyleSheet root to seven HTML nodes. Combined node ceiling100000 inclusive; per-tree depth ceiling256 inclusive.",
+    "importDepth": "entry HTML-linked/inline stylesheet depth0; each import adds1;8 accepted,9 refused",
+    "visited": "local path+role+frozenSHA; stack cycle refuses, repeated noncycle reuse allowed with edge counted",
+    "unused": "declared assets charged and hash-checked even unused"
+  },
+  "phaseOrder": [
+    "raw-record-identity",
+    "declared-byte/hash/resource-admission",
+    "html-and-css-parse/encoding",
+    "recognized-active-script/navigation/active-animation scan",
+    "generic-syntax-table",
+    "graph-path/missing/MIME/budgets",
+    "source-complete",
+    "DEFER header/static/native render"
+  ],
+  "tieBreak": "within phase main/proof order, node source offset, local imported DFS order; first fixed failure; cleanup failure supersedes with primaryReason retained",
+  "sourceResult": {
+    "sourceEligible": "source only; NOT final eligible/native or reader pass",
+    "artifactContextsCreated": 0,
+    "metadataContextsCreated": 0,
+    "headerChildrenCreated": 0,
+    "codecCalls": 0,
+    "browserLaunches": 0
+  },
+  "newBoundaryReasons": {
+    "unsupported": "unsupported-reference-syntax",
+    "budget": "main-byte-limit / asset-byte-limit / aggregate-byte-limit / resource-count-limit as exact failing bound",
+    "cleanup": "cleanup-failed; unknown closure never claimed closed"
+  },
+  "preserveOnlyProspectiveOldCaseChange": {
+    "case": "animated-image",
+    "historicalReason": "animated-image",
+    "futureProposedReason": "unsupported-image-format",
+    "status": "NOT APPLIED; future58 decision held"
+  },
+  "sourceWorker": {
+    "scope": "one dedicated source-parser child per delivery bundle, not browser/header/process-general runner",
+    "input": "bounded frozen raw bundle buffers only; all identity/declared limits checked first; no user paths/URLs for child filesystem/network",
+    "imports": [
+      "parse5",
+      "css-tree",
+      "data-urls",
+      "node:crypto"
+    ],
+    "forbiddenImports": [
+      "sharp",
+      "playwright",
+      "browser modules",
+      "image codecs"
+    ],
+    "deadlineMs": 30000,
+    "maxOutputBytes": 33554432,
+    "success": "actual terminal exit0+complete bounded validated graph record before metadata/header owners",
+    "failure": "never settle/late result/error/overflow => source-preflight-unavailable; kill and confirm reap; unconfirmed exit=>cleanup-failed; no later owner",
+    "receipts": "typed enums/counts/hashes only; raw AST/source/EXIF not logged",
+    "nonUIInventory": "port,rust-27; future dedicated source adapter and tests need canonical inventory before integration"
+  },
+  "refusalStagePairs": [
+    {
+      "reason": "delivery-record-unavailable",
+      "failedStage": "raw-admission",
+      "cause": "the fixed cause represented by this exact reason/stage"
+    },
+    {
+      "reason": "asset-manifest-missing",
+      "failedStage": "raw-admission",
+      "cause": "the fixed cause represented by this exact reason/stage"
+    },
+    {
+      "reason": "entry-path-missing",
+      "failedStage": "raw-admission",
+      "cause": "the fixed cause represented by this exact reason/stage"
+    },
+    {
+      "reason": "main-hash-missing",
+      "failedStage": "raw-admission",
+      "cause": "the fixed cause represented by this exact reason/stage"
+    },
+    {
+      "reason": "main-hash-mismatch",
+      "failedStage": "raw-admission",
+      "cause": "the fixed cause represented by this exact reason/stage"
+    },
+    {
+      "reason": "main-byte-limit",
+      "failedStage": "declared-admission",
+      "cause": "the fixed cause represented by this exact reason/stage"
+    },
+    {
+      "reason": "asset-byte-limit",
+      "failedStage": "declared-admission",
+      "cause": "the fixed cause represented by this exact reason/stage"
+    },
+    {
+      "reason": "asset-sha",
+      "failedStage": "declared-admission",
+      "cause": "the fixed cause represented by this exact reason/stage"
+    },
+    {
+      "reason": "aggregate-byte-limit",
+      "failedStage": "declared-admission",
+      "cause": "declared bundle bytes exceed20MiB"
+    },
+    {
+      "reason": "aggregate-byte-limit",
+      "failedStage": "source-expanded-byte-budget",
+      "cause": "decoded data expansion raises accounted total above20MiB"
+    },
+    {
+      "reason": "resource-count-limit",
+      "failedStage": "declared-admission",
+      "cause": "declared asset count exceeds64"
+    },
+    {
+      "reason": "resource-count-limit",
+      "failedStage": "source-resource-budget",
+      "cause": "distinct referenced inline bodies plus declared assets exceed64"
+    },
+    {
+      "reason": "resource-count-limit",
+      "failedStage": "source-edge-budget",
+      "cause": "source URL occurrence count exceeds64"
+    },
+    {
+      "reason": "path-traversal",
+      "failedStage": "source-reference-binding",
+      "cause": "the fixed cause represented by this exact reason/stage"
+    },
+    {
+      "reason": "external-dependency",
+      "failedStage": "source-reference-binding",
+      "cause": "the fixed cause represented by this exact reason/stage"
+    },
+    {
+      "reason": "missing-asset",
+      "failedStage": "source-reference-binding",
+      "cause": "the fixed cause represented by this exact reason/stage"
+    },
+    {
+      "reason": "active-script",
+      "failedStage": "source-active-script",
+      "cause": "the fixed cause represented by this exact reason/stage"
+    },
+    {
+      "reason": "navigation",
+      "failedStage": "source-navigation",
+      "cause": "the fixed cause represented by this exact reason/stage"
+    },
+    {
+      "reason": "active-animation",
+      "failedStage": "source-active-animation",
+      "cause": "the fixed cause represented by this exact reason/stage"
+    },
+    {
+      "reason": "unsupported-reference-syntax",
+      "failedStage": "source-syntax",
+      "cause": "finite table/grammar/parser recovery refuses"
+    },
+    {
+      "reason": "unsupported-reference-syntax",
+      "failedStage": "source-encoding",
+      "cause": "unsupported or invalid source encoding"
+    },
+    {
+      "reason": "unsupported-reference-syntax",
+      "failedStage": "source-import-cycle",
+      "cause": "active import recursion stack repeats identity"
+    },
+    {
+      "reason": "unsupported-reference-syntax",
+      "failedStage": "source-import-depth",
+      "cause": "import depth exceeds8"
+    },
+    {
+      "reason": "unsupported-reference-syntax",
+      "failedStage": "source-ast-budget",
+      "cause": "combined AST node count exceeds100000 or tree depth exceeds256"
+    },
+    {
+      "reason": "unsupported-image-format",
+      "failedStage": "source-data-url",
+      "cause": "parsed inline data MIME outside finite raster set"
+    },
+    {
+      "reason": "image-decode",
+      "failedStage": "source-data-url",
+      "cause": "maintained data-URL parser returns null"
+    },
+    {
+      "reason": "source-preflight-unavailable",
+      "failedStage": "source-owner-create",
+      "cause": "dedicated parser owner creation rejects"
+    },
+    {
+      "reason": "source-preflight-unavailable",
+      "failedStage": "source-owner",
+      "cause": "dedicated parser owner exits with failure"
+    },
+    {
+      "reason": "source-preflight-unavailable",
+      "failedStage": "source-deadline",
+      "cause": "dedicated parser deadline expires; late result cannot restore"
+    },
+    {
+      "reason": "source-preflight-unavailable",
+      "failedStage": "source-output-bound",
+      "cause": "dedicated parser output exceeds fixed byte bound"
+    },
+    {
+      "reason": "cleanup-failed",
+      "failedStage": "source-cleanup",
+      "cause": "the fixed cause represented by this exact reason/stage"
+    }
+  ],
+  "refusalStageSelection": "Every case fixes one exact pair. This table enumerates allowed causal pairs, never fallback/OR parsing. Unknown pair is an invalid receipt and rejects qualification. Local header/native mappings remain deferred, not accepted source errors."
+}
