@@ -176,6 +176,7 @@ scripts/install.sh,port,rust-27,Port each assertion/helper with its domain slice
 scripts/leak-check.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/learnings-table.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/metrics.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/migrate-history.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/open-prs.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/open-work.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/pm-sent-coverage.py,port,rust-27,Port non-UI read-only measurement helper with exact eligibility privacy and aggregate defect controls
@@ -568,6 +569,7 @@ tests/unit/test_mcp_fix.py,port,rust-27,Port each assertion/helper with its doma
 tests/unit/test_memory_sync.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_metrics_report.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_metrics_share.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_migrate_history.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_no_conflict_markers.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_notion_import.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_open_prs.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
