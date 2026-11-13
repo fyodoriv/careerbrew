@@ -1,0 +1,63 @@
+name: public-readiness
+
+# Fails a pull request that adds a path the public tree leaves out, a secret-shaped
+# value, or a link to a left-out path. It runs `scripts/public-readiness.sh --released`
+# in public mode: the surfaces that need the owner's data report `owner-only` and do
+# not fail. The output is counts only. Same safety rules as ci.yml (docs/ci.md).
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-readiness-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DO_NOT_TRACK: "1"
+  GITLEAKS_VERSION: "8.30.1"
+  GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+
+jobs:
+  public-readiness:
+    name: public-readiness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Python packages (the licence check reads their metadata)
+        run: uv sync --locked
+
+      - name: Rust sources (the licence check reads their manifests)
+        run: |
+          pin="$(sed -nE 's/^channel = "([0-9.]+)"$/\1/p' rust-toolchain.toml)"
+          [ -n "$pin" ] || { echo "no Rust pin found in rust-toolchain.toml" >&2; exit 1; }
+          rustup toolchain install "$pin" --profile minimal --no-self-update
+          cargo fetch --locked
+
+      - name: gitleaks (pinned release, checked SHA-256)
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin" "$RUNNER_TEMP/gitleaks"
+          file="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/gitleaks/$file" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$file"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/gitleaks/$file" | shasum -a 256 -c -
+          tar -xzf "$RUNNER_TEMP/gitleaks/$file" -C "$RUNNER_TEMP/gitleaks" gitleaks
+          mv "$RUNNER_TEMP/gitleaks/gitleaks" "$RUNNER_TEMP/bin/gitleaks"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Readiness (scripts/public-readiness.sh --released)
+        run: scripts/public-readiness.sh --released

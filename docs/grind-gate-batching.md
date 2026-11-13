@@ -1,5 +1,7 @@
 # Grind gate batching
 
+Optional since 2026-11-13: the hosted checks run the full gate for every pull request ([ci.md](ci.md)), so no pull request needs a local full gate. Use a batch only when the hosted checks are unavailable.
+
 ### Batch the full gate (up to 4 ready PRs)
 
 The full gate's e2e suite takes about 6 minutes, and every gate queues on the one `heavy-run` lock. When two or more PRs are ready, run one full gate for the batch instead of one per PR. The owner approved this only without loss of stability, so keep every rule:

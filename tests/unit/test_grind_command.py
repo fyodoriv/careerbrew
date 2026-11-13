@@ -42,7 +42,10 @@ def test_each_item_follows_the_repo_delivery_rules():
         "scripts/check.sh",
         "closes #<N>",
         "--squash",
-        "docs/learnings/<YYYY-MM-DD>-<slug>.md",
+        "add no file to the learnings folder",
+        "gh pr checks <pr>",
+        "docs/ci.md",
+        "Do not run or wait for a local full gate",
         "CAREERBREW_E2E_PORT",
         "Never force-push, never `--no-verify`, never `git reset --hard`",
     ]:

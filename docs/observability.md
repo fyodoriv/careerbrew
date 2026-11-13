@@ -193,8 +193,8 @@ upgrade. For big suites, add affected-only test selection per stack
 
 The input hash covers file content only (tracked and untracked files that git
 does not ignore). It is the same for `fast` and full mode, and the same before
-and after `git add` or `git commit`. So the pre-push hook's `scripts/check.sh
-fast` reuses eligible checks on the same files. Format, lint and unit checks (Python and root
+and after `git add` or `git commit`. So a second `scripts/check.sh
+fast` reuses eligible checks on the same files (the pre-push hook runs no gate since 2026-11-13; see [ci.md](ci.md)). Format, lint and unit checks (Python and root
 JavaScript), exercise checks, web type checks, end-to-end tests, Rust checks, and `leaks` always
 run because their external inputs are not fully keyed. The `rust-inventory` step checks tracked
 source assignments against the staged Git index on every Rust gate. A changed file reruns each affected cached step. Sensitive
