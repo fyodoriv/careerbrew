@@ -488,6 +488,26 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P2
 
+- [ ] Guard the watcher test child against file access outside its scratch folder
+  - **ID**: watch-gate-filesystem-guard
+  - **Details**: `tests/unit/watch_gate_child.py` blocks only process and network audit events. Unfinished work from before the history move adds a file guard: an audit hook that refuses reads, writes, listing and renames outside the scratch root, and refuses `.env`, credential files, `.git`, the data folder, `..`, symlinks and `dir_fd` opens. It has five cases: F01 scratch write is allowed and public reads work; F02 outside and secret reads are refused; F03 symlink and `..` escapes are refused; F04 outside write and rename are refused and a canary file is unchanged; F05 a `dir_fd` write is refused. A saved copy is on the owner's Mac only (`~/.local/state/careerbrew-cutover/this-mac-2026-11-13/dirty/`, the watch-gate-isolation archive). It needs rework before it applies: the child now uses `LC_CTYPE: C.UTF-8` and the fixed zone `Etc/GMT+4`, and the old copy pins a tzdata path. Without the copy, write the guard from this description.
+  - **Files**: tests/unit/watch_gate_child.py; tests/unit/test_watch_gate_child_boundary.py; tests/unit/watch_gate_filesystem_probe.py; tests/unit/test_day.py
+  - **Hypothesis**: a watcher test can no longer touch a file outside its scratch folder without a failing test, so reads of owner files from the gate fall to 0.
+  - **Measurement**: `uv run pytest tests/unit/test_watch_gate_child_boundary.py -q`.
+  - **Success**: all five cases pass, and `uv run pytest tests/unit/test_day.py -q` still passes.
+  - **Pivot**: if the audit hook makes the watcher tests more than 20% slower, guard only writes and renames.
+  - **Anchor**: Saltzer & Schroeder 1975 (least privilege).
+
+- [ ] Finish or drop the claim audit measurement harness
+  - **ID**: claim-audit-harness
+  - **Details**: `src/careerbrew/work/claim_audit.py` is imported only by its unit test. Unfinished work from before the history move holds the harness that would exercise it: an isolated driver that captures handler output in a throwaway HOME (`tests/claim_audit_driver.py`), a measurement script that writes to `.metrics/claim-audit` (`scripts/measure-evidence-claims.py`), safety tests for guard escape, compatibility and quote scope (`tests/safety/test_claim_audit_safety.py` with its worker and cases file), and public-input tests (`tests/safety/test_claim_audit_public_inputs.py`). A saved copy is on the owner's Mac only (`~/.local/state/careerbrew-cutover/this-mac-2026-11-13/dirty/`, the cross-host and 358 archives). It does not run as it is: its cases file pins old file hashes, and the script needs a source pin under `docs/plans/`, which the public tree leaves out. Decide first: continue the measurement (issues #7 "evidence cache + claim check for career docs" and #14 "claim set, 3-item cap, and graceful degrade for reviews" need it), or remove `claim_audit.py` and its unit test as unused code.
+  - **Files**: src/careerbrew/work/claim_audit.py; tests/unit/test_claim_audit.py; tests/claim_audit_driver.py; scripts/measure-evidence-claims.py; tests/safety/
+  - **Hypothesis**: after the decision, no module in `src/careerbrew` is used only by its own unit test for claim audit: either the harness runs it, or it is gone.
+  - **Measurement**: `rg -l "claim_audit" src tests scripts | wc -l`, and `uv run pytest tests/safety -q -k claim_audit` when the harness is kept.
+  - **Success**: the harness tests pass with pins that match the public tree, or the count of files that name `claim_audit` is 0.
+  - **Pivot**: if re-pinning takes more than one working day, drop the harness and remove the module.
+  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM).
+
 - [ ] Make careerbrew a public repository with no personal or business content
   - **ID**: open-source-release
   - **Blocked**: owner step: answer decisions D1 to D8 in the release plan (licence, owner identity, job-hunt content, work journals, old issues, exercise wording, public name, the corporate-laptop story). Phase 1 (the measuring script) is not blocked and can start now.
