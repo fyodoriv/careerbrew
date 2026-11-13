@@ -856,6 +856,7 @@ tests/unit/test_privacy_index.py,port,rust-27,Port staged privacy scan controls 
 hooks/lefthook/pre-push/privacy.sh,port,rust-27,Preserve pre-push context and strict scan
 scripts/verify-push-context.py,port,rust-27,Bound and validate pre-push context
 tests/unit/test_push_context.py,port,rust-27,Exercise native push context and strict scan
+tests/unit/test_pre_push_root_guard.py,port,rust-27,Exercise the public first-commit guard of the push context
 tests/unit/test_gate_cache_index.py,port,rust-27,Check staged-tree and revision cache identity
 tests/unit/test_gate_cache_runtime.py,port,rust-27,Check external Rust runtime changes cannot reuse passes
 scripts/benchmark-day-start-discovery.py,port,rust-27,Measure isolated update discovery with owned synthetic checkouts

@@ -435,16 +435,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if readiness drops, restore the old checkout from the bundle the script wrote, file the failing check by its id, and fix the script before the next machine moves.
   - **Anchor**: Forsgren, Humble & Kim 2018 (DORA change failure rate).
 
-- [ ] Refuse a push of the old history from inside the repository
-  - **ID**: pre-push-root-guard
-  - **Details**: A checkout made before 2026-11-12 holds the old private history. Today only the owner's machine-wide hook stops a push of it. Add a check to the repository's own pre-push hook: every pushed commit must descend from the first commit `22e3e591b70dd8a5f8a1111355201b85c8f68ed5`; when one does not, stop and print the path of `docs/migrate-to-public-history.md`. Test it with scratch repositories, like `tests/unit/test_migrate_history.py`.
-  - **Files**: lefthook.yml; scripts/; tests/unit/
-  - **Hypothesis**: pushes of old-history commits to the repository fall to 0, because the hook travels with every clone.
-  - **Measurement**: `uv run pytest tests/unit/test_pre_push_root_guard.py -q`.
-  - **Success**: the test passes: a push of an old-root branch exits non-zero and a push of a new-root branch exits 0.
-  - **Pivot**: if a hook cannot see the pushed commits on some git version, add a server-side branch rule instead and record it in `docs/ci.md`.
-  - **Anchor**: Reason 1990 (defence in depth, "Human Error").
-
 - [ ] Measure the PM why-it-matters notes and the named results in real use
   - **ID**: pm-why-measure
   - **Blocked**: time: needs 2 weeks of PM updates from a user in a real workspace after the merge on 2026-10-27; run the measurement on or after 2026-11-10
