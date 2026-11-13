@@ -20,6 +20,11 @@ of the Rust capture tests holds it in a `Server` header
 (`tests/unit/test_hosted_ci.py` keeps the two equal). One step links the uv
 cache to its default path: a capture test runs uv with a cleared environment.
 
+Each job also makes a local `main` branch (a pull request checkout is detached,
+and one story bundles `main`), puts the pinned Rust tools first on `PATH` (not
+the rustup proxies), and sets an empty telemetry key, so a runner sends no
+usage data.
+
 The runners set `UNIT_JOBS=2` and `E2E_JOBS=2`: a standard runner has few CPUs.
 
 ## Safety rules

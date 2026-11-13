@@ -27,8 +27,9 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  # Never send usage data from a runner.
-  DO_NOT_TRACK: "1"
+  # Never send usage data from a runner: an empty key means nothing is sent.
+  # Not DO_NOT_TRACK: the telemetry story tests that switch itself.
+  CAREERBREW_POSTHOG_KEY: ""
   UNIT_JOBS: "2"
   E2E_JOBS: "2"
   GITLEAKS_VERSION: "8.30.1"
@@ -58,6 +59,10 @@ jobs:
           # The gate compares the branch with origin/main.
           fetch-depth: 0
           persist-credentials: false
+
+      # A pull request checkout is detached. One story bundles the local `main` branch.
+      - name: Local main branch
+        run: git show-ref --verify --quiet refs/heads/main || git branch main origin/main
 
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
