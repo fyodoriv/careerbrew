@@ -176,6 +176,82 @@ def test_an_ignored_file_in_the_way_stops_the_move_and_keeps_the_file(world):
     assert git(clone, "rev-parse", "HEAD") != root
 
 
+def republish(clone: Path, change) -> str:
+    """Change the one public commit, publish it again, and return the new first commit."""
+    public = clone.parent / "public"
+    change(public)
+    git(public, "add", "-A")
+    git(public, "commit", "-q", "--amend", "-m", "Initial public release")
+    git(public, "push", "-q", "--force", str(clone.parent / "new.git"), "main")
+    return git(public, "rev-parse", "HEAD")
+
+
+def test_an_ignored_file_where_the_public_tree_has_a_folder_stops_the_move(world):
+    clone, root, saved = world
+
+    def change(public: Path) -> None:
+        (public / "cfg").mkdir()
+        (public / "cfg" / "a.txt").write_text("public\n")
+
+    root = republish(clone, change)
+    (clone / ".git" / "info" / "exclude").write_text("cfg\n")
+    (clone / "cfg").write_text("the owner's own file\n")
+
+    r = run(clone, root, saved)
+
+    assert r.returncode == 1
+    assert "in the way" in r.stdout
+    assert (clone / "cfg").read_text() == "the owner's own file\n"
+
+
+def test_an_ignored_file_with_a_quote_in_its_name_stops_the_move(world):
+    clone, root, saved = world
+    name = 'q"uote\ttab.txt'
+    root = republish(clone, lambda public: (public / name).write_text("public\n"))
+    (clone / ".git" / "info" / "exclude").write_text("q*\n")
+    (clone / name).write_text("the owner's own file\n")
+
+    r = run(clone, root, saved)
+
+    assert r.returncode == 1
+    assert "in the way" in r.stdout
+    assert (clone / name).read_text() == "the owner's own file\n"
+
+
+def test_an_ignored_file_in_the_way_of_a_local_public_main_stops_the_move(world):
+    clone, root, saved = world
+    git(clone, "fetch", "-q", "origin", "main")
+    git(clone, "checkout", "-q", "-b", "old-main")
+    git(clone, "update-ref", "refs/heads/main", "origin/main")
+    git(clone, "stash", "clear")
+    git(clone, "checkout", "-q", "main")
+    (clone / "local.cfg").write_text("committed on the local main\n")
+    git(clone, "add", "local.cfg")
+    git(clone, "commit", "-q", "-m", "local work on the public history")
+    git(clone, "checkout", "-q", "old-main")
+    (clone / ".git" / "info" / "exclude").write_text("local.cfg\n")
+    (clone / "local.cfg").write_text("the owner's own settings\n")
+
+    r = run(clone, root, saved)
+
+    assert r.returncode == 1
+    assert "in the way" in r.stdout
+    assert (clone / "local.cfg").read_text() == "the owner's own settings\n"
+
+
+def test_a_rerun_after_a_stop_does_not_copy_the_stashes_twice(world):
+    clone, root, saved = world
+    lock = clone / ".git" / "index.lock"
+    lock.write_text("")
+    assert run(clone, root, saved).returncode == 1
+    lock.unlink()
+
+    r = run(clone, root, saved)
+
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert len(git(clone, "for-each-ref", "--format=%(refname)", "refs/pre-public-stash/").split()) == 2
+
+
 def test_a_public_main_with_an_unpushed_commit_is_kept(world):
     clone, root, saved = world
     git(clone, "fetch", "-q", "origin", "main")
