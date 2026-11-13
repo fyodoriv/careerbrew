@@ -34,7 +34,7 @@ def tree(where: Path, note: str) -> None:
 
 @pytest.fixture
 def world(tmp_path):
-    """An "old" clone with two branches and a stash, whose origin now holds a one-commit public history."""
+    """An "old" clone with three branches, a tag and two stashes, whose origin now holds a one-commit public history."""
     old_remote = tmp_path / "old.git"
     git(tmp_path, "init", "-q", "--bare", "-b", "main", str(old_remote))
     clone = tmp_path / "clone"
@@ -49,8 +49,12 @@ def world(tmp_path):
     git(clone, "checkout", "-q", "-b", "feature")
     tree(clone, "feature work")
     git(clone, "commit", "-q", "-am", "feature work")
+    git(clone, "branch", "topic/with-slash")
+    git(clone, "tag", "v-old")
     git(clone, "checkout", "-q", "main")
-    tree(clone, "stashed edit")
+    tree(clone, "stashed edit 1")
+    git(clone, "stash", "-q")
+    tree(clone, "stashed edit 2")
     git(clone, "stash", "-q")
     (clone / "private").mkdir()
     (clone / "private" / "data.txt").write_text("owner data\n")
@@ -75,6 +79,7 @@ def run(clone: Path, root: str, saved: Path) -> subprocess.CompletedProcess[str]
 def test_an_old_checkout_moves_to_the_public_history_and_keeps_every_piece_of_work(world):
     clone, root, saved = world
     old_main, feature, stash = git(clone, "rev-parse", "main"), git(clone, "rev-parse", "feature"), git(clone, "rev-parse", "refs/stash")
+    older_stash = git(clone, "rev-parse", "stash@{1}")
 
     r = run(clone, root, saved)
 
@@ -89,10 +94,116 @@ def test_an_old_checkout_moves_to_the_public_history_and_keeps_every_piece_of_wo
     assert git(clone, "for-each-ref", "--format=%(refname)", "refs/heads/") == "refs/heads/main"
     assert git(clone, "rev-parse", "refs/pre-public/main") == old_main
     assert git(clone, "rev-parse", "refs/pre-public/feature") == feature
-    # The bundle holds both branches and the stash.
+    assert git(clone, "rev-parse", "refs/pre-public/topic/with-slash") == feature
+    # No old tag is left where `git push --tags` would send it.
+    assert git(clone, "for-each-ref", "refs/tags/") == ""
+    assert git(clone, "rev-parse", "refs/pre-public-tags/v-old") == feature
+    # The stashes are still usable, and the bundle holds the branches and every stash.
+    assert git(clone, "rev-parse", "refs/stash") == stash
     (bundle,) = saved.glob("pre-public-*.bundle")
     heads = git(clone, "bundle", "list-heads", str(bundle))
-    assert old_main in heads and feature in heads and stash in heads
+    assert old_main in heads and feature in heads and stash in heads and older_stash in heads
+
+
+def old_heads(clone: Path, root: str) -> list[str]:
+    """Branches and tags a plain push could send that hold any commit outside the public history."""
+    out = []
+    for ref in git(clone, "for-each-ref", "--format=%(refname)", "refs/heads/", "refs/tags/").split():
+        if git(clone, "rev-list", "--max-parents=0", ref) != root:
+            out.append(ref)
+    return out
+
+
+def test_a_failing_checkout_hook_leaves_no_old_branch_behind(world):
+    clone, root, saved = world
+    git(clone, "checkout", "-q", "feature")
+    hook = clone / ".git" / "hooks" / "post-checkout"
+    hook.write_text("#!/bin/sh\nexit 1\n")
+    hook.chmod(0o755)
+
+    r = run(clone, root, saved)
+
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert git(clone, "rev-parse", "HEAD") == root
+    assert old_heads(clone, root) == []
+
+
+def test_a_rerun_sweeps_old_branches_a_manual_reset_left(world):
+    clone, root, saved = world
+    old_main = git(clone, "rev-parse", "main")
+    git(clone, "stash", "clear")
+    git(clone, "fetch", "-q", "origin", "main")
+    git(clone, "reset", "-q", "--hard", "origin/main")  # what the docs forbid, done before the script ran
+    git(clone, "branch", "kept-old", old_main)
+
+    r = run(clone, root, saved)
+
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert old_heads(clone, root) == []
+    assert git(clone, "rev-parse", "refs/pre-public/kept-old") == old_main
+
+
+def test_a_branch_that_merged_both_histories_counts_as_old(world):
+    clone, root, saved = world
+    git(clone, "fetch", "-q", "origin", "main")
+    git(clone, "checkout", "-q", "-b", "mixed")
+    git(clone, "merge", "-q", "--allow-unrelated-histories", "-X", "ours", "-m", "mix", "origin/main")
+    mixed = git(clone, "rev-parse", "mixed")
+
+    r = run(clone, root, saved)
+
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert old_heads(clone, root) == []
+    assert git(clone, "rev-parse", "refs/pre-public/mixed") == mixed
+
+
+def test_an_ignored_file_in_the_way_stops_the_move_and_keeps_the_file(world):
+    clone, root, saved = world
+    public = clone.parent / "public"
+    (public / "local.cfg").write_text("public default\n")
+    git(public, "add", "local.cfg")
+    git(public, "commit", "-q", "--amend", "-m", "Initial public release")
+    git(public, "push", "-q", "--force", str(clone.parent / "new.git"), "main")
+    root = git(public, "rev-parse", "HEAD")
+    (clone / ".git" / "info" / "exclude").write_text("local.cfg\n")
+    (clone / "local.cfg").write_text("the owner's own settings\n")
+
+    r = run(clone, root, saved)
+
+    assert r.returncode == 1
+    assert "in the way" in r.stdout and "local.cfg" in r.stdout
+    assert (clone / "local.cfg").read_text() == "the owner's own settings\n"
+    assert git(clone, "rev-parse", "HEAD") != root
+
+
+def test_a_public_main_with_an_unpushed_commit_is_kept(world):
+    clone, root, saved = world
+    git(clone, "fetch", "-q", "origin", "main")
+    git(clone, "branch", "-m", "main", "old-main")
+    git(clone, "stash", "clear")
+    git(clone, "checkout", "-q", "-b", "main", "origin/main")
+    tree(clone, "new local work")
+    git(clone, "commit", "-q", "-am", "local work on the public history")
+    local = git(clone, "rev-parse", "main")
+    git(clone, "checkout", "-q", "old-main")
+
+    r = run(clone, root, saved)
+
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert git(clone, "symbolic-ref", "--short", "HEAD") == "main"
+    assert git(clone, "rev-parse", "main") == local
+    assert old_heads(clone, root) == []
+
+
+def test_a_detached_head_stops_the_move(world):
+    clone, root, saved = world
+    git(clone, "checkout", "-q", "--detach")
+
+    r = run(clone, root, saved)
+
+    assert r.returncode == 1
+    assert "detached" in r.stdout
+    assert not saved.exists()
 
 
 def test_a_second_run_changes_nothing(world):
@@ -149,3 +260,4 @@ def test_a_folder_that_is_not_careerbrew_is_refused(tmp_path):
     r = run(tmp_path / "other", "0" * 40, tmp_path / "saved")
 
     assert r.returncode == 2
+    assert "not a careerbrew checkout" in r.stdout

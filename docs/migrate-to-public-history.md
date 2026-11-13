@@ -26,12 +26,15 @@ Run them in the checkout (`careerbrew where` prints its folder).
 1. Get the script from the public history and run it:
 
    ```bash
-   git fetch origin main && git show origin/main:scripts/migrate-history.sh | bash
+   git fetch origin main && git show origin/main:scripts/migrate-history.sh > "${TMPDIR:-/tmp}/migrate-history.sh" && bash "${TMPDIR:-/tmp}/migrate-history.sh"
    ```
 
 2. If it stops, do what its last line says, then run it again. It stops when:
    - a tracked file has uncommitted changes: commit them on a branch first;
-   - a linked worktree exists: finish or remove it first;
+   - a file is marked assume-unchanged or skip-worktree: clear the mark first;
+   - a file on disk is in the way of a file the new history tracks: move it out first;
+   - `HEAD` is detached: check out a branch first;
+   - a linked worktree exists: finish or remove it first (`git worktree prune` for a folder that is gone);
    - `origin` is not the public careerbrew repository.
 
 3. Set up and check the checkout:
@@ -55,8 +58,10 @@ Run them in the checkout (`careerbrew where` prints its folder).
 ## What the script does
 
 - It saves every branch, tag and stash in one bundle file under `~/.local/state/careerbrew-cutover/`.
-- It moves each old branch to `refs/pre-public/<name>` in the same clone. A plain `git push` does not send those.
-- It puts `main` on the public history and sets its upstream.
+- It moves each old branch to `refs/pre-public/<name>` and each old tag to `refs/pre-public-tags/<name>` in the same clone. `git push` and `git push --tags` do not send those. A branch that merged both histories counts as old.
+- It keeps your stashes, and a copy of each one under `refs/pre-public-stash/`.
+- It puts `main` on the public history and sets its upstream. A local `main` that is already on the public history stays as it is.
+- A second run finishes a move that stopped half way.
 - It leaves `private/`, the plugin folders and every other ignored file as they are. Your data and settings do not move.
 
 ## What stays the same
