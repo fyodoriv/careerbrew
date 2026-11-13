@@ -22,6 +22,7 @@ docs/plans/
 !docs/plans/2026-11-05-rust-data-fixture-v1.json
 !docs/plans/2026-11-05-rust-data-phase-schema.json
 !docs/plans/2026-11-05-rust-data-value-schema.json
+!docs/plans/2026-11-06-rust-leaf-unit-calibration.md
 !docs/plans/2026-11-08-promise-action-delta.json
 !docs/plans/2026-11-08-rules-action-delta.json
 

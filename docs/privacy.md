@@ -58,6 +58,39 @@ The receipt remains until replacement or data-root removal; stopping keeps it.
 
 ## Data exits and their guards
 
+Rust00 phase-A wait4 accounting is private developer-harness preparation. It
+retains only the exact waited child's five signed CPU/RSS fields and validation
+outcome internally; normal callers discard them. Accounted and unwaited
+descendants remain unknown. CLI/HTTP JSON, status and error
+projections stay unchanged. The fixed synthetic controls write invocation-owned
+0700 directories and bounded 0600 receipts under `.metrics/`, with numeric
+PID/status/counter evidence and those raw fields. They read no owner data and
+import no metrics from child stdout, environment or JSON. Synthetic checked-unit
+arithmetic exists only in the new test target. Units remain uncalibrated; no
+whole-tree CPU, concurrent peak RSS, resource admission or production switch is
+claimed.
+
+Rust00 phase-B calibration is a private fixed-fixture experiment. Its ordinary
+test target runs only synthetic record-refusal controls; the six native samples
+are ignored and require a separate reviewed exclusive release. The abort-profile
+leaf has no application data path. A live parent-owned regular0600 file carries
+one record of 96 bytes through its temporarily inherited descriptor. Descriptor
+flags are restored on every path; no foreign descriptor or parent limit changes.
+The record holds only fixed mode/payload/checksums, numeric file/PID identity and
+the Mach byte maximum. Raw wait4 usage still comes only from the exact-child
+owner. Source, OS/runtime and frozen binary pins bind invocation-owned0700
+directories and bounded0600 receipts under `.metrics/wait4-phase-b-actual/`.
+Each outcome keeps owner-observed program and argument OS bytes, with an absent
+binding when no spawn observation exists. Environment metadata holds configured
+Command keys only, after the fixed env_clear call; it is not an independently
+observed child environment. No environment values or parent environment are
+read into receipts. Failed observed outcomes retain their failure and metadata.
+No production metric parser, admitted unit, whole-tree claim or user action is
+added. The [phase-B plan](plans/2026-11-06-rust-leaf-unit-calibration.md) states
+the separate source, compile, actual and qualification releases.
+The receipt-binding plan fixes
+the private metadata obligation without changing the six-sample criteria.
+
 Source-health GETs read existing encrypted declarations and validation receipts.
 Their versioned output contains canonical source ids, finite reasons, times,
 ages, counts and fixed existing repair commands, never titles, raw replies,

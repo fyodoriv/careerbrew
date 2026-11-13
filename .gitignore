@@ -170,3 +170,8 @@ __pycache__/
 !/xtask/tests/fixtures/linux-observer-replay-v7/status.json
 !/xtask/tests/fixtures/linux-observer-replay-v7/manifest.json
 !/xtask/tests/fixtures/linux-observer-replay-v7/README.md
+!/xtask/tests/wait4_accounting.rs
+!/xtask/tests/wait4_unit_calibration.rs
+!/xtask/examples/
+/xtask/examples/*
+!/xtask/examples/wait4_leaf.rs

@@ -818,6 +818,9 @@ tests/unit/test_doctor_rust_deps.py,port,rust-27,Synthetic dependency doctor ref
 web/e2e/comfort-fixtures.ts,keep-ui,,Keep test-scoped Playwright screen fixture in TypeScript
 web/e2e/comfort-screen.ts,keep-ui,,Keep per-test browser-context ownership and cleanup in TypeScript
 web/src/comfort-screen.test.ts,keep-ui,,Keep actual browser-context ownership helper unit controls in TypeScript
+xtask/tests/wait4_accounting.rs,keep-native,rust-00,Fixed sole-reap lifecycle and synthetic checked-unit controls; no resource admission
+xtask/examples/wait4_leaf.rs,keep-native,rust-00,Fixed trusted Darwin abort-profile calibration leaf; default refusal stub
+xtask/tests/wait4_unit_calibration.rs,keep-native,rust-00,Private oracle refusal controls and separately released ignored exclusive unit experiment
 src/careerbrew/work/health.py,port,rust-14,Read-only acquisition health and direct receipt completion owned with live feed
 tests/unit/test_issue_406.py,port,rust-27,Port declared coverage and source health boundary assertions with domain slices
 tests/e2e/live_health_seed.py,port,rust-27,Port isolated source health runtime fixture with backend assertions
