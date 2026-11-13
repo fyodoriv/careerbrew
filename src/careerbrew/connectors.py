@@ -132,7 +132,12 @@ def open_url(req: urllib.request.Request, timeout: float, also: Callable[[str], 
     return urllib.request.build_opener(_PolicyRedirect(also)).open(req, timeout=timeout)  # noqa: S310 (policy-checked hosts)
 
 
-def http_json(url: str, headers: dict[str, str], body: dict[str, Any] | None = None) -> Any:
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def http_json(url: str, headers: dict[str, str], body: dict[str, Any] | None = None, *, allow_redirects: bool = True) -> Any:
     check_host(url)
     if os.environ.get("CAREERBREW_HTTP_FIXTURES"):
         fixture = json.loads(_fixture_path(url).read_text(encoding="utf-8"))
@@ -141,7 +146,11 @@ def http_json(url: str, headers: dict[str, str], body: dict[str, Any] | None = N
         return fixture
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, headers={"Accept": "application/json", "Content-Type": "application/json", **headers})
-    with open_url(req, timeout=30) as resp:
+    if allow_redirects:
+        with open_url(req, timeout=30) as resp:
+            return json.loads(resp.read())
+    opener = urllib.request.build_opener(_NoRedirect())
+    with opener.open(req, timeout=30) as resp:  # noqa: S310 (configured hosts, policy-checked)
         return json.loads(resp.read())
 
 

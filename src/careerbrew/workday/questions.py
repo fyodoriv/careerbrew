@@ -45,6 +45,7 @@ from typing import Any
 from .. import events, store
 
 SIGNIN = "careerbrew:signin"
+REVIEW_PR = "careerbrew:review-pr"
 CARRY_DAYS = 14
 MAX_TEXT = 200
 MAX_OPTION = 80
@@ -65,11 +66,13 @@ def _today() -> date:
 
 
 def kind(recheck: str) -> str:
-    """`none`, `url`, `signin`, or `command`."""
+    """The kind of recheck, without its private input."""
     if not recheck:
         return "none"
     if recheck.startswith(("https://", "http://")):
         return "url"
+    if recheck.startswith(REVIEW_PR):
+        return "review-pr"
     return "signin" if recheck == SIGNIN else "command"
 
 
@@ -106,7 +109,7 @@ def _line(field: str, value: str, limit: int) -> str:
 
 
 def check_recheck(v: str) -> str:
-    """A recheck: empty, an http(s) link, `careerbrew:signin`, or one command line a shell could split."""
+    """Validate a link, a typed recheck or one command line."""
     v = (v or "").strip()
     if not v or kind(v) in ("url", "signin"):
         if any(c in v for c in "\n\r\0 "):
@@ -114,12 +117,25 @@ def check_recheck(v: str) -> str:
         return v
     if len(v) > MAX_RECHECK or any(c in v for c in "\n\r\0"):
         raise ValueError(f"--recheck: use one line of at most {MAX_RECHECK} characters")
+    if kind(v) == "review-pr":
+        _review_pr_url(v)
+        return v
     try:
         if not shlex.split(v):
             return ""
     except ValueError:
         raise ValueError("--recheck: the command has an unclosed quote") from None
     return v
+
+
+def _review_pr_url(value: str) -> str:
+    from ..work import review_ask
+
+    prefix, separator, url = value.partition(" ")
+    if prefix != REVIEW_PR or not separator:
+        raise ValueError("--recheck: use careerbrew:review-pr followed by one HTTPS PR link")
+    review_ask.recheck_pr_link(url)
+    return url
 
 
 def record(step: str, text: str, options: list[str] | None = None, pick: str = "", recheck: str = "", source: str = "agent", ident: str = "", steps: list[str] | None = None) -> dict[str, Any]:
@@ -237,14 +253,17 @@ def open_records(day: date | None = None) -> list[dict[str, Any]]:
     return list(out.values())
 
 
-def close(ident: str, why: str = "answered", day: date | None = None) -> bool:
+def close(ident: str, why: str = "answered", day: date | None = None, *, expected: dict[str, Any] | None = None) -> bool:
     """Close an open record in the file it lives in. False when no open record has that id."""
     stamp = _now().isoformat(timespec="seconds")
-    for d in _days(day or _today()):
+    days = [date.fromisoformat(expected["day"])] if expected is not None else _days(day or _today())
+    for d in days:
 
         def change(have: list[dict[str, Any]]) -> bool:
             for q in have:
                 if q["id"] == ident and not q.get("closed"):
+                    if expected is not None and q != {k: v for k, v in expected.items() if k not in {"day", "age"}}:
+                        return False
                     q.update(closed=why, closedAt=stamp)
                     return True
             return False
@@ -291,6 +310,14 @@ def check_one(q: dict[str, Any]) -> tuple[str, str]:
     source = q.get("source", "agent")
     if source.startswith("plugin:") and not may_run(source):
         return "unknown", "the recheck comes from a plugin that may not run commands: careerbrew plugin add <src> --allow-exec"
+    if k == "review-pr":
+        from ..work import review_ask
+
+        try:
+            url = _review_pr_url(q["recheck"])
+        except ValueError:
+            return "unknown", "review recheck: invalid PR link"
+        return review_ask.recheck_pr(url)
     ok, why = run_verify(q["recheck"])
     if ok:
         return "open", "recheck: still open"
@@ -320,7 +347,11 @@ def recheck(day: date | None = None) -> dict[str, Any]:
             continue
         state, why = check_one(q)
         if state == "closed":
-            close(q["id"], why, date.fromisoformat(q["day"]))
+            expected = q if kind(q["recheck"]) == "review-pr" else None
+            closed = close(q["id"], why, date.fromisoformat(q["day"]), expected=expected)
+            if expected is not None and not closed:
+                ask.append({**q, "state": "unknown", "why": "review recheck: question changed"})
+                continue
             dropped.append({"id": q["id"], "step": q["step"], "age": q["age"], "why": why})
         else:
             ask.append({**q, "state": state, "why": why})

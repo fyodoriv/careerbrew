@@ -3620,7 +3620,7 @@ pub fn source_copy_metadata_probe(root: &Path, output: &Path) -> Result<(), Stri
     let fixture = strict_json(FIXTURE.as_bytes())?;
     let environment = prepare(root, &owned, &fixture)?;
     let expected = shared::sources(root)?;
-    if expected.as_object().is_none_or(|m| m.len() != 137) {
+    if expected.as_object().is_none_or(|m| m.len() != 138) {
         return Err("source probe expected count differs".into());
     }
     let result = prepare_source_copy(root, &environment, &expected, output, &base, &copied);
