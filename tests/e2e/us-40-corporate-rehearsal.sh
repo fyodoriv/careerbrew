@@ -5,8 +5,11 @@ PY="$ROOT/.venv/bin/python"
 # Random synthetic names: a fixed name would sit in a tracked file and fail the repo-term check.
 org="Zq$("$PY" -c 'import secrets, string; print("".join(secrets.choice(string.ascii_lowercase) for _ in range(8)))')"
 # 1. Get the code: option B, a git bundle, then block pushes.
-git -C "$ROOT" bundle create "$SCRATCH/careerbrew.bundle" main >/dev/null 2>&1
-git -c advice.detachedHead=false clone -q "$SCRATCH/careerbrew.bundle" "$SCRATCH/clone" || fail "bundle clone works"
+git -C "$ROOT" bundle create "$SCRATCH/careerbrew.bundle" main >"$SCRATCH/bundle.log" 2>&1 || { cat "$SCRATCH/bundle.log"; fail "bundle create works"; }
+git -c advice.detachedHead=false clone -q "$SCRATCH/careerbrew.bundle" "$SCRATCH/clone" || {
+  git version; cat "$SCRATCH/bundle.log"; git -C "$ROOT" bundle verify "$SCRATCH/careerbrew.bundle" 2>&1 | tail -5
+  fail "bundle clone works"
+}
 git -C "$SCRATCH/clone" remote set-url --push origin no-push-from-corporate
 expect "$(git -C "$SCRATCH/clone" remote get-url --push origin)" "no-push-from-corporate" "pushes blocked"
 # 2. Install with the corporate role (run from this checkout: the clone has no venv).

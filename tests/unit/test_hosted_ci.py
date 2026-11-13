@@ -13,3 +13,13 @@ def test_the_runner_python_is_the_one_in_the_frozen_http_reference():
     assert len(frozen) == 1, frozen
     pinned = re.findall(r'python-version: "([^"]+)"', WORKFLOW.read_text())
     assert pinned == [frozen.pop()]
+
+
+def test_the_runner_skips_only_the_picture_comparison_and_says_so():
+    story = (ROOT / "tests/e2e/us-75-visual-stories.sh").read_text()
+    guard = story.index('"${CAREERBREW_VISUAL_PICTURES:-}" = local-only')
+    # The story checker and the test count run before the skip; the comparison runs after it.
+    assert story.index("check-stories.py") < guard and story.index("pw_total visual") < guard
+    assert guard < story.index("--reporter=line")
+    assert "CAREERBREW_VISUAL_PICTURES: local-only" in WORKFLOW.read_text()
+    assert "hosted-visual-pictures" in (ROOT / "docs/ci.md").read_text()

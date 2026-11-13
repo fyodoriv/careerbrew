@@ -8,7 +8,7 @@ runners. The workflow is [`.github/workflows/ci.yml`](../.github/workflows/ci.ym
 | Check | Runner | Commands |
 |---|---|---|
 | `gate (ubuntu-24.04)` | `ubuntu-24.04` | `scripts/setup.sh`, then `scripts/check.sh` |
-| `gate (macos-15)` | `macos-15` | the same; this job also proves the visual tests, whose approved pictures are `*-darwin.png` |
+| `gate (macos-15)` | `macos-15` | the same |
 
 Each job installs the tools a new machine lacks: uv, Node 24, the Rust version
 that `rust-toolchain.toml` pins, gitleaks (a pinned release with a checked
@@ -42,7 +42,19 @@ Keep every rule when you change a workflow.
 
 ## What the hosted gate cannot check
 
-The owner's private-pattern file lives only on the owner's machine. So the
+Two checks stay local.
+
+**Approved pictures (US-75).** The pictures in `web/visual/__screenshots__` are
+drawn on a developer Mac and compared with no pixel of slack. A hosted macOS
+runner draws each screen 50 to 160 pixels off (run 43493131555: 176 of 196
+visual tests failed that way). So the workflow sets
+`CAREERBREW_VISUAL_PICTURES=local-only`, and the story then checks that every
+story has its pictures and that Playwright lists every visual test, but
+compares none. After a change to a screen, run `cd web && npm run build &&
+npm run visual` on your Mac. Task `hosted-visual-pictures` tracks pictures a
+runner can check.
+
+**The private pattern.** The owner's private-pattern file lives only on the owner's machine. So the
 private-pattern leak check runs only in the local git hooks. The hosted gate
 still runs the repo's own privacy scan (`scripts/leak-check.sh`) and gitleaks.
 

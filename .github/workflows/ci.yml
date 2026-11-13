@@ -30,6 +30,8 @@ env:
   # Never send usage data from a runner: an empty key means nothing is sent.
   # Not DO_NOT_TRACK: the telemetry story tests that switch itself.
   CAREERBREW_POSTHOG_KEY: ""
+  # Approved pictures are drawn on a developer Mac; a runner renders a few pixels off (docs/ci.md).
+  CAREERBREW_VISUAL_PICTURES: local-only
   UNIT_JOBS: "2"
   E2E_JOBS: "2"
   GITLEAKS_VERSION: "8.30.1"
