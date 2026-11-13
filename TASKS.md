@@ -424,6 +424,27 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P1
 
+- [ ] Prove the company plugin works on the corporate machine after the move to the new history
+  - **ID**: company-plugin-after-history-move
+  - **Blocked**: a step only the corporate machine can do: the plugin and its tools live there. Check: `git -C "$(uv run careerbrew where)" rev-list --max-parents=0 HEAD` prints `22e3e591b70dd8a5f8a1111355201b85c8f68ed5` on that machine.
+  - **Details**: The repository moved to a one-commit history on 2026-11-12. A company plugin lives in its own repository and its interface did not change, so it must work as before. Steps on the corporate machine: (1) before the move, run `uv run careerbrew machine ready` and note N in `corporate readiness: N/N`. (2) Follow `docs/migrate-to-public-history.md`. (3) Run `scripts/setup.sh`, then `scripts/doctor.sh`. (4) Run `uv run careerbrew machine ready` again. (5) Run `uv run careerbrew day start --update-only`. Never paste plugin names, company names or command output with work data into an issue: report counts only. Do the same on each other machine that uses careerbrew (4 machines in total), without step 1 and step 4 where no plugin is installed.
+  - **Files**: docs/migrate-to-public-history.md; scripts/migrate-history.sh
+  - **Hypothesis**: the move changes no plugin behaviour, because the plugin folders are ignored files and the script leaves ignored files in place.
+  - **Measurement**: `uv run careerbrew machine ready` before and after the move, and `scripts/doctor.sh`.
+  - **Success**: the readiness line shows the same N/N after the move as before, the doctor ends with 0 failed, and `day start --update-only` no longer reports `diverged`.
+  - **Pivot**: if readiness drops, restore the old checkout from the bundle the script wrote, file the failing check by its id, and fix the script before the next machine moves.
+  - **Anchor**: Forsgren, Humble & Kim 2018 (DORA change failure rate).
+
+- [ ] Refuse a push of the old history from inside the repository
+  - **ID**: pre-push-root-guard
+  - **Details**: A checkout made before 2026-11-12 holds the old private history. Today only the owner's machine-wide hook stops a push of it. Add a check to the repository's own pre-push hook: every pushed commit must descend from the first commit `22e3e591b70dd8a5f8a1111355201b85c8f68ed5`; when one does not, stop and print the path of `docs/migrate-to-public-history.md`. Test it with scratch repositories, like `tests/unit/test_migrate_history.py`.
+  - **Files**: lefthook.yml; scripts/; tests/unit/
+  - **Hypothesis**: pushes of old-history commits to the repository fall to 0, because the hook travels with every clone.
+  - **Measurement**: `uv run pytest tests/unit/test_pre_push_root_guard.py -q`.
+  - **Success**: the test passes: a push of an old-root branch exits non-zero and a push of a new-root branch exits 0.
+  - **Pivot**: if a hook cannot see the pushed commits on some git version, add a server-side branch rule instead and record it in `docs/ci.md`.
+  - **Anchor**: Reason 1990 (defence in depth, "Human Error").
+
 - [ ] Measure the PM why-it-matters notes and the named results in real use
   - **ID**: pm-why-measure
   - **Blocked**: time: needs 2 weeks of PM updates from a user in a real workspace after the merge on 2026-10-27; run the measurement on or after 2026-11-10
