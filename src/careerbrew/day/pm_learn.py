@@ -461,3 +461,65 @@ def left_out(raw: list[str], learned: dict[str, Any] | None = None) -> list[str]
     """The labels of the raw draft that the lessons leave out of the shown one: the PM view names them."""
     learned = rules() if learned is None else learned
     return [label for label, _ in (_split(line) for line in raw) if label in learned["cut"]]
+
+
+def _cut_date(label: str, rows: list[dict[str, Any]], resets: dict[str, Any]) -> dict[str, Any]:
+    key = _norm(label)
+    dated: list[tuple[datetime, str, str | None]] = []
+    days: list[str] = []
+    for row in rows:
+        if (since := resets.get(key)) and _before(row, since):
+            continue
+        raw = _lines(str(row.get("draft") or ""))
+        shown = _lines(str(row.get("shown") or row.get("draft") or ""))
+        body = _lines(str(row.get("body") or ""))
+        if not any(_norm(lab) == key and _find(lab, text, shown) and not _find(lab, text, body) for lab, text in raw):
+            continue
+        day = str(row.get("day") or "")
+        try:
+            if date.fromisoformat(day).isoformat() == day:
+                days.append(day)
+        except ValueError:
+            pass
+        saved = str(row.get("saved") or "")
+        try:
+            stamp = datetime.fromisoformat(saved)
+            if stamp.utcoffset() is not None:
+                dated.append((stamp, saved, day if day in days else None))
+        except (ValueError, OverflowError):
+            pass
+    if dated:
+        _, saved, day = max(dated, key=lambda value: value[0])
+        return {"recorded_at": saved, "report_day": day, "date_basis": "saved"}
+    return {"recorded_at": None, "report_day": max(days, default=None), "date_basis": "report-day" if days else "unavailable"}
+
+
+def cut_projection(raw: list[str], body: str, learned: dict[str, Any], rows: list[dict[str, Any]]) -> tuple[list[str], dict[str, Any]]:
+    """Project learned cut labels against current text without changing lessons."""
+    candidates = []
+    seen = set()
+    resets = store.read_json(resets_path(), {}) or {}
+    for label in left_out(raw, learned):
+        key = _norm(label)
+        if key in seen:
+            continue
+        seen.add(key)
+        spellings = dict.fromkeys([label, learned["rename"].get(label, label)])
+        candidates.append({"label": label, "aliases": [{"spelling": value, "norm": _norm(value)} for value in spellings], **_cut_date(label, rows, resets)})
+
+    present = set()
+    unknown = False
+    spellings = {alias["spelling"] for candidate in candidates for alias in candidate["aliases"]}
+    for line in body.splitlines():
+        clean = line.strip().lstrip("-•◦ ").strip()
+        if not clean:
+            continue
+        label, _ = _split(line)
+        if not label or re.match(r"(?:[#>|<]|\[|`{3}|~{3}|\d+[.)]\s)", clean) or ("|" in label):
+            unknown = True
+        elif label.isascii() or label in spellings:
+            present.add(_norm(label))
+        else:
+            unknown = True
+    absent = [candidate["label"] for candidate in candidates if not any(alias["norm"] in present for alias in candidate["aliases"])]
+    return ([] if unknown else absent), {"schema": 1, "candidates": candidates}

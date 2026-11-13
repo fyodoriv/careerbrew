@@ -54,6 +54,19 @@ tests/e2e/us-96-work-day-stages.sh,rust-27,"staged=""$(python3 -c 'import json,s
 tests/e2e/us-99-promises.sh,rust-27,"name=""$(cb work promise list --json | python3 -c 'import json,sys; print(json.load(sys.stdin)[""promises""][0][""name""])')"""
 web/e2e/mcp-repair-fixture.ts,rust-27,"const rejectSnapshot = (reason: ""ps-error"" | ""ps-nonzero"" | ""malformed-row"" | ""foreign-member"" | ""live-member""): never => {"
 tests/unit/test_mcp_browser_fixture.py,rust-27,"DIAGNOSTIC_CHECK = r"""""""
+tests/e2e/pm-cut-seed-and-serve.sh,rust-27,/bin/bash --noprofile --norc -c '
+tests/e2e/pm-cut-seed-and-serve.sh,rust-27,"""$1/.venv/bin/python"" -I -B ""$1/tests/e2e/seed_pm_cut.py"""
+tests/e2e/pm-cut-seed-and-serve.sh,rust-27,"exec ""$1/.venv/bin/python"" -I -B -m careerbrew serve --port ""$2"""
+tests/safety/issue373_ui_child.sh,rust-27,"""$py"" -I -S -B ""$ROOT/tests/safety/issue373_metadata.py"" entry"
+tests/safety/issue373_ui_child.sh,rust-27,"""$ISSUE373_NODE"" node_modules/playwright/cli.js test --config playwright.issue373.config.ts > ""$ISSUE373_RUN/playwright.stdout"" 2> ""$ISSUE373_RUN/playwright.stderr"""
+tests/safety/issue373_ui_child.sh,rust-27,"""$py"" -I -S -B ""$ROOT/tests/safety/issue373_metadata.py"" terminal"
+tests/safety/issue373_web_server.sh,rust-27,"""$py"" -I -S -B -c '"
+tests/safety/issue373_web_server.sh,rust-27,"""$ISSUE373_NODE"" node_modules/vite/bin/vite.js build --config vite.issue373.config.ts --configLoader runner > ""$run/build.stdout"" 2> ""$run/build.stderr"""
+tests/safety/issue373_web_server.sh,rust-27,"exec ""$ROOT/.venv/bin/python"" -I -B ""$ROOT/tests/safety/issue373_server.py"" ""$scenario"" ""$run"""
+tests/safety/run_issue_373_ui.sh,rust-27,"/bin/bash --noprofile --norc ""$ROOT/tests/safety/issue373_ui_child.sh"""
+web/playwright.issue373.config.ts,rust-27,"command: `exec /bin/bash --noprofile --norc '${root}/tests/safety/issue373_web_server.sh' '${scenario}' '${run}'`,"
+web/playwright.pm-cut.config.ts,rust-27,"command: `bash ../tests/e2e/pm-cut-seed-and-serve.sh ${port}`,"
+tests/e2e/us-59-pm-update.sh,rust-27,"if ! bash tests/safety/run_issue_373_ui.sh geometry > ""$geometry_log"" 2>&1; then"
 xtask/tests/fixtures/linux-observer/Dockerfile,rust-27,RUN apt-get update && apt-get install -y --no-install-recommends strace=6.1-0.1 && rm -rf /var/lib/apt/lists/*
 xtask/tests/fixtures/linux-observer/Dockerfile,rust-27,RUN strace --version && strace --help && python --version && dpkg-query -W strace
 xtask/src/observer_probe.rs,rust-27,"const CONTROLLER_TRANSPORT: &str = r#"""
