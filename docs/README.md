@@ -16,6 +16,7 @@ One row per doc: the question it answers and who reads it.
 | [metrics.md](metrics.md) | Which outcome metrics exist, and how is capability coverage measured? | both |
 | [integrations.md](integrations.md) | How do Slack, Google Docs, Jira, GitHub, Zoom, Outlook, and PagerDuty connect, how does the work feed triage them, and how do corporate and personal machines work together? | both |
 | [corporate-machine.md](corporate-machine.md) | How do I set up a corporate laptop and build the company plugin? | both |
+| [migrate-to-public-history.md](migrate-to-public-history.md) | My old checkout says `diverged`: how do I move it to the new history without losing work? | both |
 | [learn.md](learn.md) | How do I learn a project so it sticks, and how does careerbrew measure that it stuck? | both |
 | [practice.md](practice.md) | How do flashcards work, and which learning research backs each step? | both |
 | [web.md](web.md) | How do I open the web app, what does each view show, and how is it built? | both |

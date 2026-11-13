@@ -84,6 +84,10 @@ Map the answers to flags: the role → `--role personal|corporate`, each plugin 
 
 ## 4. Install
 
+For an update: when `git pull --ff-only` says the checkout has diverged, the
+clone holds the history from before 2026-11-12. Follow
+[docs/migrate-to-public-history.md](docs/migrate-to-public-history.md) first.
+
 Get a clear yes to the plan, then run from the clone:
 
 ```bash
