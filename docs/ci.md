@@ -15,6 +15,11 @@ that `rust-toolchain.toml` pins, gitleaks (a pinned release with a checked
 SHA-256), and Playwright's Chromium. Then it runs the same two commands a
 contributor runs.
 
+The uv step pins the exact Python version, because the frozen HTTP reference
+of the Rust capture tests holds it in a `Server` header
+(`tests/unit/test_hosted_ci.py` keeps the two equal). One step links the uv
+cache to its default path: a capture test runs uv with a cleared environment.
+
 The runners set `UNIT_JOBS=2` and `E2E_JOBS=2`: a standard runner has few CPUs.
 
 ## Safety rules
