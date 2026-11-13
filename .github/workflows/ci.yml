@@ -1,0 +1,106 @@
+name: CI
+
+# The hosted copy of the local gate: `scripts/setup.sh`, then `scripts/check.sh`,
+# the same commands a contributor runs. It runs on GitHub's standard runners,
+# which are free for a public repository. Read docs/ci.md before you change it.
+#
+# Safety:
+# - No secrets are used. A fork pull request gets a read-only token.
+# - No `private/` data and no real `.env` exist on a runner. Tests use synthetic data.
+# - No artifact is uploaded: a trace or a log would be a public download.
+# - The owner's private-pattern check cannot run here: its pattern file lives
+#   only on the owner's machine. The local pre-push hook stays the authority.
+# - Never change the trigger to `pull_request_target`.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Never send usage data from a runner.
+  DO_NOT_TRACK: "1"
+  UNIT_JOBS: "2"
+  E2E_JOBS: "2"
+  GITLEAKS_VERSION: "8.30.1"
+
+jobs:
+  gate:
+    name: gate (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # Pinned standard images; never a larger runner. macos-15 runs the
+        # visual tests: their approved pictures are `*-darwin.png`.
+        include:
+          - os: ubuntu-24.04
+            gitleaks_asset: linux_x64
+            gitleaks_sha256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+          - os: macos-15
+            gitleaks_asset: darwin_arm64
+            gitleaks_sha256: b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The gate compares the branch with origin/main.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Rust toolchain (the pin in rust-toolchain.toml)
+        run: |
+          pin="$(sed -nE 's/^channel = "([0-9.]+)"$/\1/p' rust-toolchain.toml)"
+          [ -n "$pin" ] || { echo "no Rust pin found in rust-toolchain.toml" >&2; exit 1; }
+          rustup toolchain install "$pin" --profile minimal --component clippy --component rustfmt --no-self-update
+          rustc --version
+
+      - name: gitleaks (pinned release, checked SHA-256)
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin" "$RUNNER_TEMP/gitleaks"
+          file="gitleaks_${GITLEAKS_VERSION}_${{ matrix.gitleaks_asset }}.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/gitleaks/$file" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$file"
+          echo "${{ matrix.gitleaks_sha256 }}  $RUNNER_TEMP/gitleaks/$file" | shasum -a 256 -c -
+          tar -xzf "$RUNNER_TEMP/gitleaks/$file" -C "$RUNNER_TEMP/gitleaks" gitleaks
+          mv "$RUNNER_TEMP/gitleaks/gitleaks" "$RUNNER_TEMP/bin/gitleaks"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/Library/Caches/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+
+      - name: Setup (scripts/setup.sh)
+        # Keep the launcher out of the runner's real bin folder. The doctor
+        # needs `careerbrew` on PATH.
+        run: |
+          PATH="$RUNNER_TEMP/bin:$PATH" CAREERBREW_BIN_DIR="$RUNNER_TEMP/bin" scripts/setup.sh
+
+      - name: Playwright browser (Chromium)
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      - name: Gate (scripts/check.sh)
+        run: scripts/check.sh

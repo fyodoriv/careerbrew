@@ -2,7 +2,8 @@
 
 Thank you for using careerbrew. Start with [`AGENTS.md`](AGENTS.md) for the
 commands, the gate (`scripts/check.sh`), and the privacy rules
-([`docs/privacy.md`](docs/privacy.md)).
+([`docs/privacy.md`](docs/privacy.md)). Every pull request also runs that gate
+on hosted runners ([`docs/ci.md`](docs/ci.md)).
 
 ## Report problems and ideas
 
