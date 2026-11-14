@@ -133,7 +133,7 @@ def test_repo_wrapper_without_lefthook_keeps_context_and_both_checks(repo, tmp_p
     assert b"SYNTHETIC_SECRET" not in result.stdout + result.stderr
 
 
-def test_native_lefthook_receives_real_synthetic_push_shapes(repo, tmp_path):
+def test_native_lefthook_receives_real_synthetic_push_shapes(repo, tmp_path, monkeypatch):
     executable = shutil.which("lefthook")
     if not executable:
         pytest.skip("lefthook is not installed")
@@ -146,6 +146,8 @@ def test_native_lefthook_receives_real_synthetic_push_shapes(repo, tmp_path):
     (repo / "file.txt").write_text("synthetic\n")
     run_git(repo, "add", ".")
     run_git(repo, "commit", "-qm", "initial")
+    # The scratch history has its own first commit (the root guard, test_pre_push_root_guard.py).
+    monkeypatch.setenv("CAREERBREW_PUBLIC_ROOT", run_git(repo, "rev-parse", "HEAD").stdout.decode().strip())
     run_git(repo, "config", "user.name", "Synthetic")
     run_git(repo, "config", "user.email", "synthetic@example.com")
     run_git(repo, "config", "commit.gpgsign", "false")
