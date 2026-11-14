@@ -48,12 +48,12 @@ Run every command from the repo root.
 | What a long run did, its blockers, and next commands (content-free, for agents) | `uv run careerbrew report latest --json` (open the page: `uv run careerbrew open --report latest`) |
 | Install | `uv sync` |
 | One test | `uv run pytest tests/test_file.py::test_name -q` |
-| Select Python tests while iterating | `uv run python scripts/tests_affected.py [<ref>]` lists modules. Add `--run` in a trusted checkout and Python environment. Run the full gate before delivery. |
+| Select Python tests while iterating | `uv run python scripts/tests_affected.py [<ref>]` lists modules. Add `--run` in a trusted checkout and Python environment. The hosted checks run the full gate for the pull request. |
 | Several related test files | `heavy-run uv run pytest -q -n 8 <files>` |
 | Lint and format | `uv run ruff check --fix . && uv run ruff format .` |
 | Type check | `uv run pyright` |
 | Fast gate (each commit; unit tests run in parallel with pytest-xdist, `UNIT_JOBS=0` runs them one by one) | `scripts/check.sh fast` |
-| Full gate with e2e (before you say done; eligible steps cache by their inputs; leak scan, format, lint, `types`, unit, exercises, `web-types`, e2e and Rust steps do not reuse cache entries) | `scripts/check.sh` (`NO_CACHE=1` for a full rerun) |
+| Full gate with e2e (optional on your machine: the hosted checks run it for every pull request, [`docs/ci.md`](docs/ci.md); eligible steps cache by their inputs; leak scan, format, lint, `types`, unit, exercises, `web-types`, e2e and Rust steps do not reuse cache entries) | `scripts/check.sh` (`NO_CACHE=1` for a full rerun) |
 | A gate step's inputs (git pathspecs, like nx target inputs; empty means every file) | `scripts/check.sh inputs <step>...` (change them in `inputs_of`; `tests/unit/test_gate_inputs.py` must pass) |
 | E2E tests only (in parallel; a failing file's log prints at the end; `E2E_JOBS=1` runs them one by one) | `scripts/e2e.sh` |
 | LLM-judged evals and owner labels | `EVALS_LLM=1 evals/run.sh` · `evals/run.sh show` · `evals/run.sh label <case> pass\|fail` · `evals/run.sh agreement` |
@@ -62,7 +62,7 @@ Run every command from the repo root.
 | Speed report | `scripts/metrics.sh` |
 | README Proof numbers (after a green gate; writes `docs/proof/metrics.json`, then the README section) | `scripts/metrics.sh proof` |
 | Capability coverage (runs each distinct story once per report; cross-run reuse is unqualified) | `scripts/metrics.sh capability-coverage` |
-| One full gate for up to 4 ready PRs, then merge them in order (exit 0 merged, a PR that conflicts left out and named; 1 failed and nothing merged, 2 refused, 3 stopped after a merge; `--dry-run` merges nothing) | `scripts/batch-gate.sh <pr>...` (`/careerbrew-grind` step 3, "Batch the full gate") |
+| One local full gate for up to 4 ready PRs, then merge them in order (optional since the hosted checks; exit 0 merged, a PR that conflicts left out and named; 1 failed and nothing merged, 2 refused, 3 stopped after a merge; `--dry-run` merges nothing) | `scripts/batch-gate.sh <pr>...` (`/careerbrew-grind` step 3, "Batch the full gate") |
 | Hosted checks of a pull request (the gate on clean GitHub runners; rules in [`docs/ci.md`](docs/ci.md)) | `gh pr checks <pr>`; a failed run: `gh run view <run-id> --log-failed` |
 | Open work to continue first (PRs, branches, unpushed changes) | `scripts/open-work.sh` |
 | Public-readiness baseline for the open-source release (one line per exposure surface S1 to S22: id, kind, status, count; reads a git ref, never prints matched text; exit 0 only when no surface is `fail` or `error`) | `scripts/public-readiness.sh [--tree <git-ref>]`; owner mode on the owner's Mac: `--release` (adds the private pattern, the privacy scan, the guard, plugin-name and owner-place checks, and the review signatures in `docs/proof/public-readiness.md`); `--tree-hash` prints the hash a signature must carry; `--list-binaries` prints the path and hash of each non-text file for the S7 inventory `docs/proof/public-readiness-binaries.tsv`; `--first-run` makes S17 run setup, doctor and the fast gate in a scratch copy that holds one commit, like a clone (slow; a failed S17 names each failing command by its place and script, for example `failed=4:check.sh`); `--allow-home-override` lets S16 and S20 read the data folder that `CAREERBREW_HOME` names (without it they are `unmeasured` when it is set) |
@@ -89,7 +89,7 @@ Run every command from the repo root.
 | Add a dependency | the manifest, plus a check in `scripts/doctor.sh` | `README.md` if setup changes |
 | Record a decision that is hard to undo | a new `docs/decisions/NNNN-*.md` | none |
 | Plan a change bigger than one PR | `docs/plans/YYYY-MM-DD-<topic>.md` | none |
-| Record what a shipped change taught us | a new `docs/learnings/YYYY-MM-DD-<slug>.md` | `scripts/learnings-table.py --check` must pass |
+| Record what a shipped change taught us | the pull request body, under Predicted / Observed / Lesson (no new file in the learnings folder: the public tree leaves it out) | none |
 | Add or close a task | `TASKS.md` | none |
 | Add an assistant feature | `skills/<feature>/SKILL.md` and a case in `evals/cases/` | `README.md` |
 | Change assistant behavior | `prompts/` or the skill, then run the evals | `evals/rubric.md` if the bar moves |
@@ -135,7 +135,7 @@ Run every command from the repo root.
 
 ## Rules
 
-1. Run `scripts/check.sh` before you say a change is done. Show its output. For up to 4 ready PRs, one `scripts/batch-gate.sh` run counts as each PR's full gate (see `## Delivery`).
+1. A change is done when the hosted checks of its pull request are green: `gate (ubuntu-24.04)`, `gate (macos-15)` and `public-readiness` ([`docs/ci.md`](docs/ci.md)). Show the `gh pr checks <pr>` output. Never wait for a local full gate: run `scripts/check.sh fast` or single tests while you work, and let the runners run the full gate.
 2. A bug fix starts with a failing test that reproduces it.
 3. Each change updates its docs in the same commit (see `## Docs upkeep`).
 4. Touch only what the task needs. Note other problems as tasks in `TASKS.md`.
@@ -232,6 +232,7 @@ A trap that cost time gets a dated row here, or becomes a check.
 | Date | Symptom | Fix |
 |---|---|---|
 | 2026-11-13 | US-40 failed only in a hosted pull-request run: `Could not read <parent of main>` when it cloned its bundle of `main`; the same gate passed on a push | Playwright 1.59 records a diff on GitHub Actions: in a pull request it runs `git fetch origin <base> --depth=1`, which makes the checkout shallow. Every Playwright config sets `captureGitInfo: { commit: false, diff: false }` (test: `test_hosted_ci.py`). When a failure shows only in one CI event type, compare what tools do with `GITHUB_EVENT_PATH` |
+| 2026-11-13 | every merge waited for the local full gate, which queues behind other sessions on one machine (a pre-push fast gate alone took 12 to 16 minutes under load) | the hosted checks are the merge gate now ([`docs/ci.md`](docs/ci.md)); the pre-push hook runs only the push-context check, the leak scan and gitleaks. A test that passes on your Mac can fail on a clean runner: read `gh run view <run-id> --log-failed` first (the first hosted run found 13 such tests: a resolver lookup at bind, `DO_NOT_TRACK`, nice 19 on Linux, folder order) |
 | 2026-11-10 | a public file linked to a journal file, or a build read a file in `docs/plans/`, and the release tree did not hold it | the release tree leaves out `docs/learnings/` and `docs/plans/` (`config/public-release-exclude.txt`). Do not link to a journal file from a file that stays public. A data file that code or a test reads does not belong in a journal folder; until it moves, it needs a `!` line in the list. The list must work, or the readiness script gives `error`: no missing or empty list, no line that matches no file, at least one file left out and one file left, no path that differs from a line only by letter case, no submodule. Surface S21 counts the files that still point to a left-out path. Prove a change with `scripts/public-readiness.sh --write-release-tree <new-dir>`, then run the gate inside that folder with `CAREERBREW_BIN_DIR` set to a scratch folder (`test_public_readiness.py`) |
 | 2026-11-08 | combining rules and promise references added five source inputs beyond the prior census | bind both deltas and all three successor pairs, and update the current source-copy count without changing historical pins (`2026-11-08-rules-promise-combined-reference.md`) |
 | 2026-11-08 | generated confirmed forms showed a second `yes` checkbox although confirmation supplies `--yes` | hide only the boolean `--yes` field for confirmed forms and keep `YES_FROM_CONFIRM` equal to those actions; preserve other `yes` arguments (`test_action_parity.py`) |
@@ -393,9 +394,9 @@ A trap that cost time gets a dated row here, or becomes a check.
 
 1. Branch `type/short-description` from `main`.
 2. Write the task's Hypothesis, Measurement, Success, and Pivot before the code.
-3. Make the change with its tests and docs. Run `scripts/check.sh fast` per commit and `scripts/check.sh` once before merge. Or batch the full gate: once each PR passes `scripts/check.sh fast` and its own e2e stories alone, `scripts/batch-gate.sh <pr>...` (at most 4, none touching `scripts/check.sh`, `scripts/input-key.sh`, `scripts/e2e.sh`, `tests/e2e/lib.sh`, or `web/playwright*.config.ts`) runs one full gate on `main` plus all of them and merges them in order; that gate counts as each PR's gate.
+3. Make the change with its tests and docs. Run the tests you changed, or `scripts/check.sh fast`, while you work. Push as soon as the change is reviewable: a push runs only the leak and secret scans (seconds), and the hosted checks run the full gate on clean runners ([`docs/ci.md`](docs/ci.md)). A local full gate (`scripts/check.sh`, or `scripts/batch-gate.sh` for up to 4 PRs) is optional; use it only when the hosted checks are unavailable.
 4. Commit with a conventional header (`feat:`, `fix:`, `docs:`, `chore:`).
-5. Open a PR with `## Summary`, `## Details`, `## Docs`, and Predicted / Observed / Lesson. Add the learning as its own new file, `docs/learnings/<YYYY-MM-DD>-<slug>.md` (shape in [`docs/learnings.md`](docs/learnings.md)); never a row in `docs/learnings.md`. Merge when the gate is green.
+5. Open a PR with `## Summary`, `## Details`, `## Docs`, and Predicted / Observed / Lesson. The lesson goes in the PR body under Predicted / Observed / Lesson; add no file to the learnings folder under `docs/` (the public tree leaves that folder out, and the `public-readiness` check fails a pull request that adds one). Merge when the hosted checks are green (`gh pr checks <pr>`); read a red check with `gh run view <run-id> --log-failed` before any fix.
 
 ## Task Management
 

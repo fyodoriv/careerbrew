@@ -1,7 +1,9 @@
 # Hosted checks (CI)
 
 Every pull request and every push to `main` runs the gate on clean GitHub
-runners. The workflow is [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
+runners ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)).
+**The hosted checks are the merge gate.** A pull request merges when
+they are green. Nobody waits for a full gate on their own machine.
 
 ## What runs
 
@@ -9,6 +11,7 @@ runners. The workflow is [`.github/workflows/ci.yml`](../.github/workflows/ci.ym
 |---|---|---|
 | `gate (ubuntu-24.04)` | `ubuntu-24.04` | `scripts/setup.sh`, then `scripts/check.sh` |
 | `gate (macos-15)` | `macos-15` | the same |
+| `public-readiness` | `ubuntu-24.04` | `scripts/public-readiness.sh --released` ([workflow](../.github/workflows/public-readiness.yml)): fails on a path the public tree leaves out, a secret-shaped value, or a link to a left-out path; prints counts only |
 
 Each job installs the tools a new machine lacks: uv, Node 24, the Rust version
 that `rust-toolchain.toml` pins, gitleaks (a pinned release with a checked
@@ -33,6 +36,22 @@ cannot be cloned.
 
 The runners set `UNIT_JOBS=2` and `E2E_JOBS=2`: a standard runner has few CPUs.
 
+## Work with the hosted checks
+
+1. While you work, run the tests you changed, or `scripts/check.sh fast`.
+2. Push when the change is reviewable. The pre-push hook takes seconds: it
+   checks the push context, runs the leak scan, and runs gitleaks. It runs no test.
+3. Open the pull request. Wait with `gh run watch <run-id> --interval 30` in
+   the background and do other work.
+4. Merge when `gh pr checks <pr>` shows all three checks green.
+
+The lesson of a change goes in the pull request body (Predicted / Observed /
+Lesson). Do not add a file to the learnings folder under `docs/`: the public
+tree leaves that folder out, so `public-readiness` fails that pull request.
+
+A full local gate (`scripts/check.sh`) still works and is optional. Use it
+when the hosted checks are unavailable.
+
 ## Safety rules
 
 Keep every rule when you change a workflow.
@@ -56,7 +75,7 @@ runner draws each screen 50 to 160 pixels off (run 43493131555: 176 of 196
 visual tests failed that way). So the workflow sets
 `CAREERBREW_VISUAL_PICTURES=local-only`, and the story then checks that every
 story has its pictures and that Playwright lists every visual test, but
-compares none. After a change to a screen, run `cd web && npm run build &&
+compares none. The Linux job skips the story: no Linux pictures exist. After a change to a screen, run `cd web && npm run build &&
 npm run visual` on your Mac. Task `hosted-visual-pictures` tracks pictures a
 runner can check.
 
@@ -81,7 +100,50 @@ This project never spends money. Standard runners are free for a public
 repository. If the repository becomes private, turn the workflow off first:
 a macOS minute on a private repository is billed as 10.
 
-## Change an action version
+## Measure it
+
+- Result time of the last runs: `gh run list --workflow ci.yml --limit 10 --json conclusion,createdAt,updatedAt`. Target: under 45 minutes.
+- Open-to-merge time: `gh pr list --state merged --limit 10 --json number,createdAt,mergedAt`.
+- Runner labels of one run: `gh run view <run-id> --json jobs -q '.jobs[].labels'`. Only `ubuntu-24.04` and `macos-15` may appear.
+- Owner step, once after the first week: read the billing page and confirm 0 paid minutes. An agent cannot see that page.
+
+## Branch rule on `main`
+
+`main` requires the three checks. The owner approved this rule on 2026-11-13.
+This call sets it (an administrator of the repository runs it):
+
+```bash
+gh api -X PUT repos/{owner}/{repo}/branches/main/protection --input - <<'JSON'
+{
+  "required_status_checks": {
+    "strict": false,
+    "checks": [
+      {"context": "gate (ubuntu-24.04)"},
+      {"context": "gate (macos-15)"},
+      {"context": "public-readiness"}
+    ]
+  },
+  "enforce_admins": false,
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "allow_force_pushes": false,
+  "allow_deletions": false
+}
+JSON
+```
+
+- Read it: `gh api repos/{owner}/{repo}/branches/main/protection --jq '.required_status_checks.checks[].context'`.
+- Remove it: `gh api -X DELETE repos/{owner}/{repo}/branches/main/protection`.
+- `enforce_admins` is `false`, so the owner can still merge when GitHub itself
+  is down. Agents never use that path: a red check is read and fixed.
+- If a check name changes in a workflow, change it here in the same pull request.
+
+## Action updates
+
+`.github/dependabot.yml` opens a weekly pull request when a pinned action has
+a newer release. Review the release notes, then merge on green checks.
+
+## Change an action version by hand
 
 Get the commit of a release tag, then replace the SHA and the comment:
 

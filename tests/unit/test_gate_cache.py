@@ -1,4 +1,4 @@
-"""The gate cache: a push right after a green gate reuses it (TASKS slow-pre-push, prepush-reuse-gate).
+"""The gate cache: a run right after a green gate on the same files reuses it (the pre-push hook runs no gate now).
 
 Each test runs the real scripts/check.sh in a tiny repo with stub steps, so it is fast and offline.
 """

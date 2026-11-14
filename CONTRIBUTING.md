@@ -2,8 +2,9 @@
 
 Thank you for using careerbrew. Start with [`AGENTS.md`](AGENTS.md) for the
 commands, the gate (`scripts/check.sh`), and the privacy rules
-([`docs/privacy.md`](docs/privacy.md)). Every pull request also runs that gate
-on hosted runners ([`docs/ci.md`](docs/ci.md)).
+([`docs/privacy.md`](docs/privacy.md)). Every pull request runs that gate
+on hosted runners, and a pull request merges when those checks are green
+([`docs/ci.md`](docs/ci.md)). You do not need a full local gate.
 
 ## Report problems and ideas
 
@@ -46,7 +47,7 @@ The agent never posts anything on its own. It works in these steps:
    or failed re-scan (`✗`) is never posted.
 5. If the fix looks small, it asks a second question: "Want me to make a PR
    that fixes it?" Only after that second yes does it make the change, run
-   the repo gate (`scripts/check.sh`), and open the PR with `agentbrew contribute`
+   the fast gate (`scripts/check.sh fast`), and open the PR with `agentbrew contribute`
    (it forks the repo for you).
 
 A run with nobody at the keyboard only saves the draft

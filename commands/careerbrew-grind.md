@@ -50,10 +50,10 @@ Take P0 first, then bugs, then the rest by priority.
 2. Make its own worktree from `origin/main`, outside the main checkout: `git fetch origin && git worktree add ../wt.noindex/cb-<id> -b <type>/<id>-<slug> origin/main`. Run `uv sync` and `(cd web && npm ci)` there. Never edit the main checkout.
 3. Write the Hypothesis, Measurement, Success, and Pivot before the code.
 4. A bug starts with a failing test that reproduces it. A feature gets its story in `docs/user-stories.md` and an e2e test per case in `tests/e2e/`. Meet every acceptance criterion in the issue.
-5. Update the docs in the same commit (`AGENTS.md` "Where to change what"), and add the learning as its own new file, `docs/learnings/<YYYY-MM-DD>-<slug>.md` (shape in `docs/learnings.md`; never a row there).
-6. Run `scripts/check.sh fast` while you work. Run the full `scripts/check.sh > <log> 2>&1; rc=$?` before the PR.
+5. Update the docs in the same commit (`AGENTS.md` "Where to change what"). The lesson goes in the PR body (Predicted / Observed / Lesson); add no file to the learnings folder.
+6. Run the tests you changed, or `scripts/check.sh fast`, while you work. Do not run or wait for a local full gate: the hosted checks run it (`docs/ci.md`).
 7. Commit with a conventional header. Push, then `gh pr create` with `## Summary`, `## Details`, `## Docs`, Predicted / Observed / Lesson, and `closes #<N>` (or the task ID; remove the task block from `TASKS.md`).
-8. Merge with `gh pr merge --squash --delete-branch` once the gate is green. If GitHub reports a conflict after the push, merge `origin/main` into the branch (never rebase or force-push a pushed branch), resolve it, rerun the gate, push, and merge. Then remove the worktree.
+8. Wait for the hosted checks with `gh run watch <run-id> --interval 30` in the background, and do other work meanwhile. Read a red check with `gh run view <run-id> --log-failed` before any fix. Merge with `gh pr merge --squash --delete-branch` once `gh pr checks <pr>` shows `gate (ubuntu-24.04)`, `gate (macos-15)` and `public-readiness` green. If GitHub reports a conflict after the push, merge `origin/main` into the branch (never rebase or force-push a pushed branch), resolve it, push, wait for the hosted checks again, and merge. Then remove the worktree.
 
 ### Batch the full gate
 

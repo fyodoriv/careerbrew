@@ -44,8 +44,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Pinned standard images; never a larger runner. macos-15 runs the
-        # visual tests: their approved pictures are `*-darwin.png`.
+        # Pinned standard images; never a larger runner. No job compares the
+        # approved pictures: CAREERBREW_VISUAL_PICTURES above (docs/ci.md).
         include:
           - os: ubuntu-24.04
             gitleaks_asset: linux_x64

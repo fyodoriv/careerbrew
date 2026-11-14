@@ -13,6 +13,10 @@ add a new file instead of editing the old one.
 
 ## Add one
 
+Since 2026-11-13 a pull request puts its lesson in its body, under Predicted / Observed / Lesson, and adds
+no file here: the public tree leaves the `learnings/` folder out, and the `public-readiness` check fails a
+pull request that adds one ([ci.md](ci.md)). The steps below are for a private fork that keeps its own journal.
+
 1. Make one new file in that folder: `<YYYY-MM-DD>-<slug>.md` (the date the change ships; the slug is a few
    lower-case words joined by `-`, for example the task ID or the issue number).
 2. Use this shape. Line breaks inside a section are fine; the table joins them.

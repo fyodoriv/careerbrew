@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The one gate. Agents run it before they say a change is done.
-#   scripts/check.sh        full gate: docs, lint, types, unit tests, e2e (once per PR)
+#   scripts/check.sh        full gate: docs, lint, types, unit tests, e2e (the hosted checks run it for every pull request)
 #   scripts/check.sh fast   skips e2e (each commit; keep it under 10 seconds)
 # Each step's time goes to .metrics/events.jsonl; scripts/metrics.sh reports it.
 #
@@ -45,8 +45,8 @@ fi
 key=""
 if [ "${NO_CACHE:-0}" != 1 ]; then
   # The key hashes file content only (scripts/input-key.sh), so it is the same in
-  # fast and full mode and before and after `git add` or `git commit`: eligible
-  # pre-push checks reuse a green gate on the same files. On any error the
+  # fast and full mode and before and after `git add` or `git commit`: a later
+  # run reuses a green gate on the same files. On any error the
   # key is empty: no cache.
   key="$(scripts/input-key.sh)" || key=""
 fi
