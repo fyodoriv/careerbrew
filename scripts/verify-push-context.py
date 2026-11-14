@@ -114,9 +114,14 @@ def pushed_ranges(data: bytes) -> list[str]:
 def secret_scan(ranges: list[str]) -> int:
     """Run gitleaks on every pushed commit, not only the newest ones. Findings are redacted."""
     for commits in ranges:
+        # gitleaks exits 0 when `git log` fails, so prove first that Git can read the range.
+        if _git("rev-list", "--quiet", *commits.split(" ")).returncode != 0:
+            print("pre-push secret scan unavailable: Git cannot read a pushed range; repair the repository", file=sys.stderr)
+            return 1
         try:
             done = subprocess.run(
-                ["gitleaks", "git", "--no-banner", "--redact", "-l", "warn", f"--log-opts={commits}"],
+                # -m: `git log -p` prints no diff for a merge commit without it, and a merge can add a secret.
+                ["gitleaks", "git", "--no-banner", "--redact", "-l", "warn", f"--log-opts=-m {commits}"],
                 stdin=subprocess.DEVNULL,
                 check=False,
                 timeout=300,
