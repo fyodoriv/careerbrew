@@ -48,7 +48,7 @@ Run every command from the repo root.
 | What a long run did, its blockers, and next commands (content-free, for agents) | `uv run careerbrew report latest --json` (open the page: `uv run careerbrew open --report latest`) |
 | Install | `uv sync` |
 | One test | `uv run pytest tests/test_file.py::test_name -q` |
-| Select Python tests while iterating | `uv run python scripts/tests_affected.py [<ref>]` lists modules. Add `--run` in a trusted checkout and Python environment. Run the full gate before delivery. |
+| Select Python tests while iterating | `uv run python scripts/tests_affected.py [<ref>]` lists modules. Add `--run` in a trusted checkout and Python environment. The hosted checks run the full gate for the pull request. |
 | Several related test files | `heavy-run uv run pytest -q -n 8 <files>` |
 | Lint and format | `uv run ruff check --fix . && uv run ruff format .` |
 | Type check | `uv run pyright` |

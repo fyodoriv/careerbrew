@@ -411,6 +411,26 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if 2 of 3 runs differ from each other with the same commit, runner rendering is not stable; keep pictures local and add a pre-merge reminder to the pull request template instead.
   - **Anchor**: Forsgren, Humble & Kim 2018 (DORA, change failure rate); Alegroth, Feldt & Ryrholm 2015 (visual GUI testing in practice).
 
+- [ ] Scan every pushed commit for secrets in the pre-push hook
+  - **ID**: prepush-gitleaks-range
+  - **Details**: The pre-push hook runs gitleaks on the last 20 commits only (`--log-opts=-20` in `lefthook.yml` and `hooks/pre-push`). A push of more new commits leaves the older ones unscanned on the machine, and the hosted gate reads them only after they are public. Scan the pushed range instead: the hook gets each local and remote object ID on standard input (`scripts/verify-push-context.py` already reads them). Keep the hook under 10 seconds for a normal push.
+  - **Files**: lefthook.yml; hooks/pre-push; hooks/lefthook/pre-push/privacy.sh; scripts/verify-push-context.py; tests/unit/test_push_context.py
+  - **Hypothesis**: secret-shaped values that reach the remote in a commit older than the scan window fall to 0, because the scan covers the pushed range.
+  - **Measurement**: `uv run pytest tests/unit/test_push_context.py -q` with a new case: a scratch repository pushes 25 commits and the first one holds a synthetic key.
+  - **Success**: the new case fails before the change and passes after; a push of one clean commit still ends in under 10 seconds.
+  - **Pivot**: if a range scan cannot stay under 10 seconds, keep the window and add a hosted check that scans the whole pull request range before merge.
+  - **Anchor**: Reason 1990 (defence in depth); Meli, McNiece & Reaves 2019 (secret leakage in public repositories).
+
+- [ ] Measure open-to-merge time with the hosted checks as the gate
+  - **ID**: hosted-merge-time-measure
+  - **Details**: The hosted checks became the merge gate on 2026-11-13 (`docs/ci.md`). The goal was a shorter wait from open to merge. Compare the 10 pull requests merged before that day with the first 10 merged after it. Record both medians in `docs/ci.md` ("Measure it").
+  - **Files**: docs/ci.md
+  - **Hypothesis**: the median open-to-merge time falls by 30% or more, because no pull request waits for a local full gate.
+  - **Measurement**: `gh pr list --state merged --limit 30 --json number,createdAt,mergedAt`.
+  - **Success**: the median of the 10 pull requests after the change is at most 70% of the median before it.
+  - **Pivot**: if it is above 90%, the hosted run time is the new limit: do task `hosted-ci-step-cache` first and measure again.
+  - **Anchor**: Forsgren, Humble & Kim 2018 (DORA lead time for changes).
+
 - [ ] Prove the company plugin works on the corporate machine after the move to the new history
   - **ID**: company-plugin-after-history-move
   - **Blocked**: a step only the corporate machine can do: the plugin and its tools live there. Check: `git -C "$(uv run careerbrew where)" rev-list --max-parents=0 HEAD` prints `22e3e591b70dd8a5f8a1111355201b85c8f68ed5` on that machine.
