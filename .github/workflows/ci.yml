@@ -27,8 +27,11 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  # Never send usage data from a runner.
-  DO_NOT_TRACK: "1"
+  # Never send usage data from a runner: an empty key means nothing is sent.
+  # Not DO_NOT_TRACK: the telemetry story tests that switch itself.
+  CAREERBREW_POSTHOG_KEY: ""
+  # Approved pictures are drawn on a developer Mac; a runner renders a few pixels off (docs/ci.md).
+  CAREERBREW_VISUAL_PICTURES: local-only
   UNIT_JOBS: "2"
   E2E_JOBS: "2"
   GITLEAKS_VERSION: "8.30.1"
@@ -41,8 +44,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Pinned standard images; never a larger runner. macos-15 runs the
-        # visual tests: their approved pictures are `*-darwin.png`.
+        # Pinned standard images; never a larger runner. No job compares the
+        # approved pictures: CAREERBREW_VISUAL_PICTURES above (docs/ci.md).
         include:
           - os: ubuntu-24.04
             gitleaks_asset: linux_x64
@@ -59,9 +62,23 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # A pull request checkout is detached. One story bundles the local `main` branch.
+      - name: Local main branch
+        run: git show-ref --verify --quiet refs/heads/main || git branch main origin/main
+
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
+          # The frozen HTTP reference (xtask/tests/fixtures/capture) holds this exact
+          # version in its Server header; tests/unit/test_hosted_ci.py keeps them equal.
+          python-version: "3.12.16"
+
+      # A Rust capture test runs uv with a cleared environment, so uv must find
+      # its cache at the default place.
+      - name: Put the uv cache at its default path
+        run: |
+          mkdir -p "$UV_CACHE_DIR" "$HOME/.cache"
+          [ -e "$HOME/.cache/uv" ] || ln -s "$UV_CACHE_DIR" "$HOME/.cache/uv"
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -74,6 +91,9 @@ jobs:
           pin="$(sed -nE 's/^channel = "([0-9.]+)"$/\1/p' rust-toolchain.toml)"
           [ -n "$pin" ] || { echo "no Rust pin found in rust-toolchain.toml" >&2; exit 1; }
           rustup toolchain install "$pin" --profile minimal --component clippy --component rustfmt --no-self-update
+          # Put the real tools first on PATH, not the rustup proxies: a proxy sets
+          # RUSTUP_TOOLCHAIN, and the supervisor tests refuse that override.
+          dirname "$(rustup which --toolchain "$pin" rustc)" >> "$GITHUB_PATH"
           rustc --version
 
       - name: gitleaks (pinned release, checked SHA-256)

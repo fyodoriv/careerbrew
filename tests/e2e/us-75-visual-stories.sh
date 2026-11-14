@@ -5,7 +5,8 @@ source "$(dirname "$0")/lib.sh"
 browser_story  # own port and output folder: browser stories run in parallel
 cd "$ROOT/web"
 platform="$(node -p process.platform)"
-if ! find visual/__screenshots__ -name "*-$platform.png" | grep -q .; then
+# -quit, not a pipe into grep -q: under pipefail a closed pipe reads as "no pictures" and skips the story.
+if [ -z "$(find visual/__screenshots__ -name "*-$platform.png" -print -quit)" ]; then
   # Fonts render differently on each platform, so pictures are drawn per platform (docs/web.md, "Visual tests").
   echo "skip US-75: no approved pictures for $platform; draw and review them with: cd web && npm run visual:update"
   exit 0
@@ -17,6 +18,11 @@ expect "$out" "with web views and pictures, 0 problem(s)" "check-stories counts 
 
 total="$(pw_total visual -c playwright.visual.config.ts)"
 [ "${total:-0}" -ge 90 ] || fail "Playwright lists every visual test at both widths (got: ${total:-none})"
+if [ "${CAREERBREW_VISUAL_PICTURES:-}" = local-only ]; then
+  # A hosted runner draws each screen 50 to 160 pixels off the pictures drawn on a developer Mac (docs/ci.md).
+  echo "skip US-75 pictures: CAREERBREW_VISUAL_PICTURES=local-only ($total visual tests listed, none compared)"
+  exit 0
+fi
 out="$(env -u CAREERBREW_HOME -u CAREERBREW_PUBLIC_CARDS npx playwright test -c playwright.visual.config.ts --reporter=line 2>&1)" || {
   echo "$out"
   fail "every screen matches its approved picture (a change on purpose: cd web && npm run visual:update, then open each picture)"

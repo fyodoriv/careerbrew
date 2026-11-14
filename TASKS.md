@@ -401,6 +401,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P1
 
+- [ ] Let a hosted runner compare the approved pictures (US-75)
+  - **ID**: hosted-visual-pictures
+  - **Details**: The hosted gate sets `CAREERBREW_VISUAL_PICTURES=local-only`, so `tests/e2e/us-75-visual-stories.sh` compares no picture on a runner (`docs/ci.md`, "What the hosted gate cannot check"). A screen change can merge with a stale picture until someone runs `npm run visual` on a Mac. Options to try, in order: (1) draw Linux pictures inside the `gate (ubuntu-24.04)` job's own environment with a pinned font package and commit them as `*-linux.png`; (2) draw the darwin pictures on a `macos-15` runner through a manual workflow that prints their hashes, with no artifact upload. Keep `maxDiffPixels: 0`.
+  - **Files**: tests/e2e/us-75-visual-stories.sh; web/playwright.visual.config.ts; .github/workflows/ci.yml; docs/ci.md; docs/web.md
+  - **Hypothesis**: with pictures drawn in the runner's own environment, the visual tests pass on 3 hosted runs in a row with zero pixel slack, because the renderer is then the same on both sides.
+  - **Measurement**: `gh run view <run-id> --log | grep "ok US-75 visual stories"` on 3 runs in a row of one pull request (rerun twice).
+  - **Success**: 3 of 3 runs print `ok US-75 visual stories (N visual tests on <platform>)` with N at least 90, and a picture changed on purpose fails the run.
+  - **Pivot**: if 2 of 3 runs differ from each other with the same commit, runner rendering is not stable; keep pictures local and add a pre-merge reminder to the pull request template instead.
+  - **Anchor**: Forsgren, Humble & Kim 2018 (DORA, change failure rate); Alegroth, Feldt & Ryrholm 2015 (visual GUI testing in practice).
+
 - [ ] Prove the company plugin works on the corporate machine after the move to the new history
   - **ID**: company-plugin-after-history-move
   - **Blocked**: a step only the corporate machine can do: the plugin and its tools live there. Check: `git -C "$(uv run careerbrew where)" rev-list --max-parents=0 HEAD` prints `22e3e591b70dd8a5f8a1111355201b85c8f68ed5` on that machine.
