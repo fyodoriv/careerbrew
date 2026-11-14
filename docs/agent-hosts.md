@@ -133,8 +133,8 @@ the matching source contract marker and a runtime route via careerbrew where to 
 checker rejects omissions, including newly added workflow files. Existing action
 parity tests retain parser/catalog/UI equality, argument validation, confirmation
 and terminal-only reasons. Native adapters have paired synthetic fixtures and
-owner-file, privacy and failure-path tests. Run `CHECK_EVALS=1 scripts/check.sh`
-through `heavy-run` before delivery. Available catalogues are not a claim that every
+owner-file, privacy and failure-path tests. After a prompt, skill or model change, run the
+regression evals alone with `evals/run.sh`; the hosted checks run the gate ([ci.md](ci.md)). Available catalogues are not a claim that every
 real career workflow has been executed; account authorization stays separate.
 
 The checker and required-entrypoint doctor share one inventory from this

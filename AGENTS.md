@@ -148,7 +148,7 @@ Run every command from the repo root.
 11. Personal data lives in `private/`; the few plaintext files outside it are in the "Where data lives" table of [`docs/privacy.md`](docs/privacy.md). Tests and evals use synthetic data.
 12. Models are named only in `config/models.yaml`. Use the local route first.
 13. Each feature is a skill in `skills/<feature>/SKILL.md` with at least one case in `evals/cases/`.
-14. A prompt, skill, or model change runs the regression evals (`CHECK_EVALS=1 scripts/check.sh`).
+14. A prompt, skill, or model change runs the regression evals (`evals/run.sh`; no local full gate is needed).
 15. Every action runs three ways: CLI, agents, web app. A new CLI command is an action automatically (`actions.py` reads the parser); if it cannot run in a browser, add it to `actions.TERMINAL_ONLY` with the reason, and if it changes or sends something hard to undo, to `actions.CONFIRM`. `test_action_parity.py` enforces it.
 
 ## Gotchas
