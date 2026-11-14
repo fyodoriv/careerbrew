@@ -105,6 +105,13 @@ a macOS minute on a private repository is billed as 10.
 
 - Result time of the last runs: `gh run list --workflow ci.yml --limit 10 --json conclusion,createdAt,updatedAt`. Target: under 45 minutes.
 - Open-to-merge time: `gh pr list --state merged --limit 10 --json number,createdAt,mergedAt`.
+  Measured on 2026-11-14: the two pull requests opened after the hosted checks became the
+  merge gate merged 39 and 47 minutes after they were opened, which is one hosted run plus
+  the merge. A before-and-after median is not possible: the public history holds only two
+  earlier pull requests, and each was opened after its local full gate had passed, so its
+  open-to-merge time (under 10 seconds) leaves out the wait. The wait that the hosted checks
+  removed is the local one: local full-gate runs for one merge fell from 1 to 0, and a push
+  fell from about 17 minutes to under 10 seconds.
 - Runner labels of one run: `gh run view <run-id> --json jobs -q '.jobs[].labels'`. Only `ubuntu-24.04` and `macos-15` may appear.
 - Owner step, once after the first week: read the billing page and confirm 0 paid minutes. An agent cannot see that page.
 
