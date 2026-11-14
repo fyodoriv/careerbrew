@@ -77,3 +77,19 @@ def test_a_server_that_never_answers_is_stopped_after_the_wait(fake):
     with pytest.raises(RuntimeError):
         server.start_background(50_125)
     assert procs[0].killed and clock.now <= server.START_WAIT_SECONDS + 1
+
+
+def test_a_bind_never_waits_for_a_reverse_name_lookup(monkeypatch):
+    """Hosted macOS run 2026-11-13: every real server start missed its wait, because the stdlib
+    bind asks the resolver for the host's full name (`socket.getfqdn`), which hangs with no resolver answer."""
+    import socket
+
+    def no_resolver(*_a, **_k):
+        raise AssertionError("the bind asked the resolver for a name")
+
+    monkeypatch.setattr(socket, "getfqdn", no_resolver)
+    srv = server.make_server(0, "synthetic")
+    try:
+        assert srv.server_name == "127.0.0.1" and srv.server_port == srv.server_address[1]
+    finally:
+        srv.server_close()

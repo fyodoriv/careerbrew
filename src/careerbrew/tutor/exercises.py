@@ -174,18 +174,18 @@ if payload.get("scale"):
     exec(payload["scale"]["generator"], ns)
     import gc
     for n in payload["scale"]["sizes"]:
-        runs = []
+        runs = []; k = 1
         try:
-            for _ in range(payload["scale"].get("repeats", 1)):
-                args = ns["make"](n)  # fresh input: a solution may mutate it
+            while len(runs) < payload["scale"].get("repeats", 1):
+                batch = [ns["make"](n) for _ in range(k)]  # fresh inputs: a solution may mutate one
                 gc.collect(); gc.disable()
-                # CPU time, not wall time: on a busy machine a long run waits for a CPU more often than a short
-                # one, and that wait read as growth (unique-paths measured n^2.54 at load ~50, 2026-10-22).
+                # CPU time, not wall time (a busy machine's waits read as growth, 2026-10-22). A short run repeats k times: a CPU clock can tick in 1 ms steps.
                 t0 = time.process_time()
                 try:
-                    target(*args)
+                    for args in batch: target(*args)
                 finally:
-                    runs.append((time.process_time() - t0) * 1000); gc.enable()
+                    runs.append((time.process_time() - t0) * 1000 / k); gc.enable()
+                if k == 1 and runs[-1] < 20: k = min(50, int(20 / max(runs[-1], 0.5)) + 1); runs.clear()
         except Exception as e:
             scale.append({"n": n, "error": type(e).__name__}); break
         # The minimum is the run least disturbed by other load (timeit's advice), so noise cannot fail a correct solution.

@@ -6,6 +6,9 @@ if (!port || !process.env.CAREERBREW_PROMISE_E2E_HOME || !process.env.CAREERBREW
 }
 
 export default defineConfig({
+  // Never let Playwright run git in this checkout: in a pull request on GitHub Actions it fetches the base
+  // with --depth=1, which makes the checkout shallow (tests/unit/test_hosted_ci.py, docs/ci.md).
+  captureGitInfo: { commit: false, diff: false },
   testDir: "./promise-e2e",
   workers: 1,
   retries: 0,

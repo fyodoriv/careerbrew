@@ -27,4 +27,4 @@ def test_the_watcher_runs_at_any_nice_level_and_never_runs_below_nice_10(home, s
     out = subprocess.run([sys.executable, "-c", CHILD, str(start)], capture_output=True, text=True, timeout=60, env=os.environ.copy(), check=False)
     assert out.returncode == 0, out.stderr
     nice = int(out.stdout.split("nice", 1)[1])
-    assert nice >= 10 and nice >= start
+    assert nice >= 10 and nice >= min(start, 19)  # Linux stops at nice 19; macOS at 20
