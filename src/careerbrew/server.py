@@ -1374,6 +1374,15 @@ class Server(ThreadingHTTPServer):
     # beside its own reads overflowed it on a busy machine, and the kernel reset the extra connections.
     request_queue_size = 128
 
+    def server_bind(self) -> None:
+        # The stdlib bind asks the resolver for the host's full name (`socket.getfqdn`). With no resolver
+        # answer that takes many seconds, and a start missed its wait (hosted macOS run, 2026-11-13).
+        # The server listens on a literal address, so its name is that address.
+        import socketserver
+
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = str(self.server_address[0]), int(self.server_address[1])
+
 
 def make_server(port: int = 8765, token: str | None = None) -> ThreadingHTTPServer:
     """A server on 127.0.0.1:`port`. `token` pins its token (tests); None: the stable token in `day/web-token.json`."""

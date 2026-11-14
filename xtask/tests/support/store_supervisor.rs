@@ -163,7 +163,11 @@ impl Receipt {
     }
 
     pub fn write_private(&self) -> Result<(), ()> {
-        let dir = tempfile::tempdir().map_err(|_| ())?;
+        // Owner-only on purpose: under a 022 file mask a default scratch folder is group-readable.
+        let dir = tempfile::Builder::new()
+            .permissions(std::fs::Permissions::from_mode(0o700))
+            .tempdir()
+            .map_err(|_| ())?;
         if std::fs::metadata(dir.path())
             .map_err(|_| ())?
             .permissions()

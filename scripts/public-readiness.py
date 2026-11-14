@@ -832,12 +832,16 @@ def python_licences(tree: Tree) -> dict[str, str] | None:
                 if step not in walked:
                     walked.add(step)
                     todo.append(step)
-    installed = {dist_name(d.metadata["Name"] or ""): d for d in importlib.metadata.distributions()}
+    # One name can have several installed versions. Folder order differs by file system, so pick by version.
+    installed: dict[str, list] = {}
+    for d in importlib.metadata.distributions():
+        installed.setdefault(dist_name(d.metadata["Name"] or ""), []).append(d)
     out = {}
     for name in sorted(seen - set(roots)):
-        dist = installed.get(name)
+        locked = str(packages.get(name, {}).get("version"))
+        dist = next((d for d in installed.get(name, []) if d.version == locked), None)
         out[name] = ""
-        if dist is None or dist.version != str(packages.get(name, {}).get("version")):
+        if dist is None:
             continue
         meta = dist.metadata
         classifiers = [c.rsplit("::", 1)[-1].strip() for c in meta.get_all("Classifier") or [] if c.startswith("License ::")]

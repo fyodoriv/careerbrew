@@ -3,6 +3,7 @@
 /*
 !/.gitignore
 !/.gitattributes
+!/.github/
 !/.env.example
 !/.python-version
 !/AGENTS.md

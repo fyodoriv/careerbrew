@@ -73,6 +73,8 @@ fn trace(name: &str) -> bool {
 fn name_ok(name: &str) -> bool {
     matches!(name, "stdout" | "stderr" | "status.json") || trace(name)
 }
+// libc mode constants are u16 on macOS and u32 on Linux: the conversion is needed on one only.
+#[allow(clippy::useless_conversion)]
 fn manifest(wire: &str, uid: u32) -> Result<Manifest, String> {
     if wire.len() > 65536 {
         return Err("manifest wire bound exceeded".into());

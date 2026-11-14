@@ -50,8 +50,9 @@ def test_a_correct_solution_passes_on_a_busy_machine(monkeypatch):
     monkeypatch.delenv("CAREERBREW_EXERCISES", raising=False)
     ex = exercises.get("unique-paths")
     code = ex["solution"].replace("def unique_paths(", "def _unique_paths(") + BUSY
-    cx = exercises._complexity(ex, exercises.run(ex, code)["scale"])
-    assert cx["ok"], f"time spent waiting for a CPU counted as growth: n^{cx['slope']}"
+    scale = exercises.run(ex, code)["scale"]
+    cx = exercises._complexity(ex, scale)
+    assert cx["ok"], f"time spent waiting for a CPU counted as growth: n^{cx['slope']} from {[(s.get('n'), s.get('runs')) for s in scale]}"
 
 
 def test_a_busy_machine_cannot_time_out_a_correct_scaling_run(monkeypatch):
@@ -98,3 +99,22 @@ def test_a_cubic_solution_still_fails_the_quadratic_check():
     cubic = "def triples(n):\n    c = 0\n    for i in range(n):\n        for j in range(n):\n            for k in range(n):\n                c += 1\n    return c\n"
     cx = exercises._complexity(ex, exercises.run(ex, cubic)["scale"])
     assert not cx["ok"] and cx["slope"] > exercises.COMPLEXITY_SLOPE["O(n^2)"], cx
+
+
+# A CPU clock that ticks in whole milliseconds, as on a hosted Linux runner (2026-11-13): there the
+# smallest input read 0.0 ms on 3 of 5 runs, and the fit saw growth n^3.15 for an O(n^2) solution.
+COARSE = """
+import time
+
+_real = time.process_time
+time.process_time = lambda: int(_real() * 1000) / 1000
+"""
+
+
+def test_a_coarse_cpu_clock_cannot_fail_a_correct_solution(monkeypatch):
+    monkeypatch.delenv("CAREERBREW_EXERCISES", raising=False)
+    ex = exercises.get("unique-paths")
+    scale = exercises.run(ex, ex["solution"] + COARSE)["scale"]
+    assert all(s["ms"] > 0 for s in scale), f"a short run must repeat until the clock can see it: {[(s['n'], s['runs']) for s in scale]}"
+    cx = exercises._complexity(ex, scale)
+    assert cx["ok"] and cx["slope"] <= exercises.COMPLEXITY_SLOPE["O(n^2)"], f"clock steps counted as growth: {cx}"

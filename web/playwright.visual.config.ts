@@ -17,6 +17,9 @@ export const VISUAL_INSTANT = `${VISUAL_NOW}:00-04:00`;
 export const TRACE_IN_SANDBOX = /^Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed/;
 
 export default defineConfig({
+  // Never let Playwright run git in this checkout: in a pull request on GitHub Actions it fetches the base
+  // with --depth=1, which makes the checkout shallow (tests/unit/test_hosted_ci.py, docs/ci.md).
+  captureGitInfo: { commit: false, diff: false },
   testDir: "./visual",
   outputDir: OUT,
   // Pictures are per platform: font rendering differs between macOS and Linux (docs/web.md, "Visual tests").

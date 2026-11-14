@@ -459,6 +459,7 @@ tests/unit/test_gate_inputs.py,port,rust-27,Port each assertion/helper with its 
 tests/unit/test_goals.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_grader_findings.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_grind_command.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_hosted_ci.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_hot_reload.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_import_memory_questions.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_install_prompt.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
