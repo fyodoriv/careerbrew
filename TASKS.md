@@ -6,16 +6,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P0
 
-- [ ] Hosted CI: reuse passed gate steps between hosted runs
-  - **ID**: hosted-ci-step-cache
-  - **Details**: `scripts/check.sh` already skips a step whose inputs passed before (read `scripts/check.sh` and `tests/unit/test_gate_cache.py` first to learn where the cache folder is and which variable moves it). On a runner that folder starts empty, so every run repeats every step. Steps. (1) Find the cache folder variable in `scripts/check.sh`. If the folder cannot be moved, add one variable for it, with a unit test. (2) In `.github/workflows/ci.yml`, before the gate step, add `actions/cache` with `path: ${{ runner.temp }}/gate-cache`, `key: gate-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}`, and `restore-keys: gate-${{ matrix.os }}-`. A cache entry cannot be changed, so each run saves a new entry and restores the newest one. Then export the variable from step 1 with `echo "NAME=$RUNNER_TEMP/gate-cache" >> "$GITHUB_ENV"`. (3) Safety: a pull request can read its own entries and the entries of `main`, and cannot write the entries of `main`; keep it so (do not add a workflow that writes caches from fork code with a wider token). The cache key of a step must cover every input of that step, including the runner image and tool versions; if a step's key misses the image name, add it, because a pass on one image is not a pass on another. A step with unknown inputs must always run. (4) Prove it with two controls. Hit control: rerun the same commit (`gh run rerun <run-id>`) and read the gate log; it prints how many steps came from the cache, and that count must be above 0. A new commit is not a hit control, because a step's key covers its input files. Miss control: push a commit that changes one input of one step (for example one Python file) and confirm that step runs again while a step with no changed input is restored. (5) Add the result and the rule "a cached pass needs the same inputs" to `docs/ci.md`. Never cache `private/` or any secret.
-  - **Files**: .github/workflows/ci.yml; scripts/check.sh; tests/unit/test_gate_cache.py; docs/ci.md
-  - **Hypothesis**: a rerun of a hosted run takes at most 70% of the time of the first run, because unchanged steps restore their pass.
-  - **Measurement**: `gh run list --workflow ci.yml --branch <branch> --json databaseId,createdAt,updatedAt` for the first run and its rerun on 3 pull requests, plus the "from cache" line in each gate log.
-  - **Success**: on 3 of 3 pull requests the rerun reuses at least one step and is at least 30% shorter; in the miss control the changed step runs again; `uv run pytest tests/unit/test_gate_cache.py -q` passes.
-  - **Pivot**: if fewer than 2 steps ever hit the cache after one fix round, remove the cache step (it costs restore time) and record why in `docs/ci.md`.
-  - **Anchor**: Forsgren, Humble & Kim 2018 (DORA); Mokhov, Mitchell & Peyton Jones 2018 ("Build systems à la carte", minimal rebuilds).
-
 - [ ] Telemetry 1 of 3: ask each new user once, and ship a write-only key so a yes sends counts
   - **ID**: telemetry-consent-key
   - **Details**: Today `src/careerbrew/telemetry.py` (user story US-89, `docs/observability.md` "Field telemetry") sends content-free counts to PostHog EU only when a key is in the owner's Keychain, so no other user ever sends anything and the README's numbers cannot come from the field. Read `telemetry.py`, `tests/unit/test_telemetry.py`, `docs/privacy.md` (telemetry rows) and US-89 in `docs/user-stories.md` in full first. Keep every existing guarantee: only the event name, time, a random install id, allowlisted ids and numbers leave; `DO_NOT_TRACK`, `careerbrew telemetry off`, a plugin policy `telemetry: false`, and the plugin `allowed_hosts` policy each stop every send; a failed send never fails a command. Steps, one pull request each is fine. (1) Consent. Add a setting `telemetry_consent` with values `unset`, `yes`, `no` (default `unset`) in the settings table in `src/careerbrew/config.py`. Nothing is sent while it is `unset` or `no`. The first run of `careerbrew` on a real terminal asks one question that names what is sent, what is never sent, and where it goes; the answer is saved. With no terminal (an agent, a script, CI, the background watcher) the question is never asked; such a run sends only when a saved `yes` already exists, and sends nothing while consent is `unset` or `no`; `careerbrew telemetry on` saves `yes` and `careerbrew telemetry off` saves `no`. Record the time of the yes (`telemetry_consent_time`) and never send an event with a timestamp before it. On a machine with the corporate role the default stays `no` unless the company plugin sets a sink (task `telemetry-plugin-sink`). Existing installs with a Keychain key and `telemetry: true` keep sending (treat that as `yes`), so the owner's data does not stop. (2) Key. A PostHog project key is write-only (it can send events, it cannot read data). Ship it as a data file `src/careerbrew/telemetry-default-key.txt` that `key()` reads when no Keychain key and no `CAREERBREW_POSTHOG_KEY` is set. The owner supplies the value; do not invent one and never print it (`telemetry send --dry-run` keeps showing a placeholder). Until the owner supplies it, ship the file empty and keep "no key, nothing sent". The secret scans must stay strict: surface S11 of `scripts/public-readiness.py` rejects gitleaks config and ignore files and ignores allow comments, so do not add any allow entry. While the file is empty no scanner is affected. The pull request that later adds the real key value is a separate owner-approved step: before it, test with a made-up key of the same shape whether `gitleaks`, `scripts/leak-check.sh` and surface S11 flag it; if one does, stop and bring the owner the choice (a narrow, tested exception in that scanner, or no shipped key). (3) Parity and docs. `careerbrew actions --json`, the web Actions view and `tests/unit/test_action_parity.py` must list the changed commands. Update `docs/privacy.md`, `docs/observability.md`, the README telemetry paragraph, the `/careerbrew` command file (one plain line: when to use `careerbrew telemetry status|on|off`), and US-89 with new acceptance lines and tests. (4) Tests first, each must fail before the code change: consent `unset` sends nothing; `no` sends nothing even with a key; a yes at time T never sends an event stamped before T; no terminal means no question and no send; the corporate role defaults to `no`; the dry run never prints the key; a body with a planted canary, path, host name or user name never leaves. Use the local fake endpoint already in `test_telemetry.py`; never send a test event to the real endpoint.
@@ -401,16 +391,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P1
 
-- [ ] Measure open-to-merge time with the hosted checks as the gate
-  - **ID**: hosted-merge-time-measure
-  - **Details**: The hosted checks became the merge gate on 2026-11-13 (`docs/ci.md`). The goal was a shorter wait from open to merge. Compare the 10 pull requests merged before that day with the first 10 merged after it. Record both medians in `docs/ci.md` ("Measure it").
-  - **Files**: docs/ci.md
-  - **Hypothesis**: the median open-to-merge time falls by 30% or more, because no pull request waits for a local full gate.
-  - **Measurement**: `gh pr list --state merged --limit 30 --json number,createdAt,mergedAt`.
-  - **Success**: the median of the 10 pull requests after the change is at most 70% of the median before it.
-  - **Pivot**: if it is above 90%, the hosted run time is the new limit: do task `hosted-ci-step-cache` first and measure again.
-  - **Anchor**: Forsgren, Humble & Kim 2018 (DORA lead time for changes).
-
 - [ ] Prove the company plugin works on the corporate machine after the move to the new history
   - **ID**: company-plugin-after-history-move
   - **Blocked**: a step only the corporate machine can do: the plugin and its tools live there. Check: `git -C "$(uv run careerbrew where)" rev-list --max-parents=0 HEAD` prints `22e3e591b70dd8a5f8a1111355201b85c8f68ed5` on that machine.
@@ -566,18 +546,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if the owner keeps the current flow, close this task with that reason.
   - **Anchor**: Forsgren, Humble & Kim 2018 (lead time).
 
-- [ ] Find why 14 unit tests failed in the pre-push gate on 2026-11-10
-  - **ID**: pre-push-unit-failures-under-load
-  - **Tags**: tests, gate, stability
-  - **Details**: A push of a commit that changed only `TASKS.md` ran `scripts/check.sh fast` and failed: 14 failed, 3354 passed, in 27 minutes. Other agent sessions were running on the Mac. At least 3 failures were `subprocess.TimeoutExpired` (limits of 2 s, 12 s and 60 s) in `tests/unit/test_e2e_lib.py`, `tests/unit/test_batch_gate.py` and `tests/unit/test_open_work.py`. The cause of the other failures is unknown. Other failing files: `test_issue_327.py`, `test_issue_339.py`, `test_issue_330.py`, `test_issue_385.py`, `test_privacy_index.py`, `test_mcp_browser_fixture.py`. First rerun the 14 tests on an idle Mac to split load failures from real ones. Then fix each group at its cause: a real bug gets a failing test first; a timeout that only fails under load gets a limit that fits a loaded machine or a test that does not depend on wall time.
-  - **Files**: the test files named above; `scripts/check.sh`
-  - **Hypothesis**: the failures come from wall-time limits under load, so after the fix the unit step fails 0 times in 3 runs made while another heavy run is active.
-  - **Measurement**: `heavy-run scripts/check.sh fast` three times, each started while a second `heavy-run` job is active; count failed tests per run.
-  - **Success**: 0 failed tests in all 3 runs.
-  - **Pivot**: if any of the 14 tests also fails on an idle Mac, treat it as a real defect with its own task and keep this task for the load-only group.
-  - **Anchor**: Luo et al. 2014 (An Empirical Analysis of Flaky Tests: async wait and timing are the top causes); Basili, Caldiera & Rombach 1994 (GQM).
-  - **Also seen**: in full gates on 2026-11-10 and 2026-11-11, each failed once under load and passed alone or in the next gate, cause not proven: `test_vault_plugins.py::test_encrypt_then_ready_needs_no_refresh`, `test_hot_reload.py`, `test_issue_327.py`, `test_issue_385.py`, `test_mcp_browser_fixture.py`, `test_batch_gate.py`. On 2026-11-12, two pre-push runs of one commit each failed one test by timeout under a load average of 9 to 14, and the same commit passed on a quiet machine: `test_e2e_lib.py::test_a_spec_read_back_empty_from_the_compile_cache_fails_the_count_by_name` (180-second limit) and `test_open_work.py::test_a_never_pushed_branch_can_be_retired_with_an_archive_tag_and_shows_again_on_a_new_commit` (60-second limit).
-
 - [ ] Stop a card publish from bringing back a company-named "Why this company?" card
   - **ID**: card-publish-company-guard
   - **Tags**: cards, privacy, open-source
@@ -651,14 +619,3 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Output**: decision
   - **Acceptance**: the owner has applied to each program whose threshold careerbrew meets, and this task records each answer, or records why no application was made.
   - **Blocked**: needs-traction-and-owner-application — 2026-11-10: careerbrew is below every threshold (it is public since 2026-11-13). Agents never submit applications or forms; the owner applies. Unblock when the measurement shows 50 or more stars or 20 or more contributors, or when the owner chooses to try the discretionary tracks.
-
-- [ ] Let a push that changes only docs or tasks skip the unit step
-  - **ID**: pre-push-docs-only-fast-path
-  - **Tags**: gate, speed
-  - **Details**: `lefthook.yml` says to keep pre-push under 10 seconds, but the pre-push `fast-gate` runs `scripts/check.sh fast`, and on 2026-11-10 that took 28 minutes for a commit that changed only `TASKS.md`. Make the pre-push step look at the files in the pushed range. When every file is Markdown or a task-queue file, run only the docs, task-lint, privacy and leak checks. Any other file keeps the full fast gate. An unknown file type keeps the full fast gate.
-  - **Files**: `lefthook.yml`, `scripts/check.sh`, a new unit test for the file classifier
-  - **Hypothesis**: a docs-only push finishes its pre-push checks in under 60 seconds instead of about 28 minutes, with no loss of signal, because unit tests do not read these files.
-  - **Measurement**: `time git push --dry-run` is not enough (hooks do not run); use `time lefthook run pre-push` on a branch whose only change is `TASKS.md`, and again on a branch that changes one `.py` file.
-  - **Success**: the docs-only run takes under 60 seconds and skips the unit step; the `.py` run still runs the unit step.
-  - **Pivot**: if any unit test reads a Markdown or task file, list those paths as code for the classifier; if more than 10 such paths exist, drop this task and keep the full gate.
-  - **Anchor**: Gligoric, Eloussi & Marinov 2015 (Ekstazi: regression test selection by file dependency); Basili, Caldiera & Rombach 1994 (GQM).
