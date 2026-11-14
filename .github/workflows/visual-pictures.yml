@@ -16,9 +16,6 @@ on:
         type: choice
         options: [changed, all, none]
         default: changed
-  # Iteration only: removed before this workflow merges.
-  push:
-    branches: [ci/hosted-visual-pictures]
 
 permissions:
   contents: read
