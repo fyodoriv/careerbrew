@@ -71,7 +71,7 @@ def validate(data: bytes) -> int:
 
 
 def old_history(data: bytes) -> int:
-    """Count pushed commits in a validated context that do not descend from the public first commit."""
+    """Count pushed refs in a validated context whose history is not only the public history."""
     root = os.environ.get("CAREERBREW_PUBLIC_ROOT") or PUBLIC_ROOT  # the override is for tests with scratch repositories
     if not re.fullmatch(r"[0-9a-f]{40,64}", root):
         raise InvalidContext("public root is invalid")
@@ -81,9 +81,14 @@ def old_history(data: bytes) -> int:
         new = os.fsdecode(line.split(b" ")[1])
         if set(new) == {"0"}:
             continue  # a deletion pushes no commit
+        if _git("cat-file", "-e", new).returncode != 0:
+            continue  # not a local object: Git itself refuses to push it
         if _git("cat-file", "-e", f"{new}^{{commit}}").returncode != 0:
-            continue  # not a local commit: Git itself refuses to push it
-        if _git("merge-base", "--is-ancestor", root, new).returncode != 0:
+            found += 1  # a tag of a tree or a file: its history cannot be checked
+            continue
+        # Every first commit under the tip must be the public one: a merge of both histories descends from it too.
+        roots = _git("rev-list", "--max-parents=0", new)
+        if roots.returncode != 0 or set(os.fsdecode(roots.stdout).split()) != {root}:
             found += 1
     return found
 

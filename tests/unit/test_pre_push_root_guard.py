@@ -98,5 +98,30 @@ def test_the_default_root_is_the_first_commit_of_this_repository():
     spec.loader.exec_module(module)
     assert module.PUBLIC_ROOT == "22e3e591b70dd8a5f8a1111355201b85c8f68ed5"
     roots = subprocess.run(["git", "-C", str(ROOT), "rev-list", "--max-parents=0", "HEAD"], capture_output=True, text=True, check=False)
-    if roots.returncode == 0 and roots.stdout.strip():  # a release-tree copy holds another single commit
-        assert module.PUBLIC_ROOT in roots.stdout.split() or len(roots.stdout.split()) == 1
+    if roots.returncode == 0 and (ROOT / ".git").exists() and len(roots.stdout.split()) > 1:
+        pytest.fail("this checkout holds more than one first commit")
+    if roots.returncode == 0 and module.PUBLIC_ROOT not in roots.stdout.split():
+        # Only a release-tree copy may differ: it holds one new commit and no remote.
+        assert subprocess.run(["git", "-C", str(ROOT), "remote"], capture_output=True, text=True, check=False).stdout.strip() == ""
+
+
+def test_a_merge_of_the_old_history_into_the_public_history_stops(repo):
+    # `git pull --allow-unrelated-histories` in an old checkout makes such a merge: it descends from both first commits.
+    path, public_root, public_tip, old_tip = repo
+    git(path, "checkout", "-q", "-f", "main")  # the fixture left the public files untracked
+    git(path, "merge", "-q", "--allow-unrelated-histories", "-m", "mixed", old_tip)
+    mixed = git(path, "rev-parse", "HEAD")
+    assert git(path, "merge-base", "--is-ancestor", public_root, mixed) == ""
+    result = push(path, public_root, mixed)
+    assert result.returncode != 0
+    assert b"docs/migrate-to-public-history.md" in result.stderr
+    assert not (path / ".scan-calls").exists()
+
+
+def test_a_tag_that_points_at_a_tree_stops(repo):
+    # Git does push a tag of a tree or a file, so the guard cannot skip an object that is not a commit.
+    path, public_root, _, old_tip = repo
+    tree = git(path, "rev-parse", f"{old_tip}^{{tree}}")
+    result = push(path, public_root, tree, remote_ref="refs/tags/content", local="refs/tags/content")
+    assert result.returncode != 0
+    assert not (path / ".scan-calls").exists()
