@@ -15,14 +15,16 @@ def test_the_runner_python_is_the_one_in_the_frozen_http_reference():
     assert pinned == [frozen.pop()]
 
 
-def test_the_runner_skips_only_the_picture_comparison_and_says_so():
+def test_each_set_of_pictures_is_compared_only_where_it_was_drawn():
     story = (ROOT / "tests/e2e/us-75-visual-stories.sh").read_text()
-    guard = story.index('"${CAREERBREW_VISUAL_PICTURES:-}" = local-only')
+    guard = story.index('if [ "$platform" != "$drawn_here" ]; then')
     # The story checker and the test count run before the skip; the comparison runs after it.
     assert story.index("check-stories.py") < guard and story.index("pw_total visual") < guard
     assert guard < story.index("--reporter=line")
-    assert "CAREERBREW_VISUAL_PICTURES: local-only" in WORKFLOW.read_text()
-    assert "hosted-visual-pictures" in (ROOT / "docs/ci.md").read_text()
+    # A developer Mac compares the darwin pictures; only the hosted switch selects the linux ones.
+    assert story.index("drawn_here=darwin") < story.index('[ "${CAREERBREW_VISUAL_PICTURES:-}" = hosted ] && drawn_here=linux') < guard
+    assert "CAREERBREW_VISUAL_PICTURES: hosted" in WORKFLOW.read_text()
+    assert "scripts/visual-pictures.sh fetch" in (ROOT / "docs/web.md").read_text()
 
 
 def test_no_playwright_config_lets_playwright_fetch_into_the_checkout():

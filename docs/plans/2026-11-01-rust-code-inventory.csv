@@ -898,5 +898,7 @@ xtask/tests/support/store_supervisor.rs,keep-native,rust-00,Synthetic-only store
 xtask/src/bin/store_supervisor_fixture.rs,keep-native,rust-00,Synthetic fixed worker ownership fixture
 scripts/public-readiness.py,port,rust-27,Port the public-readiness surface checks with their count-only output
 scripts/public-readiness.sh,port,rust-27,Port the public-readiness entry point and its private pattern loading
+scripts/visual-pictures.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_public_readiness.py,port,rust-27,Check each planted public-readiness defect fails its surface
 tests/unit/test_redirect_host_policy.py,port,rust-27,Check a redirect obeys the host policy and keeps a token on its origin
+tests/unit/test_visual_pictures.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here

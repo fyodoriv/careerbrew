@@ -18,14 +18,17 @@ expect "$out" "with web views and pictures, 0 problem(s)" "check-stories counts 
 
 total="$(pw_total visual -c playwright.visual.config.ts)"
 [ "${total:-0}" -ge 90 ] || fail "Playwright lists every visual test at both widths (got: ${total:-none})"
-if [ "${CAREERBREW_VISUAL_PICTURES:-}" = local-only ]; then
-  # A hosted runner draws each screen 50 to 160 pixels off the pictures drawn on a developer Mac (docs/ci.md).
-  echo "skip US-75 pictures: CAREERBREW_VISUAL_PICTURES=local-only ($total visual tests listed, none compared)"
+# Each set of pictures is compared only where it was drawn, with no pixel of slack: the darwin pictures on a
+# developer Mac, the linux pictures on the hosted Linux runner, which sets CAREERBREW_VISUAL_PICTURES=hosted (docs/ci.md).
+drawn_here=darwin
+[ "${CAREERBREW_VISUAL_PICTURES:-}" = hosted ] && drawn_here=linux
+if [ "$platform" != "$drawn_here" ]; then
+  echo "skip US-75 pictures: the $platform pictures are not drawn here (CAREERBREW_VISUAL_PICTURES=${CAREERBREW_VISUAL_PICTURES:-unset}; $total visual tests listed, none compared)"
   exit 0
 fi
 out="$(env -u CAREERBREW_HOME -u CAREERBREW_PUBLIC_CARDS npx playwright test -c playwright.visual.config.ts --reporter=line 2>&1)" || {
   echo "$out"
-  fail "every screen matches its approved picture (a change on purpose: cd web && npm run visual:update, then open each picture)"
+  fail "every screen matches its approved picture (a change on purpose: cd web && npm run visual:update, then open each picture; the linux pictures: docs/web.md, Linux pictures)"
 }
 expect "$out" "$total passed" "every visual test ran and passed"
 refute "$out" "skipped" "no visual test is skipped"

@@ -30,8 +30,8 @@ env:
   # Never send usage data from a runner: an empty key means nothing is sent.
   # Not DO_NOT_TRACK: the telemetry story tests that switch itself.
   CAREERBREW_POSTHOG_KEY: ""
-  # Approved pictures are drawn on a developer Mac; a runner renders a few pixels off (docs/ci.md).
-  CAREERBREW_VISUAL_PICTURES: local-only
+  # The Linux job compares the pictures drawn on its own image; the darwin pictures stay local (docs/ci.md).
+  CAREERBREW_VISUAL_PICTURES: hosted
   UNIT_JOBS: "2"
   E2E_JOBS: "2"
   GITLEAKS_VERSION: "8.30.1"
@@ -44,7 +44,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Pinned standard images; never a larger runner. No job compares the
+        # Pinned standard images; never a larger runner. Only the Linux job compares
         # approved pictures: CAREERBREW_VISUAL_PICTURES above (docs/ci.md).
         include:
           - os: ubuntu-24.04

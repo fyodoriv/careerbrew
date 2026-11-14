@@ -134,7 +134,7 @@ To add a control:
 
 ## Visual tests: approved pictures of every story's screens
 
-US-75. Each user story with web views (its **Web views** line in `docs/user-stories.md`) has a visual test, `web/visual/us-NN-<slug>.spec.ts`. It opens the story's key screens and compares each one with its approved picture, `web/visual/__screenshots__/<spec>/<name>-<desktop|phone>-darwin.png`, pixel for pixel. `scripts/check-stories.py` fails when a story with web views has no spec, or a picture the spec names is missing at either width. The gate runs them in `tests/e2e/us-75-visual-stories.sh`.
+US-75. Each user story with web views (its **Web views** line in `docs/user-stories.md`) has a visual test, `web/visual/us-NN-<slug>.spec.ts`. It opens the story's key screens and compares each one with its approved picture, `web/visual/__screenshots__/<spec>/<name>-<desktop|phone>-<darwin|linux>.png`, pixel for pixel. `scripts/check-stories.py` fails when a story with web views has no spec, or a picture the spec names is missing at either width. The gate runs them in `tests/e2e/us-75-visual-stories.sh`.
 
 ```bash
 cd web && npm run build              # the server serves web/dist
@@ -146,13 +146,20 @@ What is fixed, so a picture changes only when the screen does (`web/playwright.v
 - **Clock**: the server runs at `CAREERBREW_NOW=2026-10-19T09:00` (a Monday), and the browser's clock stands still at the same moment, both in Etc/GMT+4. The config fixes the day, whatever your shell exports.
 - **Data**: the e2e seed (`tests/e2e/web-seed-and-serve.sh`, which runs every seed step in one process: `tests/e2e/web_seed.py`) on a fresh temporary data root, never your `private/`. A state the seed lacks is a GET answer patched in the page, never a write to the server, so the tests run side by side.
 - **Screen**: desktop 1280 × 800 and phone 390 × 844 (touch), scale 1, light colours, en-US, reduced motion, no animations, no caret, and the pointer moved away.
-- **Fonts**: the Mac system font, pinned in the picture's page, so a font installed on one Mac never moves a picture.
+- **Fonts**: the Mac system font (on Linux: Liberation Sans), pinned in the picture's page, so a font installed on one machine never moves a picture.
 - **Saved Reports measurements**: only the visual config sets `CAREERBREW_VISUAL_SEED=1`. The seed pins watcher CPU history to 120 ms before saving the review report, matching the existing Review page fixture. Functional tests keep the measured CPU history and its 500 ms decision boundary.
 - **Values that change on every run**: the watcher's CPU time on Review, the PM update's "updated" time (a file's write time), the standup page's path (a temporary folder), and the `stt_command` setting (the checkout's path to the fake speech-to-text script) are pinned in the page. Nothing is masked; `shot(target, name, { mask })` masks a part only when nothing can pin it.
 - **Paths that differ per checkout or machine**: before each picture, `shot` fails when the page's text holds the checkout folder or the seed's temporary data folder, anywhere on the page, not only in the picture. A line with a path wraps differently in another worktree, and the line height (20.25 px) is not a whole pixel, so every block below it moves by part of a pixel and its picture comes out 1 px taller or shorter. Pin such a value with `patch()` in the `visual` fixture.
 - **Live refresh**: `/api/changes` answers one version, so no refetch starts while a picture is taken.
 
-Pictures are per platform: fonts render differently on Linux. On a platform with no pictures, the story says so and checks nothing.
+Pictures are per platform, because each platform draws fonts its own way. Each set is compared only where it was drawn, with no pixel of slack:
+
+| Pictures | Drawn and compared on | Font |
+|---|---|---|
+| `*-darwin.png` | a developer Mac (`npm run visual`, or US-75 in a local gate) | the Mac system font |
+| `*-linux.png` | the hosted Linux runner (`gate (ubuntu-24.04)`, which sets `CAREERBREW_VISUAL_PICTURES=hosted`) | Liberation Sans, which Playwright installs there |
+
+Anywhere else the story says so and compares nothing: a hosted Mac runner draws the darwin pictures a few pixels off, and a Linux machine of your own has other fonts than the runner.
 
 ### Update the pictures on purpose
 
@@ -161,6 +168,16 @@ Pictures are per platform: fonts render differently on Linux. On a platform with
 3. Open every changed picture (`git status web/visual/__screenshots__`). Read it for wrong content: wrong dates or times, repeated or reordered rows, empty blocks that should have data, text cut off at an edge, a date split over two lines. A picture is approved when you have read it.
 4. Run `npm run visual` twice. A picture that differs between runs points to a wall-clock read (use `calendar.now()`; `tests/unit/test_clock_reads.py` catches a new one in Python), a list built from a set (sort it), or a value to pin in `helpers.ts`.
 5. Commit the pictures with the change. A plain run never writes a picture (`updateSnapshots: "none"`): a missing or different one fails and names its file.
+
+### Linux pictures: drawn on the hosted runner
+
+A pull request that changes a screen needs both sets. Draw the darwin pictures on your Mac (above). Then let the runner draw the Linux ones. A runner uploads no artifact, so the pictures come back through the run's log.
+
+1. Push the branch. Start the drawing run: `gh workflow run visual-pictures.yml --ref <branch>` (about 10 minutes). It redraws the pictures that differ or are missing, compares every screen again in a fresh run, and prints each new or changed picture as base64 with its SHA-256. Add `-f update=all` after a layout change (see the faint-edge trap in `AGENTS.md`), or `-f update=none` to compare only.
+2. Find the run: `gh run list --workflow visual-pictures.yml --limit 3`. When it is green, run `scripts/visual-pictures.sh fetch <run-id>`. It checks each picture's path and SHA-256, writes the files, and updates their rows in `docs/proof/public-readiness-binaries.tsv`. A cut or changed log writes nothing.
+3. Open every picture it wrote and read it, as for the darwin ones. Commit the pictures and the inventory file, and push.
+
+The gate fails with all Linux pictures at once when the runner image gets another font or Playwright another Chromium. The drawing run prints what it drew with (`visual-environment` lines); compare them with the lines in [`docs/ci.md`](ci.md), then redraw with `-f update=all`.
 
 To add a story's visual test: give the story a **Web views** line, write the spec with the helpers (`open`, `region`, `shot`, `patch`, `answer`, `teachStep`, `hold`; `splitDates` and `overflowing` check for a date split over two lines and for content cut off at a card's edge), then follow the steps above. A story that names the web app but shows no screen of its own says why: `**Web views**: none (...)`.
 
