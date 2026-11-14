@@ -116,6 +116,53 @@ a macOS minute on a private repository is billed as 10.
 - Runner labels of one run: `gh run view <run-id> --json jobs -q '.jobs[].labels'`. Only `ubuntu-24.04` and `macos-15` may appear.
 - Owner step, once after the first week: read the billing page and confirm 0 paid minutes. An agent cannot see that page.
 
+## No gate cache between hosted runs
+
+`scripts/check.sh` skips a step whose inputs already passed, and keeps that
+record in `.metrics/cache/`. A runner starts with that folder empty. The
+workflow does not save and restore it with `actions/cache`. This was measured
+on 2026-11-14 and stopped before any code:
+
+- Only 11 steps may reuse a pass: `docs`, `learnings`, `sources`, `stories`,
+  `secrets`, `tasks`, `public-cards`, `card-code`, `web-lint`, `web-unit` and
+  `web-build`. The other steps always run by design, because their inputs are
+  not fully keyed (the list is at the top of `scripts/check.sh`; the reasons
+  are in `AGENTS.md`, "Gotchas").
+- In run 43571680438 (a push to `main`), those 11 steps took at most 29 seconds
+  in each job. The times come from the log timestamps of the gate step:
+
+| Part of the gate step | `ubuntu-24.04` | `macos-15` | May reuse a pass |
+|---|---|---|---|
+| `docs` to `tasks`, with `leaks`, `format`, `lint` | 4 s | 7 s | 6 of these 9 steps |
+| `types` | 10 s | 13 s | no |
+| `unit` | 357 s | 518 s | no |
+| `public-cards`, `card-code` | 2 s | 2 s | yes |
+| `exercises` | 204 s | 179 s | no |
+| Rust steps | 350 s | 400 s | no |
+| `web-types`, `web-lint`, `web-unit` | 18 s | 15 s | 2 of these 3 steps |
+| `web-build` | 5 s | 5 s | yes |
+| `e2e` | 824 s | 820 s | no |
+| Whole job | 1824 s | 2011 s | at most 29 s (1.6% and 1.4%) |
+
+- The task asked for a rerun at least 30% shorter. A full hit on every step
+  that may hit saves under 2%, and the restore and save steps cost seconds
+  too. So the cache step was not added.
+
+Rules for a later try:
+
+- A cached pass needs the same inputs. A step's key must cover every input:
+  its files, the runner image and the tool versions. A pass on one image is not
+  a pass on another. A step with unknown inputs always runs.
+- Do not move a step off the always-run list to make a run faster. First
+  qualify its runtime inputs, with a test that fails on a stale pass.
+- GitHub scopes a cache entry by branch. A pull request reads its own entries
+  and the entries of `main`. It writes only to its own merge ref, so a fork
+  cannot change what `main` restores. Keep it so: no `pull_request_target`, and
+  no workflow that saves a cache from fork code with a wider token.
+- Never cache `private/`, a secret, or the owner's private-pattern file.
+- `unit`, `exercises`, the Rust steps and `e2e` are 95% of the job. A faster
+  hosted run must come from one of them.
+
 ## Branch rule on `main`
 
 `main` requires the three checks. The owner approved this rule on 2026-11-13.
