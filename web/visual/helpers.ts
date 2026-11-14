@@ -17,8 +17,9 @@ export function addDays(day: string, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-// The pictures pin the system font every Mac has, so a font installed on one Mac never moves a picture.
-const FONTS = ':root { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif !important; }';
+// The pictures pin the system font every Mac has, so a font installed on one Mac never moves a picture. No Linux
+// machine has those: there the pictures pin Liberation Sans, which Playwright installs on the hosted runner.
+const FONTS = ':root { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Liberation Sans", sans-serif !important; }';
 
 // The Time saved block's answer in every picture: this week and the week before, from the pinned day (US-86).
 const MONDAY = addDays(TODAY, -((new Date(`${TODAY}T00:00:00Z`).getUTCDay() + 6) % 7));

@@ -70,19 +70,47 @@ Keep every rule when you change a workflow.
 
 Two checks stay local.
 
-**Approved pictures (US-75).** The pictures in `web/visual/__screenshots__` are
-drawn on a developer Mac and compared with no pixel of slack. A hosted macOS
-runner draws each screen 50 to 160 pixels off (run 43493131555: 176 of 196
-visual tests failed that way). So the workflow sets
-`CAREERBREW_VISUAL_PICTURES=local-only`, and the story then checks that every
-story has its pictures and that Playwright lists every visual test, but
-compares none. The Linux job skips the story: no Linux pictures exist. After a change to a screen, run `cd web && npm run build &&
-npm run visual` on your Mac. Task `hosted-visual-pictures` tracks pictures a
-runner can check.
+**The darwin pictures (US-75).** The `*-darwin.png` pictures in
+`web/visual/__screenshots__` are drawn on a developer Mac and compared with no
+pixel of slack. A hosted macOS runner draws each screen 50 to 160 pixels off
+(run 43493131555: 176 of 196 visual tests failed that way). So the macOS job
+checks that every story has its pictures and that Playwright lists every
+visual test, but compares none. After a change to a screen, run
+`cd web && npm run build && npm run visual` on your Mac. The Linux job
+compares its own pictures: see "Approved pictures on the Linux runner".
 
 **The private pattern.** The owner's private-pattern file lives only on the owner's machine. So the
 private-pattern leak check runs only in the local git hooks. The hosted gate
 still runs the repo's own privacy scan (`scripts/leak-check.sh`) and gitleaks.
+
+## Approved pictures on the Linux runner
+
+`gate (ubuntu-24.04)` compares every screen of the visual tests (US-75) with
+its `*-linux.png` picture, with no pixel of slack (`maxDiffPixels: 0`). The
+workflow sets `CAREERBREW_VISUAL_PICTURES=hosted` for that. The pictures are
+drawn on the same runner image, so the same fonts draw and compare.
+
+- **Draw or redraw them**: the manual workflow
+  [`visual-pictures.yml`](../.github/workflows/visual-pictures.yml), then
+  `scripts/visual-pictures.sh fetch <run-id>`. Steps: [`docs/web.md`](web.md),
+  "Linux pictures". The workflow uploads no artifact: it prints each new or
+  changed picture in its log as base64 with a SHA-256. The pictures show
+  synthetic test data only. All 204 pictures make a log of about 20 MB.
+- **What drew the pictures** (the `visual-environment` lines of run
+  43605737771, 2026-11-14): image `ubuntu24 20261111.127.1`, Playwright
+  1.59.1, Liberation Sans (font version 137625) for text, DejaVu Sans Mono
+  (155320) for code.
+- **When every Linux picture fails at once**: the image got another font, or
+  Playwright another Chromium. Start the drawing run with `-f update=all`,
+  compare its `visual-environment` lines with the ones above, read the
+  pictures, commit them, and update the lines above.
+
+Measured on 2026-11-14 (task `hosted-visual-pictures`): three runs on three
+runner machines drew the same pixels for all 196 visual tests (runs
+43605737771, 43606212585 and 43606558768). A picture with 144 pixels painted
+black on purpose failed a compare-only run (43606807817: `1 failed`, `105
+pixels ... are different`). A drawing
+run takes about 3 to 5 minutes.
 
 ## Read a failed run
 

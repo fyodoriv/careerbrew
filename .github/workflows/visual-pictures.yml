@@ -1,0 +1,67 @@
+name: visual pictures
+
+# Draws the Linux pictures of the visual tests (US-75) on the runner image that
+# compares them in `gate (ubuntu-24.04)`. It prints each new or changed picture
+# in the log (path, SHA-256, base64); `scripts/visual-pictures.sh fetch <run-id>`
+# writes them into a checkout. Read docs/web.md ("Linux pictures") first.
+#
+# Same safety rules as ci.yml (docs/ci.md): no secret, no artifact, a read-only
+# token, the standard runner. The pictures show synthetic test data only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      update:
+        description: "changed: redraw pictures that differ or are missing. all: redraw every picture. none: only compare."
+        type: choice
+        options: [changed, all, none]
+        default: changed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: visual-pictures-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Never send usage data from a runner: an empty key means nothing is sent.
+  CAREERBREW_POSTHOG_KEY: ""
+
+jobs:
+  draw:
+    name: draw (ubuntu-24.04)
+    # The image of `gate (ubuntu-24.04)`: the same fonts draw and compare.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          python-version: "3.12.16"
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Python packages (the seeded server)
+        run: uv sync --locked
+
+      - name: Web app
+        working-directory: web
+        run: npm ci --no-audit --no-fund && npm run build
+
+      - name: Playwright browser (Chromium), as in the gate
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      - name: Draw, compare and print the pictures
+        env:
+          UPDATE: ${{ inputs.update || 'changed' }}
+        run: scripts/visual-pictures.sh draw "$UPDATE"
