@@ -6,6 +6,8 @@ travels with every clone, so a push of that history stops on every machine
 """
 
 import importlib.util
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -16,6 +18,8 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts/verify-push-context.py"
 GIT = ["git", "-c", "core.hooksPath=/dev/null", "-c", "user.name=Synthetic", "-c", "user.email=synthetic@example.com", "-c", "commit.gpgsign=false"]
 ZERO = "0" * 40
+# The hook also runs gitleaks on the pushed commits (test_pre_push_secret_range.py).
+PATH = os.pathsep.join(filter(None, [os.path.dirname(shutil.which("gitleaks") or ""), "/usr/bin:/bin:/opt/homebrew/bin"]))
 
 
 def git(repo, *args):
@@ -48,7 +52,7 @@ def repo(tmp_path):
 
 def push(path, public_root, new, remote_ref="refs/heads/topic", local="refs/heads/topic"):
     payload = f"origin\0https://example.invalid/repo\0{local} {new} {remote_ref} {ZERO}\n".encode()
-    env = {"PATH": "/usr/bin:/bin:/opt/homebrew/bin", "CAREERBREW_PUBLIC_ROOT": public_root}
+    env = {"PATH": PATH, "CAREERBREW_PUBLIC_ROOT": public_root}
     return subprocess.run([sys.executable, str(SCRIPT)], input=payload, cwd=path, env=env, capture_output=True, timeout=30)
 
 
@@ -71,7 +75,7 @@ def test_a_push_of_an_old_root_branch_stops_before_the_scan_and_names_the_guide(
 def test_one_old_row_among_new_rows_stops_the_whole_push(repo):
     path, public_root, public_tip, old_tip = repo
     payload = (f"origin\0https://example.invalid/repo\0refs/heads/a {public_tip} refs/heads/a {ZERO}\nrefs/heads/b {old_tip} refs/heads/b {ZERO}\n").encode()
-    env = {"PATH": "/usr/bin:/bin:/opt/homebrew/bin", "CAREERBREW_PUBLIC_ROOT": public_root}
+    env = {"PATH": PATH, "CAREERBREW_PUBLIC_ROOT": public_root}
     result = subprocess.run([sys.executable, str(SCRIPT)], input=payload, cwd=path, env=env, capture_output=True, timeout=30)
     assert result.returncode != 0
 
@@ -86,7 +90,7 @@ def test_a_checkout_without_the_public_first_commit_cannot_push_a_commit(repo):
 def test_a_deletion_passes_the_guard(repo):
     path, public_root, _, old_tip = repo
     payload = f"origin\0https://example.invalid/repo\0(delete) {ZERO} refs/heads/gone {old_tip}\n".encode()
-    env = {"PATH": "/usr/bin:/bin:/opt/homebrew/bin", "CAREERBREW_PUBLIC_ROOT": public_root}
+    env = {"PATH": PATH, "CAREERBREW_PUBLIC_ROOT": public_root}
     result = subprocess.run([sys.executable, str(SCRIPT)], input=payload, cwd=path, env=env, capture_output=True, timeout=30)
     assert result.returncode == 0, result.stderr
 
