@@ -113,7 +113,7 @@ a macOS minute on a private repository is billed as 10.
 This call sets it (an administrator of the repository runs it):
 
 ```bash
-gh api -X PUT repos/fyodoriv/careerbrew/branches/main/protection --input - <<'JSON'
+gh api -X PUT repos/{owner}/{repo}/branches/main/protection --input - <<'JSON'
 {
   "required_status_checks": {
     "strict": false,
@@ -132,8 +132,8 @@ gh api -X PUT repos/fyodoriv/careerbrew/branches/main/protection --input - <<'JS
 JSON
 ```
 
-- Read it: `gh api repos/fyodoriv/careerbrew/branches/main/protection --jq '.required_status_checks.checks[].context'`.
-- Remove it: `gh api -X DELETE repos/fyodoriv/careerbrew/branches/main/protection`.
+- Read it: `gh api repos/{owner}/{repo}/branches/main/protection --jq '.required_status_checks.checks[].context'`.
+- Remove it: `gh api -X DELETE repos/{owner}/{repo}/branches/main/protection`.
 - `enforce_admins` is `false`, so the owner can still merge when GitHub itself
   is down. Agents never use that path: a red check is read and fixed.
 - If a check name changes in a workflow, change it here in the same pull request.
