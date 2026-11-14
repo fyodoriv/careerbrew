@@ -273,4 +273,4 @@ times. These retained snapshots do not measure filesystem access times.
 
 ### Git pre-push context
 
-The pre-push hook checks bounded Git ref-record syntax, runs the strict leak scan, and then gitleaks. It runs no test: the hosted checks do ([ci.md](ci.md)). An empty record stream is valid for an up-to-date push and still runs the scan. This check does not verify the remote target or inspect pushed history; it grants no privacy exception. Remote arguments are not printed by the hook.
+The pre-push hook checks bounded Git ref-record syntax, runs the strict leak scan, and then gitleaks. It runs no test: the hosted checks do ([ci.md](ci.md)). An empty record stream is valid for an up-to-date push and still runs the scan. It also stops a push whose history is not only the public history (an old checkout, a merge of both histories, a tag of a tree), and names `docs/migrate-to-public-history.md` (test: `test_pre_push_root_guard.py`). This check does not verify the remote target or scan pushed history for content; it grants no privacy exception. Remote arguments are not printed by the hook.
