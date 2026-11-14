@@ -69,6 +69,10 @@ fetch() {
   else
     [[ "${1:-}" =~ ^[0-9]+$ ]] || die "fetch needs a run id (gh run list --workflow visual-pictures.yml) or --log <file>"
     log="$tmp/log"
+    # Any run can print picture lines, a pull request from a fork too. Read only a drawing run of this repository.
+    local origin
+    origin="$(gh api "repos/{owner}/{repo}/actions/runs/$1" --jq '[.path, .event, (.head_repository.full_name == .repository.full_name | tostring)] | join(" ")')" || die "cannot read run $1"
+    [ "$origin" = ".github/workflows/visual-pictures.yml workflow_dispatch true" ] || die "run $1 is not a drawing run of this repository (gh run list --workflow visual-pictures.yml)"
     gh run view "$1" --log > "$log" || die "cannot read the log of run $1"
   fi
   # A log line is `<job> TAB <step> TAB <time> <text>`: the text of a picture line is its last field.

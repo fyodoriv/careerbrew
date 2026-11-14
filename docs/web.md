@@ -173,7 +173,7 @@ Anywhere else the story says so and compares nothing: a hosted Mac runner draws 
 
 A pull request that changes a screen needs both sets. Draw the darwin pictures on your Mac (above). Then let the runner draw the Linux ones. A runner uploads no artifact, so the pictures come back through the run's log.
 
-1. Push the branch. Start the drawing run: `gh workflow run visual-pictures.yml --ref <branch>` (about 10 minutes). It redraws the pictures that differ or are missing, compares every screen again in a fresh run, and prints each new or changed picture as base64 with its SHA-256. Add `-f update=all` after a layout change (see the faint-edge trap in `AGENTS.md`), or `-f update=none` to compare only.
+1. Push the branch. Start the drawing run: `gh workflow run visual-pictures.yml --ref <branch>` (about 3 to 5 minutes). It redraws the pictures that differ or are missing, compares every screen again in a fresh run, and prints each new or changed picture as base64 with its SHA-256. Add `-f update=all` after a layout change (see the faint-edge trap in `AGENTS.md`), or `-f update=none` to compare only.
 2. Find the run: `gh run list --workflow visual-pictures.yml --limit 3`. When it is green, run `scripts/visual-pictures.sh fetch <run-id>`. It checks each picture's path and SHA-256, writes the files, and updates their rows in `docs/proof/public-readiness-binaries.tsv`. A cut or changed log writes nothing.
 3. Open every picture it wrote and read it, as for the darwin ones. Commit the pictures and the inventory file, and push.
 

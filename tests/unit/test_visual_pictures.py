@@ -98,6 +98,46 @@ def test_a_log_cannot_write_outside_the_linux_pictures(tmp_path):
     assert done.returncode == 1 and "the log holds no picture" in done.stderr
 
 
+def _fake_gh(tmp_path: Path, origin: str) -> dict[str, str]:
+    tools = tmp_path / "bin"
+    tools.mkdir()
+    (tools / "gh").write_text(f'#!/bin/sh\nif [ "$1" = api ]; then echo \'{origin}\'; exit 0; fi\necho log-read >> "{tmp_path}/gh-calls"\nexit 1\n')
+    (tools / "gh").chmod(0o755)
+    # No shell startup file: it can put another gh first on PATH (AGENTS.md, "Gotchas").
+    env = {key: value for key, value in os.environ.items() if key not in ("BASH_ENV", "ENV")}
+    return {**env, "PATH": f"{tools}{os.pathsep}{os.environ['PATH']}", "VISUAL_PICTURES_ROOT": str(_checkout(tmp_path))}
+
+
+def test_fetch_refuses_a_run_that_is_not_a_drawing_run_of_this_repository(tmp_path):
+    for case, origin in enumerate(
+        (
+            ".github/workflows/ci.yml pull_request false",  # a pull request from a fork
+            ".github/workflows/ci.yml pull_request true",
+            ".github/workflows/visual-pictures.yml workflow_dispatch false",
+        )
+    ):
+        folder = tmp_path / str(case)
+        folder.mkdir()
+        done = subprocess.run(["bash", str(SCRIPT), "fetch", "123"], capture_output=True, text=True, env=_fake_gh(folder, origin), check=False)
+        assert done.returncode != 0
+        assert "not a drawing run of this repository" in done.stderr
+        assert not (folder / "gh-calls").exists(), "the log of a refused run is never read"
+
+
+def test_fetch_reads_the_log_of_a_drawing_run_of_this_repository(tmp_path):
+    env = _fake_gh(tmp_path, ".github/workflows/visual-pictures.yml workflow_dispatch true")
+    done = subprocess.run(["bash", str(SCRIPT), "fetch", "123"], capture_output=True, text=True, env=env, check=False)
+    assert "cannot read the log of run 123" in done.stderr  # the fake gh has no log: the origin check let the run through
+    assert (tmp_path / "gh-calls").exists()
+
+
+def test_the_hosted_linux_job_fails_when_it_has_no_linux_pictures():
+    story = (ROOT / "tests/e2e/us-75-visual-stories.sh").read_text()
+    skip = story.index("skip US-75: no approved pictures")
+    guard = story.index('fail "the hosted Linux job found no approved linux pictures to compare"')
+    assert guard < skip, "the hosted Linux job must fail before the story can skip"
+
+
 def test_the_drawing_workflow_keeps_the_hosted_safety_rules():
     text = WORKFLOW.read_text()
     gate = (ROOT / ".github/workflows/ci.yml").read_text()

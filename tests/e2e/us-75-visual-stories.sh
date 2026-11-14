@@ -7,6 +7,10 @@ cd "$ROOT/web"
 platform="$(node -p process.platform)"
 # -quit, not a pipe into grep -q: under pipefail a closed pipe reads as "no pictures" and skips the story.
 if [ -z "$(find visual/__screenshots__ -name "*-$platform.png" -print -quit)" ]; then
+  # The hosted Linux job is the one place that compares the linux pictures: there a missing set is a failure, not a skip.
+  if [ "${CAREERBREW_VISUAL_PICTURES:-}" = hosted ] && [ "$platform" = linux ]; then
+    fail "the hosted Linux job found no approved linux pictures to compare"
+  fi
   # Fonts render differently on each platform, so pictures are drawn per platform (docs/web.md, "Visual tests").
   echo "skip US-75: no approved pictures for $platform; draw and review them with: cd web && npm run visual:update"
   exit 0
