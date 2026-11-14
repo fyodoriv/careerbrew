@@ -558,6 +558,7 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Saltzer & Schroeder 1975 (fail-safe defaults).
 
 ## P3
+
 - [ ] Find why story US-72 can miss its 15 s wait on the hosted macOS job
   - **ID**: us-72-macos-timing-miss
   - **Details**: On 2026-11-14 the hosted `gate (macos-15)` job failed once on the control inventory (story US-72, `web/e2e/controls.spec.ts`, the `heading(...)` helper): the heading "Sign in to careerbrew" was not found after 15000 ms; the run ended `1 failed`, `195 passed`. A rerun of that job on the same commit passed, the pull request changed no web code, and the Linux job passed. So far this is one event; the cause is not known. Do not raise the timeout first. Steps. (1) Count: list failed `gate (macos-15)` jobs with `gh run list --workflow ci.yml --status failure` and read each log (`gh run view <id> --log-failed`) for the same line. (2) If it shows again, find which visit failed (the test walks many views; add the visit name to the failure message) and whether the page was still loading, signed out, or slow. (3) Fix the cause in the test or the app, with a test that fails before the fix. A rerun is the answer for a single event: `gh run rerun <id> --failed`.
@@ -567,7 +568,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Success**: 0 failures with this line in 20 hosted macOS runs in a row after the fix.
   - **Pivot**: if it does not show again in 40 hosted runs, remove this task with no code change; if a fix leaves 2 or more failures in 20 runs, stop tuning waits and move the control inventory to its own retried step.
   - **Anchor**: Luo, Hariri, Eloussi & Marinov 2014, "An empirical analysis of flaky tests" (FSE); Forsgren, Humble & Kim 2018 (change failure rate).
-
 
 - [ ] Deliver the requesting-code-review counterexample proposal
   - **ID**: retro-requesting-review-counterexamples
