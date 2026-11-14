@@ -40,7 +40,8 @@ The runners set `UNIT_JOBS=2` and `E2E_JOBS=2`: a standard runner has few CPUs.
 
 1. While you work, run the tests you changed, or `scripts/check.sh fast`.
 2. Push when the change is reviewable. The pre-push hook takes seconds: it
-   checks the push context, runs the leak scan, and runs gitleaks. It runs no test.
+   checks the push context, runs the leak scan, and runs gitleaks on every
+   commit the push adds. It runs no test.
 3. Open the pull request. Wait with `gh run watch <run-id> --interval 30` in
    the background and do other work.
 4. Merge when `gh pr checks <pr>` shows all three checks green.

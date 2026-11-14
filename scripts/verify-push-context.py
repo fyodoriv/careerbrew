@@ -93,6 +93,46 @@ def old_history(data: bytes) -> int:
     return found
 
 
+def pushed_ranges(data: bytes) -> list[str]:
+    """The `git log` range of each pushed ref in a validated context: the commits this push adds."""
+    remote, _, payload = data.split(b"\0", 2)
+    name = os.fsdecode(remote)
+    # Commits that a branch of this remote already holds were scanned when they were pushed.
+    known = f" --not --remotes={name}" if re.fullmatch(r"[A-Za-z0-9._-]+", name) else ""
+    ranges = []
+    for line in payload.splitlines():
+        _, new, _, old = (os.fsdecode(part) for part in line.split(b" "))
+        if set(new) == {"0"} or _git("cat-file", "-e", new).returncode != 0:
+            continue  # a deletion, or an object Git itself refuses to push
+        if set(old) != {"0"} and _git("cat-file", "-e", f"{old}^{{commit}}").returncode == 0:
+            ranges.append(f"{old}..{new}")
+        else:
+            ranges.append(f"{new}{known}")  # a new ref, or a remote tip this checkout does not hold
+    return ranges
+
+
+def secret_scan(ranges: list[str]) -> int:
+    """Run gitleaks on every pushed commit, not only the newest ones. Findings are redacted."""
+    for commits in ranges:
+        try:
+            done = subprocess.run(
+                ["gitleaks", "git", "--no-banner", "--redact", "-l", "warn", f"--log-opts={commits}"],
+                stdin=subprocess.DEVNULL,
+                check=False,
+                timeout=300,
+            )
+        except FileNotFoundError:
+            print("gitleaks missing (fix - brew install gitleaks)", file=sys.stderr)
+            return 1
+        except (OSError, subprocess.TimeoutExpired):
+            print("pre-push secret scan unavailable; repair the repository setup", file=sys.stderr)
+            return 1
+        if done.returncode != 0:
+            print("pre-push: gitleaks found a secret in a pushed commit, or could not scan it. Remove the commit from the branch; never push it", file=sys.stderr)
+            return 1
+    return 0
+
+
 def main() -> int:
     try:
         data = sys.stdin.buffer.read(MAX_CONTEXT + 1)
@@ -109,9 +149,16 @@ def main() -> int:
         return 1
     print(f"pre-push context: {count} ref record(s) checked; target not verified")
     try:
-        return subprocess.run(["scripts/leak-check.sh"], stdin=subprocess.DEVNULL, check=False).returncode
+        leaks = subprocess.run(["scripts/leak-check.sh"], stdin=subprocess.DEVNULL, check=False).returncode
     except OSError:
         print("pre-push privacy scan unavailable; repair the repository setup", file=sys.stderr)
+        return 1
+    if leaks:
+        return leaks
+    try:
+        return secret_scan(pushed_ranges(data))
+    except InvalidContext:
+        print("pre-push context invalid or unavailable; retry through Git", file=sys.stderr)
         return 1
 
 
