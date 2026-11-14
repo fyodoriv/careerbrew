@@ -121,7 +121,7 @@ a macOS minute on a private repository is billed as 10.
 `scripts/check.sh` skips a step whose inputs already passed, and keeps that
 record in `.metrics/cache/`. A runner starts with that folder empty. The
 workflow does not save and restore it with `actions/cache`. This was measured
-on 2026-11-14 (task `hosted-ci-step-cache`) and stopped before any code:
+on 2026-11-14 and stopped before any code:
 
 - Only 11 steps may reuse a pass: `docs`, `learnings`, `sources`, `stories`,
   `secrets`, `tasks`, `public-cards`, `card-code`, `web-lint`, `web-unit` and
