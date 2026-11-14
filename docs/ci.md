@@ -25,6 +25,12 @@ and one story bundles `main`), puts the pinned Rust tools first on `PATH` (not
 the rustup proxies), and sets an empty telemetry key, so a runner sends no
 usage data.
 
+Every Playwright config sets `captureGitInfo: { commit: false, diff: false }`.
+Without it, in a pull request on GitHub Actions, Playwright runs
+`git fetch origin <base> --depth=1`. That makes the checkout shallow, and the
+corporate rehearsal (US-40) then bundles a `main` that has no parents and
+cannot be cloned.
+
 The runners set `UNIT_JOBS=2` and `E2E_JOBS=2`: a standard runner has few CPUs.
 
 ## Safety rules

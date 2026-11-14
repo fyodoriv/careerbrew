@@ -23,3 +23,12 @@ def test_the_runner_skips_only_the_picture_comparison_and_says_so():
     assert guard < story.index("--reporter=line")
     assert "CAREERBREW_VISUAL_PICTURES: local-only" in WORKFLOW.read_text()
     assert "hosted-visual-pictures" in (ROOT / "docs/ci.md").read_text()
+
+
+def test_no_playwright_config_lets_playwright_fetch_into_the_checkout():
+    # On GitHub Actions, in a pull request, Playwright 1.59 runs `git fetch origin <base> --depth=1`
+    # to record a diff. That makes the checkout shallow, and US-40 then bundles a `main` with no parents.
+    configs = sorted(p for p in (ROOT / "web").rglob("playwright*.config.ts") if "node_modules" not in p.parts)
+    assert len(configs) >= 4, configs
+    for config in configs:
+        assert "captureGitInfo: { commit: false, diff: false }" in config.read_text(), config.relative_to(ROOT)
