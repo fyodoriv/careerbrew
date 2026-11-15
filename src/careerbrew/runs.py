@@ -476,7 +476,9 @@ def repo_checkup(logs: Path, rc: int, title: str = "careerbrew checkup") -> Run:
                 r.done.append(Item("Gate passed", id="gate", evidence=f"{last} ({cached} step(s) cached)", command=cmd))
             else:
                 m = re.search(r"step '([^']+)' failed", text)
-                r.blockers.append(Item("Gate failed", id="gate", why=f"step {m.group(1)} failed (its output is under Details)" if m else last, command="scripts/check.sh"))
+                hosted = re.search(r"(?m)^hosted-gate: .*-> (?:read it|fix): (.+)$", text)
+                fix = hosted.group(1).strip() if hosted else "scripts/check.sh"
+                r.blockers.append(Item("Gate failed", id="gate", why=f"step {m.group(1)} failed (its output is under Details)" if m else last, command=fix))
         elif sid == "broken-stories":
             broken = re.findall(r'(?m)^\s*(\d+)\s+"story":"([^"]+)"', text)
             if not broken:

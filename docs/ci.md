@@ -53,6 +53,12 @@ tree leaves that folder out, so `public-readiness` fails that pull request.
 A full local gate (`scripts/check.sh`) still works and is optional. Use it
 when the hosted checks are unavailable.
 
+The checkup (`scripts/checkup.sh`) runs no gate either. It reads the newest
+finished hosted run on `main` with `scripts/hosted-gate.sh`: green passes, red
+names `gh run view <id> --log-failed`, and an unknown result (no `gh`, signed
+out, no finished run) is never green. `CHECKUP_LOCAL_GATE=1 scripts/checkup.sh`
+runs the full gate on this machine instead.
+
 ## Safety rules
 
 Keep every rule when you change a workflow.

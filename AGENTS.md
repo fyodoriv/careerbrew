@@ -44,7 +44,7 @@ Run every command from the repo root.
 | Show or change a setting | `uv run careerbrew config` · `uv run careerbrew config set <key> <value>` |
 | One-line setup (idempotent) | `scripts/setup.sh` |
 | Health check | `scripts/doctor.sh` |
-| Checkup (whole repo: when it last ran here and the commits since, open PRs and branches, health, cached gate, broken stories, speed, P0s, monthly audit) | `scripts/checkup.sh` (ends with a run page and one summary line; a copy stays at `.metrics/checkup.html`); agents: `/careerbrew-checkup`, which ends by filing each problem found (duplicate search first, drafts checked with `careerbrew privacy scan --file`) |
+| Checkup (whole repo: when it last ran here and the commits since, open PRs and branches, health, the hosted gate on main, broken stories, speed, P0s, monthly audit) | `scripts/checkup.sh` (ends with a run page and one summary line; a copy stays at `.metrics/checkup.html`; it reads the gate from `scripts/hosted-gate.sh`, and `CHECKUP_LOCAL_GATE=1` runs `scripts/check.sh` here instead); agents: `/careerbrew-checkup`, which ends by filing each problem found (duplicate search first, drafts checked with `careerbrew privacy scan --file`) |
 | What a long run did, its blockers, and next commands (content-free, for agents) | `uv run careerbrew report latest --json` (open the page: `uv run careerbrew open --report latest`) |
 | Install | `uv sync` |
 | One test | `uv run pytest tests/test_file.py::test_name -q` |
