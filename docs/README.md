@@ -22,6 +22,7 @@ One row per doc: the question it answers and who reads it.
 | [learn.md](learn.md) | How do I learn a project so it sticks, and how does careerbrew measure that it stuck? | both |
 | [practice.md](practice.md) | How do flashcards work, and which learning research backs each step? | both |
 | [web.md](web.md) | How do I open the web app, what does each view show, and how is it built? | both |
+| [rust-migration.md](rust-migration.md) | How does careerbrew move from Python to Rust, step by step, how is each step measured, and where does it stand now? | both |
 | [design/](design/) | What did the Hallmark design audit find before and after the restyle, and why does each kept finding stay? | both |
 
 Agent runtime and deployment: [Agent hosts](agent-hosts.md), [Grind controls](grind-host-controls.md), [Gate batching](grind-gate-batching.md).
