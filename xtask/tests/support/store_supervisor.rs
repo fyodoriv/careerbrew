@@ -112,7 +112,7 @@ fn validate_compiler_metadata(metadata: &str) -> Result<(), ()> {
         .lines()
         .filter_map(|line| line.strip_prefix("host: "))
         .collect();
-    if releases != ["1.99.1"] || hosts.len() != 1 || hosts[0].is_empty() {
+    if releases != ["1.100.0"] || hosts.len() != 1 || hosts[0].is_empty() {
         return Err(());
     }
     Ok(())
@@ -251,13 +251,13 @@ mod receipt_controls {
 
     #[test]
     fn compiler_metadata_and_output_refuse_bad_evidence() {
-        assert!(validate_compiler_metadata("release: 1.99.1\nhost: example-host\n").is_ok());
+        assert!(validate_compiler_metadata("release: 1.100.0\nhost: example-host\n").is_ok());
         for bad in [
             "",
-            "release: 1.99.1\n",
-            "release: 1.99.1\nhost: \n",
-            "release: 1.99.1\nrelease: 1.99.1\nhost: host\n",
-            "release: 1.99.1\nhost: one\nhost: two\n",
+            "release: 1.100.0\n",
+            "release: 1.100.0\nhost: \n",
+            "release: 1.100.0\nrelease: 1.100.0\nhost: host\n",
+            "release: 1.100.0\nhost: one\nhost: two\n",
         ] {
             assert!(validate_compiler_metadata(bad).is_err());
         }
