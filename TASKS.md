@@ -445,6 +445,36 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P2
 
+- [ ] Make migrate-history recover reflog tips the header promises, or narrow the header
+  - **ID**: migrate-history-reflog-scope
+  - **Details**: `scripts/migrate-history.sh` scans the reflog only of branches whose tip is already on the public history. Three cases are not scanned: a branch still on old history that was reset back (its newer old tip is only in its reflog), a deleted branch (git drops its reflog), and the `HEAD` reflog. Either scan the `HEAD` reflog and every reflog entry of old branches too, or make the header and `docs/migrate-to-public-history.md` name these limits.
+  - **Files**: scripts/migrate-history.sh; tests/unit/test_migrate_history.py; docs/migrate-to-public-history.md
+  - **Hypothesis**: old tips that exist only in a scanned-but-skipped reflog (old-branch reset, `HEAD` after a branch delete) drop from 2 of 2 test cases lost to 0 of 2.
+  - **Measurement**: `uv run pytest tests/unit/test_migrate_history.py -q` with one new temp-repo test per case.
+  - **Success**: both new tests pass and the 21 existing tests still pass.
+  - **Pivot**: if scanning the `HEAD` reflog saves more than 3 tips in a 500-entry synthetic reflog, narrow the header instead of scanning.
+  - **Anchor**: Forsgren, Humble & Kim 2018 (DORA change failure rate).
+
+- [ ] Save a recovered reflog tip when a parent ref name blocks it
+  - **ID**: migrate-history-ref-name-clash
+  - **Details**: in `scripts/migrate-history.sh` step 1, an existing `refs/pre-public/a` makes `git update-ref refs/pre-public/a/b` fail (a file and folder clash), and `a/b-reflog` fails the same way. The stamped fallback then fails too, and the ERR trap stops the run. Pick a fallback name outside the clashing path, for example `refs/pre-public-reflog/<stamp>/<branch>`.
+  - **Files**: scripts/migrate-history.sh; tests/unit/test_migrate_history.py
+  - **Hypothesis**: runs that stop on a parent-name clash drop from 1 of 1 test cases to 0 of 1.
+  - **Measurement**: `uv run pytest tests/unit/test_migrate_history.py -q` with a temp-repo test that parks `refs/pre-public/a`, then recovers branch `a/b` from its reflog.
+  - **Success**: the new test exits 0 and the bundle holds the `a/b` tip; all existing tests pass.
+  - **Pivot**: if no ref name avoids the clash, stop with a clear message that names the blocking ref instead.
+  - **Anchor**: Forsgren, Humble & Kim 2018 (DORA change failure rate).
+
+- [ ] Stop migrate-history from walking every reflog entry on clean clones
+  - **ID**: migrate-history-reflog-speed
+  - **Details**: `reflog_tips` in `scripts/migrate-history.sh` runs `git rev-list --max-parents=0` once per reflog entry until it finds an old one. A clean clone has no old entry, so each run walks every entry of every branch. Stop early, for example check each distinct commit once, or test the whole reflog with one `git rev-list --max-parents=0 --stdin` call.
+  - **Files**: scripts/migrate-history.sh; tests/unit/test_migrate_history.py
+  - **Hypothesis**: on a synthetic clone with 1,000 public reflog entries, the "Nothing to do" run time drops by 80% or more.
+  - **Measurement**: `heavy-run --exclusive hyperfine 'bash scripts/migrate-history.sh'` in a temp clone with 1,000 public reflog entries (`CAREERBREW_PUBLIC_ROOT` set), before and after.
+  - **Success**: median run time drops 80% or more, and `uv run pytest tests/unit/test_migrate_history.py -q` passes.
+  - **Pivot**: if the drop is under 30%, keep the current loop and close the task.
+  - **Anchor**: Kalibera & Jones 2013 (rigorous benchmarking).
+
 - [ ] Guard the watcher test child against file access outside its scratch folder
   - **ID**: watch-gate-filesystem-guard
   - **Details**: `tests/unit/watch_gate_child.py` blocks only process and network audit events. Unfinished work from before the history move adds a file guard: an audit hook that refuses reads, writes, listing and renames outside the scratch root, and refuses `.env`, credential files, `.git`, the data folder, `..`, symlinks and `dir_fd` opens. It has five cases: F01 scratch write is allowed and public reads work; F02 outside and secret reads are refused; F03 symlink and `..` escapes are refused; F04 outside write and rename are refused and a canary file is unchanged; F05 a `dir_fd` write is refused. A saved copy is on the owner's Mac only (`~/.local/state/careerbrew-cutover/this-mac-2026-11-13/dirty/`, the watch-gate-isolation archive). It needs rework before it applies: the child now uses `LC_CTYPE: C.UTF-8` and the fixed zone `Etc/GMT+4`, and the old copy pins a tzdata path. Without the copy, write the guard from this description.

@@ -364,6 +364,7 @@ def test_an_old_tip_that_only_the_reflog_holds_goes_into_the_bundle(world):
 
     assert r.returncode == 0, r.stdout + r.stderr
     assert "recovered old main tip from the reflog" in r.stdout
+    assert "and 1 old tip(s) from the reflog to refs/pre-public/" in r.stdout  # the summary counts it
     assert git(clone, "rev-parse", "refs/pre-public/main") == old_main
     assert git(clone, "rev-parse", "main") == root
     assert old_heads(clone, root) == []
@@ -398,3 +399,32 @@ def test_a_rerun_after_a_reflog_recovery_changes_nothing(world):
     assert "recovered" not in r.stdout
     assert git(clone, "for-each-ref") == before
     assert len(list(saved.glob("*.bundle"))) == 1
+
+
+def test_a_reflog_recovery_on_a_public_checkout_ignores_linked_worktrees(world):
+    clone, root, saved = world
+    old_main = only_main_left(clone)
+    pull_rebase_onto_public(clone)
+    git(clone, "worktree", "add", "-q", "-b", "side", str(clone.parent / "side"), "origin/main")
+
+    r = run(clone, root, saved)
+
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "linked worktree" not in r.stdout
+    assert git(clone, "rev-parse", "refs/pre-public/main") == old_main
+    (bundle,) = saved.glob("pre-public-*.bundle")
+    assert old_main in git(clone, "bundle", "list-heads", str(bundle))
+
+
+def test_a_clone_with_only_public_reflog_entries_has_nothing_to_do(world):
+    clone, root, saved = world
+    fresh = clone.parent / "fresh"
+    git(clone.parent, "clone", "-q", str(clone.parent / "new.git"), str(fresh))
+
+    r = run(fresh, root, saved)
+
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "already on the public history. Nothing to do." in r.stdout
+    assert "recovered" not in r.stdout
+    assert git(fresh, "for-each-ref", "refs/pre-public/") == ""
+    assert not saved.exists()

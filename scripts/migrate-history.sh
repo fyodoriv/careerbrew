@@ -76,8 +76,11 @@ if [ "$head_public" = yes ] && [ "$left" = 0 ] && [ -z "$recover" ]; then
   exit 0
 fi
 
+# A move changes branches and the working tree; a reflog recovery alone only adds refs and a bundle.
 others="$(git worktree list --porcelain | grep -c '^worktree ' || true)"
-[ "$others" -le 1 ] || stop "$((others - 1)) linked worktree(s) exist. Finish or remove each one (git worktree list; git worktree remove <path>; git worktree prune for a folder that is gone), then run this again."
+if [ "$head_public" = no ] || [ "$left" != 0 ]; then
+  [ "$others" -le 1 ] || stop "$((others - 1)) linked worktree(s) exist. Finish or remove each one (git worktree list; git worktree remove <path>; git worktree prune for a folder that is gone), then run this again."
+fi
 
 branch="$(git symbolic-ref --quiet --short HEAD || true)"
 if [ "$head_public" = no ]; then
@@ -122,8 +125,10 @@ fi
 # 1. Save every ref outside the checkout. Each stash gets its own ref first:
 #    a bundle holds only the newest stash otherwise.
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+recovered=0
 while read -r sha name; do
   [ -n "$sha" ] || continue
+  recovered=$((recovered + 1))
   # Keep a ref an earlier run parked: use <branch>-reflog, then add the time stamp.
   # An empty old value makes update-ref fail when the ref already exists.
   if git update-ref "refs/pre-public/$name" "$sha" "" 2>/dev/null; then
@@ -188,6 +193,6 @@ while read -r sha ref; do
 done < <(old_refs refs/heads/)
 git remote prune origin >/dev/null 2>&1 || true
 
-say "moved $moved old branch(es) to refs/pre-public/ and $tags old tag(s) to refs/pre-public-tags/. Never push them: they hold the private history."
+say "moved $moved old branch(es) and $recovered old tip(s) from the reflog to refs/pre-public/, and $tags old tag(s) to refs/pre-public-tags/. Never push them: they hold the private history."
 say "the checkout is on the public history at $(git rev-parse --short HEAD)."
 say "next: scripts/setup.sh, then scripts/doctor.sh"
