@@ -434,6 +434,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P2
 
+- [ ] Keep main's CI result under 20 minutes when two runs overlap (free macOS 5-job limit)
+  - **ID**: ci-macos-queue-overlap
+  - **Details**: Since the gate split (#80), one run alone gives main's result in 14m01s (run 43706837756). Each run needs 4 macOS jobs, and the free plan runs 5 macOS jobs at once, so a second run waits: main runs 43702544809 and 43704358195 took 30m15s and 30m34s from push, queued 8 to 18 min behind other runs. Pull request runs already cancel older runs of the same PR (`concurrency` in `.github/workflows/ci.yml`). Options to measure, in order: (1) merge one PR at a time (no code; write it in `docs/ci.md`); (2) run the macOS `checks` and `native` parts in one job only on pull requests, keeping 4 parts on main; (3) cancel an older main run when a newer main commit arrives, and let `scripts/hosted-gate.sh` keep skipping cancelled runs. Never drop a required check or the macOS gate.
+  - **Files**: .github/workflows/ci.yml; docs/ci.md; scripts/hosted-gate.sh
+  - **Hypothesis**: with the chosen option, main's push-to-result time stays at or under 20 minutes even while one pull request run is active.
+  - **Measurement**: `gh run list -R fyodoriv/careerbrew --workflow ci.yml --branch main --event push --limit 10 --json createdAt,updatedAt` (minutes from created to updated per run), for 5 main runs that overlap a pull request run.
+  - **Success**: 5 of 5 overlapping main runs finish in 20 minutes or less.
+  - **Pivot**: if option (2) or (3) still leaves 2 of 5 above 20 minutes, keep option (1) as the rule and stop changing the workflow.
+  - **Anchor**: Forsgren, Humble & Kim 2018 (Accelerate: lead time for changes).
+
 - [ ] Make migrate-history recover reflog tips the header promises, or narrow the header
   - **ID**: migrate-history-reflog-scope
   - **Details**: `scripts/migrate-history.sh` scans the reflog only of branches whose tip is already on the public history. Three cases are not scanned: a branch still on old history that was reset back (its newer old tip is only in its reflog), a deleted branch (git drops its reflog), and the `HEAD` reflog. Either scan the `HEAD` reflog and every reflog entry of old branches too, or make the header and `docs/migrate-to-public-history.md` name these limits.
