@@ -902,3 +902,5 @@ scripts/visual-pictures.sh,port,rust-27,Port each assertion/helper with its doma
 tests/unit/test_public_readiness.py,port,rust-27,Check each planted public-readiness defect fails its surface
 tests/unit/test_redirect_host_policy.py,port,rust-27,Check a redirect obeys the host policy and keeps a token on its origin
 tests/unit/test_visual_pictures.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/telemetry-install.sh,port,rust-24,Setup's local install numbers for the telemetry capability; ports with it
+tests/unit/test_telemetry_reference_successor.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
