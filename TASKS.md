@@ -6,27 +6,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P0
 
-- [ ] Telemetry key: set the PostHog write-only key once on each machine, and decide on a committed key
+- [ ] Telemetry key: set the PostHog write-only key once on each other machine, and decide on a committed key
   - **ID**: telemetry-key-owner
   - **Blocked**: owner step: only the owner holds the key, and `careerbrew secret set` reads it from a hidden terminal prompt (never from chat or a file)
-  - **Details**: No key is committed: a shipped `phc_` key fails public-readiness surface S22 ("machine and account identifiers", rule `key` in `scripts/public-readiness.py`), while S11 (gitleaks) passes. Steps. (1) On each machine run `careerbrew secret set posthog_key` and type the key; then `careerbrew telemetry status` shows `key: keychain`. (2) Decide later whether a committed write-only key is allowed. If yes, the change is an owner decision on S22 (an allow line repeats the matched text, so prefer a rule change that clears one named key file) plus the key file and its lookup step in `src/careerbrew/telemetry.py`; never an agent-added allow entry.
+  - **Details**: No key is committed: a shipped `phc_` key fails public-readiness surface S22 ("machine and account identifiers", rule `key` in `scripts/public-readiness.py`), while S11 (gitleaks) passes. Done on the owner's main Mac (2026-11-15: `key: keychain`, consent yes, 8 events sent and read back in PostHog). Steps. (1) On each other machine run `careerbrew secret set posthog_key` and type the key; then `careerbrew telemetry status` shows `key: keychain`. (2) Decide later whether a committed write-only key is allowed. If yes, the change is an owner decision on S22 (an allow line repeats the matched text, so prefer a rule change that clears one named key file) plus the key file and its lookup step in `src/careerbrew/telemetry.py`; never an agent-added allow entry.
   - **Files**: src/careerbrew/telemetry.py; scripts/public-readiness.py; config/public-readiness-allow.txt
   - **Hypothesis**: with the key set on a machine that said yes, that machine's events reach PostHog within a day, so the tiles get data.
   - **Measurement**: `careerbrew telemetry status` (expect `key: keychain` and `last send:` a date within one day of the yes); `scripts/public-readiness.sh --released` (S22 `pass`).
   - **Success**: every owner machine shows `key: keychain`; S22 stays `pass`.
   - **Pivot**: if no machine has sent after a week, check `careerbrew telemetry send --dry-run` for the reason before any committed-key change.
   - **Anchor**: Kohavi, Tang & Xu 2020 (trustworthy online experiments: data quality before analysis).
-
-- [ ] Telemetry 3 of 3: create the product tiles in PostHog from the committed queries
-  - **ID**: telemetry-tiles
-  - **Blocked**: owner step: the tiles are made in the owner's signed-in PostHog session (an agent has no PostHog login); ask the owner to open that browser tab
-  - **Details**: The queries are written: [`docs/telemetry-tiles.md`](docs/telemetry-tiles.md) has one section per tile (question, exact HogQL query, events and fields). Steps left. (1) With the owner's browser session, create the six tiles from those queries (paste the `USER_COMMANDS` list where the doc says) and read each one back; a tile with no data yet is recorded as "empty until <condition>" from the doc, never filled with a made-up event. Never put a key, a person, or a private dashboard link in the repository; the doc names tiles by title only. (2) Every number in the README that claims an outcome must name its tile or its command; a claim with no source is removed (task `proof-real-use-outcomes` covers the wording). (3) Add a checkup line: `careerbrew telemetry status` shows the count of events waiting and the last send day.
-  - **Files**: README.md; commands/careerbrew-checkup.md
-  - **Hypothesis**: every outcome claim in the README can be traced to a query, because each tile's query is in the repository.
-  - **Measurement**: `rg -c '^## ' docs/telemetry-tiles.md` (7: the command list plus 6 tiles); a manual read-back of each tile recorded with the date in the pull request.
-  - **Success**: 6 of 6 tiles exist in PostHog; at least 3 hold data when read back; 0 README outcome claims lack a source.
-  - **Pivot**: if the owner's session is not available within a week, leave tile creation as this owner task with the exact queries.
-  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Doerr 2018 (outcomes, not activities).
 
 - [ ] Telemetry sink 1 of 2: let a company plugin send telemetry to its own log system (Splunk HEC or a file) instead of PostHog
   - **ID**: telemetry-plugin-sink

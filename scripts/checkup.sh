@@ -85,6 +85,10 @@ broken_stories() {
 
 speed() { scripts/metrics.sh; }
 
+# Telemetry on this machine: the answer, the events waiting, and the last send day. Never a key or the install id:
+# the checkup page is not personal, so an agent may publish it.
+telemetry() { "${py[@]}" -c 'from careerbrew import telemetry; print(telemetry.brief())'; }
+
 open_work() { scripts/open-work.sh; }
 
 p0_tasks() {
@@ -114,6 +118,7 @@ else
 fi
 section broken-stories "Broken stories (failed events by story)" "grep '\"ok\":false' .metrics/events.jsonl" broken_stories || true
 section speed "Speed" "scripts/metrics.sh" speed || true
+section telemetry "Telemetry on this machine" "careerbrew telemetry status" telemetry || true
 section open-work "Open work (PRs, branches, unpushed or uncommitted changes)" "scripts/open-work.sh" open_work || true
 section p0 "Open P0 tasks" "TASKS.md, section P0" p0_tasks || true
 section audit "Monthly requirements audit" "new-project skill: scripts/audit-due.sh" audit || true

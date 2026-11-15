@@ -1,6 +1,6 @@
 # Telemetry tiles
 
-The product tiles for careerbrew's field telemetry (US-89), one section per tile. Each tile names its question, the exact HogQL query, and the events and fields it reads. The owner makes the tiles in PostHog from these queries; this file names them by title only (no key, no person, no dashboard link).
+The product tiles for careerbrew's field telemetry (US-89), one section per tile. Each tile names its question, the exact HogQL query, and the events and fields it reads. The tiles live on the PostHog dashboard **careerbrew: product and performance**, the same way agentbrew and dotfiles keep theirs: one "Product: <title>" table per section below, plus the tech tiles at the end. This file names them by title only (no key, no person, no dashboard link). `tests/unit/test_telemetry_tiles.py` checks that every query reads only events careerbrew sends and that the command list equals the code.
 
 What the events hold, and what they never hold, is in [`observability.md`](observability.md) ("Field telemetry") and the exit row in [`privacy.md`](privacy.md). A tile with no data yet shows "empty until <condition>"; it is never filled with a made-up event.
 
@@ -62,6 +62,7 @@ GROUP BY tier
 - **Question**: of the installs active in a week, how many are active again two weeks later?
 - **Reads**: `cli.run` (`command`, `distinct_id`, `timestamp`).
 - **Empty until**: an install has been active for at least three weeks.
+- **Why `nullIf`**: PostHog's ClickHouse fills a LEFT JOIN row with no match with `''`, not NULL, so a plain `count(DISTINCT w2.distinct_id)` counts the empty string and shows 100% retention for a week nobody came back.
 
 ```sql
 WITH weekly AS (
@@ -71,8 +72,8 @@ WITH weekly AS (
 )
 SELECT w0.week AS cohort_week,
        count(DISTINCT w0.distinct_id) AS active,
-       count(DISTINCT w2.distinct_id) AS active_two_weeks_later,
-       round(count(DISTINCT w2.distinct_id) / count(DISTINCT w0.distinct_id), 3) AS retention
+       count(DISTINCT nullIf(w2.distinct_id, '')) AS active_two_weeks_later,
+       round(count(DISTINCT nullIf(w2.distinct_id, '')) / count(DISTINCT w0.distinct_id), 3) AS retention
 FROM weekly AS w0
 LEFT JOIN weekly AS w2 ON w2.distinct_id = w0.distinct_id AND w2.week = w0.week + INTERVAL 2 WEEK
 WHERE w0.week <= toStartOfWeek(now(), 1) - INTERVAL 2 WEEK
@@ -83,7 +84,8 @@ ORDER BY cohort_week
 ## Error rate per command
 
 - **Question**: which commands fail most often, and how slow are they?
-- **Reads**: `cli.run` (`command`, `status`, `duration_ms`) and `cli.error` (`command`, `error`).
+- **Reads**: `cli.run` (`command`, `status`, `duration_ms`) and `cli.error` (`command`, `error`, the lowercase exception class).
+- **Note**: before careerbrew 0.1.0's fix of 2026-11-15, `cli.error` lost its `error` field and a bare `careerbrew` run had no `command`; older rows group under an empty command.
 - **Empty until**: the first command after a yes.
 
 ```sql
@@ -176,3 +178,10 @@ WHERE event = 'careerbrew.upgrade' AND timestamp > now() - INTERVAL 26 WEEK
 GROUP BY week, from_version, to_version
 ORDER BY week, installs DESC
 ```
+
+## Tech tiles: command timings
+
+- **Question**: which commands are slow, and did a version or runtime (Python now, Rust later) make them faster or slower?
+- **Reads**: `cli.run` (`duration_ms`, `command`, `app_version`, `runtime`).
+- **Tiles**: four PostHog trends over 30 days, one line per value: `careerbrew p50 ms by command` (median of `duration_ms`, broken down by `command`), `careerbrew p95 ms by command` (95th percentile), `careerbrew p50 ms by version` (by `app_version`), `careerbrew p50 ms by runtime` (by `runtime`). They are the same as the agentbrew and dotfiles timing tiles, so the Rust migration (`docs/rust-migration.md`) can compare runtimes on real use.
+- **Empty until**: the first command after a yes.

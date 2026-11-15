@@ -703,6 +703,15 @@ def _ask_locked(read, write) -> str | None:
     return None
 
 
+def brief() -> str:
+    """One line for the checkup page, which an agent may publish: on or off, the answer, the events waiting, and the
+    last send day. Never the install id or the endpoint, and it makes no install id."""
+    ok, why = enabled()
+    state = _state()
+    waiting = len(pending()[0]) if state.get("install_id") else 0
+    return f"telemetry: {'on' if ok else 'off'} ({why}); answer: {consent()}; pending: {waiting} event(s); last send: {state.get('last_send_day') or 'never'}"
+
+
 def status() -> dict[str, Any]:
     ok, why = enabled()
     state = _state()
