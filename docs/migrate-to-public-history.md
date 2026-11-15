@@ -37,6 +37,10 @@ Run them in the checkout (`careerbrew where` prints its folder).
    - a linked worktree exists: finish or remove it first (`git worktree prune` for a folder that is gone);
    - `origin` is not the public careerbrew repository.
 
+   If a scheduled job may have pulled before you ran the script, check that the
+   old work was kept: `git reflog main` lists where `main` was, and each old tip
+   the script recovered is under `git for-each-ref refs/pre-public/`.
+
 3. Set up and check the checkout:
 
    ```bash
@@ -60,6 +64,7 @@ Run them in the checkout (`careerbrew where` prints its folder).
 - It saves every branch, tag and stash in one bundle file under `~/.local/state/careerbrew-cutover/`.
 - It moves each old branch to `refs/pre-public/<name>` and each old tag to `refs/pre-public-tags/<name>` in the same clone. `git push` and `git push --tags` do not send those. A branch that merged both histories counts as old.
 - It keeps your stashes, and a copy of each one under `refs/pre-public-stash/`.
+- It saves an old branch tip that only the reflog still holds. This happens when a scheduled job or an agent ran `git pull --rebase` and moved `main` onto the public history before the script ran. It saves the newest such tip as `refs/pre-public/<branch>` (or `refs/pre-public/<branch>-reflog` when that name is taken), puts it in the bundle, and prints `recovered old <branch> tip from the reflog`.
 - It puts `main` on the public history and sets its upstream. A local `main` that is already on the public history stays as it is.
 - A second run finishes a move that stopped half way.
 - It leaves `private/`, the plugin folders and every other ignored file as they are. Your data and settings do not move.
