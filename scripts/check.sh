@@ -67,7 +67,10 @@ step_key() { # step_key <name>: set k to one step's cache key, from its inputs (
 # CHECK_STEPS="<step> ..." runs only the named steps: the hosted gate runs in
 # parallel parts this way (docs/ci.md, "Parallel parts"). A name that never
 # runs (a typo, or a step whose tool is missing) fails the gate.
-only=" $(printf '%s' "${CHECK_STEPS:-}" | tr ',' ' ') " seen=" "
+# The filter is this run's only: a test that runs check.sh in a scratch repo
+# must not inherit it (export -n keeps the value here, hides it from children).
+steps_filter="${CHECK_STEPS:-}" only=" ${steps_filter//,/ } " seen=" "
+export -n CHECK_STEPS
 step() {
   # step <name> <command...>: run, time, and log one gate step; skip it on a cache hit.
   name="$1"; shift

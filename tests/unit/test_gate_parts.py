@@ -117,6 +117,15 @@ def test_check_steps_refuses_a_name_that_is_not_a_step(tmp_path):
     assert "unti" in r.stderr and "did not run" in r.stderr
 
 
+def test_a_step_does_not_pass_the_filter_on_to_its_children(tmp_path):
+    # The hosted checks part ran unit tests that run check.sh in a scratch repo; they saw the part's filter and failed.
+    root = _check_repo(tmp_path)
+    (root / "scripts/check-docs.sh").write_text('#!/usr/bin/env bash\necho "${CHECK_STEPS-unset}" >> ran\n')
+    r = _check(root, "docs")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert (root / "ran").read_text().split() == ["unset"]
+
+
 # ---- E2E_SHARD in a tiny repo with stub stories ----
 
 
@@ -170,6 +179,12 @@ def test_a_wrong_shard_fails_with_the_format(tmp_path, bad):
     r = _e2e(root, bad)
     assert r.returncode == 2
     assert "E2E_SHARD" in r.stderr and "i/n" in r.stderr
+
+
+def test_a_story_does_not_inherit_the_shard(tmp_path):
+    root = _e2e_repo(tmp_path, {"us-01-a.sh": 'echo "${E2E_SHARD-unset}" >> "$RAN.env"'})
+    assert _e2e(root, "1/1").returncode == 0
+    assert (root / "ran-1-1.env").read_text().split() == ["unset"]
 
 
 def test_a_shard_run_does_not_write_the_whole_suite_results(tmp_path):

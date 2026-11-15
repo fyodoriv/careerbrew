@@ -29,6 +29,7 @@ tests=(tests/e2e/us-*.sh)
 # gives its usual seconds on a hosted runner (default 10). The heaviest story
 # goes first, each to the share with the least weight so far, so the shares
 # take about the same time and together run every file exactly once.
+export -n E2E_SHARD # a story that runs e2e.sh in a scratch copy runs all its files
 if [ -n "${E2E_SHARD:-}" ]; then
   if ! [[ "$E2E_SHARD" =~ ^([1-9][0-9]*)/([1-9][0-9]*)$ ]] || [ "${BASH_REMATCH[1]}" -gt "${BASH_REMATCH[2]}" ]; then
     echo "e2e: E2E_SHARD must be i/n with 1 <= i <= n (got: $E2E_SHARD)" >&2; exit 2
