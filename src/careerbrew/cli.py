@@ -4830,8 +4830,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.cmd == "data" and getattr(args, "sub", "") == "set":
             parser.error("invalid data set arguments")
         parser.error("unrecognized arguments: " + " ".join(unknown))
-    # A bare `careerbrew` parses with cmd None (the subparser default wins over set_defaults): it is `start`.
-    name = f"{args.cmd or 'start'}.{getattr(args, 'sub', '') or ''}".rstrip(".")
+    name = f"{args.cmd or 'start'}.{getattr(args, 'sub', '') or ''}".rstrip(".")  # a bare run has cmd None (subparser default): `start`
     started = time.monotonic()
     try:
         if name not in REPO_CHECKS:

@@ -85,8 +85,9 @@ broken_stories() {
 
 speed() { scripts/metrics.sh; }
 
-# Telemetry on this machine: the answer, the events waiting, and the last send day (counts only, never a key).
-telemetry() { "${py[@]}" -m careerbrew telemetry status; }
+# Telemetry on this machine: the answer, the events waiting, and the last send day. Never a key or the install id:
+# the checkup page is not personal, so an agent may publish it.
+telemetry() { "${py[@]}" -c 'from careerbrew import telemetry; print(telemetry.brief())'; }
 
 open_work() { scripts/open-work.sh; }
 

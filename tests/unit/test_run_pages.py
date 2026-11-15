@@ -501,6 +501,21 @@ def test_checkup_sh_shows_the_telemetry_answer_waiting_events_and_last_send(home
     assert "== Telemetry on this machine" in r.stdout and "telemetry:" in tail and "pending:" in tail and "last send:" in tail
 
 
+def test_the_checkup_telemetry_line_reaches_the_page_and_never_holds_the_install_id(home, tmp_path):
+    """The checkup page is not personal, so an agent may publish it: the install id (the PostHog distinct id) stays out,
+    and a checkup on a machine that never used telemetry makes no install id."""
+    r = _checkup_sh(_stub_repo(tmp_path), tmp_path)
+    assert r.returncode in (0, 1), r.stderr
+    from careerbrew import telemetry
+
+    assert not telemetry._state().get("install_id"), "a checkup must not make an install id"
+
+    page = (home / "out" / "reports" / "latest.html").read_text()
+    item = next(i for i in report.latest()["done"] + report.latest()["blockers"] if i["id"] == "telemetry")
+    assert "pending:" in (item.get("evidence") or item.get("why") or ""), item
+    assert telemetry.install_id() not in page and "install id" not in page
+
+
 # ---------- the web app and `open --report` ----------
 
 
