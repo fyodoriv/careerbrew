@@ -306,6 +306,7 @@ STUBS = {
     "open-prs.sh": "printf 'OPEN  #101 feat: run pages (branch feat/x, updated 2026-10-22)\\n      next: review, then merge when the gate is green\\n'\necho '-> finish open PRs before new work: gh pr checkout <number>'\nexit 1",
     "doctor.sh": "echo 'ok    git installed'\necho 'FAIL  gitleaks missing -> fix: brew install gitleaks'\nexit 1",
     "check.sh": "echo 'check.sh: docs cached (inputs unchanged)'\necho 'check.sh: full gate passed'",
+    "hosted-gate.sh": "echo 'hosted-gate: main 0123abcd passed (run 42, push)'",
     "metrics.sh": "echo 'step runs avg_s'\necho 'unit 3 4.0'",
     "open-work.sh": "echo none",
 }
@@ -348,7 +349,8 @@ def test_checkup_sh_writes_its_page_and_prints_the_path_and_one_summary_line(hom
     assert {d["label"] for d in s["done"]} >= {"Gate passed", "No open work", "Speed report"}
     assert "scripts/doctor.sh" in s["commands"] and s["counts"]["exit_code"] == 1
     page = Path(lines[0][6:]).read_text()
-    assert "check.sh: full gate passed" in page and "<summary>Gate (cached by input hash" in page, "each section's text is folded under Details"
+    assert "hosted-gate: main 0123abcd passed" in page and "<summary>Gate (the hosted checks on main)" in page, "each section's text is folded under Details"
+    assert "check.sh: full gate passed" not in page, "the checkup runs no full gate here: the hosted checks are the gate (docs/ci.md)"
     assert (tmp_path / "repo" / ".metrics" / "checkup.html").read_text() == page, "a copy stays at .metrics/checkup.html"
 
 
