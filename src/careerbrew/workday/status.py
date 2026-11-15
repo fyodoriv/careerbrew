@@ -230,6 +230,8 @@ def timed_out(step: str, plan_steps: list[str], started: str, day: date | None =
     row = _write_if(day or today(), change)
     if row is not None:
         events.emit("workday.timeout", retry=row["status"] == "waiting", status=row["status"])
+        kind = "builtin" if step in BUILTIN_STEPS else "workflow"  # a timeout moves the row too: the step tiles count it
+        events.emit("workday.update", status=row["status"], changed=True, needs_you=bool(row.get("needs_you")), error_class=row.get("error_class") or "", step_kind=kind, seconds=row.get("seconds"))
     return row
 
 

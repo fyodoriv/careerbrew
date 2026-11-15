@@ -996,3 +996,17 @@ def test_a_crash_is_counted_as_an_error_and_still_raises(home, monkeypatch):
         cli.main(["checklist"])
     rows = [json.loads(x) for x in events.log_path().read_text().splitlines()]
     assert {"event": "cli.error", "command": "checklist", "error": "typeerror"}.items() <= rows[-1].items()
+
+
+def test_a_timeout_that_fails_a_step_counts_as_a_tool_failure(home, monkeypatch):
+    from careerbrew.workday import status
+
+    monkeypatch.setenv("CAREERBREW_EVENTS", "on")
+    monkeypatch.setenv("CAREERBREW_NOW", "2026-10-29T09:00+00:00")
+    cli.main(["init"])
+    steps = ["/alpha"]
+    for _ in range(status.MAX_ATTEMPTS):
+        row = status.update("/alpha", steps, status="running")
+        status.timed_out("/alpha", steps, row["started"])
+    rows = [json.loads(x) for x in events.log_path().read_text().splitlines() if '"workday.update"' in x]
+    assert {"status": "failed", "changed": True, "error_class": "tool"}.items() <= rows[-1].items(), rows[-1]

@@ -152,7 +152,7 @@ ORDER BY week, installs DESC
 ## Work-day step durations
 
 - **Question**: how long does a `/work` step take, for careerbrew's own step and for workflow steps?
-- **Reads**: `workday.update` (`step_kind`, `seconds`, `status`, `changed`; a row that ended, counted once: a later edit that keeps the status sends `changed` false and no `seconds`).
+- **Reads**: `workday.update` (`step_kind`, `seconds`, `status`, `changed`; a row that ended done, blocked, or failed, counted once: a later edit that keeps the status sends `changed` false and no `seconds`, and a timeout sends its own move).
 - **Empty until**: an install that said yes ends a `/work` step.
 
 ```sql
@@ -160,7 +160,7 @@ SELECT properties.step_kind AS kind, properties.status AS ended_as, count() AS s
        quantile(0.5)(toFloat(properties.seconds)) AS median_seconds,
        quantile(0.9)(toFloat(properties.seconds)) AS p90_seconds
 FROM events
-WHERE event = 'workday.update' AND properties.changed = true AND properties.seconds IS NOT NULL AND timestamp > now() - INTERVAL 8 WEEK
+WHERE event = 'workday.update' AND properties.changed = true AND properties.status IN ('done', 'blocked', 'failed') AND properties.seconds IS NOT NULL AND timestamp > now() - INTERVAL 8 WEEK
 GROUP BY kind, ended_as
 ORDER BY kind, ended_as
 ```
@@ -245,13 +245,13 @@ ORDER BY clicks DESC, control
 
 - **Question**: of the work days `/work` starts, how many end, how often does it stop to ask the owner, do step proofs pass, and do steps time out?
 - **Decision**: days that start but never end mean the wrap-up is lost (fix `day end` first); asks added faster than closed mean `/work` asks too much; a falling verify pass share or rising timeouts point at the step to fix next.
-- **Reads**: `workday.start` (`traps`, a count), `workday.end` with `action` `end`, `workday.question` (`action` `add` or `close`), `workday.verify` (`ok`), `workday.timeout`. Counts and fixed verbs only.
+- **Reads**: `workday.start` (`traps`, a count; `day start` can run more than once a day, so starts and ends count install-days), `workday.end` with `action` `end`, `workday.question` (`action` `add` or `close`), `workday.verify` (`ok`), `workday.timeout`. Counts and fixed verbs only.
 - **Empty until**: an install that said yes runs `careerbrew day start`.
 
 ```sql
 SELECT toStartOfWeek(timestamp, 1) AS week, count(DISTINCT distinct_id) AS installs,
-       countIf(event = 'workday.start') AS days_started,
-       countIf(event = 'workday.end' AND properties.action = 'end') AS days_ended,
+       count(DISTINCT if(event = 'workday.start', concat(distinct_id, toString(toDate(timestamp))), NULL)) AS days_started,
+       count(DISTINCT if(event = 'workday.end' AND properties.action = 'end', concat(distinct_id, toString(toDate(timestamp))), NULL)) AS days_ended,
        round(avgIf(toFloat(properties.traps), event = 'workday.start'), 2) AS traps_per_start,
        countIf(event = 'workday.question' AND properties.action = 'add') AS asks_added,
        countIf(event = 'workday.question' AND properties.action = 'close') AS asks_closed,

@@ -21,7 +21,7 @@ def test_the_documented_command_list_equals_the_code():
 def test_every_tile_query_reads_only_events_careerbrew_sends():
     assert len(QUERIES) == 15
     for q in QUERIES:
-        names = re.findall(r"event (?:=|IN \() ?'([a-z_.]+)'", q) + re.findall(r", '([a-z_.]+)'\)", q)
+        names = re.findall(r"event = '([a-z_.]+)'", q) + [n for g in re.findall(r"event IN \(([^)]*)\)", q) for n in re.findall(r"'([a-z_.]+)'", g)]
         assert names and set(names) <= telemetry.EVENT_NAMES, q
 
 
