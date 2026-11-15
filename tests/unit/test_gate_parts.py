@@ -23,7 +23,7 @@ CHECK = ROOT / "scripts/check.sh"
 def _gate_steps() -> list[str]:
     """Every step name in scripts/check.sh, in order, once each."""
     names: list[str] = []
-    for name in re.findall(r"^\s*(?:if [^\n]*then )?step ([a-z0-9-]+) ", CHECK.read_text(), flags=re.M):
+    for name in re.findall(r"(?<![\w#-])step ([a-z0-9-]+) ", "\n".join(line.split("#")[0] for line in CHECK.read_text().splitlines())):
         if name not in names:
             names.append(name)
     return names
@@ -50,6 +50,7 @@ def test_the_parts_run_every_gate_step_exactly_once():
     for part in _parts():
         names = part["steps"].split()
         if "e2e" in names:
+            assert names == ["e2e"], "an e2e part runs only e2e, or its other steps would run once per shard"
             continue  # e2e runs in every e2e shard; the shards split its story files
         seen += names
     seen += ["e2e"]
@@ -171,6 +172,17 @@ def test_the_heaviest_story_gets_a_shard_of_its_own_weight(tmp_path):
     assert (root / "ran-1-2").read_text().split() == ["us-01-heavy.sh"]
     assert _e2e(root, "2/2").returncode == 0
     assert sorted((root / "ran-2-2").read_text().split()) == ["us-02-a.sh", "us-03-b.sh", "us-04-c.sh", "us-05-d.sh"]
+
+
+def test_the_real_weight_lines_are_read(tmp_path):
+    # The stories carry a note after the number; a weight that does not parse falls back to 10 and unbalances the shards.
+    lines = [t.read_text().splitlines()[1] for t in sorted((ROOT / "tests/e2e").glob("us-*.sh")) if "# e2e: weight:" in t.read_text()]
+    assert len(lines) >= 10 and len({re.sub(r"\d+", "N", line) for line in lines}) == 1, "every weight line has one shape"
+    heavy = (ROOT / "tests/e2e/us-72-every-control.sh").read_text().splitlines()[1]
+    # Named to sort first: read as 10, round-robin would put us-01-a beside the heavy story.
+    root = _e2e_repo(tmp_path, {"us-01-a.sh": "", "us-02-b.sh": "", "us-72-heavy.sh": heavy})
+    assert _e2e(root, "1/2").returncode == 0
+    assert (root / "ran-1-2").read_text().split() == ["us-72-heavy.sh"]
 
 
 @pytest.mark.parametrize("bad", ["0/2", "3/2", "2", "a/b", "1/0"])

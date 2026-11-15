@@ -35,7 +35,7 @@ if [ -n "${E2E_SHARD:-}" ]; then
     echo "e2e: E2E_SHARD must be i/n with 1 <= i <= n (got: $E2E_SHARD)" >&2; exit 2
   fi
   shard="${BASH_REMATCH[1]}" shards="${BASH_REMATCH[2]}"
-  weight() { local w; w="$(sed -nE 's/^# e2e: weight: ([0-9]+)$/\1/p' "$1" | head -1)"; echo "${w:-10}"; }
+  weight() { local w; w="$(sed -nE 's/^# e2e: weight: ([0-9]+)([[:space:]].*)?$/\1/p' "$1" | head -1)"; echo "${w:-10}"; }
   mine=() load=()
   for ((s = 1; s <= shards; s++)); do load[s]=0; done
   while IFS=$'\t' read -r w t; do
