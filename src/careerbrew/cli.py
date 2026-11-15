@@ -4830,14 +4830,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.cmd == "data" and getattr(args, "sub", "") == "set":
             parser.error("invalid data set arguments")
         parser.error("unrecognized arguments: " + " ".join(unknown))
-    name = f"{args.cmd}.{getattr(args, 'sub', '') or ''}".rstrip(".")
+    # A bare `careerbrew` parses with cmd None (the subparser default wins over set_defaults): it is `start`.
+    name = f"{args.cmd or 'start'}.{getattr(args, 'sub', '') or ''}".rstrip(".")
     started = time.monotonic()
     try:
         if name not in REPO_CHECKS:
             machine.guard(args.cmd)
         rc = args.fn(args)
     except (machine.RoleError, sync.SyncError, privacy.PrivacyError, plugins.PluginError, promo.LadderError, KeyError, ValueError, PermissionError, FileNotFoundError, RuntimeError) as exc:
-        events.emit("cli.error", command=name, error=type(exc).__name__)
+        events.emit("cli.error", command=name, error=type(exc).__name__.lower())  # events keep lowercase ids only
         say(f"error: {exc}")
         return 2
     from . import time_saved

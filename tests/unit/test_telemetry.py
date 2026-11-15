@@ -741,3 +741,26 @@ def test_a_new_version_emits_one_upgrade_event(fake, home, monkeypatch):
 def test_a_from_version_that_is_not_a_version_never_leaves(home):
     ev = telemetry.to_event({"event": "careerbrew.upgrade", "ts": _ts(), "from_version": "my-branch"}, "id")
     assert ev and "from_version" not in ev["properties"]
+
+
+# --- command fields of cli.run and cli.error (bare `careerbrew`, error classes) ----------------------------------
+
+
+def test_a_bare_careerbrew_run_counts_as_the_start_command(fake, home, monkeypatch):
+    monkeypatch.setattr(cli, "cmd_start", lambda a: 0)
+    cli.main([])
+    telemetry.send()
+    runs = [e["properties"].get("command") for e in fake.events() if e["event"] == "cli.run"]
+    assert "start" in runs  # the default command is the one a person runs most: it must count as active
+
+
+def test_a_failed_command_leaves_its_command_and_error_class(fake, home, monkeypatch):
+    def boom(a):
+        raise RuntimeError("private-canary-text")
+
+    monkeypatch.setattr(cli, "cmd_start", boom)
+    assert cli.main([]) == 2
+    telemetry.send()
+    errors = [e["properties"] for e in fake.events() if e["event"] == "cli.error"]
+    assert errors and errors[-1].get("command") == "start" and errors[-1].get("error") == "runtimeerror"
+    assert "private-canary-text" not in json.dumps(fake.bodies)

@@ -493,6 +493,14 @@ def test_checkup_sh_prints_the_sections_as_text_when_pages_are_off(home, tmp_pat
     assert report.latest() is None
 
 
+def test_checkup_sh_shows_the_telemetry_answer_waiting_events_and_last_send(home, tmp_path):
+    """Task telemetry-tiles step 3: the checkup shows whether this machine sends, how many events wait, and the last send day."""
+    main(["config", "set", "run_pages", "false"])
+    r = _checkup_sh(_stub_repo(tmp_path), tmp_path)
+    tail = r.stdout.split("== Telemetry on this machine", 1)[-1]
+    assert "== Telemetry on this machine" in r.stdout and "telemetry:" in tail and "pending:" in tail and "last send:" in tail
+
+
 # ---------- the web app and `open --report` ----------
 
 
