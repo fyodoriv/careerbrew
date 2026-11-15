@@ -171,7 +171,7 @@ ORDER BY kind, ended_as
 - **Question**: how fast do installs move to a new careerbrew version: what share of each week's active installs runs each version?
 - **Decision**: when 90% or more of active installs run version N or later, drop the shims for data formats older than N. A release still under half of active installs two weeks after it ships means `day start --update-only` should nudge harder.
 - **Reads**: `cli.run` (`app_version`, stamped when the line was logged, not when it was sent; `command` from the fixed list). `careerbrew.upgrade` (`from_version`) also leaves, for a from-to view.
-- **Empty until**: the first install that said yes runs a listed command.
+- **Empty until**: the first install that said yes runs a listed command. Until the version moves past `0.1.0` (task `release-version-bump`), every row is one version.
 
 ```sql
 SELECT week, version, installs, round(installs / sum(installs) OVER (PARTITION BY week), 3) AS share
@@ -189,7 +189,7 @@ ORDER BY week, installs DESC
 - **Question**: of the `/work` steps a day ends with, what share did `/work` finish alone, and did a new careerbrew version raise or lower it?
 - **Decision**: a version whose done share drops, whose stuck steps rise, or whose steps waiting on the owner rise, is a regression to read before the next change to `/work`.
 - **Reads**: `workday.end` with `action` `end` (`steps_done`, `steps_blocked`, `steps_failed`, `steps_running`, `steps_waiting`, `needs_you`, `app_version`; counts only, from `workday.end.step_outcomes`). A step still `running` at day end hung or crashed: the `stuck` column.
-- **Empty until**: an install that said yes ends a work day (`careerbrew day end`, or the clock).
+- **Empty until**: an install that said yes ends a work day (`careerbrew day end`, or the clock). Until the version moves past `0.1.0` (task `release-version-bump`), every row is one version.
 
 ```sql
 SELECT properties.app_version AS version, count(DISTINCT distinct_id) AS installs, count() AS work_days,
@@ -245,8 +245,8 @@ ORDER BY clicks DESC, control
 ## Work-day funnel and asks
 
 - **Question**: of the work days `/work` starts, how many end, how often does it stop to ask the owner, do step proofs pass, and do steps time out?
-- **Decision**: days that start but never end mean the wrap-up is lost (fix `day end` first); asks added faster than closed mean `/work` asks too much; a falling verify pass share or rising timeouts point at the step to fix next.
-- **Reads**: `workday.question` `add` is sent once per new ask (a re-save of an open ask sends nothing). `workday.start` (`traps`, a count; `day start` can run more than once a day, so starts and ends count install-days), `workday.end` with `action` `end`, `workday.question` (`action` `add` or `close`), `workday.verify` (`ok`), `workday.timeout`. Counts and fixed verbs only.
+- **Decision**: days that start but never end mean the wrap-up is lost (fix `day end` first); asks added faster than closed mean `/work` asks too much; a falling verify pass share or rising timeouts point at the step to fix next; sign-in failures at start mean the probe or the tokens need work before stage 1.
+- **Reads**: `workday.question` `add` is sent once per new ask (a re-save of an open ask sends nothing). `workday.start` (`traps`, a count; `signin`, the sign-in probe result; `day start` can run more than once a day, so starts and ends count install-days), `workday.end` with `action` `end`, `workday.question` (`action` `add` or `close`), `workday.verify` (`ok`), `workday.timeout`. Counts and fixed verbs only.
 - **Empty until**: an install that said yes runs `careerbrew day start`.
 
 ```sql
@@ -254,6 +254,7 @@ SELECT toStartOfWeek(timestamp, 1) AS week, count(DISTINCT distinct_id) AS insta
        count(DISTINCT if(event = 'workday.start', concat(distinct_id, toString(toDate(timestamp))), NULL)) AS days_started,
        count(DISTINCT if(event = 'workday.end' AND properties.action = 'end', concat(distinct_id, toString(toDate(timestamp))), NULL)) AS days_ended,
        round(avgIf(toFloat(properties.traps), event = 'workday.start'), 2) AS traps_per_start,
+       countIf(event = 'workday.start' AND properties.signin = 'failed') AS signin_failed,
        countIf(event = 'workday.question' AND properties.action = 'add') AS asks_added,
        countIf(event = 'workday.question' AND properties.action = 'close') AS asks_closed,
        round(countIf(event = 'workday.verify' AND properties.ok = true) / nullIf(countIf(event = 'workday.verify'), 0), 3) AS verify_pass_share,

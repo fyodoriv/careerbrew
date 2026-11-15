@@ -358,6 +358,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P1
 
+- [ ] Release versions: bump the careerbrew version on each release so the version tiles can move
+  - **ID**: release-version-bump
+  - **Details**: `src/careerbrew/__init__.py` and `pyproject.toml` both say `0.1.0`, and nothing bumps them. Every event carries `app_version` (since 2026-11-15, the version that logged the line), so the PostHog tiles "Work days by version", "Upgrades per week" and "p50 ms by version" show one row, and `careerbrew.upgrade` never fires. Steps: (1) keep one source of truth: `pyproject.toml` `version`, read by `careerbrew.__version__` through `importlib.metadata`, with a fallback for a source checkout; (2) a `scripts/release.sh <x.y.z>` that bumps it, adds a `CHANGELOG.md` entry from the merged PR titles since the last tag, and tags `v<x.y.z>`; (3) a gate test that fails when `__init__.py` and `pyproject.toml` disagree; (4) a line in `AGENTS.md` Delivery: a user-facing merge to `main` cuts a patch release. Keep the version a plain `x.y.z` (`telemetry._VERSION`).
+  - **Files**: src/careerbrew/__init__.py; pyproject.toml; scripts/release.sh; tests/unit/test_version.py; AGENTS.md; CHANGELOG.md
+  - **Hypothesis**: with one release per week of user-facing merges, the version tiles show 2 or more versions within 2 weeks, so a `/work` regression can be tied to the release that caused it.
+  - **Measurement**: the HogQL query of the "Upgrades per week" tile in `docs/telemetry-tiles.md` (count of distinct `version` per week); `uv run pytest tests/unit/test_version.py -q`.
+  - **Success**: 2 or more versions in the tile within 2 weeks of the first release; the version test passes.
+  - **Pivot**: if no install upgrades within 4 weeks of a release, the bump is not the gap: check `day start --update-only` instead.
+  - **Anchor**: Preston-Werner, Semantic Versioning 2.0.0; Forsgren, Humble & Kim 2018 (deployment frequency).
+
 - [ ] A unit test rebuilt the owner checkout's `.venv` against a Python in its temp HOME
   - **ID**: unit-test-relinks-owner-venv
   - **Details**: On 2026-11-15 the main checkout's `.venv/bin/python` and `pyvenv.cfg` `home` pointed into `.../pytest-3403/popen-gw5/test_doctor_catches_venv_scrip0/.test-client-home/.local/share/uv/python/...` (changed 03:40, during a unit run). Once pytest cleaned that folder, every `.venv` command failed: `scripts/public-readiness.sh` printed `result=error (FileNotFoundError ...)`. `uv sync --locked --reinstall` repaired it. Likely path: `tests/unit/conftest.py` moves HOME to `.test-client-home`, then `test_doctor_catches_venv_scripts_from_an_old_folder` (`tests/unit/test_issues_43_46.py`) runs `scripts/doctor.sh`, whose `uv run` calls inherit the caller's `VIRTUAL_ENV`; uv then re-creates that real venv with a Python it installs under the temp HOME. Fix: the test (and any test that runs doctor or setup) clears `VIRTUAL_ENV` and `UV_PROJECT_ENVIRONMENT`, or points uv at a scratch environment. Add a guard test that the repo `.venv` `pyvenv.cfg` is unchanged after the unit run. A failing reproduction test first.

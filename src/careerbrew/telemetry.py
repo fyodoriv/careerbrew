@@ -130,6 +130,10 @@ STEP_ERRORS = frozenset({"env", "auth", "network", "conflict", "tool"})
 VIA = frozenset({"cli", "ui", "agent"})
 # A work-day step is careerbrew's own (`workday.steps.BUILTIN_STEPS`) or one a plugin or repo declares; its name never leaves.
 STEP_KINDS = frozenset({"builtin", "workflow"})
+# The day start sign-in probe (`signin`), where a work-day ask came from (`source`), and how it is rechecked (`recheck`).
+SIGNIN = frozenset({"ok", "failed", "no-probe", "none-needed"})
+ASK_SOURCES = frozenset({"agent", "owner", "row", "careerbrew", "plugin"})
+RECHECKS = frozenset({"none", "url", "signin", "command"})
 # Error classes: Python's built-in exceptions and careerbrew's own; any other class is sent as "other".
 ERRORS = frozenset(
     {n.lower() for n, v in vars(builtins).items() if isinstance(v, type) and issubclass(v, BaseException)}
@@ -401,6 +405,12 @@ def _string_ok(k: str, v: str) -> str | None:
         return v if v in VIA else None
     if k == "step_kind":
         return v if v in STEP_KINDS else None
+    if k == "signin":
+        return v if v in SIGNIN else None
+    if k == "source":
+        return v if v in ASK_SOURCES else None
+    if k == "recheck":
+        return v if v in RECHECKS else None
     if k == "from_version":
         return v if _VERSION.match(v) else None
     return None

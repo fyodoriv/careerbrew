@@ -52,4 +52,4 @@ def test_step_tiles_count_a_status_move_once():
 
 def test_the_work_day_funnel_reads_only_fields_those_events_send():
     tile = DOC.split("## Work-day funnel and asks", 1)[1].split("\n## ", 1)[0]
-    assert set(re.findall(r"properties\.([a-z_]+)", tile)) <= {"traps", "action", "ok"}
+    assert set(re.findall(r"properties\.([a-z_]+)", tile)) <= {"traps", "action", "ok", "signin"}

@@ -1037,3 +1037,25 @@ def test_a_re_saved_open_ask_is_not_a_second_ask(home, monkeypatch):
     questions.add("/alpha", "which branch?")  # a later day update writes the same ask again
     rows = [json.loads(x) for x in events.log_path().read_text().splitlines() if '"workday.question"' in x]
     assert [r["action"] for r in rows] == ["add"], rows
+
+
+@pytest.mark.parametrize(
+    ("record", "key", "sent"),
+    [
+        ({"event": "workday.start", "signin": "no-probe"}, "signin", "no-probe"),
+        ({"event": "workday.start", "signin": "token for acme"}, "signin", None),
+        ({"event": "workday.question", "action": "add", "source": "row", "recheck": "url"}, "source", "row"),
+        ({"event": "workday.question", "action": "add", "source": "slack", "recheck": "url"}, "recheck", "url"),
+        ({"event": "workday.question", "action": "add", "source": "slack"}, "source", None),
+    ],
+)
+def test_work_day_start_and_ask_fields_leave_only_from_their_lists(record, key, sent):
+    got = telemetry.to_event({**record, "ts": _ts()}, "id")
+    assert got["properties"].get(key) == sent
+
+
+def test_the_sign_in_result_reaches_the_local_log_as_an_id(home, monkeypatch):
+    monkeypatch.setenv("CAREERBREW_EVENTS", "on")
+    events.emit("workday.start", signin="no probe".replace(" ", "-"), source="row", recheck="none")
+    line = json.loads(events.log_path().read_text().splitlines()[-1])
+    assert (line["signin"], line["source"], line["recheck"]) == ("no-probe", "row", "none")
