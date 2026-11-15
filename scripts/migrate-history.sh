@@ -12,8 +12,9 @@
 #   - `private/` and every other ignored file stays where it is: the script
 #     stops when a file on disk is in the way of a file the public tree tracks;
 #   - it stops, and changes nothing, when a tracked file has uncommitted changes.
-# One limit: a commit that only a branch's reflog still reaches (after a reset)
-# is not in the bundle. Give it a branch first if you want to keep it.
+#   - a branch that something moved onto the public history first (a scheduled
+#     `git pull --rebase`, a reset) may hold its old tip only in its reflog: the
+#     newest such tip is saved as refs/pre-public/<branch> and goes into the bundle.
 #
 # Run it from the checkout. It is safe to run again.
 #   git fetch origin main && git show origin/main:scripts/migrate-history.sh > "${TMPDIR:-/tmp}/migrate-history.sh" && bash "${TMPDIR:-/tmp}/migrate-history.sh"
@@ -49,10 +50,28 @@ git fetch --quiet --no-tags origin main || stop "cannot fetch origin main. Sign 
 git rev-parse --verify --quiet origin/main >/dev/null || stop "origin has no main branch"
 is_public origin/main || stop "origin/main does not start at the public first commit. Check that origin is the public careerbrew repository: $(git remote get-url origin)"
 
+# A branch already on the public history may hold its old tip only in its reflog.
+# Find the newest reflog entry outside the public history that no ref the bundle
+# holds reaches yet. Step 1 saves it. Prints "sha branch" per tip.
+reflog_tips() {
+  local sha ref old
+  while read -r sha ref; do
+    is_public "$sha" || continue # an old branch: step 2 saves its tip
+    while read -r old; do
+      git cat-file -e "$old^{commit}" 2>/dev/null || continue
+      is_public "$old" && continue
+      [ -n "$(git for-each-ref --count=1 --contains "$old" refs/heads/ refs/tags/ refs/stash refs/pre-public/ refs/pre-public-tags/ refs/pre-public-stash/)" ] ||
+        printf '%s %s\n' "$old" "${ref#refs/heads/}"
+      break
+    done < <(git reflog show --format=%H "$ref" 2>/dev/null || true)
+  done < <(git for-each-ref --format='%(objectname) %(refname)' refs/heads/)
+}
+recover="$(reflog_tips)"
+
 head_public=no
 if is_public HEAD; then head_public=yes; fi
 left="$( { old_refs refs/heads/; old_refs refs/tags/; } | wc -l | tr -d ' ')"
-if [ "$head_public" = yes ] && [ "$left" = 0 ]; then
+if [ "$head_public" = yes ] && [ "$left" = 0 ] && [ -z "$recover" ]; then
   say "this checkout is already on the public history. Nothing to do."
   exit 0
 fi
@@ -103,6 +122,20 @@ fi
 # 1. Save every ref outside the checkout. Each stash gets its own ref first:
 #    a bundle holds only the newest stash otherwise.
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+while read -r sha name; do
+  [ -n "$sha" ] || continue
+  # Keep a ref an earlier run parked: use <branch>-reflog, then add the time stamp.
+  # An empty old value makes update-ref fail when the ref already exists.
+  if git update-ref "refs/pre-public/$name" "$sha" "" 2>/dev/null; then
+    kept="refs/pre-public/$name"
+  elif git update-ref "refs/pre-public/$name-reflog" "$sha" "" 2>/dev/null; then
+    kept="refs/pre-public/$name-reflog"
+  else
+    kept="refs/pre-public/$name-reflog-$stamp"
+    git update-ref "$kept" "$sha"
+  fi
+  say "recovered old $name tip from the reflog: $kept"
+done <<<"$recover"
 n=0
 while read -r sha; do
   # A rerun finds the copy an earlier run made and does not add another.
