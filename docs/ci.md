@@ -53,11 +53,17 @@ tree leaves that folder out, so `public-readiness` fails that pull request.
 A full local gate (`scripts/check.sh`) still works and is optional. Use it
 when the hosted checks are unavailable.
 
-The checkup (`scripts/checkup.sh`) runs no gate either. It reads the newest
-finished hosted run on `main` with `scripts/hosted-gate.sh`: green passes, red
-names `gh run view <id> --log-failed`, and an unknown result (no `gh`, signed
-out, no finished run) is never green. `CHECKUP_LOCAL_GATE=1 scripts/checkup.sh`
-runs the full gate on this machine instead.
+The checkup (`scripts/checkup.sh`) runs no gate either. It reads the hosted
+result for the commit `main` points at now with `scripts/hosted-gate.sh`: the
+push runs of both merge workflows, `ci.yml` and `public-readiness.yml`.
+- Both green: it passes.
+- A red run: it names `gh run view <id> --log-failed`.
+- A run still going, or no run yet: it is pending and names `gh run watch <id>`.
+- No `gh`, signed out, or offline: unavailable.
+
+Only the first one is green. A green run for an older commit never counts.
+`CHECKUP_LOCAL_GATE=1 scripts/checkup.sh` runs the full gate on this machine
+instead.
 
 ## Safety rules
 

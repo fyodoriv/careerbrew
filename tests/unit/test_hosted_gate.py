@@ -4,6 +4,7 @@ scripts/hosted-gate.sh runs against a fake `gh` on PATH; scripts/checkup.sh runs
 """
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -16,53 +17,74 @@ from .test_run_pages import _stub_repo
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def _fake_gh(tmp_path: Path, rows: str, code: int = 0) -> dict[str, str]:
+TIP = "abcdef1234567890abcdef1234567890abcdef12"
+
+
+def _fake_gh(tmp_path: Path, ci: str, readiness: str = "21\\tcompleted\\tsuccess\\n", code: int = 0) -> dict[str, str]:
+    """A gh that answers `run list` for each merge workflow with the given rows (id, status, conclusion)."""
     tools = tmp_path / "bin"
     tools.mkdir(exist_ok=True)
-    (tools / "gh").write_text(f"#!/bin/sh\necho \"$@\" >> '{tmp_path}/gh-args'\nprintf '{rows}'\nexit {code}\n")
+    (tools / "gh").write_text(f"#!/bin/sh\necho \"$@\" >> '{tmp_path}/gh-args'\ncase \"$*\" in *ci.yml*) printf '{ci}' ;; *public-readiness.yml*) printf '{readiness}' ;; esac\nexit {code}\n")
     (tools / "gh").chmod(0o755)
     # No shell startup file: it can put another gh first on PATH (AGENTS.md, "Gotchas").
     env = {k: v for k, v in os.environ.items() if k not in ("BASH_ENV", "ENV")}
-    return {**env, "PATH": f"{tools}{os.pathsep}/usr/bin:/bin"}
+    return {**env, "PATH": f"{tools}{os.pathsep}/usr/bin:/bin", "HOSTED_GATE_TIP": TIP}
 
 
 def _hosted(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["/bin/bash", str(ROOT / "scripts/hosted-gate.sh")], env=env, capture_output=True, text=True, timeout=30, check=False)
 
 
-def test_a_green_run_on_main_passes_and_names_its_commit(tmp_path):
-    r = _hosted(_fake_gh(tmp_path, "11\\tcompleted\\tsuccess\\tabcdef12\\tpush\\n"))
+def test_green_needs_both_merge_workflows_on_the_tip(tmp_path):
+    r = _hosted(_fake_gh(tmp_path, "11\\tcompleted\\tsuccess\\n"))
     assert r.returncode == 0, r.stdout + r.stderr
-    assert r.stdout.strip() == "hosted-gate: main abcdef12 passed (run 11, push)"
-    assert "--workflow ci.yml --branch main" in (tmp_path / "gh-args").read_text()
+    assert r.stdout.strip() == "hosted-gate: main abcdef12 passed (ci.yml run 11, public-readiness.yml run 21)"
+    asked = (tmp_path / "gh-args").read_text().splitlines()
+    # The tip's own push runs only: an older commit's run, or a fork's pull request from its main, never counts.
+    assert [line.split("--workflow ")[1].split()[0] for line in asked] == ["ci.yml", "public-readiness.yml"]
+    assert all(f"--branch main --event push --commit {TIP}" in line for line in asked), asked
 
 
 def test_a_red_run_fails_with_the_command_that_shows_its_log(tmp_path):
-    r = _hosted(_fake_gh(tmp_path, "12\\tcompleted\\tfailure\\tabcdef12\\tpush\\n"))
+    r = _hosted(_fake_gh(tmp_path, "11\\tcompleted\\tsuccess\\n", readiness="22\\tcompleted\\tfailure\\n"))
     assert r.returncode == 1
-    assert "-> read it: gh run view 12 --log-failed" in r.stdout
+    assert "public-readiness.yml failure (run 22) -> read it: gh run view 22 --log-failed" in r.stdout
 
 
-def test_a_run_in_progress_is_named_and_the_newest_finished_run_decides(tmp_path):
-    rows = "14\\tin_progress\\t-\\t99999999\\tpush\\n13\\tcompleted\\tcancelled\\t88888888\\tpush\\n12\\tcompleted\\tsuccess\\t77777777\\tpush\\n"
+def test_a_tip_still_running_is_pending_not_green(tmp_path):
+    r = _hosted(_fake_gh(tmp_path, "14\\tin_progress\\t-\\n"))
+    assert r.returncode == 1
+    assert r.stdout.strip() == "hosted-gate: main abcdef12 pending: ci.yml run 14 is in_progress -> wait: gh run watch 14"
+
+
+@pytest.mark.parametrize("rows", ["", "13\\tcompleted\\tcancelled\\n12\\tcompleted\\tskipped\\n"], ids=["no run yet", "all cancelled"])
+def test_a_tip_with_no_finished_run_is_pending(tmp_path, rows):
     r = _hosted(_fake_gh(tmp_path, rows))
-    assert r.returncode == 0, r.stdout
-    assert "run 14 on main 99999999 is still running" in r.stdout
-    assert "main 77777777 passed (run 12, push)" in r.stdout, "a cancelled run neither passes nor fails"
-
-
-@pytest.mark.parametrize(("rows", "code"), [("", 0), ("", 1)], ids=["no finished run", "gh fails"])
-def test_an_unknown_result_is_never_green(tmp_path, rows, code):
-    r = _hosted(_fake_gh(tmp_path, rows, code))
     assert r.returncode == 1
-    assert r.stdout.startswith("hosted-gate: unavailable: ")
+    assert "pending: ci.yml has no run for abcdef12 yet" in r.stdout
+
+
+def test_a_cancelled_rerun_does_not_hide_the_real_result(tmp_path):
+    r = _hosted(_fake_gh(tmp_path, "13\\tcompleted\\tcancelled\\n12\\tcompleted\\tfailure\\n"))
+    assert r.returncode == 1 and "ci.yml failure (run 12)" in r.stdout
+
+
+def test_when_gh_fails_the_result_is_unavailable(tmp_path):
+    r = _hosted(_fake_gh(tmp_path, "", code=1))
+    assert r.returncode == 1
+    assert r.stdout.startswith("hosted-gate: unavailable: gh could not read the runs")
 
 
 def test_without_gh_the_fix_is_the_local_gate(tmp_path):
+    # Only the tools the script needs: a Linux runner ships gh in /usr/bin, so the system folders will not do.
+    tools = tmp_path / "bin"
+    tools.mkdir()
+    for tool in ("dirname", "git", "cut"):
+        (tools / tool).symlink_to(shutil.which(tool))
     env = {k: v for k, v in os.environ.items() if k not in ("BASH_ENV", "ENV")}
-    r = _hosted({**env, "PATH": "/usr/bin:/bin"})  # the system folders only: gh comes from Homebrew
+    r = _hosted({**env, "PATH": str(tools), "HOSTED_GATE_TIP": TIP})
     assert r.returncode == 1
-    assert r.stdout.rstrip().endswith("-> fix: CHECKUP_LOCAL_GATE=1 scripts/checkup.sh")
+    assert r.stdout.strip() == "hosted-gate: unavailable: gh is not installed (brew install gh), so run the gate here -> fix: CHECKUP_LOCAL_GATE=1 scripts/checkup.sh"
 
 
 def _checkup(repo: Path, tmp_path: Path, **extra: str) -> subprocess.CompletedProcess[str]:
@@ -84,6 +106,14 @@ def test_checkup_local_gate_runs_the_gate_here(home, tmp_path):
     _checkup(repo, tmp_path, CHECKUP_LOCAL_GATE="1")
     done = {d["label"]: d for d in report.latest("repo-checkup")["done"]}
     assert done["Gate passed"]["command"] == "scripts/check.sh"
+
+
+def test_a_pending_hosted_gate_is_a_blocker_that_says_to_wait(home, tmp_path):
+    repo = _stub_repo(tmp_path)
+    (repo / "scripts/hosted-gate.sh").write_text("#!/usr/bin/env bash\necho 'hosted-gate: main 0123abcd pending: ci.yml run 9 is in_progress -> wait: gh run watch 9'\nexit 1\n")
+    _checkup(repo, tmp_path)
+    blockers = {b["label"]: b for b in report.latest("repo-checkup")["blockers"]}
+    assert blockers["Gate pending on main's tip"]["command"] == "gh run watch 9"
 
 
 def test_a_red_hosted_gate_is_a_blocker_with_the_log_command(home, tmp_path):

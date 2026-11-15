@@ -473,12 +473,15 @@ def repo_checkup(logs: Path, rc: int, title: str = "careerbrew checkup") -> Run:
         elif sid == "gate":
             cached = len(re.findall(r"(?m)^check\.sh: \S+ cached", text))
             if code == 0:
-                r.done.append(Item("Gate passed", id="gate", evidence=f"{last} ({cached} step(s) cached)", command=cmd))
+                evidence = last if last.startswith("hosted-gate:") else f"{last} ({cached} step(s) cached)"
+                r.done.append(Item("Gate passed", id="gate", evidence=evidence, command=cmd))
             else:
                 m = re.search(r"step '([^']+)' failed", text)
-                hosted = re.search(r"(?m)^hosted-gate: .*-> (?:read it|fix): (.+)$", text)
-                fix = hosted.group(1).strip() if hosted else "scripts/check.sh"
-                r.blockers.append(Item("Gate failed", id="gate", why=f"step {m.group(1)} failed (its output is under Details)" if m else last, command=fix))
+                # A failed run comes first in hosted-gate.sh's output, so its log command wins over a wait.
+                hosted = re.search(r"(?m)^hosted-gate: (.*?)-> (?:read it|fix|wait): (.+)$", text)
+                fix = hosted.group(2).strip() if hosted else "scripts/check.sh"
+                label = "Gate pending on main's tip" if hosted and " pending: " in hosted.group(1) else "Gate failed"
+                r.blockers.append(Item(label, id="gate", why=f"step {m.group(1)} failed (its output is under Details)" if m else last, command=fix))
         elif sid == "broken-stories":
             broken = re.findall(r'(?m)^\s*(\d+)\s+"story":"([^"]+)"', text)
             if not broken:
