@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Repo-wide checkup: the whole health picture in one command, open work first.
-# Fast on a quiet day (the gate is cached by input hash), full when anything changed.
+# The gate is the hosted checks (docs/ci.md): the checkup reads their result on main
+# (scripts/hosted-gate.sh) and runs no full gate here. CHECKUP_LOCAL_GATE=1 runs
+# scripts/check.sh on this machine instead (when the hosted checks are unavailable).
 # Run it before a work session and in the weekly checkup (RECURRING.md).
 #
 # With the run_pages setting on (the default), each section's text goes into one HTML page
@@ -67,7 +69,9 @@ open_work_skill() {
 
 health() { scripts/doctor.sh; }
 
-gate() { scripts/check.sh; }
+gate() {
+  if [ "${CHECKUP_LOCAL_GATE:-0}" = 1 ]; then scripts/check.sh; else scripts/hosted-gate.sh; fi
+}
 
 broken_stories() {
   if [ -f .metrics/events.jsonl ]; then
@@ -103,7 +107,11 @@ section last-run "Last checkup on this machine" "python -m careerbrew.checkup_ru
 section open-prs "Open pull requests (finish these first)" "scripts/open-prs.sh" open_prs || rc=1
 section open-work-skill "Open work (unmerged branches, uncommitted files)" "wrap-up skill: scripts/open-work.sh" open_work_skill || rc=1
 section health "Health" "scripts/doctor.sh" health || rc=1
-section gate "Gate (cached by input hash; NO_CACHE=1 forces a full run)" "scripts/check.sh" gate || rc=1
+if [ "${CHECKUP_LOCAL_GATE:-0}" = 1 ]; then
+  section gate "Gate on this machine (cached by input hash; NO_CACHE=1 forces a full run)" "scripts/check.sh" gate || rc=1
+else
+  section gate "Gate (the hosted checks on main)" "scripts/hosted-gate.sh" gate || rc=1
+fi
 section broken-stories "Broken stories (failed events by story)" "grep '\"ok\":false' .metrics/events.jsonl" broken_stories || true
 section speed "Speed" "scripts/metrics.sh" speed || true
 section open-work "Open work (PRs, branches, unpushed or uncommitted changes)" "scripts/open-work.sh" open_work || true
