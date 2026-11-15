@@ -89,6 +89,7 @@ Run every command from the repo root.
 | Add a dependency | the manifest, plus a check in `scripts/doctor.sh` | `README.md` if setup changes |
 | Record a decision that is hard to undo | a new `docs/decisions/NNNN-*.md` | none |
 | Plan a change bigger than one PR | `docs/plans/YYYY-MM-DD-<topic>.md` | none |
+| Work on a Rust migration step (`rust-00` to `rust-28` in `TASKS.md`) | follow its step in [`docs/rust-migration.md`](docs/rust-migration.md): measurement protocol, activation rule, inputs, outputs and gate | that page's "Current state" and owner map; the code inventory and activation tables per its source-map refresh rule |
 | Record what a shipped change taught us | the pull request body, under Predicted / Observed / Lesson (no new file in the learnings folder: the public tree leaves it out) | none |
 | Add or close a task | `TASKS.md` | none |
 | Add an assistant feature | `skills/<feature>/SKILL.md` and a case in `evals/cases/` | `README.md` |

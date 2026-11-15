@@ -5,6 +5,7 @@ commands, the gate (`scripts/check.sh`), and the privacy rules
 ([`docs/privacy.md`](docs/privacy.md)). Every pull request runs that gate
 on hosted runners, and a pull request merges when those checks are green
 ([`docs/ci.md`](docs/ci.md)). You do not need a full local gate.
+To work on the move to Rust, read [`docs/rust-migration.md`](docs/rust-migration.md) first.
 
 ## Report problems and ideas
 
