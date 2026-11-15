@@ -908,3 +908,4 @@ tests/unit/test_visual_pictures.py,port,rust-27,Port each assertion/helper with 
 scripts/telemetry-install.sh,port,rust-24,Setup's local install numbers for the telemetry capability; ports with it
 tests/unit/test_telemetry_reference_successor.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_telemetry_tiles.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_owner_venv_guard.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
