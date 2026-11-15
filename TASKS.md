@@ -358,6 +358,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P1
 
+- [ ] `scripts/check.sh` and `scripts/e2e.sh` queue themselves through heavy-run
+  - **ID**: gate-scripts-self-queue
+  - **Details**: On 2026-11-15 an unqueued `scripts/public-readiness.sh --first-run` (which runs the fast gate) ran beside `dotfiles apply` and a real-time app, and the Mac froze (forced off, no memory pressure). dotfiles PR 713 makes the agent hook refuse unwrapped gate scripts, but the hook guards only agent shells: a terminal, a git hook or another agent host still runs them unqueued. `scripts/batch-gate.sh` already wraps its gate in `heavy-run` (lines 64-65). Make `check.sh` and `e2e.sh` re-exec themselves under `heavy-run` when it is installed and `HEAVY_RUN_HELD` is unset; keep `check.sh inputs` and `--help` unqueued. Hosted runners have no `heavy-run` and must run as now.
+  - **Files**: scripts/check.sh; scripts/e2e.sh; tests/unit/test_gate_inputs.py (or a new test)
+  - **Hypothesis**: a self-queuing gate takes the count of unqueued full-gate runs from any entry point from "every non-agent run" to 0, with no change on hosted runners.
+  - **Measurement**: a unit test with a stub `heavy-run` on PATH that records its calls: `scripts/check.sh fast` and `scripts/e2e.sh` from a plain shell call the stub once each; with `HEAVY_RUN_HELD=1` or no stub they do not; `scripts/check.sh inputs unit` never does. `~/.local/state/dotfiles/heavy-run-waits.log` shows each local gate run.
+  - **Success**: the test passes, and the hosted `gate` jobs stay green.
+  - **Pivot**: if re-exec breaks exit codes, signals or the pre-push hook, drop it and keep only the agent hook plus a doctor warning.
+  - **Anchor**: Forsgren, Humble & Kim 2018 (DORA change failure rate); Reason 1990, *Human Error* (defence in depth).
+
 - [ ] The `exercises` gate step can pass the 60 s scaling CPU limit on a hosted Ubuntu runner
   - **ID**: exercises-scale-cpu-margin-hosted
   - **Details**: On 2026-11-15 PR 94's `native (ubuntu-24.04)` part failed only in `exercises`: `lowest-common-ancestor-of-a-binary-search-tree: reference solution scaling failed: {"category": "scale_error", "cpu_seconds": 60, ...}`. The same step passed on the PR's earlier run, on PR 96 and on main's last 3 runs, and a rerun passed. Locally `careerbrew exercises check knowledge/exercises/052-lowest-common-ancestor-of-a-binary-search-tree.yaml` used 34.9 s of CPU, so a slower runner nears the limit (`SCALE_CPU_SECONDS` in `src/careerbrew/tutor/exercises.py`). Find which sizes take the time and shrink the scaling inputs for this exercise, or measure each exercise's scaling CPU and fail when one uses more than half the limit.
