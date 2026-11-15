@@ -1135,8 +1135,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._session("POST", url.path)
             except BAD_INPUT as exc:
                 return self._json(HTTPStatus.BAD_REQUEST, {"error": f"bad request: {exc}"[:300]})
+        t0, act, guarded = monotonic(), "error", False
         try:
             self._guard(url.path)
+            guarded = True  # a request the guard refuses (no token, a foreign page) is not the owner's click
             length = int(self.headers.get("Content-Length", "0") or 0)
             limit = VOICE_MAX_BYTES if url.path == "/api/drill/voice" else 64_000
             if not 0 <= length <= limit:
@@ -1149,11 +1151,17 @@ class Handler(BaseHTTPRequestHandler):
             finally:
                 if url.path not in KEEPS_CACHE:
                     self.cache.clear()  # the owner acted: every view rebuilds on its next read, even one that runs before this reply arrives
+            act = "ok"
             self._json(HTTPStatus.OK, result)
         except ApiError as exc:
+            act = "refused"
             self._json(exc.status, {"error": str(exc)})
         except BAD_INPUT as exc:
+            act = "refused"
             self._json(HTTPStatus.BAD_REQUEST, {"error": f"bad request: {exc}"[:300]})
+        finally:
+            if guarded and _act_route(url.path) in telemetry.WEB_ACTS:  # a known control; never the timing beacon
+                events.emit("web.act", route=_act_route(url.path), status=act, ms=int((monotonic() - t0) * 1000))
 
     def _static(self, path: str) -> None:
         rel = "index.html" if path in ("", "/") else path.lstrip("/")
@@ -1163,6 +1171,16 @@ class Handler(BaseHTTPRequestHandler):
         if not f.exists():
             return self._send(HTTPStatus.NOT_FOUND, b"web app not built: cd web && npm ci && npm run build", "text/plain")
         self._send(HTTPStatus.OK, f.read_bytes(), mimetypes.guess_type(str(f))[0] or "application/octet-stream")
+
+
+def _act_route(path: str) -> str:
+    """The fixed name of a data-changing web control (`promises.done`, `actions.run`): an id in the path never leaves."""
+    parts = path.removeprefix("/api/").strip("/").split("/")
+    if parts[0] == "actions":
+        return "actions.run"  # the action itself leaves as the cli.run it starts, with via `ui`
+    if len(parts) >= 3:
+        return f"{parts[0]}.{parts[-1]}"[:48]  # /api/<kind>/<id>/<verb>
+    return ".".join(parts)[:48] or "api"
 
 
 # POSTs that change no data a view reads, so every cached view stays: a timing writes only the event log.

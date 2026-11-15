@@ -202,16 +202,20 @@ def save(rec: dict[str, Any], day: date | None = None, reopen: bool = False) -> 
         return found[1]
     home = found[0] if found and not found[1].get("closed") else day
 
+    added = [True]  # false when this save only updates an ask that is still open
+
     def change(have: list[dict[str, Any]]) -> dict[str, Any]:
         for i, q in enumerate(have):
             if q["id"] == rec["id"] and not q.get("closed"):
                 have[i] = {**rec, "createdAt": q.get("createdAt") or rec["createdAt"]}
+                added[0] = False
                 return have[i]
         have[:] = [q for q in have if q["id"] != rec["id"]] + [rec]
         return rec
 
     got = _change(home, change)
-    events.emit("workday.question", action="add", source=got["source"].split(":", 1)[0], recheck=kind(got["recheck"]), options=len(got["options"]))
+    if added[0]:  # one `add` per ask: a re-save of an open ask is not a new ask
+        events.emit("workday.question", action="add", source=got["source"].split(":", 1)[0], recheck=kind(got["recheck"]), options=len(got["options"]))
     return got
 
 

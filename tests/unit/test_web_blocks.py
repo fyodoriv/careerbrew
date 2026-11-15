@@ -187,7 +187,7 @@ def test_the_warm_event_is_content_free(srv, home, monkeypatch):
         warmer.stop()
     rows = [json.loads(line) for line in (home / "logs" / "events.jsonl").read_text().splitlines()]
     warm = [r for r in rows if r["event"] == "web.warm"]
-    assert warm and set(warm[0]) <= {"ts", "event", "status", "views", "rebuilt", "failed", "ms"}
+    assert warm and set(warm[0]) <= {"ts", "v", "event", "status", "views", "rebuilt", "failed", "ms"}
 
 
 def wait_warm(s, timeout=60.0):

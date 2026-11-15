@@ -33,6 +33,8 @@ plugin source. Do not substitute a same-name global skill or another plugin.
 
 careerbrew owns `/work`: every work-day feature lives in careerbrew because it is career work. With an empty setting, add steps with `careerbrew config set work_steps "/a, /b"`; read `careerbrew config` and retain existing `work_steps` entries when adding one; `config set` replaces the list. With an empty list, use `careerbrew config set work_steps '[{"step":"/a","scope":["work"],"after":["/refresh"]}]'` to set scheduling fields; a company plugin adds steps under `work_steps:` in its manifest.
 
+Usage counts: after a yes, each `day update` and `day end` records content-free step outcomes (status, failure class, counts; never step names), which leave in the once-a-day send; read them in the PostHog tiles "Work days by version" and "Work-day step failures by class".
+
 <!-- careerbrew:dual-host-shared-memory -->
 ## Agent host contract
 

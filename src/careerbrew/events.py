@@ -17,7 +17,7 @@ from typing import Any
 
 from . import paths
 
-ALLOWED_STRING_KEYS = {"event", "story", "command", "status", "route", "action", "source_kind", "tier", "error", "saves", "step", "step_kind", "from_version"}
+ALLOWED_STRING_KEYS = {"event", "story", "command", "status", "route", "action", "source_kind", "tier", "error", "saves", "step", "step_kind", "from_version", "error_class", "via", "signin", "source", "recheck"}
 _ID = re.compile(r"^[a-z0-9_.:-]{1,48}$")
 
 
@@ -27,7 +27,7 @@ def log_path() -> Path:
 
 def clean(fields: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {}
-    for key, value in fields.items():
+    for key, value in ((k, v.lower() if k == "error" and isinstance(v, str) else v) for k, v in fields.items()):  # an error is a lowercase class
         if isinstance(value, bool) or isinstance(value, int | float) or isinstance(value, str) and key in ALLOWED_STRING_KEYS and _ID.match(value):
             out[key] = value
         # Anything else (free text, lists, dicts) is dropped on purpose.
@@ -46,6 +46,13 @@ def stamp() -> str:
 def emit(event: str, **fields: Any) -> None:
     if os.environ.get("CAREERBREW_EVENTS", "on") == "off":
         return
-    record = {"ts": stamp(), **clean({"event": event, **fields})}
+    record = {"ts": stamp(), "v": _version(), **clean({"event": event, **fields})}
     with log_path().open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(record, sort_keys=True) + "\n")
+
+
+def _version() -> str:
+    """The version that wrote the line: a line sent the next day, after an upgrade, keeps its own version."""
+    from . import __version__
+
+    return __version__

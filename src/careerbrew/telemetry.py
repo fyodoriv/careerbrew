@@ -91,7 +91,8 @@ EVENT_NAMES = frozenset(
     work.live.stop work.memory.forget work.memory.in work.memory.out work.note work.plan work.prd work.prep work.priority
     work.project work.promise work.promo work.review_ask work.review_ask.check work.session work.standup
     work.standup.notes work.standup.rows work.task work.team workday.end workday.loop workday.morning workday.question
-    workday.recheck workday.start workday.timeout workday.update workday.verify notify.check careerbrew.install careerbrew.week careerbrew.upgrade web.view""".split()
+    workday.recheck workday.start workday.timeout workday.update workday.verify notify.check careerbrew.install careerbrew.week careerbrew.upgrade web.view
+    web.act""".split()
 )
 STATUSES = frozenset(
     """ok error fail failed refused new done pass open kept held gap ended added written wrap-up waiting upcoming text
@@ -110,8 +111,29 @@ VIEW_ROUTES = frozenset(
     checklist standup actions review setup cards library library.page teach drill goals mistakes exercises reports
     reports.page promises""".split()
 )
+# A data-changing web control, by route name (`server._act_route`): the id in its path (an ask, a promise) never leaves.
+WEB_ACTS = frozenset(
+    """inbox.accept inbox.dismiss inbox.answer inbox.reopen inbox-group.accept inbox-group.dismiss notifications.read
+    notifications.accept notifications.dismiss notifications.snooze promises.done promises.dropped actions.run pm.draft
+    pm.send config drill.voice teach.complete teach.draft teach.feedback goals jobs.choose jobs.unchoose approvals.decide
+    tasks tasks.done cards.review explanations.flag watch.on watch.off watch.pause watch.resume watch.reload""".split()
+)
+# What an event did (`action`): the fixed verbs careerbrew's own code emits; any other value never leaves.
+ACTIONS = frozenset(
+    """absorb accept add answer approve archive ask check close control dismiss done draft dropped end expire export
+    extend gate handoff impact import list measure not-ask open plugin-roster pm-update quiz read reference refresh
+    regrade remind remove reopen research rules set show since snooze source start status suggest track unarchive
+    update""".split()
+)
+# Why a work-day step failed (`workday.gate.ERROR_CLASSES`), and where a command ran: a terminal, the web app, or an agent.
+STEP_ERRORS = frozenset({"env", "auth", "network", "conflict", "tool"})
+VIA = frozenset({"cli", "ui", "agent"})
 # A work-day step is careerbrew's own (`workday.steps.BUILTIN_STEPS`) or one a plugin or repo declares; its name never leaves.
 STEP_KINDS = frozenset({"builtin", "workflow"})
+# The day start sign-in probe (`signin`), where a work-day ask came from (`source`), and how it is rechecked (`recheck`).
+SIGNIN = frozenset({"ok", "failed", "no-probe", "none-needed"})
+ASK_SOURCES = frozenset({"agent", "owner", "row", "careerbrew", "plugin"})
+RECHECKS = frozenset({"none", "url", "signin", "command"})
 # Error classes: Python's built-in exceptions and careerbrew's own; any other class is sent as "other".
 ERRORS = frozenset(
     {n.lower() for n, v in vars(builtins).items() if isinstance(v, type) and issubclass(v, BaseException)}
@@ -374,9 +396,21 @@ def _string_ok(k: str, v: str) -> str | None:
     if k == "tier":
         return v if v in TIERS else None
     if k == "route":
-        return v if v in VIEW_ROUTES else None
+        return v if v in VIEW_ROUTES or v in WEB_ACTS else None
+    if k == "action":
+        return v if v in ACTIONS else None
+    if k == "error_class":
+        return v if v in STEP_ERRORS else None
+    if k == "via":
+        return v if v in VIA else None
     if k == "step_kind":
         return v if v in STEP_KINDS else None
+    if k == "signin":
+        return v if v in SIGNIN else None
+    if k == "source":
+        return v if v in ASK_SOURCES else None
+    if k == "recheck":
+        return v if v in RECHECKS else None
     if k == "from_version":
         return v if _VERSION.match(v) else None
     return None
@@ -403,7 +437,7 @@ def to_event(record: dict[str, Any], distinct_id: str, since: str = "") -> dict[
         return None  # no stamp, or one from before the yes: it never leaves
     props: dict[str, Any] = {}
     for k, v in record.items():
-        if k in ("event", "ts"):
+        if k in ("event", "ts", "v"):
             continue
         if isinstance(v, str):
             if (value := _string_ok(k, v)) is not None:
@@ -412,6 +446,8 @@ def to_event(record: dict[str, Any], distinct_id: str, since: str = "") -> dict[
             props["duration_ms" if k == "ms" else k] = v
         # Anything else (text, lists, other keys, numbers out of bounds) never leaves the machine.
     props.update(machine_fields(), **{"$process_person_profile": False, "$geoip_disable": True})
+    if isinstance(v := record.get("v"), str) and _VERSION.match(v):
+        props["app_version"] = v  # the version that logged the line, not the one that sends it
     return {"event": name, "distinct_id": distinct_id, "timestamp": ts, "properties": props}
 
 
