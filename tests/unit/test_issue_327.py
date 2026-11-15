@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE_PATHS = ("scripts/setup.sh", "hooks/pre-commit", "lefthook.yml")
+SOURCE_PATHS = ("scripts/setup.sh", "scripts/telemetry-install.sh", "hooks/pre-commit", "lefthook.yml")
 TOOL_NAMES = ("bash", "sh", "env", "dirname", "mkdir", "chmod", "cp", "git")
 CASE_IDS = ("U01", "U02", "U03", "U04", "U05", "U06", "U07", "U08")
 OWNER_SELECTOR = "CAREERBREW_TEST_DIAGNOSTIC_OWNER"

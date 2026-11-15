@@ -25,6 +25,8 @@ Every other thing careerbrew can do is in its action catalog: `uv run careerbrew
 
 Long runs (`review`, `work collect`, `day plan`, `day render`, `checkup`, `machine ready`, `machine new-user`, `plugin new`) end the same way, with two lines instead of their step text: read `uv run careerbrew report latest --json`, open the page with `uv run careerbrew open --report latest`, and ask which Next item to take.
 
+Usage counts: when the user asks whether careerbrew sends usage data, or wants it on or off, run `uv run careerbrew telemetry status` (on or off and why), `uv run careerbrew telemetry on` (only after they say yes), or `uv run careerbrew telemetry off`. Never answer the consent question for them. To see what is sent: `uv run careerbrew telemetry send --dry-run`. When status says "no key", the owner types the key once on that machine with `careerbrew secret set posthog_key` (never ask for it in chat).
+
 To change a default the user asks for, use `uv run careerbrew config set <key> <value>` (see `uv run careerbrew config`). The PM update goes to Slack by default: show the user the draft (`uv run careerbrew day send`; its "why it matters" notes are for the user only, never in the sent text), and post it with `--yes` only after they say send.
 
 If careerbrew itself fails, surprises you, or could clearly work better, offer once to report it to its author, who is glad to get every report. Follow the `report-upstream` skill (CONTRIBUTING.md "Report problems and ideas"): never include anything from `private/`, scrub with `agentbrew report --repo fyodoriv/careerbrew` (no `--yes`), show the user the safety checklist and the exact text, and post only after they say yes. Offer a fix PR only after a second yes.

@@ -3,6 +3,9 @@
 # Safe to run again; each step skips work that is already done.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Setup's time and result, saved locally for field telemetry; they leave only after a yes (US-89).
+source scripts/telemetry-install.sh
+telemetry_install_begin
 
 step() { printf '\n==> %s\n' "$1"; }
 
@@ -67,5 +70,6 @@ scripts/install-launcher.sh
 
 step "Health check"
 scripts/doctor.sh
+telemetry_install_ok
 
 printf '\nReady. Next: scripts/check.sh\n'

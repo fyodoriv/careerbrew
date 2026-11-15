@@ -2783,28 +2783,45 @@ def cmd_time(a: argparse.Namespace) -> int:
 
 
 def cmd_telemetry(a: argparse.Namespace) -> int:
-    """Anonymous usage counts to PostHog EU (US-89): status, on, off, send [--dry-run]."""
-    from . import config, telemetry
+    """Anonymous usage counts to PostHog EU (US-89): status, on, off, send [--dry-run [--json]], record-install."""
+    from . import telemetry
 
     if a.sub == "on":
-        config.set_value("telemetry", "true")
-    elif a.sub == "off":
-        config.set_value("telemetry", "false")
+        telemetry.set_consent("yes")
+        say(f"telemetry on: careerbrew sends {telemetry.WHAT}; never {telemetry.NEVER}")
+        say(f"where: {telemetry.WHERE}; see the exact request: careerbrew telemetry send --dry-run")
+        if why := telemetry.blocked():
+            say(f"note: nothing is sent while {why}")
+        elif not telemetry.key():
+            say(f"note: nothing is sent yet ({telemetry.NO_KEY}); events are recorded locally until then")
+        return 0
+    if a.sub == "off":
+        telemetry.set_consent("no")
         say("telemetry off: nothing is sent")
+        return 0
+    if a.sub == "record-install":
+        try:
+            got = telemetry.record_install(a.started, a.ok == "true")
+        except ValueError as exc:
+            say(f"error: {exc}")
+            return 2
+        say("install numbers saved locally (they leave only after a yes)" if got else "install numbers not recorded (an off switch is set)")
         return 0
     if a.sub == "send":
         if a.dry_run:
             print(json.dumps(telemetry.dry_run(), indent=1, sort_keys=True))
-            say("dry run: nothing sent")
+            if not a.json:
+                say("dry run: nothing sent")
             return 0
         res = telemetry.send()
         if res["status"] == "fail":
             say(f"send failed ({res['why']}); the events stay queued for the next send")
             return 1
-        say(f"sent {res['sent']} event(s)" if res["status"] == "ok" else f"nothing sent: telemetry is {res['why']}")
+        say(f"sent {res['sent']} event(s)" if res["status"] == "ok" else f"nothing sent: {res['why']}")
         return 0
     st = telemetry.status()
     say(f"telemetry: {'on' if st['on'] else 'off'} ({st['why']})")
+    say(f"consent: {st['consent']}{' since ' + st['consent_time'] if st['consent_time'] else ''}  key: {st['key_source']}")
     say(f"endpoint: {st['endpoint']}  install id: {st['install_id']} (random)")
     say(f"pending: {st['pending']} event(s); last send: {st['last_send_day'] or 'never'}")
     say("see exactly what would be sent: careerbrew telemetry send --dry-run")
@@ -2886,9 +2903,7 @@ def cmd_start(a: argparse.Namespace) -> int:
         _say_stale_sources()
     from . import telemetry
 
-    notice = telemetry.notice_once()
-    if notice:
-        say(notice)
+    telemetry.ask_on_start()  # the one-time question: only on a real terminal, never for an agent, a script, or CI
     step("change a default: careerbrew config set <key> <value> (see: careerbrew config)")
     report.finish(runs.start(steps, d, items, projects.stale_sources()), say)
     return 0
@@ -4005,11 +4020,16 @@ def build_parser() -> argparse.ArgumentParser:
     sp = add(tm, "baseline", cmd_time, "record how many minutes an action takes you by hand (0 returns to the labeled estimate)")
     sp.add_argument("action", choices=["pm_update", "standup", "day_log", "day_plan", "evidence", "promo_doc", "job_scan", "inbox"])
     sp.add_argument("minutes")
-    tl = sub.add_parser("telemetry", help="anonymous usage counts to PostHog EU (no content; needs a key)").add_subparsers(dest="sub", required=True)
-    add(tl, "status", cmd_telemetry, "on or off and why, the endpoint, the random install id, and how many events wait")
-    add(tl, "on", cmd_telemetry, "turn telemetry on (it sends only when a key is set: careerbrew secret set posthog_key)")
-    add(tl, "off", cmd_telemetry, "turn telemetry off: nothing is sent")
-    add(tl, "send", cmd_telemetry, "send the waiting events now; --dry-run prints the exact JSON and sends nothing").add_argument("--dry-run", dest="dry_run", action="store_true")
+    tl = sub.add_parser("telemetry", help="anonymous usage counts to PostHog EU (no content; only after you say yes)").add_subparsers(dest="sub", required=True)
+    add(tl, "status", cmd_telemetry, "on or off and why, your answer, where the key comes from (never its value), the endpoint, the random install id, and how many events wait")
+    add(tl, "on", cmd_telemetry, "answer yes: send anonymous usage counts from now on (nothing recorded before the yes is sent)")
+    add(tl, "off", cmd_telemetry, "answer no: nothing is sent")
+    sp = add(tl, "send", cmd_telemetry, "send the waiting events now; --dry-run prints the exact JSON and sends nothing")
+    sp.add_argument("--dry-run", dest="dry_run", action="store_true")
+    sp.add_argument("--json", action="store_true", help="with --dry-run: print only the JSON")
+    sp = add(tl, "record-install", cmd_telemetry, "used by setup: save how long setup took and whether it passed, locally; it leaves only after a yes")
+    sp.add_argument("--started", type=int, required=True, help="setup start, epoch milliseconds")
+    sp.add_argument("--ok", choices=("true", "false"), required=True, help="true when setup finished and the doctor passed")
     sp = add(sub, "actions", cmd_actions, "every action, for agents and people: CLI command, arguments, and how the web app runs it")
     sp.add_argument("name", nargs="?", help="one action or group, e.g. day or day.send")
     sp.add_argument("--json", action="store_true")
@@ -4823,6 +4843,10 @@ def main(argv: list[str] | None = None) -> int:
     from . import time_saved
 
     events.emit("cli.run", command=name, status="ok" if rc == 0 else "fail", ms=int((time.monotonic() - started) * 1000), saves=time_saved.COMMAND_ACTION.get(name))
+    if args.cmd != "telemetry":
+        from . import telemetry
+
+        telemetry.maybe_send()  # at most one try a day, 3 s in all, never fails the command
     return rc
 
 

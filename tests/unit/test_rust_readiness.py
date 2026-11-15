@@ -19,7 +19,7 @@ def installed(tmp_path):
     repo = tmp_path / "repo"
     scripts = repo / "scripts"
     scripts.mkdir(parents=True)
-    for name in ("rust-readiness.sh", "setup.sh", "doctor.sh"):
+    for name in ("rust-readiness.sh", "setup.sh", "telemetry-install.sh", "doctor.sh"):
         source = ROOT / "scripts" / name
         if source.exists():
             shutil.copy2(source, scripts / name)

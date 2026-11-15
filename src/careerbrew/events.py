@@ -17,7 +17,7 @@ from typing import Any
 
 from . import paths
 
-ALLOWED_STRING_KEYS = {"event", "story", "command", "status", "route", "action", "source_kind", "tier", "error", "saves", "step"}
+ALLOWED_STRING_KEYS = {"event", "story", "command", "status", "route", "action", "source_kind", "tier", "error", "saves", "step", "step_kind", "from_version"}
 _ID = re.compile(r"^[a-z0-9_.:-]{1,48}$")
 
 
@@ -34,9 +34,18 @@ def clean(fields: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def utc_now() -> datetime:
+    """The wall clock in UTC: an event's `ts` records when the code really ran (telemetry compares stamps with it)."""
+    return datetime.now(UTC)
+
+
+def stamp() -> str:
+    return utc_now().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def emit(event: str, **fields: Any) -> None:
     if os.environ.get("CAREERBREW_EVENTS", "on") == "off":
         return
-    record = {"ts": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), **clean({"event": event, **fields})}
+    record = {"ts": stamp(), **clean({"event": event, **fields})}
     with log_path().open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(record, sort_keys=True) + "\n")

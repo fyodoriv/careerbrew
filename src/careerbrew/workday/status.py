@@ -35,7 +35,7 @@ from typing import Any
 
 from .. import events, paths, store
 from .gate import ERROR_CLASSES, MAX_ATTEMPTS, RETRY, next_action
-from .steps import normalize
+from .steps import BUILTIN_STEPS, normalize
 from .timing import close, record
 
 STATUSES = ("waiting", "running", "done", "blocked", "failed")
@@ -194,7 +194,8 @@ def update(
         return row
 
     row = _write(day or today(), change)
-    events.emit("workday.update", status=row["status"], needs_you=bool(row["needs_you"]), error_class=row["error_class"])
+    kind = "builtin" if step in BUILTIN_STEPS else "workflow"  # the kind only: a step's name never goes in the log
+    events.emit("workday.update", status=row["status"], needs_you=bool(row["needs_you"]), error_class=row["error_class"], step_kind=kind, seconds=row.get("seconds"))
     return row
 
 
