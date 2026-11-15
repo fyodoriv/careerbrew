@@ -1707,3 +1707,15 @@ def test_a_failed_gate_in_the_first_run_names_its_failed_steps_and_nothing_it_pr
     line = next(ln for ln in r.stdout.splitlines() if ln.startswith("S17 "))
     assert "failed=4:check.sh(unit)" in line, line
     assert "Secret" not in r.stdout and "private-canary-output" not in r.stdout and "leaks" not in line
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [b"5\n", b"null\n", b"[1]\n", b"\xff\xfe\n", b"[" * 100_000 + b"\n", b'{"event": "check.step", "ok": false, "name": "lint"'],
+    ids=["number", "null", "list", "invalid-utf8", "deep-nesting", "partial-last-line"],
+)
+def test_a_damaged_gate_log_never_breaks_the_failed_step_names(tmp_path, bad):
+    (tmp_path / ".metrics").mkdir()
+    good = b'{"event": "check.step", "ok": false, "name": "unit"}\n'
+    (tmp_path / ".metrics" / "events.jsonl").write_bytes(good + bad + good.replace(b"unit", b"types"))
+    assert script.failed_steps(str(tmp_path)) in ("(unit+types)", "(unit)")

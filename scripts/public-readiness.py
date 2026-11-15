@@ -1357,13 +1357,16 @@ def failed_steps(copy: str) -> str:
     """
     names: list[str] = []
     try:
-        with open(os.path.join(copy, ".metrics", "events.jsonl"), encoding="utf-8") as f:
+        # A damaged log (bad bytes, a non-object line, deep nesting) skips that line: it never breaks the run.
+        with open(os.path.join(copy, ".metrics", "events.jsonl"), encoding="utf-8", errors="replace") as f:
             for line in f:
                 try:
                     event = json.loads(line)
-                except ValueError:
+                except (ValueError, RecursionError):
                     continue
-                name = event.get("name") if isinstance(event, dict) else None
+                if not isinstance(event, dict):
+                    continue
+                name = event.get("name")
                 if event.get("event") == "check.step" and event.get("ok") is False and isinstance(name, str) and STEP_ID.fullmatch(name) and name not in names:
                     names.append(name)
     except OSError:
