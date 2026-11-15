@@ -171,7 +171,7 @@ ORDER BY kind, ended_as
 - **Question**: how fast do installs move to a new careerbrew version: what share of each week's active installs runs each version?
 - **Decision**: when 90% or more of active installs run version N or later, drop the shims for data formats older than N. A release still under half of active installs two weeks after it ships means `day start --update-only` should nudge harder.
 - **Reads**: `cli.run` (`app_version`, stamped when the line was logged, not when it was sent; `command` from the fixed list). `careerbrew.upgrade` (`from_version`) also leaves, for a from-to view.
-- **Empty until**: the first install that said yes runs a listed command. Until the version moves past `0.1.0` (task `release-version-bump`), every row is one version.
+- **Empty until**: the first install that said yes runs a listed command. Every row is one version until a release moves it (`scripts/release.sh`, AGENTS.md Delivery step 6).
 
 ```sql
 SELECT week, version, installs, round(installs / sum(installs) OVER (PARTITION BY week), 3) AS share
@@ -189,7 +189,7 @@ ORDER BY week, installs DESC
 - **Question**: of the `/work` steps a day ends with, what share did `/work` finish alone, and did a new careerbrew version raise or lower it?
 - **Decision**: a version whose done share drops, whose stuck steps rise, or whose steps waiting on the owner rise, is a regression to read before the next change to `/work`.
 - **Reads**: `workday.end` with `action` `end` (`steps_done`, `steps_blocked`, `steps_failed`, `steps_running`, `steps_waiting`, `needs_you`, `app_version`; counts only, from `workday.end.step_outcomes`). A step still `running` at day end hung or crashed: the `stuck` column.
-- **Empty until**: an install that said yes ends a work day (`careerbrew day end`, or the clock). Until the version moves past `0.1.0` (task `release-version-bump`), every row is one version.
+- **Empty until**: an install that said yes ends a work day (`careerbrew day end`, or the clock). Every row is one version until a release moves it (`scripts/release.sh`, AGENTS.md Delivery step 6).
 
 ```sql
 SELECT properties.app_version AS version, count(DISTINCT distinct_id) AS installs, count() AS work_days,
