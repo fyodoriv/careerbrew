@@ -216,13 +216,14 @@ ORDER BY failures DESC
 ## Web controls used per week
 
 - **Question**: which web app controls do installs use, and which ones refuse the click?
-- **Decision**: a control no install uses is a candidate to move behind a menu; a high refused share is a broken control to fix.
+- **Decision**: a control no install uses is a candidate to move behind a menu; a high refused share is a control whose input the page lets through wrongly, and any error share is a bug to fix.
 - **Reads**: `web.act` (`route`, a name from `telemetry.WEB_ACTS`; `status` `ok`, `refused`, or `error`; `duration_ms`).
 - **Empty until**: an install that said yes clicks a web control that changes data.
 
 ```sql
 SELECT toStartOfWeek(timestamp, 1) AS week, properties.route AS control, count(DISTINCT distinct_id) AS installs, count() AS clicks,
-       round(countIf(properties.status != 'ok') / count(), 3) AS refused_share,
+       round(countIf(properties.status = 'refused') / count(), 3) AS refused_share,
+       round(countIf(properties.status = 'error') / count(), 3) AS error_share,
        quantile(0.5)(toFloat(properties.duration_ms)) AS median_ms
 FROM events
 WHERE event = 'web.act' AND timestamp > now() - INTERVAL 26 WEEK

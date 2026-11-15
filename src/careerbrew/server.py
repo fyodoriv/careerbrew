@@ -1135,9 +1135,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._session("POST", url.path)
             except BAD_INPUT as exc:
                 return self._json(HTTPStatus.BAD_REQUEST, {"error": f"bad request: {exc}"[:300]})
-        t0, act = monotonic(), "error"
+        t0, act, guarded = monotonic(), "error", False
         try:
             self._guard(url.path)
+            guarded = True  # a request the guard refuses (no token, a foreign page) is not the owner's click
             length = int(self.headers.get("Content-Length", "0") or 0)
             limit = VOICE_MAX_BYTES if url.path == "/api/drill/voice" else 64_000
             if not 0 <= length <= limit:
@@ -1159,7 +1160,7 @@ class Handler(BaseHTTPRequestHandler):
             act = "refused"
             self._json(HTTPStatus.BAD_REQUEST, {"error": f"bad request: {exc}"[:300]})
         finally:
-            if url.path != "/api/timing":  # a timing is the page's own beacon, not a click
+            if guarded and _act_route(url.path) in telemetry.WEB_ACTS:  # a known control; never the timing beacon
                 events.emit("web.act", route=_act_route(url.path), status=act, ms=int((monotonic() - t0) * 1000))
 
     def _static(self, path: str) -> None:

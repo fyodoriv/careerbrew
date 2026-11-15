@@ -824,7 +824,7 @@ def test_the_end_of_a_work_day_counts_its_step_outcomes(fake, home):
     assert (end["action"], end["steps_done"], end["steps_blocked"], end["steps_failed"], end["steps_waiting"], end["needs_you"]) == ("end", 4, 1, 1, 2, 1)
 
 
-def test_day_end_emits_its_step_outcome_counts(home, monkeypatch):
+def test_step_outcomes_count_each_status_and_the_steps_that_need_the_owner(home, monkeypatch):
     from careerbrew.workday import end, status
 
     monkeypatch.setenv("CAREERBREW_EVENTS", "on")
@@ -885,7 +885,7 @@ def test_a_web_click_leaves_one_act_with_its_route_and_status_never_its_id(fake,
         srv.server_close()
     telemetry.send()
     acts = [e["properties"] for e in fake.events() if e["event"] == "web.act"]
-    assert [(a.get("route"), a.get("status")) for a in acts] == [("promises.done", "refused"), (None, "refused")]
+    assert [(a.get("route"), a.get("status")) for a in acts] == [("promises.done", "refused")], "an unknown route logs nothing"
     assert all("duration_ms" in a for a in acts)
     assert CANARY not in json.dumps(fake.bodies)
 
@@ -909,3 +909,43 @@ def test_an_error_class_in_camel_case_is_kept_lowercase():
     """23 emits pass `error=type(exc).__name__` (`ValueError`); the event log keeps it as a lowercase id."""
     assert events.clean({"error": "ValueError"}) == {"error": "valueerror"}
     assert events.clean({"error": "Not A Class"}) == {}
+
+
+def test_a_request_the_guard_refuses_is_not_a_click(home, monkeypatch):
+    """A foreign page can POST to the local app; with no token it is refused and must not count as a control click."""
+    from careerbrew import server
+
+    monkeypatch.setenv("CAREERBREW_EVENTS", "on")
+    srv, _t = server.serve_in_thread(0, "tok")
+    port = srv.server_address[1]
+    try:
+        for token in ("", "wrong"):
+            req = urllib.request.Request(f"http://127.0.0.1:{port}/api/promises/x/done", data=b"{}", headers={"X-Careerbrew-Token": token, "Host": f"127.0.0.1:{port}", "Content-Type": "application/json"})
+            with pytest.raises(urllib.error.HTTPError):
+                urllib.request.urlopen(req, timeout=10)
+    finally:
+        srv.shutdown()
+        srv.server_close()
+    log = events.log_path()
+    rows = [json.loads(x) for x in log.read_text().splitlines()] if log.exists() else []
+    assert not [r for r in rows if r["event"] == "web.act"]
+
+
+def test_day_end_sends_one_count_per_planned_step_including_the_ones_never_started(home, monkeypatch):
+    from careerbrew import config
+    from careerbrew.workday import end, status
+
+    monkeypatch.setenv("CAREERBREW_EVENTS", "on")
+    monkeypatch.setenv("CAREERBREW_NOW", "2026-10-29T17:40+00:00")
+    cli.main(["init"])
+    config.set_value("run_pages", "false")
+    config.set_value("work_steps", "/alpha, /beta, /gamma")
+    status.update("/alpha", ["/alpha", "/beta", "/gamma"], status="done")
+    end.finish()
+    rows = [json.loads(x) for x in events.log_path().read_text().splitlines()]
+    got = next(r for r in rows if r["event"] == "workday.end" and r.get("action") == "end")
+    from careerbrew.workday import plan
+
+    planned = [x["step"] for x in plan.build()["steps"]]
+    assert {"/alpha", "/beta", "/gamma"} <= set(planned)
+    assert (got["steps_done"], got["steps_waiting"], got["steps_failed"], got["steps_blocked"]) == (1, len(planned) - 1, 0, 0), got

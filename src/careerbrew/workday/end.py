@@ -246,7 +246,7 @@ def finish(by: str = "owner", at: datetime | None = None) -> dict[str, Any]:
     _put(day, "wrapup", {"at": _stamp(at), "reminded": "not needed", "handoff": counts}, only_if_missing=True)
     pm = daylog.pm_report(daylog.save(day))
     loops = watch.end()
-    page = report.write(runs.work_day(plan.build(day)))
+    page = report.write(runs.work_day(built := plan.build(day)))
     body = pm["body"]
     rec = {
         "at": _stamp(at),
@@ -257,7 +257,7 @@ def finish(by: str = "owner", at: datetime | None = None) -> dict[str, Any]:
         "page": str(page or ""),
     }
     _put(day, "end", rec)
-    events.emit("workday.end", status="ended", action="end", by_clock=by == "clock", prs=counts["prs"], questions=counts["questions"], loops_left=len(loops["running"]), pm_edited=pm["edited"], **_outcomes(day))
+    events.emit("workday.end", status="ended", action="end", by_clock=by == "clock", prs=counts["prs"], questions=counts["questions"], loops_left=len(loops["running"]), pm_edited=pm["edited"], **_outcomes(day, built))
     return {**rec, "pm": {**rec["pm"], "subject": pm["subject"], "body": body}, "loops": loops, "dashboard": DASHBOARD}
 
 
@@ -305,11 +305,12 @@ def morning(day: date | None = None) -> dict[str, Any]:
     return {"from": h_day.isoformat(), "items": out}
 
 
-def _outcomes(day: date) -> dict[str, int]:
-    from .status import stored
+def _outcomes(day: date, built: dict[str, Any]) -> dict[str, int]:
+    """One row per step in the day's plan: a step /work never touched counts as waiting (not started)."""
+    from .status import rows
 
     try:
-        return step_outcomes(list(stored(day).values()))
+        return step_outcomes(rows([s["step"] for s in built["steps"]], day))
     except Exception:  # noqa: BLE001 (a count must never fail the end of the day)
         return {}
 
