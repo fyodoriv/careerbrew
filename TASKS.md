@@ -358,16 +358,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P1
 
-- [ ] Release versions: bump the careerbrew version on each release so the version tiles can move
-  - **ID**: release-version-bump
-  - **Details**: `src/careerbrew/__init__.py` and `pyproject.toml` both say `0.1.0`, and nothing bumps them. Every event carries `app_version` (since 2026-11-15, the version that logged the line), so the PostHog tiles "Work days by version", "Upgrades per week" and "p50 ms by version" show one row, and `careerbrew.upgrade` never fires. Steps: (1) keep one source of truth: `pyproject.toml` `version`, read by `careerbrew.__version__` through `importlib.metadata`, with a fallback for a source checkout; (2) a `scripts/release.sh <x.y.z>` that bumps it, adds a `CHANGELOG.md` entry from the merged PR titles since the last tag, and tags `v<x.y.z>`; (3) a gate test that fails when `__init__.py` and `pyproject.toml` disagree; (4) a line in `AGENTS.md` Delivery: a user-facing merge to `main` cuts a patch release. Keep the version a plain `x.y.z` (`telemetry._VERSION`).
-  - **Files**: src/careerbrew/__init__.py; pyproject.toml; scripts/release.sh; tests/unit/test_version.py; AGENTS.md; CHANGELOG.md
-  - **Hypothesis**: with one release per week of user-facing merges, the version tiles show 2 or more versions within 2 weeks, so a `/work` regression can be tied to the release that caused it.
-  - **Measurement**: the HogQL query of the "Upgrades per week" tile in `docs/telemetry-tiles.md` (count of distinct `version` per week); `uv run pytest tests/unit/test_version.py -q`.
-  - **Success**: 2 or more versions in the tile within 2 weeks of the first release; the version test passes.
-  - **Pivot**: if no install upgrades within 4 weeks of a release, the bump is not the gap: check `day start --update-only` instead.
-  - **Anchor**: Preston-Werner, Semantic Versioning 2.0.0; Forsgren, Humble & Kim 2018 (deployment frequency).
-
 - [ ] Prove the company plugin works on the corporate machine after the move to the new history
   - **ID**: company-plugin-after-history-move
   - **Blocked**: a step only the corporate machine can do: the plugin and its tools live there. Check: `git -C "$(uv run careerbrew where)" rev-list --max-parents=0 HEAD` prints `22e3e591b70dd8a5f8a1111355201b85c8f68ed5` on that machine.

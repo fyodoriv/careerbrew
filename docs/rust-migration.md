@@ -1077,7 +1077,7 @@ app runs on Python. No step has a merged decide result. The next task is
 | `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
 | `experiments/hash/` | `careerbrew-hash-experiment` | the pure `changes._h` hash for a supported synthetic JSON subset. It refuses values outside that subset. | none: component parity only |
 
-- The workspace pins Rust `1.99.1` (`rust-toolchain.toml`, minimal profile with
+- The workspace pins Rust `1.100.0` (`rust-toolchain.toml`, minimal profile with
   `clippy` and `rustfmt`).
 - `.cargo/config.toml` defines `cargo xtask` as
   `run --locked --offline --package careerbrew-xtask --`.
