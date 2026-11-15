@@ -358,16 +358,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P1
 
-- [ ] A unit test rebuilt the owner checkout's `.venv` against a Python in its temp HOME
-  - **ID**: unit-test-relinks-owner-venv
-  - **Details**: On 2026-11-15 the main checkout's `.venv/bin/python` and `pyvenv.cfg` `home` pointed into `.../pytest-3403/popen-gw5/test_doctor_catches_venv_scrip0/.test-client-home/.local/share/uv/python/...` (changed 03:40, during a unit run). Once pytest cleaned that folder, every `.venv` command failed: `scripts/public-readiness.sh` printed `result=error (FileNotFoundError ...)`. `uv sync --locked --reinstall` repaired it. Likely path: `tests/unit/conftest.py` moves HOME to `.test-client-home`, then `test_doctor_catches_venv_scripts_from_an_old_folder` (`tests/unit/test_issues_43_46.py`) runs `scripts/doctor.sh`, whose `uv run` calls inherit the caller's `VIRTUAL_ENV`; uv then re-creates that real venv with a Python it installs under the temp HOME. Fix: the test (and any test that runs doctor or setup) clears `VIRTUAL_ENV` and `UV_PROJECT_ENVIRONMENT`, or points uv at a scratch environment. Add a guard test that the repo `.venv` `pyvenv.cfg` is unchanged after the unit run. A failing reproduction test first.
-  - **Files**: tests/unit/test_issues_43_46.py; tests/unit/conftest.py; scripts/doctor.sh
-  - **Hypothesis**: unit runs stop changing the owner's `.venv`: 0 of 5 unit runs change `.venv/pyvenv.cfg`, against at least 1 seen today.
-  - **Measurement**: `shasum .venv/pyvenv.cfg; uv run pytest tests/unit/test_issues_43_46.py -q; shasum .venv/pyvenv.cfg` (the two sums match), repeated 5 times.
-  - **Success**: 5 of 5 runs leave `pyvenv.cfg` unchanged, and the reproduction test fails before the fix.
-  - **Pivot**: if the test cannot reproduce the relink in 5 runs, add a session-end check in `tests/unit/conftest.py` that fails when `pyvenv.cfg` changed, and find the writer from its first failure.
-  - **Anchor**: Luo et al. 2014, "An empirical analysis of flaky tests" (FSE; test order and shared state).
-
 - [ ] Prove the company plugin works on the corporate machine after the move to the new history
   - **ID**: company-plugin-after-history-move
   - **Blocked**: a step only the corporate machine can do: the plugin and its tools live there. Check: `git -C "$(uv run careerbrew where)" rev-list --max-parents=0 HEAD` prints `22e3e591b70dd8a5f8a1111355201b85c8f68ed5` on that machine.

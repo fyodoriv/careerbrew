@@ -8,6 +8,35 @@ import pytest
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 CANARIES = ["CANARY-PERSON-7Q", "CANARY-EMPLOYER-3X", "PROJECTZEBRA"]
+# The checkout's own environment. A unit run must leave it as it found it (task unit-test-relinks-owner-venv).
+OWNER_VENV_CFG = Path(__file__).resolve().parents[2] / ".venv" / "pyvenv.cfg"
+
+
+def venv_change(cfg: Path, before: bytes | None) -> str | None:
+    """Why `cfg` differs from its bytes at session start, or None when it is unchanged."""
+    if before is None:
+        return None
+    if not cfg.exists():
+        return f"{cfg} was removed during the unit run (fix: uv sync --locked --reinstall)"
+    if cfg.read_bytes() != before:
+        return f"{cfg.name} changed during the unit run: a test rebuilt the checkout's .venv (fix: uv sync --locked --reinstall)"
+    return None
+
+
+def pytest_sessionstart(session):
+    session.config.stash[_OWNER_VENV] = OWNER_VENV_CFG.read_bytes() if OWNER_VENV_CFG.exists() else None
+
+
+def pytest_sessionfinish(session, exitstatus):
+    if hasattr(session.config, "workerinput"):  # an xdist worker: the controller checks once
+        return
+    message = venv_change(OWNER_VENV_CFG, session.config.stash.get(_OWNER_VENV, None))
+    if message:
+        session.config.get_terminal_writer().line(f"FAIL  {message}", red=True)
+        session.exitstatus = pytest.ExitCode.TESTS_FAILED
+
+
+_OWNER_VENV = pytest.StashKey[bytes | None]()
 
 
 @pytest.fixture(autouse=True)
@@ -44,6 +73,7 @@ def home(tmp_path, monkeypatch):
     monkeypatch.setenv("CAREERBREW_PUBLIC_CARDS", str(tmp_path / "public-cards"))
     monkeypatch.setenv("CAREERBREW_EXERCISES", str(FIXTURES / "exercises"))
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))  # checkup runs (issue #232): never the owner's ~/.local/state
+    monkeypatch.setenv("UV_PYTHON_DOWNLOADS", "never")  # uv never installs a Python under the temp HOME, so it cannot relink a venv to one
     return root
 
 
