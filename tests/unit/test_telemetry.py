@@ -903,3 +903,9 @@ def test_every_action_careerbrew_emits_may_leave():
         for call in re.findall(r"events\.emit\((.*?)\)\n", f.read_text(), flags=re.S):
             found |= set(re.findall(r'\baction="([a-z_-]+)"', call))
     assert found and found <= telemetry.ACTIONS, sorted(found - telemetry.ACTIONS)
+
+
+def test_an_error_class_in_camel_case_is_kept_lowercase():
+    """23 emits pass `error=type(exc).__name__` (`ValueError`); the event log keeps it as a lowercase id."""
+    assert events.clean({"error": "ValueError"}) == {"error": "valueerror"}
+    assert events.clean({"error": "Not A Class"}) == {}

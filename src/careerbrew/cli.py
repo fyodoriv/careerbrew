@@ -53,17 +53,6 @@ def _owner_ui() -> bool:
     return actions.OWNER_UI.get()
 
 
-# Env vars an agent host sets in the shells it runs: Claude Code sets CLAUDECODE, the Codex CLI sandbox CODEX_SANDBOX.
-AGENT_ENV = ("CLAUDECODE", "CODEX_SANDBOX")
-
-
-def ran_via() -> str:
-    """Where this command runs, for the event log: `ui` (the web app's Actions), `agent` (an agent's shell), or `cli`."""
-    if _owner_ui():
-        return "ui"
-    return "agent" if any(os.environ.get(k) for k in AGENT_ENV) else "cli"
-
-
 def may_show_business() -> bool:
     return sys.stdout.isatty() or _owner_ui() or bool(plugins.effective_policy().get("agent_may_read_business"))
 
@@ -4859,6 +4848,17 @@ def main(argv: list[str] | None = None) -> int:
 
         telemetry.maybe_send()  # at most one try a day, 3 s in all, never fails the command
     return rc
+
+
+# Env vars an agent host sets in the shells it runs: Claude Code sets CLAUDECODE, the Codex CLI sandbox CODEX_SANDBOX.
+AGENT_ENV = ("CLAUDECODE", "CODEX_SANDBOX")
+
+
+def ran_via() -> str:
+    """Where this command runs, for the event log: `ui` (the web app's Actions), `agent` (an agent's shell), or `cli`."""
+    if _owner_ui():
+        return "ui"
+    return "agent" if any(os.environ.get(k) for k in AGENT_ENV) else "cli"
 
 
 if __name__ == "__main__":

@@ -768,16 +768,6 @@ def _route(path: str) -> str:
     return path.removeprefix("/api/").replace("/", ".")[:48] or "api"
 
 
-def _act_route(path: str) -> str:
-    """The fixed name of a data-changing web control (`promises.done`, `actions.run`): an id in the path never leaves."""
-    parts = path.removeprefix("/api/").strip("/").split("/")
-    if parts[0] == "actions":
-        return "actions.run"  # the action itself leaves as the cli.run it starts, with via `ui`
-    if len(parts) >= 3:
-        return f"{parts[0]}.{parts[-1]}"[:48]  # /api/<kind>/<id>/<verb>
-    return ".".join(parts)[:48] or "api"
-
-
 def _encode(data: Any) -> bytes:
     return json.dumps(_finite(data), default=str, allow_nan=False).encode()
 
@@ -1180,6 +1170,16 @@ class Handler(BaseHTTPRequestHandler):
         if not f.exists():
             return self._send(HTTPStatus.NOT_FOUND, b"web app not built: cd web && npm ci && npm run build", "text/plain")
         self._send(HTTPStatus.OK, f.read_bytes(), mimetypes.guess_type(str(f))[0] or "application/octet-stream")
+
+
+def _act_route(path: str) -> str:
+    """The fixed name of a data-changing web control (`promises.done`, `actions.run`): an id in the path never leaves."""
+    parts = path.removeprefix("/api/").strip("/").split("/")
+    if parts[0] == "actions":
+        return "actions.run"  # the action itself leaves as the cli.run it starts, with via `ui`
+    if len(parts) >= 3:
+        return f"{parts[0]}.{parts[-1]}"[:48]  # /api/<kind>/<id>/<verb>
+    return ".".join(parts)[:48] or "api"
 
 
 # POSTs that change no data a view reads, so every cached view stays: a timing writes only the event log.

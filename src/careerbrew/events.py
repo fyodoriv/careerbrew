@@ -27,7 +27,7 @@ def log_path() -> Path:
 
 def clean(fields: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {}
-    for key, value in fields.items():
+    for key, value in ((k, v.lower() if k == "error" and isinstance(v, str) else v) for k, v in fields.items()):  # an error is a lowercase class
         if isinstance(value, bool) or isinstance(value, int | float) or isinstance(value, str) and key in ALLOWED_STRING_KEYS and _ID.match(value):
             out[key] = value
         # Anything else (free text, lists, dicts) is dropped on purpose.
