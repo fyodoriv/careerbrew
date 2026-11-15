@@ -4843,6 +4843,10 @@ def main(argv: list[str] | None = None) -> int:
     from . import time_saved
 
     events.emit("cli.run", command=name, status="ok" if rc == 0 else "fail", ms=int((time.monotonic() - started) * 1000), saves=time_saved.COMMAND_ACTION.get(name))
+    if args.cmd != "telemetry":
+        from . import telemetry
+
+        telemetry.maybe_send()  # at most one try a day, 3 s in all, never fails the command
     return rc
 
 

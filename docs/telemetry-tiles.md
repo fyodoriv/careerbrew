@@ -118,3 +118,61 @@ WHERE event = 'careerbrew.week' AND timestamp > now() - INTERVAL 26 WEEK
 GROUP BY sent_week
 ORDER BY sent_week
 ```
+
+## Job funnel per week
+
+- **Question**: how many applications reach each stage each week?
+- **Reads**: `jobs.application` (`status`: `applied`, `screen`, `onsite`, `offer`, `rejected`, or `withdrawn`; `tier`).
+- **Empty until**: an install that said yes logs an application with `careerbrew jobs log`.
+
+```sql
+SELECT toStartOfWeek(timestamp, 1) AS week, properties.status AS stage, count() AS applications, count(DISTINCT distinct_id) AS installs
+FROM events
+WHERE event = 'jobs.application' AND timestamp > now() - INTERVAL 26 WEEK
+GROUP BY week, stage
+ORDER BY week, stage
+```
+
+## Web views used per week
+
+- **Question**: which web app views do installs open?
+- **Reads**: `web.view` (`route`, a name from `telemetry.VIEW_ROUTES`; at most one per view per day per server process).
+- **Empty until**: an install that said yes opens the web app.
+
+```sql
+SELECT toStartOfWeek(timestamp, 1) AS week, properties.route AS view, count(DISTINCT distinct_id) AS installs, count() AS view_days
+FROM events
+WHERE event = 'web.view' AND timestamp > now() - INTERVAL 26 WEEK
+GROUP BY week, view
+ORDER BY week, installs DESC
+```
+
+## Work-day step durations
+
+- **Question**: how long does a `/work` step take, for careerbrew's own step and for workflow steps?
+- **Reads**: `workday.update` (`step_kind`, `seconds`, `status`; a row that ended).
+- **Empty until**: an install that said yes ends a `/work` step.
+
+```sql
+SELECT properties.step_kind AS kind, properties.status AS ended_as, count() AS steps,
+       quantile(0.5)(toFloat(properties.seconds)) AS median_seconds,
+       quantile(0.9)(toFloat(properties.seconds)) AS p90_seconds
+FROM events
+WHERE event = 'workday.update' AND properties.seconds IS NOT NULL AND timestamp > now() - INTERVAL 8 WEEK
+GROUP BY kind, ended_as
+ORDER BY kind, ended_as
+```
+
+## Upgrades per week
+
+- **Question**: how fast do installs move to a new careerbrew version?
+- **Reads**: `careerbrew.upgrade` (`from_version`, `app_version`).
+- **Empty until**: an install that said yes runs a new careerbrew version.
+
+```sql
+SELECT toStartOfWeek(timestamp, 1) AS week, properties.from_version AS from_version, properties.app_version AS to_version, count(DISTINCT distinct_id) AS installs
+FROM events
+WHERE event = 'careerbrew.upgrade' AND timestamp > now() - INTERVAL 26 WEEK
+GROUP BY week, from_version, to_version
+ORDER BY week, installs DESC
+```

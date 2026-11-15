@@ -17,7 +17,7 @@ from typing import Any
 
 from . import paths
 
-ALLOWED_STRING_KEYS = {"event", "story", "command", "status", "route", "action", "source_kind", "tier", "error", "saves", "step"}
+ALLOWED_STRING_KEYS = {"event", "story", "command", "status", "route", "action", "source_kind", "tier", "error", "saves", "step", "step_kind", "from_version"}
 _ID = re.compile(r"^[a-z0-9_.:-]{1,48}$")
 
 

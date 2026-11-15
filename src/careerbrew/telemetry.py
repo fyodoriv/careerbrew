@@ -47,6 +47,7 @@ import os
 import platform
 import re
 import sys
+import time
 import urllib.parse
 import urllib.request
 import uuid
@@ -90,19 +91,27 @@ EVENT_NAMES = frozenset(
     work.live.stop work.memory.forget work.memory.in work.memory.out work.note work.plan work.prd work.prep work.priority
     work.project work.promise work.promo work.review_ask work.review_ask.check work.session work.standup
     work.standup.notes work.standup.rows work.task work.team workday.end workday.loop workday.morning workday.question
-    workday.recheck workday.start workday.timeout workday.update workday.verify notify.check careerbrew.install careerbrew.week""".split()
+    workday.recheck workday.start workday.timeout workday.update workday.verify notify.check careerbrew.install careerbrew.week careerbrew.upgrade web.view""".split()
 )
 STATUSES = frozenset(
     """ok error fail failed refused new done pass open kept held gap ended added written wrap-up waiting upcoming text
     stopped snoozed skipped sent reused renewed reloaded released pending on off not_cleared mismatch long_term keys hidden
     flagged expired dry_run claimed changed moved running blocked again hard good easy dream target practice
-    missing_secret busy audio typed none emoji ack stop reply""".split()
+    missing_secret busy audio typed none emoji ack stop reply applied screen onsite offer rejected withdrawn""".split()
 )
 SOURCE_KINDS = frozenset(
     """agent plugin notify slack email calendar mail github gitlab jira linear notion confluence gmail outlook google
     pm-sent pm-receipt review readiness feed chat tickets docs hn greenhouse lever ashby linkedin rss""".split()
 )
 TIERS = frozenset({"personal", "corporate", "dream", "target", "practice"})
+# The web app's views, by route name (`server._route`): a path parameter (a company, a page) is never part of the name.
+VIEW_ROUTES = frozenset(
+    """today focus feed.asks week daylog daylog.day work priority agents jobs interviews interviews.company overview inbox
+    checklist standup actions review setup cards library library.page teach drill goals mistakes exercises reports
+    reports.page promises""".split()
+)
+# A work-day step is careerbrew's own (`workday.steps.BUILTIN_STEPS`) or one a plugin or repo declares; its name never leaves.
+STEP_KINDS = frozenset({"builtin", "workflow"})
 # Error classes: Python's built-in exceptions and careerbrew's own; any other class is sent as "other".
 ERRORS = frozenset(
     {n.lower() for n, v in vars(builtins).items() if isinstance(v, type) and issubclass(v, BaseException)}
@@ -209,8 +218,9 @@ def _role() -> str:
 
 
 def consent() -> str:
-    """The answer that counts: the saved setting; else an owner install from before the question (it sent or showed
-    the old notice, a Keychain key is set, and `telemetry` is not false) is yes and an old `telemetry: false` is no; else a corporate machine is no; else unset."""
+    """The answer that counts: the saved setting; else an old `telemetry: false` is no; else a corporate machine is no;
+    else unset. Any state from before the question is unset too (as in agentbrew): the next terminal run asks.
+    A read (`status`, `blocked`) never writes an answer."""
     saved = config._file()
     answer = saved.get("telemetry_consent")
     if answer in ("yes", "no"):
@@ -221,23 +231,7 @@ def consent() -> str:
         return "no"
     if _role() == "corporate":
         return "no"  # until a company plugin sets its own sink (task telemetry-plugin-sink)
-    if "CAREERBREW_POSTHOG_KEY" not in os.environ and _legacy_owner():
-        set_consent("yes")
-        return "yes"
     return "unset"
-
-
-def _legacy_owner() -> bool:
-    """An install that sent before the question existed: its state shows the old notice or a send, and a Keychain key
-    is set. A new data folder never counts. The Keychain is asked at most once a day (a `security` call)."""
-    state = _state()
-    today = calendar.now().date().isoformat()
-    if not (state.get("noticed") or state.get("last_send_day")) or state.get("keychain_checked") == today:
-        return False
-    if _keychain_key():
-        return True
-    _patch(keychain_checked=today)
-    return False
 
 
 def _log_end() -> int:
@@ -379,6 +373,12 @@ def _string_ok(k: str, v: str) -> str | None:
         return v if v in SOURCE_KINDS else None
     if k == "tier":
         return v if v in TIERS else None
+    if k == "route":
+        return v if v in VIEW_ROUTES else None
+    if k == "step_kind":
+        return v if v in STEP_KINDS else None
+    if k == "from_version":
+        return v if _VERSION.match(v) else None
     return None
 
 
@@ -487,8 +487,13 @@ def _lock():
             fcntl.flock(fh, fcntl.LOCK_UN)
 
 
-def send(timeout: float = MANUAL_TIMEOUT_S) -> dict[str, Any]:
-    """Send every pending event now. Returns {sent, status}; never raises."""
+def _clock() -> float:
+    return time.monotonic()
+
+
+def send(timeout: float = MANUAL_TIMEOUT_S, total: float | None = None) -> dict[str, Any]:
+    """Send every pending event now; with `total`, stop once that many seconds have passed in all (the rest waits).
+    Returns {sent, status}; never raises."""
     try:
         ok, why = enabled()
         if not ok:
@@ -496,20 +501,23 @@ def send(timeout: float = MANUAL_TIMEOUT_S) -> dict[str, Any]:
         with _lock() as held:
             if not held:
                 return {"sent": 0, "status": "off", "why": "another send is running"}
-            return _send_locked(timeout)
+            return _send_locked(timeout, None if total is None else _clock() + total)
     except Exception as exc:  # noqa: BLE001 (a send failure must never fail a command)
         with contextlib.suppress(Exception):
             events.emit("telemetry.send", status="fail", error=type(exc).__name__.lower(), story="us-89")
         return {"sent": 0, "status": "fail", "why": type(exc).__name__}
 
 
-def _send_locked(timeout: float) -> dict[str, Any]:
+def _send_locked(timeout: float, deadline: float | None = None) -> dict[str, Any]:
     api_key = key()
     items, end = pending()  # read under the lock: a send that just ended has moved the cursor
     sent = 0
     for i in range(0, len(items), BATCH_SIZE):
         chunk = items[i : i + BATCH_SIZE]
-        _post(body([ev for ev, _ in chunk], api_key), timeout)
+        wait = timeout if deadline is None else min(timeout, deadline - _clock())
+        if wait <= 0:
+            break  # out of time: the cursor stays after the last batch sent, so the rest goes next time
+        _post(body([ev for ev, _ in chunk], api_key), wait)
         sent += len(chunk)
         last = i + BATCH_SIZE >= len(items)
         _patch(offset=end if last else chunk[-1][1])  # the cursor moves only after a 2xx answer
@@ -590,17 +598,46 @@ def _record_week() -> None:
     _patch(week_recorded=week)
 
 
+def _record_upgrade() -> None:
+    """`careerbrew.upgrade` once when the careerbrew version changes; the first version seen is only the baseline."""
+    seen = _state().get("last_version")
+    if seen == __version__ or not _VERSION.match(__version__):
+        return
+    if isinstance(seen, str) and _VERSION.match(seen) and _events_on():
+        events.emit("careerbrew.upgrade", from_version=seen, story="us-89")
+    _patch(last_version=__version__)
+
+
 def maybe_send() -> dict[str, Any] | None:
-    """For the watcher: at most one try a day (a dead network costs one try), only after a yes, a short timeout."""
+    """After an ordinary command and in the watcher: at most one try a day (a dead network costs one try), only after
+    a yes and with a key, AUTO_TIMEOUT_S in all. Never raises."""
     try:
         today = calendar.now().date().isoformat()
-        if _state().get("last_attempt_day") == today or not enabled()[0]:
+        if _state().get("last_attempt_day") == today or blocked():
             return None
-        _patch(last_attempt_day=today)
+        _patch(last_attempt_day=today)  # before the key: a missing key costs one Keychain look a day
+        if not key():
+            return None
+        _record_upgrade()
         _record_week()
-        return send(timeout=AUTO_TIMEOUT_S)
+        return send(timeout=AUTO_TIMEOUT_S, total=AUTO_TIMEOUT_S)
     except Exception:  # noqa: BLE001
         return None
+
+
+_views_seen: set[tuple[str, str]] = set()  # module scope (one per process): the views already noted today
+
+
+def note_view(route: str) -> None:
+    """`web.view` for a view the web app served, once per view per day in this process. The route is a fixed name."""
+    try:
+        today = calendar.now().date().isoformat()
+        if route not in VIEW_ROUTES or (route, today) in _views_seen:
+            return
+        _views_seen.add((route, today))
+        events.emit("web.view", route=route, story="us-89")
+    except Exception:  # noqa: BLE001 (a log line must never fail a request)
+        return
 
 
 def _interactive() -> bool:
@@ -614,31 +651,56 @@ def ask_on_start(interactive: bool | None = None, read=None, write=None) -> str 
         interactive = _interactive() if interactive is None else interactive
         if not interactive or env_off() or consent() != "unset" or not key():
             return None
-        state = _state()
-        today = calendar.now().date().isoformat()
-        if state.get("asked_day") == today or int(state.get("ask_count") or 0) >= MAX_ASKS:
-            return None
-        _patch(asked_day=today, ask_count=int(state.get("ask_count") or 0) + 1)
-        write = write or (lambda text: print(text, end="", file=sys.stderr, flush=True))
-        read = read or sys.stdin.readline
-        write(QUESTION_TEXT)
-        for _ in range(3):
-            write(QUESTION)
-            answer = (read() or "").strip().lower()
-            if answer in ("y", "yes"):
-                set_consent("yes")
-                write("Thank you. Telemetry is on. Change it any time: careerbrew telemetry off\n")
-                return "yes"
-            if answer in ("n", "no"):
-                set_consent("no")
-                write("Telemetry is off. Nothing is sent. Change it any time: careerbrew telemetry on\n")
-                return "no"
-            if not answer:
-                break
-        write("No answer. Nothing is sent. Answer later: careerbrew telemetry on | off\n")
-        return None
+        with _ask_lock() as held:
+            if not held:
+                return None  # another terminal is asking now
+            return _ask_locked(read, write)
     except Exception:  # noqa: BLE001 (the question must never fail a command)
         return None
+
+
+@contextlib.contextmanager
+def _ask_lock():
+    """One question at a time on this data folder, so two terminals never both ask (the OS releases it if one dies)."""
+    with paths.sub("telemetry-ask.lock").open("a") as fh:
+        try:
+            fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            yield False
+            return
+        try:
+            yield True
+        finally:
+            fcntl.flock(fh, fcntl.LOCK_UN)
+
+
+def _ask_locked(read, write) -> str | None:
+    """The question itself, under the ask lock: the answer and the day are read again here."""
+    if consent() != "unset":
+        return None
+    state = _state()
+    today = calendar.now().date().isoformat()
+    if state.get("asked_day") == today or int(state.get("ask_count") or 0) >= MAX_ASKS:
+        return None
+    _patch(asked_day=today, ask_count=int(state.get("ask_count") or 0) + 1)
+    write = write or (lambda text: print(text, end="", file=sys.stderr, flush=True))
+    read = read or sys.stdin.readline
+    write(QUESTION_TEXT)
+    for _ in range(3):
+        write(QUESTION)
+        answer = (read() or "").strip().lower()
+        if answer in ("y", "yes"):
+            set_consent("yes")
+            write("Thank you. Telemetry is on. Change it any time: careerbrew telemetry off\n")
+            return "yes"
+        if answer in ("n", "no"):
+            set_consent("no")
+            write("Telemetry is off. Nothing is sent. Change it any time: careerbrew telemetry on\n")
+            return "no"
+        if not answer:
+            break
+    write("No answer. Nothing is sent. Answer later: careerbrew telemetry on | off\n")
+    return None
 
 
 def status() -> dict[str, Any]:

@@ -6,6 +6,7 @@ import json
 import re
 import subprocess
 import threading
+import urllib.request
 from datetime import timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -156,14 +157,18 @@ def test_a_corporate_machine_defaults_to_no(endpoint, home, monkeypatch):
     assert telemetry.ask_on_start(interactive=True, read=lambda: "y", write=lambda t: None) is None
 
 
-def test_an_owner_install_from_before_the_question_counts_as_yes(home, monkeypatch):
-    """A Keychain key and `telemetry` not false (the old default): the owner's data does not stop."""
+def test_status_on_an_install_from_before_the_question_leaves_consent_unset_and_sends_nothing(endpoint, home, monkeypatch):
+    """A state from before the question (the old notice, a send day) and a Keychain key: the answer stays unset, as in
+    agentbrew. A read-only call (`telemetry status`, `blocked`) never writes an answer; the next terminal run asks."""
     monkeypatch.delenv("CAREERBREW_POSTHOG_KEY")
     monkeypatch.setattr(telemetry, "_keychain_key", lambda: FAKE_KEY)
-    assert telemetry.consent() == "unset", "a new data folder on the owner's machine still gets the question"
-    telemetry._patch(noticed=True, last_send_day="2026-11-01", keychain_checked=None)
-    assert telemetry.consent() == "yes"
-    assert telemetry.resolve_key() == (FAKE_KEY, "keychain")
+    telemetry._patch(noticed=True, last_send_day="2026-11-01")
+    _log({"event": "cli.run", "command": "start", "status": "ok"})
+    assert cli.main(["telemetry", "status"]) == 0
+    assert telemetry.consent() == "unset" and telemetry.blocked().startswith("not answered")
+    assert "telemetry_consent" not in config._file() and not telemetry._state().get("telemetry_consent_time")
+    assert telemetry.maybe_send() is None and telemetry.send()["status"] == "off"
+    assert endpoint.bodies == []
 
 
 def test_an_old_telemetry_false_still_means_no(home, monkeypatch):
@@ -375,7 +380,7 @@ def test_the_watcher_sends_once_a_day_with_a_short_timeout(fake, home, monkeypat
     monkeypatch.setattr(telemetry, "_post", lambda payload, timeout=10: seen.append(timeout) or real(payload, timeout))
     _log({"event": "cli.run"})
     assert telemetry.maybe_send()["sent"] >= 1
-    assert seen and set(seen) == {telemetry.AUTO_TIMEOUT_S}
+    assert seen and all(0 < t <= telemetry.AUTO_TIMEOUT_S for t in seen), "the auto send has 3 s in all"
     _log({"event": "cli.run"})
     assert telemetry.maybe_send() is None, "once a day"
 
@@ -601,3 +606,138 @@ def test_the_setup_trap_never_uses_a_careerbrew_launcher_on_path(tmp_path):
     (bin_dir / "careerbrew").chmod(0o755)
     got = _trap_script(tmp_path, f"{bin_dir}:/usr/bin:/bin")
     assert got.returncode == 7 and not (tmp_path / "called").exists()
+
+
+# --- review fixes: funnel stages, the send after a command, the question lock, new events --------------------------
+
+
+def test_every_job_funnel_stage_leaves_as_its_status(home):
+    from careerbrew.jobs import strategy
+
+    for stage in strategy.STAGES:
+        ev = telemetry.to_event({"event": "jobs.application", "ts": _ts(), "tier": "target", "status": stage}, "id")
+        assert ev and ev["properties"]["status"] == stage, stage
+
+
+def test_an_ordinary_command_sends_once_a_day_with_the_short_timeout(fake, home, monkeypatch, capsys):
+    seen: list[float] = []
+    real = telemetry._post
+    monkeypatch.setattr(telemetry, "_post", lambda payload, timeout=10: seen.append(timeout) or real(payload, timeout))
+    _log({"event": "cli.run", "command": "review", "status": "ok"})
+    assert cli.main(["config"]) == 0
+    assert fake.events() and seen and max(seen) <= telemetry.AUTO_TIMEOUT_S
+    n = len(fake.bodies)
+    assert cli.main(["config"]) == 0
+    assert len(fake.bodies) == n, "once a day"
+
+
+def test_a_telemetry_command_never_sends_by_itself(fake, home, capsys):
+    _log({"event": "cli.run", "command": "review", "status": "ok"})
+    assert cli.main(["telemetry", "status"]) == 0
+    assert fake.bodies == [] and not telemetry._state().get("last_attempt_day")
+
+
+def test_the_whole_auto_send_ends_within_its_timeout(fake, home, monkeypatch):
+    """Three batches, each post 2 s on a fake clock: the auto send stops at 3 s in all and keeps the rest for later."""
+    clock = [100.0]
+    seen: list[float] = []
+
+    def slow(payload, timeout=10):
+        seen.append(timeout)
+        clock[0] += 2
+
+    monkeypatch.setattr(telemetry, "_clock", lambda: clock[0])
+    monkeypatch.setattr(telemetry, "_post", slow)
+    _log(*({"event": "cli.run", "command": "review", "status": "ok"} for _ in range(1200)))
+    got = telemetry.maybe_send()
+    assert seen == [telemetry.AUTO_TIMEOUT_S, 1] and got["sent"] == 2 * telemetry.BATCH_SIZE
+    assert len(telemetry.pending()[0]) >= 200, "what did not fit waits for the next send"
+
+
+def test_two_terminals_never_both_ask(endpoint, home):
+    import fcntl
+
+    from careerbrew import paths
+
+    shown: list[str] = []
+    with paths.sub("telemetry-ask.lock").open("a") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)  # another terminal is asking right now
+        assert telemetry.ask_on_start(interactive=True, read=lambda: "y\n", write=shown.append) is None
+        assert shown == [] and not telemetry._state().get("ask_count")
+    assert telemetry.ask_on_start(interactive=True, read=lambda: "y\n", write=shown.append) == "yes"
+
+
+def test_the_ask_lock_is_bookkeeping_the_web_app_ignores():
+    from careerbrew import server
+
+    assert "telemetry-ask.lock" in server.CHANGE_SKIP
+
+
+def test_every_view_name_is_a_real_route_of_the_web_app():
+    from careerbrew import server
+
+    src = Path(server.__file__).read_text()
+    known = {server._route(p) for p in re.findall(r'"(/api/[a-z/-]+)": ', src)} | {"library.page", "daylog.day", "interviews.company", "reports.page"}
+    assert telemetry.VIEW_ROUTES <= known, telemetry.VIEW_ROUTES - known
+
+
+def test_a_web_view_leaves_only_its_fixed_name_once_a_day(fake, home, monkeypatch):
+    from careerbrew import server
+
+    monkeypatch.setattr(telemetry, "_views_seen", set())
+    srv, _t = server.serve_in_thread(0, "tok")
+    port = srv.server_address[1]
+    try:
+        for path in ("/api/overview", "/api/overview", f"/api/interviews/{CANARY}", "/api/changes"):
+            req = urllib.request.Request(f"http://127.0.0.1:{port}{path}", headers={"X-Careerbrew-Token": "tok", "Host": f"127.0.0.1:{port}"})
+            with urllib.request.urlopen(req, timeout=10):
+                pass
+    finally:
+        srv.shutdown()
+        srv.server_close()
+    rows = [json.loads(x) for x in events.log_path().read_text().splitlines()]
+    views = [r["route"] for r in rows if r["event"] == "web.view"]
+    assert sorted(views) == ["interviews.company", "overview"], views
+    telemetry.send()
+    sent = [e for e in fake.events() if e["event"] == "web.view"]
+    assert sorted(e["properties"]["route"] for e in sent) == ["interviews.company", "overview"]
+    assert CANARY not in json.dumps(fake.bodies)
+
+
+def test_a_route_off_the_view_list_never_leaves(home):
+    ev = telemetry.to_event({"event": "web.view", "ts": _ts(), "route": "made.up"}, "id")
+    assert ev and "route" not in ev["properties"]
+
+
+def test_a_work_day_step_leaves_its_kind_and_seconds(fake, home, monkeypatch):
+    from careerbrew.workday import status
+
+    names = ["/careerbrew", "/standup"]
+    for step in names:
+        status.update(step, names, "running")
+        status.update(step, names, "done")
+    rows = [json.loads(x) for x in events.log_path().read_text().splitlines()]
+    done = [r for r in rows if r["event"] == "workday.update" and r["status"] == "done"]
+    assert [r["step_kind"] for r in done] == ["builtin", "workflow"]
+    assert all(isinstance(r["seconds"], int) for r in done)
+    telemetry.send()
+    sent = [e["properties"] for e in fake.events() if e["event"] == "workday.update" and e["properties"]["status"] == "done"]
+    assert sorted(p["step_kind"] for p in sent) == ["builtin", "workflow"] and all("seconds" in p for p in sent)
+    assert "/standup" not in json.dumps(fake.bodies), "a step name is content and never leaves"
+
+
+def test_a_new_version_emits_one_upgrade_event(fake, home, monkeypatch):
+    monkeypatch.setattr(telemetry, "__version__", "0.2.0")
+    telemetry.maybe_send()  # the first version seen is the baseline: no event
+    telemetry._patch(last_attempt_day=None)
+    monkeypatch.setattr(telemetry, "__version__", "0.3.0")
+    telemetry.maybe_send()
+    telemetry._patch(last_attempt_day=None)
+    telemetry.maybe_send()
+    ups = [e for e in fake.events() if e["event"] == "careerbrew.upgrade"]
+    assert len(ups) == 1 and ups[0]["properties"]["from_version"] == "0.2.0" and ups[0]["properties"]["app_version"] == "0.3.0"
+
+
+def test_a_from_version_that_is_not_a_version_never_leaves(home):
+    ev = telemetry.to_event({"event": "careerbrew.upgrade", "ts": _ts(), "from_version": "my-branch"}, "id")
+    assert ev and "from_version" not in ev["properties"]
