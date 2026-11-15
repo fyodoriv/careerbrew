@@ -302,6 +302,8 @@ local and include local source/runtime paths. This developer harness compares
 two fixed Python API trials with the frozen reference. It does not activate a
 Rust application route or prove resource improvements.
 
+The full plan to move careerbrew to Rust, with each step's gate and the current state, is [docs/rust-migration.md](docs/rust-migration.md).
+
 ## Docs
 
 The docs map is [docs/README.md](docs/README.md). Agents start at [AGENTS.md](AGENTS.md). Privacy rules: [docs/privacy.md](docs/privacy.md).

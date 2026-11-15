@@ -94,10 +94,14 @@ def test_a_cubic_solution_still_fails_the_quadratic_check():
     ex = {
         "function": "triples",
         "tests": [{"args": [2], "expected": 8}, {"args": [3], "expected": 27}],
-        "scale": {"generator": "def make(n):\n    return [n]\n", "sizes": [40, 160], "expected": "O(n^2)"},
+        # n=160 took 66 ms here and under 50 ms on a hosted runner, where the 50 ms "too fast to judge"
+        # floor passed it; n=300 takes about 470 ms, far above the floor.
+        "scale": {"generator": "def make(n):\n    return [n]\n", "sizes": [60, 300], "expected": "O(n^2)"},
     }
     cubic = "def triples(n):\n    c = 0\n    for i in range(n):\n        for j in range(n):\n            for k in range(n):\n                c += 1\n    return c\n"
-    cx = exercises._complexity(ex, exercises.run(ex, cubic)["scale"])
+    scale = exercises.run(ex, cubic)["scale"]
+    assert scale[-1]["ms"] >= 50, f"the largest input must time above the 50 ms floor, or the floor decides: {scale}"
+    cx = exercises._complexity(ex, scale)
     assert not cx["ok"] and cx["slope"] > exercises.COMPLEXITY_SLOPE["O(n^2)"], cx
 
 
