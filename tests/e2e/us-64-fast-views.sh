@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# e2e: weight: 30  (usual seconds on a hosted runner; scripts/e2e.sh E2E_SHARD)
 # US-64: a view opened again answers from the server's memory, a read never looks like new data,
 # and a write by any process still shows within one poll of /api/changes. The server warms the work
 # views at start and after new data, so their first open answers from memory too (issue #142).

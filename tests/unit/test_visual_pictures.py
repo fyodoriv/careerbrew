@@ -140,7 +140,7 @@ def test_the_hosted_linux_job_fails_when_it_has_no_linux_pictures():
 
 def test_the_drawing_workflow_keeps_the_hosted_safety_rules():
     text = WORKFLOW.read_text()
-    gate = (ROOT / ".github/workflows/ci.yml").read_text()
+    gate = (ROOT / ".github/workflows/gate-part.yml").read_text()  # the steps every part of ci.yml runs
     assert "permissions:\n  contents: read\n" in text
     assert "pull_request_target" not in text and "upload-artifact" not in text and "secrets." not in text
     assert "runs-on: ubuntu-24.04\n" in text and "runs-on: macos" not in text

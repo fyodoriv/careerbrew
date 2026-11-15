@@ -54,6 +54,7 @@ Run every command from the repo root.
 | Type check | `uv run pyright` |
 | Fast gate (each commit; unit tests run in parallel with pytest-xdist, `UNIT_JOBS=0` runs them one by one) | `scripts/check.sh fast` |
 | Full gate with e2e (optional on your machine: the hosted checks run it for every pull request, [`docs/ci.md`](docs/ci.md); eligible steps cache by their inputs; leak scan, format, lint, `types`, unit, exercises, `web-types`, e2e and Rust steps do not reuse cache entries) | `scripts/check.sh` (`NO_CACHE=1` for a full rerun) |
+| Run only some gate steps, or one share of the e2e stories (the hosted parts do this, [`docs/ci.md`](docs/ci.md) "Parallel parts") | `CHECK_STEPS="unit exercises" scripts/check.sh` · `CHECK_STEPS=e2e E2E_SHARD=1/2 scripts/check.sh` |
 | A gate step's inputs (git pathspecs, like nx target inputs; empty means every file) | `scripts/check.sh inputs <step>...` (change them in `inputs_of`; `tests/unit/test_gate_inputs.py` must pass) |
 | E2E tests only (in parallel; a failing file's log prints at the end; `E2E_JOBS=1` runs them one by one) | `scripts/e2e.sh` |
 | LLM-judged evals and owner labels | `EVALS_LLM=1 evals/run.sh` · `evals/run.sh show` · `evals/run.sh label <case> pass\|fail` · `evals/run.sh agreement` |

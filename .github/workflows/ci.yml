@@ -1,7 +1,8 @@
 name: CI
 
 # The hosted copy of the local gate: `scripts/setup.sh`, then `scripts/check.sh`,
-# the same commands a contributor runs. It runs on GitHub's standard runners,
+# the same commands a contributor runs, split into parts that run in parallel
+# (gate-part.yml; docs/ci.md, "Parallel parts"). It runs on GitHub's standard runners,
 # which are free for a public repository. Read docs/ci.md before you change it.
 #
 # Safety:
@@ -26,103 +27,86 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-env:
-  # Never send usage data from a runner: an empty key means nothing is sent.
-  # Not DO_NOT_TRACK: the telemetry story tests that switch itself.
-  CAREERBREW_POSTHOG_KEY: ""
-  # The Linux job compares the pictures drawn on its own image; the darwin pictures stay local (docs/ci.md).
-  CAREERBREW_VISUAL_PICTURES: hosted
-  UNIT_JOBS: "2"
-  E2E_JOBS: "2"
-  GITLEAKS_VERSION: "8.30.1"
-  # A Linux runner has `gh` in /usr/bin, so one readiness test cannot hide it; the test asks for this switch.
-  PUBLIC_READINESS_TESTS_ALLOW_SYSTEM_GH: "1"
-
+# Each OS runs the same parts. Together they run every step of scripts/check.sh
+# once, and the e2e shares run every story file once
+# (tests/unit/test_gate_parts.py). Keep the two part lists equal.
 jobs:
-  gate:
-    name: gate (${{ matrix.os }})
+  linux:
+    name: ${{ matrix.part.name }} (ubuntu-24.04)
     strategy:
       fail-fast: false
       matrix:
-        # Pinned standard images; never a larger runner. Only the Linux job compares
-        # approved pictures: CAREERBREW_VISUAL_PICTURES above (docs/ci.md).
-        include:
-          - os: ubuntu-24.04
-            gitleaks_asset: linux_x64
-            gitleaks_sha256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
-          - os: macos-15
-            gitleaks_asset: darwin_arm64
-            gitleaks_sha256: b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
+        part:
+          - name: checks
+            steps: docs learnings leaks sources stories secrets tasks format lint types unit public-cards card-code web-types web-lint web-unit web-build
+          - name: native
+            steps: exercises rust-fmt rust-clippy rust-test rust-inventory
+          - name: e2e-1
+            steps: e2e
+            shard: 1/2
+          - name: e2e-2
+            steps: e2e
+            shard: 2/2
+    uses: ./.github/workflows/gate-part.yml
+    with:
+      # Pinned standard images; never a larger runner. Only the Linux parts compare
+      # approved pictures: CAREERBREW_VISUAL_PICTURES in gate-part.yml (docs/ci.md).
+      os: ubuntu-24.04
+      steps: ${{ matrix.part.steps }}
+      shard: ${{ matrix.part.shard || '' }}
+      gitleaks_asset: linux_x64
+      gitleaks_sha256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+
+  macos:
+    name: ${{ matrix.part.name }} (macos-15)
+    strategy:
+      fail-fast: false
+      matrix:
+        part:
+          - name: checks
+            steps: docs learnings leaks sources stories secrets tasks format lint types unit public-cards card-code web-types web-lint web-unit web-build
+          - name: native
+            steps: exercises rust-fmt rust-clippy rust-test rust-inventory
+          - name: e2e-1
+            steps: e2e
+            shard: 1/2
+          - name: e2e-2
+            steps: e2e
+            shard: 2/2
+    uses: ./.github/workflows/gate-part.yml
+    with:
+      os: macos-15
+      steps: ${{ matrix.part.steps }}
+      shard: ${{ matrix.part.shard || '' }}
+      gitleaks_asset: darwin_arm64
+      gitleaks_sha256: b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5
+
+  # The required checks on main (docs/ci.md, "Branch rule on `main`"): one per OS,
+  # green only when every part of that OS passed.
+  gate-linux:
+    name: gate (ubuntu-24.04)
+    needs: linux
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # The gate compares the branch with origin/main.
-          fetch-depth: 0
-          persist-credentials: false
-
-      # A pull request checkout is detached. One story bundles the local `main` branch.
-      - name: Local main branch
-        run: git show-ref --verify --quiet refs/heads/main || git branch main origin/main
-
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
-        with:
-          enable-cache: true
-          # The frozen HTTP reference (xtask/tests/fixtures/capture) holds this exact
-          # version in its Server header; tests/unit/test_hosted_ci.py keeps them equal.
-          python-version: "3.12.16"
-
-      # A Rust capture test runs uv with a cleared environment, so uv must find
-      # its cache at the default place.
-      - name: Put the uv cache at its default path
+      - name: Every part passed
+        env:
+          RESULT: ${{ needs.linux.result }}
         run: |
-          mkdir -p "$UV_CACHE_DIR" "$HOME/.cache"
-          [ -e "$HOME/.cache/uv" ] || ln -s "$UV_CACHE_DIR" "$HOME/.cache/uv"
+          echo "parts: $RESULT"
+          [ "$RESULT" = success ]
 
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-
-      - name: Rust toolchain (the pin in rust-toolchain.toml)
+  gate-macos:
+    name: gate (macos-15)
+    needs: macos
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Every part passed
+        env:
+          RESULT: ${{ needs.macos.result }}
         run: |
-          pin="$(sed -nE 's/^channel = "([0-9.]+)"$/\1/p' rust-toolchain.toml)"
-          [ -n "$pin" ] || { echo "no Rust pin found in rust-toolchain.toml" >&2; exit 1; }
-          rustup toolchain install "$pin" --profile minimal --component clippy --component rustfmt --no-self-update
-          # Put the real tools first on PATH, not the rustup proxies: a proxy sets
-          # RUSTUP_TOOLCHAIN, and the supervisor tests refuse that override.
-          dirname "$(rustup which --toolchain "$pin" rustc)" >> "$GITHUB_PATH"
-          rustc --version
-
-      - name: gitleaks (pinned release, checked SHA-256)
-        run: |
-          mkdir -p "$RUNNER_TEMP/bin" "$RUNNER_TEMP/gitleaks"
-          file="gitleaks_${GITLEAKS_VERSION}_${{ matrix.gitleaks_asset }}.tar.gz"
-          curl -fsSL -o "$RUNNER_TEMP/gitleaks/$file" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$file"
-          echo "${{ matrix.gitleaks_sha256 }}  $RUNNER_TEMP/gitleaks/$file" | shasum -a 256 -c -
-          tar -xzf "$RUNNER_TEMP/gitleaks/$file" -C "$RUNNER_TEMP/gitleaks" gitleaks
-          mv "$RUNNER_TEMP/gitleaks/gitleaks" "$RUNNER_TEMP/bin/gitleaks"
-          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cache/ms-playwright
-            ~/Library/Caches/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
-
-      - name: Setup (scripts/setup.sh)
-        # Keep the launcher out of the runner's real bin folder. The doctor
-        # needs `careerbrew` on PATH.
-        run: |
-          PATH="$RUNNER_TEMP/bin:$PATH" CAREERBREW_BIN_DIR="$RUNNER_TEMP/bin" scripts/setup.sh
-
-      - name: Playwright browser (Chromium)
-        working-directory: web
-        run: npx playwright install --with-deps chromium
-
-      - name: Gate (scripts/check.sh)
-        run: scripts/check.sh
+          echo "parts: $RESULT"
+          [ "$RESULT" = success ]

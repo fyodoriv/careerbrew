@@ -9,11 +9,42 @@ they are green. Nobody waits for a full gate on their own machine.
 
 | Check | Runner | Commands |
 |---|---|---|
-| `gate (ubuntu-24.04)` | `ubuntu-24.04` | `scripts/setup.sh`, then `scripts/check.sh` |
-| `gate (macos-15)` | `macos-15` | the same |
+| `gate (ubuntu-24.04)` | `ubuntu-24.04` | green when all four parts of the Linux gate passed (see "Parallel parts") |
+| `gate (macos-15)` | `macos-15` | the same four parts on macOS |
 | `public-readiness` | `ubuntu-24.04` | `scripts/public-readiness.sh --released` ([workflow](../.github/workflows/public-readiness.yml)): fails on a path the public tree leaves out, a secret-shaped value, or a link to a left-out path; prints counts only |
 
-Each job installs the tools a new machine lacks: uv, Node 24, the Rust version
+## Parallel parts
+
+Each OS runs the gate as four parts at the same time
+([`gate-part.yml`](../.github/workflows/gate-part.yml), called by `ci.yml`).
+Each part runs `scripts/setup.sh`, then `scripts/check.sh` with
+`CHECK_STEPS`, the list of gate steps it runs:
+
+| Part | `CHECK_STEPS` | Usual time (macOS) |
+|---|---|---|
+| `checks` | `docs` to `tasks`, `format`, `lint`, `types`, `unit`, `public-cards`, `card-code`, the four `web-*` steps | about 10 min |
+| `native` | `exercises` and the four Rust steps | about 10 min |
+| `e2e-1` | `e2e` with `E2E_SHARD=1/2` | about 13 min |
+| `e2e-2` | `e2e` with `E2E_SHARD=2/2` | about 9 min |
+
+- `CHECK_STEPS="<step> ..."` runs only those steps of `scripts/check.sh`. A
+  name that does not run (a typo, or a step whose tool is missing) fails it.
+- `E2E_SHARD=i/n` runs one share of the story files. A story's line
+  `# e2e: weight: <seconds>` gives its usual time on a hosted runner (no line
+  means 10). The heaviest story goes first, each to the share with the least
+  weight so far. US-72 (the whole browser suite, about 12 minutes) is the
+  longest part, so it has a share almost to itself.
+- `tests/unit/test_gate_parts.py` fails when the parts do not run every gate
+  step exactly once, when a share is missing, or when the two OSes run
+  different parts. Add a new gate step to one part in `ci.yml` (both lists).
+- The required checks `gate (ubuntu-24.04)` and `gate (macos-15)` are small
+  jobs that wait for their OS's parts (`if: always()`), so the branch rule on
+  `main` did not change. A part that fails, is cancelled, or is skipped makes
+  its OS's check red.
+- When a story becomes much slower or faster, change its weight line to the
+  time in the log line `e2e: ok <file> (<s> s)`.
+
+Each part installs the tools a new machine lacks: uv, Node 24, the Rust version
 that `rust-toolchain.toml` pins, gitleaks (a pinned release with a checked
 SHA-256), and Playwright's Chromium. Then it runs the same two commands a
 contributor runs.
@@ -143,7 +174,7 @@ a macOS minute on a private repository is billed as 10.
 
 ## Measure it
 
-- Result time of the last runs: `gh run list --workflow ci.yml --limit 10 --json conclusion,createdAt,updatedAt`. Target: under 45 minutes.
+- Result time of the last runs: `gh run list --workflow ci.yml --limit 10 --json conclusion,createdAt,updatedAt`. Target: under 20 minutes (before the parallel parts: a median of 39 minutes for a push to `main`, 2026-11-14).
 - Open-to-merge time: `gh pr list --state merged --limit 10 --json number,createdAt,mergedAt`.
   Measured on 2026-11-14: the two pull requests opened after the hosted checks became the
   merge gate (#73, #74) merged 39 and 47 minutes after they were opened, which is one hosted
