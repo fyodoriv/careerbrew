@@ -2,46 +2,131 @@
 
 This module is the only adapter between careerbrew's content-free event log
 (`events.jsonl`, docs/observability.md) and the telemetry endpoint, so a move to a
-self-hosted endpoint changes only this file.
+self-hosted endpoint changes only this file. It mirrors agentbrew's field telemetry.
 
-What leaves the machine: per event, its name, a timestamp, and an allowlist of fields
-(command, story, status, error kind, durations and counts as numbers), keyed by a random
-install id. Never content, titles, names, paths, the host name, or the user name.
+Consent: careerbrew asks its own one-time question (the `telemetry_consent` setting:
+`unset`, `yes`, `no`; default `unset`). Nothing is sent unless the answer is `yes`. The
+question shows only when `careerbrew` starts on a real terminal (never with no terminal:
+an agent, a script, CI, the watcher). A yes covers only what happens after it: the log
+cursor moves to the end, and no event stamped before the yes is ever sent. A corporate
+machine defaults to `no`. An owner install from before the question (a Keychain key and
+`telemetry` not false) counts as `yes`.
 
-When it sends: only when a PostHog project key is set (`careerbrew secret set posthog_key`,
-the macOS Keychain), the `telemetry` setting is on (the default), `DO_NOT_TRACK` is unset,
-no plugin policy says `telemetry: false`, and the plugin host policy (`allowed_hosts`) allows the
-endpoint's host. With no key, nothing is sent. The watcher sends
-at most once a day, and only after `careerbrew` has shown its one-line notice. A send failure
-never fails a command; the cursor moves only after a send succeeds, so nothing is sent twice.
+What leaves the machine: per event, its name (from a fixed list), a timestamp, a random
+install id, the machine fields (app_version, os, arch, runtime), and allowlisted fields:
+strings only from fixed lists in this file (command names from the CLI parser, statuses,
+error classes, story ids, source kinds, tiers), numbers only when finite and within
+bounds. Never content, titles, names, paths, the host name, or the user name.
 
-Lifecycle: the install id, the log cursor, the last send day, and the notice flag live in
+Off switches, each stops every send: `DO_NOT_TRACK` (set, not 0), `CAREERBREW_TELEMETRY=0`,
+`CI` (any value), `careerbrew telemetry off`, a plugin policy `telemetry: false`, and the
+plugin host policy (`allowed_hosts`). The key: `CAREERBREW_POSTHOG_KEY` when set (an empty
+value means no key), then the Keychain (`careerbrew secret set posthog_key`). No key is committed:
+with none, a yes still records locally and nothing is sent. A value that is not one `phc_` key is no key.
+
+Sends: batches of BATCH_SIZE, at most BACKLOG_EVENTS events from the last BACKLOG_DAYS days;
+the cursor moves only after a 2xx answer; a lock keeps two sends from overlapping; the
+watcher tries at most once a day with a short timeout. A failed send never fails a command.
+
+Lifecycle: the install id, the log cursor, the consent time, the last send and attempt days,
+the ask count, the saved install numbers, and the last recorded week live in
 `<data root>/telemetry.json` (encrypted at rest; module scope, read and written per call).
-Deleting the file makes a new install id and sends the whole log again.
+Deleting the file makes a new install id; the cursor then starts at the end of the log.
 """
 
 from __future__ import annotations
 
+import builtins
+import contextlib
+import fcntl
+import functools
 import ipaddress
 import json
 import math
 import os
+import platform
 import re
+import sys
 import urllib.parse
 import urllib.request
 import uuid
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from . import __version__, calendar, config, connectors, events, paths, plugins, secrets, store
 
 DEFAULT_HOST = "https://eu.i.posthog.com"
 KEYCHAIN_SERVICE = "posthog_key"  # the Keychain entry name, not a value
+NO_KEY = "no key: set one with `careerbrew secret set posthog_key`"  # the fix, never a value
+KEY = re.compile(r"^phc_[A-Za-z0-9]+$")
 BATCH_SIZE = 500
-MAX_EVENTS_PER_SEND = 5000
-STRING_KEYS = {"story", "command", "status", "error", "source_kind", "tier"}
-_ID = re.compile(r"^[a-z0-9_.:-]{1,48}$")
+BACKLOG_EVENTS = 2000
+BACKLOG_DAYS = 30
+AUTO_TIMEOUT_S = 3
+MANUAL_TIMEOUT_S = 10
+MAX_ASKS = 3
+MAX_NUMBER = 1e12  # a count or duration past this is not a real one
+_VERSION = re.compile(r"^\d+\.\d+\.\d+$")
+_TS = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
 _NUM_KEY = re.compile(r"^[a-z][a-z0-9_]{0,31}$")
-NOTICE = "careerbrew sends anonymous usage counts (command, ok or error, duration, counts; never content, names, or paths) to PostHog EU. Turn off: careerbrew telemetry off (or DO_NOT_TRACK=1)."
+_STORY = re.compile(r"^us-\d{1,3}$")  # a closed set of story ids: never text
+CONSENT = ("unset", "yes", "no")
+
+# Every event name careerbrew emits (test_telemetry.py checks this against each `events.emit` in the code).
+EVENT_NAMES = frozenset(
+    """approvals.decide approvals.request backup.create backup.restore calendar.error cards.add cards.publish cards.review
+    changes.pivot checkup cli.error cli.run config.set connector.feed connector.reconnect connector.run data.encrypt data.set
+    data.show day.cycle day.inbox day.inbox.accept day.inbox.answer day.inbox.expire day.inbox.group day.inbox.reopen
+    day.inbox.suggest day.log day.plan day.pm.draft day.pm.learned day.pm.send day.source.error day.watch.reload
+    day.watch.start day.watch.stop draft.fit draft.replace exercise.submit exercise.sync goals.update jobs.application
+    jobs.choose jobs.learn jobs.linkedin.import jobs.rate jobs.source jobs.strategy learn.answer learn.concepts learn.replay
+    learn.start learn.tour llm.call llm.unavailable machine.split_evidence mail.error mail.fetch metrics.weekly
+    metrics.weekly.skip notify.act notify.error notify.remind notion.import plugin.add plugin.remove prep.check report.public
+    report.write research.page review.run secret.missing signals.reset sync.export sync.import teach.feedback teach.step
+    telemetry.send tutor.attempt tutor.voice web.api web.session web.timing web.token web.untracked web.warm work.agent.event
+    work.claim work.collect work.collect.error work.explain work.feed.cycle work.feed.error work.feed.ingest work.feed.mark
+    work.feed.pull work.feed.replies work.feed.research work.feed.retriage work.feed.team_search work.feed.transcript
+    work.focus work.ladder_grade work.linkedin work.live.cycle work.live.error work.live.listen work.live.start
+    work.live.stop work.memory.forget work.memory.in work.memory.out work.note work.plan work.prd work.prep work.priority
+    work.project work.promise work.promo work.review_ask work.review_ask.check work.session work.standup
+    work.standup.notes work.standup.rows work.task work.team workday.end workday.loop workday.morning workday.question
+    workday.recheck workday.start workday.timeout workday.update workday.verify notify.check careerbrew.install careerbrew.week""".split()
+)
+STATUSES = frozenset(
+    """ok error fail failed refused new done pass open kept held gap ended added written wrap-up waiting upcoming text
+    stopped snoozed skipped sent reused renewed reloaded released pending on off not_cleared mismatch long_term keys hidden
+    flagged expired dry_run claimed changed moved running blocked again hard good easy dream target practice
+    missing_secret busy audio typed none emoji ack stop reply""".split()
+)
+SOURCE_KINDS = frozenset(
+    """agent plugin notify slack email calendar mail github gitlab jira linear notion confluence gmail outlook google
+    pm-sent pm-receipt review readiness feed chat tickets docs hn greenhouse lever ashby linkedin rss""".split()
+)
+TIERS = frozenset({"personal", "corporate", "dream", "target", "practice"})
+# Error classes: Python's built-in exceptions and careerbrew's own; any other class is sent as "other".
+ERRORS = frozenset(
+    {n.lower() for n, v in vars(builtins).items() if isinstance(v, type) and issubclass(v, BaseException)}
+    | set("connectorerror secreterror missingsecreterror roleerror syncerror privacyerror pluginerror laddererror vaulterror shareerror gateerror invalidreceipt timeout other".split())
+)
+# The commands a person runs. Activity tiles count an install as active only on one of these (docs/telemetry-tiles.md);
+# background work (the watcher, telemetry itself, the web app's reads) never counts.
+USER_COMMANDS = frozenset(
+    """start open review checklist day.log day.plan day.start day.end day.send day.check day.next cards.review cards.grade
+    drill.session drill.answer exercises.submit teach teach.next jobs.scan jobs.log jobs.choose work.task work.collect
+    work.standup work.note work.promo learn.start prep.check""".split()
+)
+WHAT = "the event name, the command, ok or error, the error class, durations and counts, the careerbrew version, your OS and CPU type, and a random install id"
+NEVER = "content, titles, names, paths, arguments, the host name, or the user name; no IP-based location, no person profile"
+WHERE = "PostHog EU (eu.i.posthog.com); the maintainer reads only totals and medians"
+QUESTION_TEXT = f"""
+careerbrew: share anonymous usage counts?
+  What is sent: {WHAT}.
+  What is never sent: {NEVER}.
+  Where it goes: {WHERE}.
+  See the exact request first: careerbrew telemetry send --dry-run
+  Change it any time: careerbrew telemetry on | off (or DO_NOT_TRACK=1)
+"""
+QUESTION = "Share anonymous usage counts? [y/n] "
 
 
 def _state_path():
@@ -49,18 +134,26 @@ def _state_path():
 
 
 def _state() -> dict[str, Any]:
-    return store.read_json(_state_path(), {}) or {}
+    state = store.read_json(_state_path(), {}) or {}
+    return state if isinstance(state, dict) else {}
 
 
 def _save(state: dict[str, Any]) -> None:
     store.write_json_if_changed(_state_path(), state)
 
 
+def _patch(**fields: Any) -> dict[str, Any]:
+    """Read the state again, change some fields, save it, so a field another call wrote in the meantime stays."""
+    state = _state()
+    state.update(fields)
+    _save(state)
+    return state
+
+
 def install_id() -> str:
     state = _state()
-    if not state.get("install_id"):
-        state["install_id"] = uuid.uuid4().hex
-        _save(state)
+    if not re.fullmatch(r"[0-9a-f]{32}", str(state.get("install_id") or "")):
+        state = _patch(install_id=uuid.uuid4().hex)
     return str(state["install_id"])
 
 
@@ -68,14 +161,144 @@ def endpoint() -> str:
     return os.environ.get("CAREERBREW_TELEMETRY_URL", DEFAULT_HOST).rstrip("/") + "/batch/"
 
 
-def key() -> str:
-    """The PostHog project key, or "". `CAREERBREW_POSTHOG_KEY`, when set (tests set it empty), wins over the Keychain."""
-    if "CAREERBREW_POSTHOG_KEY" in os.environ:
-        return os.environ["CAREERBREW_POSTHOG_KEY"]
+def _keychain_key() -> str:
     try:
-        return secrets.resolve(f"keychain:{KEYCHAIN_SERVICE}")
+        value = secrets.resolve(f"keychain:{KEYCHAIN_SERVICE}")
     except secrets.SecretError:
         return ""
+    return value if KEY.match(value or "") else ""
+
+
+def resolve_key() -> tuple[str, str]:
+    """(key, source): `CAREERBREW_POSTHOG_KEY` when set (an empty one means no key: tests use it), then the
+    Keychain. Each source must hold one `phc_` key; anything else is no key."""
+    if "CAREERBREW_POSTHOG_KEY" in os.environ:
+        value = os.environ["CAREERBREW_POSTHOG_KEY"]
+        return (value, "env") if KEY.match(value) else ("", "none")
+    if value := _keychain_key():
+        return value, "keychain"
+    return "", "none"
+
+
+def key() -> str:
+    return resolve_key()[0]
+
+
+def env_off() -> str:
+    """The environment off switch that is set, or ""."""
+    if os.environ.get("DO_NOT_TRACK", "").strip() not in ("", "0"):
+        return "DO_NOT_TRACK is set"
+    if os.environ.get("CAREERBREW_TELEMETRY", "").strip() == "0":
+        return "CAREERBREW_TELEMETRY=0 is set"
+    if "CI" in os.environ:
+        return "CI is set"
+    return ""
+
+
+def _now_ts() -> str:
+    return events.stamp()
+
+
+def _role() -> str:
+    try:
+        from . import machine
+
+        return machine.role()
+    except Exception:  # noqa: BLE001 (an unreadable machine file reads as personal)
+        return "personal"
+
+
+def consent() -> str:
+    """The answer that counts: the saved setting; else an owner install from before the question (it sent or showed
+    the old notice, a Keychain key is set, and `telemetry` is not false) is yes and an old `telemetry: false` is no; else a corporate machine is no; else unset."""
+    saved = config._file()
+    answer = saved.get("telemetry_consent")
+    if answer in ("yes", "no"):
+        if answer == "yes" and not _state().get("telemetry_consent_time"):
+            _accept()  # a yes saved with `config set`: it still covers only what happens after it
+        return str(answer)
+    if saved.get("telemetry") is False:
+        return "no"
+    if _role() == "corporate":
+        return "no"  # until a company plugin sets its own sink (task telemetry-plugin-sink)
+    if "CAREERBREW_POSTHOG_KEY" not in os.environ and _legacy_owner():
+        set_consent("yes")
+        return "yes"
+    return "unset"
+
+
+def _legacy_owner() -> bool:
+    """An install that sent before the question existed: its state shows the old notice or a send, and a Keychain key
+    is set. A new data folder never counts. The Keychain is asked at most once a day (a `security` call)."""
+    state = _state()
+    today = calendar.now().date().isoformat()
+    if not (state.get("noticed") or state.get("last_send_day")) or state.get("keychain_checked") == today:
+        return False
+    if _keychain_key():
+        return True
+    _patch(keychain_checked=today)
+    return False
+
+
+def _log_end() -> int:
+    """The byte offset just after the last whole line of the event log."""
+    log = events.log_path()
+    if not log.exists():
+        return 0
+    data = log.read_bytes()
+    return data.rfind(b"\n") + 1
+
+
+def _accept() -> None:
+    """Record the time of a yes and move the cursor to the end of the log: nothing from before the yes is sent."""
+    _patch(telemetry_consent_time=_now_ts(), offset=_log_end())
+
+
+def set_consent(answer: str) -> None:
+    """Save the answer (`telemetry on`, `telemetry off`, the question). A new yes covers only what happens after it,
+    and then emits the saved install numbers once (task telemetry-outcome-events)."""
+    if answer not in ("yes", "no"):
+        raise ValueError("use yes or no")
+    was = config._file().get("telemetry_consent")
+    config.set_value("telemetry_consent", answer)
+    if answer == "yes":
+        if was != "yes" or not _state().get("telemetry_consent_time"):
+            _accept()
+        _emit_install()
+
+
+def _events_on() -> bool:
+    return os.environ.get("CAREERBREW_EVENTS", "on") != "off"
+
+
+def record_install(started_ms: int, ok: bool, now_ms: int | None = None) -> dict[str, Any] | None:
+    """`telemetry record-install`: save setup's numbers locally (never an event: consent comes after setup).
+    The first `ok: true` wins; a failure after a success changes nothing. Nothing in CI or tests."""
+    if env_off() or not _events_on():
+        return None
+    now_ms = now_ms if now_ms is not None else int(events.utc_now().timestamp() * 1000)
+    duration = now_ms - int(started_ms)
+    if not 0 <= duration <= 86_400_000:
+        raise ValueError("--started must be a time in the last day, in epoch milliseconds")
+    state = _state()
+    if state.get("install_sent") or (state.get("install") or {}).get("ok") is True:
+        return state.get("install")
+    install = {"duration_ms": duration, "ok": bool(ok)}
+    _patch(install=install)
+    if config._file().get("telemetry_consent") == "yes":
+        _emit_install()
+    return install
+
+
+def _emit_install() -> None:
+    """The one install event, stamped now (after the yes), with the saved numbers. Never twice."""
+    state = _state()
+    install = state.get("install")
+    if state.get("install_sent") or not isinstance(install, dict) or env_off() or not _events_on():
+        return
+    duration = install.get("duration_ms")
+    events.emit("careerbrew.install", duration_ms=duration if isinstance(duration, int) else 0, ok=install.get("ok") is True, tier=_role(), story="us-89")
+    _patch(install_sent=True)
 
 
 _LABEL = r"(?!-)[A-Za-z0-9-]{1,63}(?<!-)"
@@ -94,13 +317,16 @@ def _valid_host(host: str) -> bool:
 
 
 def blocked() -> str:
-    """Why telemetry is off by switch (not by a missing key), or ""."""
-    if os.environ.get("DO_NOT_TRACK", "").strip() not in ("", "0"):
-        return "DO_NOT_TRACK is set"
+    """Why nothing may be sent (a switch, the answer, or the host policy), or ""."""
+    if why := env_off():
+        return why
     if any((p["manifest"].get("policy") or {}).get("telemetry") is False for p in plugins.installed()):
         return "a plugin policy forbids telemetry on this machine"
-    if not config.get("telemetry"):
-        return "off (turn on: careerbrew telemetry on)"
+    answer = consent()
+    if answer == "no":
+        return "you said no; turn on: careerbrew telemetry on"
+    if answer != "yes":
+        return "not answered yet; turn on: careerbrew telemetry on"
     try:
         url = urllib.parse.urlsplit(endpoint())
         host, _port = url.hostname or "", url.port  # .port raises on a port that is not a number
@@ -118,45 +344,99 @@ def enabled() -> tuple[bool, str]:
     if why:
         return False, why
     if not key():
-        return False, "no key, so nothing is sent (set one: careerbrew secret set posthog_key)"
+        return False, NO_KEY
     return True, "on"
 
 
-def to_event(record: dict[str, Any], distinct_id: str) -> dict[str, Any] | None:
-    """One log line as a PostHog event: allowlisted fields only, or None when the line is not usable."""
+@functools.lru_cache(maxsize=1)
+def command_names() -> frozenset[str]:
+    """Every command name the CLI parser knows (`day.log`, `start`): the only command values that may leave."""
+    import argparse
+
+    from . import cli
+
+    names: set[str] = set()
+    for action in cli.build_parser()._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            for name, sub in action.choices.items():
+                names.add(name)
+                for a in sub._actions:
+                    if isinstance(a, argparse._SubParsersAction):
+                        names.update(f"{name}.{s}" for s in a.choices)
+    return frozenset(names)
+
+
+def _string_ok(k: str, v: str) -> str | None:
+    if k == "command":
+        return v if v in command_names() else None
+    if k == "status":
+        return v if v in STATUSES else None
+    if k == "story":
+        return v if _STORY.match(v) else None
+    if k == "error":
+        return v.lower() if v.lower() in ERRORS else "other"
+    if k == "source_kind":
+        return v if v in SOURCE_KINDS else None
+    if k == "tier":
+        return v if v in TIERS else None
+    return None
+
+
+def machine_fields() -> dict[str, Any]:
+    arch = platform.machine().lower()
+    return {
+        "app_version": __version__ if _VERSION.match(__version__) else "0.0.0",
+        "os": sys.platform if sys.platform in ("darwin", "linux") else "other",
+        "arch": {"arm64": "arm64", "aarch64": "arm64", "x86_64": "x64", "amd64": "x64"}.get(arch, "other"),
+        "runtime": "python",
+    }
+
+
+def to_event(record: dict[str, Any], distinct_id: str, since: str = "") -> dict[str, Any] | None:
+    """One log line as a PostHog event: allowlisted fields only, or None when the line may not leave.
+    `since` is the earliest stamp that may leave (the time of the yes, or the backlog cap)."""
     name = record.get("event")
-    if not isinstance(name, str) or not _ID.match(name):
+    ts = record.get("ts")
+    if not isinstance(name, str) or name not in EVENT_NAMES:
         return None
-    props: dict[str, Any] = {"$process_person_profile": False, "$geoip_disable": True, "app_version": __version__}
+    if not isinstance(ts, str) or not _TS.match(ts) or ts < since:
+        return None  # no stamp, or one from before the yes: it never leaves
+    props: dict[str, Any] = {}
     for k, v in record.items():
         if k in ("event", "ts"):
             continue
-        if k in STRING_KEYS and isinstance(v, str) and _ID.match(v):
-            props[k] = v
-        elif _NUM_KEY.match(k) and (isinstance(v, bool) or isinstance(v, int | float) and math.isfinite(v)):
-            props[k] = v
-        # Anything else (text, lists, other string keys) never leaves the machine.
-    out: dict[str, Any] = {"event": name, "distinct_id": distinct_id, "properties": props}
-    ts = record.get("ts")
-    if isinstance(ts, str) and re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", ts):
-        out["timestamp"] = ts
-    return out
+        if isinstance(v, str):
+            if (value := _string_ok(k, v)) is not None:
+                props[k] = value
+        elif _NUM_KEY.match(k) and (isinstance(v, bool) or isinstance(v, int | float) and math.isfinite(v) and abs(v) <= MAX_NUMBER):
+            props["duration_ms" if k == "ms" else k] = v
+        # Anything else (text, lists, other keys, numbers out of bounds) never leaves the machine.
+    props.update(machine_fields(), **{"$process_person_profile": False, "$geoip_disable": True})
+    return {"event": name, "distinct_id": distinct_id, "timestamp": ts, "properties": props}
 
 
-def pending() -> tuple[list[dict[str, Any]], int]:
-    """Events not sent yet (at most MAX_EVENTS_PER_SEND) and the log offset after them."""
+def _since() -> str:
+    """The earliest stamp that may leave: the time of the yes, and no older than BACKLOG_DAYS."""
+    cap = (datetime.fromisoformat(_now_ts().replace("Z", "+00:00")) - timedelta(days=BACKLOG_DAYS)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return max(str(_state().get("telemetry_consent_time") or "9999"), cap)
+
+
+def pending() -> tuple[list[tuple[dict[str, Any], int]], int]:
+    """Events not sent yet, each with the log offset after its line (the newest BACKLOG_EVENTS), and the offset
+    after the last whole line read. Nothing is pending before a yes."""
     log = events.log_path()
     state = _state()
     offset = int(state.get("offset") or 0)
-    if not log.exists():
-        return [], 0
+    if not log.exists() or not state.get("telemetry_consent_time"):
+        return [], offset
     data = log.read_bytes()
-    if offset > len(data):  # the log was replaced or cut: start again
+    if offset > len(data):  # the log was replaced or cut: start again (the stamps still keep pre-yes lines out)
         offset = 0
     distinct = install_id()
-    out: list[dict[str, Any]] = []
+    since = _since()
+    out: list[tuple[dict[str, Any], int]] = []
     pos = offset
-    while pos < len(data) and len(out) < MAX_EVENTS_PER_SEND:
+    while pos < len(data):
         end = data.find(b"\n", pos)
         if end == -1:
             break  # a line still being written
@@ -165,78 +445,214 @@ def pending() -> tuple[list[dict[str, Any]], int]:
         except ValueError:
             record = None
         pos = end + 1
-        ev = to_event(record, distinct) if isinstance(record, dict) else None
+        ev = to_event(record, distinct, since) if isinstance(record, dict) else None
         if ev:
-            out.append(ev)
-    return out, pos
+            out.append((ev, pos))
+    return out[-BACKLOG_EVENTS:], pos
 
 
 def body(batch: list[dict[str, Any]], api_key: str) -> dict[str, Any]:
     return {"api_key": api_key, "batch": batch}
 
 
-def _post(payload: dict[str, Any]) -> None:
+def _post(payload: dict[str, Any], timeout: float = MANUAL_TIMEOUT_S) -> None:
     connectors.check_host(endpoint())  # the same host policy as the connector calls
     req = urllib.request.Request(endpoint(), data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", "User-Agent": f"careerbrew/{__version__}"})
-    with connectors.open_url(req, timeout=10) as resp:
+    with connectors.open_url(req, timeout=timeout) as resp:
         if not 200 <= resp.status < 300:
             raise OSError(f"status {resp.status}")
 
 
 def dry_run() -> dict[str, Any]:
-    """The exact request the next send makes, with the key shown as a placeholder."""
-    batch, _ = pending()
-    return {"url": endpoint(), "body": body(batch[:BATCH_SIZE], "<posthog_key>"), "events_pending": len(batch)}
-
-
-def send() -> dict[str, Any]:
-    """Send every pending event now. Returns {sent, status}; never raises."""
+    """The exact request the next send makes, with the key shown as a placeholder. Sends nothing."""
+    items, _ = pending()
+    batch = [ev for ev, _ in items]
     ok, why = enabled()
-    if not ok:
-        return {"sent": 0, "status": "off", "why": why}
+    return {"url": endpoint(), "body": body(batch[:BATCH_SIZE], "<posthog_key>"), "events_pending": len(batch), "would_send": ok, "why": why}
+
+
+@contextlib.contextmanager
+def _lock():
+    """One send at a time on this data folder (an advisory file lock; the OS releases it if the process dies)."""
+    path = paths.sub("telemetry.lock")
+    with path.open("a") as fh:
+        try:
+            fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            yield False
+            return
+        try:
+            yield True
+        finally:
+            fcntl.flock(fh, fcntl.LOCK_UN)
+
+
+def send(timeout: float = MANUAL_TIMEOUT_S) -> dict[str, Any]:
+    """Send every pending event now. Returns {sent, status}; never raises."""
     try:
-        api_key = key()
-        batch, end = pending()
-        sent = 0
-        for i in range(0, len(batch), BATCH_SIZE):
-            _post(body(batch[i : i + BATCH_SIZE], api_key))
-            sent += len(batch[i : i + BATCH_SIZE])
-        state = _state()
-        state.update(offset=end, last_send_day=calendar.now().date().isoformat())
-        _save(state)
-        events.emit("telemetry.send", status="ok", count=sent, story="us-89")
-        return {"sent": sent, "status": "ok"}
+        ok, why = enabled()
+        if not ok:
+            return {"sent": 0, "status": "off", "why": why}
+        with _lock() as held:
+            if not held:
+                return {"sent": 0, "status": "off", "why": "another send is running"}
+            return _send_locked(timeout)
     except Exception as exc:  # noqa: BLE001 (a send failure must never fail a command)
-        events.emit("telemetry.send", status="fail", error=type(exc).__name__.lower(), story="us-89")
+        with contextlib.suppress(Exception):
+            events.emit("telemetry.send", status="fail", error=type(exc).__name__.lower(), story="us-89")
         return {"sent": 0, "status": "fail", "why": type(exc).__name__}
 
 
+def _send_locked(timeout: float) -> dict[str, Any]:
+    api_key = key()
+    items, end = pending()  # read under the lock: a send that just ended has moved the cursor
+    sent = 0
+    for i in range(0, len(items), BATCH_SIZE):
+        chunk = items[i : i + BATCH_SIZE]
+        _post(body([ev for ev, _ in chunk], api_key), timeout)
+        sent += len(chunk)
+        last = i + BATCH_SIZE >= len(items)
+        _patch(offset=end if last else chunk[-1][1])  # the cursor moves only after a 2xx answer
+    if not items:
+        _patch(offset=end)
+    _patch(last_send_day=calendar.now().date().isoformat())
+    events.emit("telemetry.send", status="ok", count=sent, story="us-89")
+    return {"sent": sent, "status": "ok"}
+
+
+def _week_bounds(today: date) -> tuple[date, date, str]:
+    """The last finished ISO week: (Monday, next Monday, `YYYY-Www`)."""
+    start = today - timedelta(days=today.weekday() + 7)
+    y, w, _ = start.isocalendar()
+    return start, start + timedelta(days=7), f"{y}-W{w:02d}"
+
+
+def week_counts(start: date, end: date) -> dict[str, int]:
+    """Numbers only, for the ISO week [start, end): each from the same local records `careerbrew review` and the
+    weekly metrics file read. A number that cannot be read is left out, never guessed."""
+    from .metrics_share import _in_week
+
+    out: dict[str, int] = {}
+
+    def count(name: str, fn) -> None:
+        with contextlib.suppress(Exception):
+            out[name] = int(fn())
+
+    def active_days() -> int:
+        rows = store.read_jsonl(events.log_path())
+        return len({r["ts"][:10] for r in rows if r.get("event") == "cli.run" and r.get("command") in USER_COMMANDS and _in_week(r.get("ts", ""), start, end)})
+
+    def cards() -> int:
+        from .tutor import cards as c
+
+        return sum(1 for r in c.reviews() if _in_week(r.get("at", ""), start, end))
+
+    def exercises() -> int:
+        from .tutor import exercises as ex
+
+        return len({r.get("exercise") for r in ex.attempts() if r.get("correct") and _in_week(r.get("at", ""), start, end)})
+
+    def work_days() -> int:
+        days = paths.sub("day", ".keep").parent
+        return sum(1 for p in days.glob("work-????-??-??.json") if start.isoformat() <= p.stem[5:] < end.isoformat())
+
+    def evidence_items() -> int:
+        from .work import evidence
+
+        return sum(1 for e in evidence.load() if _in_week(e.get("at", ""), start, end))
+
+    count("days_active", active_days)
+    count("cards_reviewed", cards)
+    count("exercises_solved", exercises)
+    count("work_days_started", work_days)
+    count("evidence_items", evidence_items)
+    return out
+
+
+def _record_week() -> None:
+    """Write `careerbrew.week` for the last finished ISO week, once per install, before the send (so a failed send
+    neither loses the week nor records it twice). A week that ended before the yes is never recorded."""
+    start, end, week = _week_bounds(calendar.now().date())
+    state = _state()
+    yes_day = str(state.get("telemetry_consent_time") or "9999")[:10]
+    if state.get("week_recorded") == week or end.isoformat() <= yes_day or not _events_on():
+        return
+    counts = week_counts(start, end)  # a missing number is None, which emit drops
+    events.emit(
+        "careerbrew.week",
+        story="us-89",
+        days_active=counts.get("days_active"),
+        cards_reviewed=counts.get("cards_reviewed"),
+        exercises_solved=counts.get("exercises_solved"),
+        work_days_started=counts.get("work_days_started"),
+        evidence_items=counts.get("evidence_items"),
+    )
+    _patch(week_recorded=week)
+
+
 def maybe_send() -> dict[str, Any] | None:
-    """For the watcher: at most once a day, only after the notice was shown, only when on."""
+    """For the watcher: at most one try a day (a dead network costs one try), only after a yes, a short timeout."""
     try:
-        state = _state()
-        if not state.get("noticed") or state.get("last_send_day") == calendar.now().date().isoformat() or blocked():
+        today = calendar.now().date().isoformat()
+        if _state().get("last_attempt_day") == today or not enabled()[0]:
             return None
-        return send()
+        _patch(last_attempt_day=today)
+        _record_week()
+        return send(timeout=AUTO_TIMEOUT_S)
     except Exception:  # noqa: BLE001
         return None
 
 
-def notice_once() -> str | None:
-    """The one-line notice, the first time telemetry is on; None after that or when it is off."""
+def _interactive() -> bool:
+    return all(getattr(s, "isatty", lambda: False)() for s in (sys.stdin, sys.stdout, sys.stderr))
+
+
+def ask_on_start(interactive: bool | None = None, read=None, write=None) -> str | None:
+    """The one-time question, when `careerbrew` starts on a real terminal and the answer is unset. Never with no
+    terminal, in CI, with an off switch, or with no key. At most once a day and MAX_ASKS times. Never raises."""
     try:
-        state = _state()
-        if state.get("noticed") or not enabled()[0]:
+        interactive = _interactive() if interactive is None else interactive
+        if not interactive or env_off() or consent() != "unset" or not key():
             return None
-        state["noticed"] = True
-        _save(state)
-        return NOTICE
-    except Exception:  # noqa: BLE001
+        state = _state()
+        today = calendar.now().date().isoformat()
+        if state.get("asked_day") == today or int(state.get("ask_count") or 0) >= MAX_ASKS:
+            return None
+        _patch(asked_day=today, ask_count=int(state.get("ask_count") or 0) + 1)
+        write = write or (lambda text: print(text, end="", file=sys.stderr, flush=True))
+        read = read or sys.stdin.readline
+        write(QUESTION_TEXT)
+        for _ in range(3):
+            write(QUESTION)
+            answer = (read() or "").strip().lower()
+            if answer in ("y", "yes"):
+                set_consent("yes")
+                write("Thank you. Telemetry is on. Change it any time: careerbrew telemetry off\n")
+                return "yes"
+            if answer in ("n", "no"):
+                set_consent("no")
+                write("Telemetry is off. Nothing is sent. Change it any time: careerbrew telemetry on\n")
+                return "no"
+            if not answer:
+                break
+        write("No answer. Nothing is sent. Answer later: careerbrew telemetry on | off\n")
+        return None
+    except Exception:  # noqa: BLE001 (the question must never fail a command)
         return None
 
 
 def status() -> dict[str, Any]:
     ok, why = enabled()
     state = _state()
-    batch, _ = pending()
-    return {"on": ok, "why": why, "endpoint": endpoint(), "install_id": install_id(), "pending": len(batch), "last_send_day": state.get("last_send_day"), "noticed": bool(state.get("noticed"))}
+    items, _ = pending()
+    return {
+        "on": ok,
+        "why": why,
+        "consent": consent(),
+        "consent_time": state.get("telemetry_consent_time"),
+        "key_source": resolve_key()[1],
+        "endpoint": endpoint(),
+        "install_id": install_id(),
+        "pending": len(items),
+        "last_send_day": state.get("last_send_day"),
+    }

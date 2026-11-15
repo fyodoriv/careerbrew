@@ -15,6 +15,7 @@ One row per doc: the question it answers and who reads it.
 | [privacy.md](privacy.md) | Where does personal data live, and what may leave the machine? | both |
 | [plugins.md](plugins.md) | How do I write a corporate plugin, and what does it guarantee? | both |
 | [metrics.md](metrics.md) | Which outcome metrics exist, and how is capability coverage measured? | both |
+| [telemetry-tiles.md](telemetry-tiles.md) | Which PostHog tiles show field use (active installs, setup success, retention, errors, weekly outcomes), and what is each tile's exact query? | both |
 | [integrations.md](integrations.md) | How do Slack, Google Docs, Jira, GitHub, Zoom, Outlook, and PagerDuty connect, how does the work feed triage them, and how do corporate and personal machines work together? | both |
 | [corporate-machine.md](corporate-machine.md) | How do I set up a corporate laptop and build the company plugin? | both |
 | [migrate-to-public-history.md](migrate-to-public-history.md) | My old checkout says `diverged`: how do I move it to the new history without losing work? | both |

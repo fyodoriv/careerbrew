@@ -205,7 +205,7 @@ DEFAULTS: dict[str, tuple[Any, Any, str]] = {
     ),
     "pm_report_title": ("Daily update", _text, "subject and first line of the PM report"),
     "metrics_share": (False, _bool, "write a weekly numbers-only metrics file for agentbrew's metrics share (opt-in)"),
-    "telemetry": (True, _bool, "send anonymous usage counts (no content) to PostHog EU once a day; sends only when a key is set (careerbrew secret set posthog_key); DO_NOT_TRACK=1 also stops it"),
+    "telemetry_consent": ("unset", _choice("unset", "yes", "no"), "your answer about anonymous usage counts to PostHog EU: unset (nothing is sent), yes, or no; change it with careerbrew telemetry on | off"),
     "checkup_artifact_url": ("", _artifact_url, "this machine's repo health Dashboard on claude.ai: /careerbrew-checkup refreshes it from `careerbrew report public` (empty: the next checkup creates one)"),
     "pm_send_via": ("slack", lambda v: v if v in ("slack", "email") else (_ for _ in ()).throw(ValueError("use slack or email")), "how Send delivers the PM update: slack (posts it) or email (opens a draft)"),
     "pm_slack": ("", _text, "Slack channel or person for the PM update: a channel id, #channel, or a member id (U...)"),

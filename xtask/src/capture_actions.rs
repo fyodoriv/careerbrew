@@ -19,9 +19,9 @@ const HISTORICAL_REFERENCE: &str =
 const HISTORICAL_REFERENCE_SHA256: &str =
     "99cc30068c2264989d166acc38f114494b6252d0a4860a32506af25a53ccbba0";
 const REFERENCE: &str =
-    include_str!("../tests/fixtures/capture/actions-reference-rules-promise-v3.json");
+    include_str!("../tests/fixtures/capture/actions-reference-telemetry-v4.json");
 const OBSERVER: &str = include_str!("../tests/fixtures/capture/observer/sitecustomize.py");
-const REFERENCE_SHA256: &str = "e5069cb03701d43d14e8ccfe9a66cc42a6d710d51ae86cc76b5ee292a1dae6e9";
+const REFERENCE_SHA256: &str = "4fc9c3b278eb98d7afbe843d84ac82332eb427a8846b054586a0ebd1dc49c38e";
 const LIMIT: u64 = 4 * 1024 * 1024;
 
 pub(crate) fn digest(bytes: &[u8]) -> String {
@@ -102,6 +102,8 @@ pub(crate) fn sources(root: &Path) -> Result<Value, String> {
         "xtask/tests/fixtures/capture/http-reference-rules-v2.json",
         "xtask/tests/fixtures/capture/actions-reference-rules-promise-v3.json",
         "xtask/tests/fixtures/capture/http-reference-rules-promise-v3.json",
+        "xtask/tests/fixtures/capture/actions-reference-telemetry-v4.json",
+        "xtask/tests/fixtures/capture/http-reference-telemetry-v4.json",
     ] {
         hashes.insert(
             name.to_owned(),
@@ -123,11 +125,19 @@ pub(crate) fn sources(root: &Path) -> Result<Value, String> {
         ),
         (
             "xtask/tests/fixtures/capture/actions-reference-rules-promise-v3.json",
+            "e5069cb03701d43d14e8ccfe9a66cc42a6d710d51ae86cc76b5ee292a1dae6e9",
+        ),
+        (
+            "xtask/tests/fixtures/capture/actions-reference-telemetry-v4.json",
             REFERENCE_SHA256,
         ),
         (
             "xtask/tests/fixtures/capture/http-reference-rules-promise-v3.json",
             "bddc10911112bb79118ff109e0466426f912121996c4d7027276ee97ccdf8e64",
+        ),
+        (
+            "xtask/tests/fixtures/capture/http-reference-telemetry-v4.json",
+            "52dc5c7914da8fd01a76e6694c26797aac358e6e7cc5a2ff625a28141cfd1419",
         ),
         (
             "docs/plans/2026-11-08-promise-action-delta.json",
@@ -837,13 +847,11 @@ pub fn validate(receipt: &Value) -> Result<(), String> {
             .map_err(|_| "historical action reference missing")?
             != HISTORICAL_REFERENCE.as_bytes()
         || digest(REFERENCE.as_bytes()) != REFERENCE_SHA256
-        || fs::read(
-            root.join("xtask/tests/fixtures/capture/actions-reference-rules-promise-v3.json"),
-        )
-        .map_err(|_| "current action reference missing")?
+        || fs::read(root.join("xtask/tests/fixtures/capture/actions-reference-telemetry-v4.json"))
+            .map_err(|_| "current action reference missing")?
             != REFERENCE.as_bytes()
         || receipt["reference_sha256"] != REFERENCE_SHA256
-        || receipt["reference_revision"] != "rules-promise-v3"
+        || receipt["reference_revision"] != "telemetry-v4"
         || receipt["historical_reference_sha256"] != HISTORICAL_REFERENCE_SHA256
         || receipt["observer_sha256"] != digest(OBSERVER.as_bytes())
     {
@@ -950,7 +958,7 @@ fn capture_mode(
         "source_revision": source_revision.trim(),
         "capture_executable_sha256": digest(&fs::read(observer_executable).map_err(|_| "cannot hash capture executable")?),
         "fixture_sha256": digest(CASE.as_bytes()),
-        "reference_sha256": REFERENCE_SHA256, "reference_revision":"rules-promise-v3", "historical_reference_sha256":HISTORICAL_REFERENCE_SHA256, "observer_sha256": digest(OBSERVER.as_bytes()),
+        "reference_sha256": REFERENCE_SHA256, "reference_revision":"telemetry-v4", "historical_reference_sha256":HISTORICAL_REFERENCE_SHA256, "observer_sha256": digest(OBSERVER.as_bytes()),
         "sources_before": source_before, "sources_after": sources(root)?,
         "python_before": python_before, "python_after": identity()?,
         "executions": [first, second],

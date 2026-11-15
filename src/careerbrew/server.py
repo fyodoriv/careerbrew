@@ -512,7 +512,7 @@ CHANGE_DIRS = ("work", "day")
 # state with the last cycle's CPU time, and each source's checkpoint time), which every cycle rewrites, and the work
 # feed's live-feed cycle record (`feed-cycle.json`: the sources stored this cycle, issue #254). No cached
 # or live view reads them, so they are no input change (test: `test_no_cached_or_live_view_reads_a_file_the_versions_skip`).
-CHANGE_SKIP = {"web.json", "web-token.json", "web.lock", "inbox.lock", "watch.lock", "watch.json", "cursors.json", "telemetry.json", "feed-cycle.json", "loops.json"}
+CHANGE_SKIP = {"web.json", "web-token.json", "web.lock", "inbox.lock", "watch.lock", "watch.json", "cursors.json", "telemetry.json", "telemetry.lock", "feed-cycle.json", "loops.json"}
 # The PM draft the Day log view showed (`day/pm-shown-<day>.json`, issue #185): the view writes it, and only a save
 # reads it back, so it is no input change.
 CHANGE_SKIP_PREFIXES = ("pm-shown-",)
