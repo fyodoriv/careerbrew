@@ -4840,6 +4840,9 @@ def main(argv: list[str] | None = None) -> int:
         events.emit("cli.error", command=name, error=type(exc).__name__.lower(), via=ran_via())  # events keep lowercase ids only
         say(f"error: {exc}")
         return 2
+    except Exception as exc:  # a crash: count it by class (an unknown class leaves as `other`), then raise as before
+        events.emit("cli.error", command=name, error=type(exc).__name__.lower(), via=ran_via())
+        raise
     from . import time_saved
 
     events.emit("cli.run", command=name, status="ok" if rc == 0 else "fail", ms=int((time.monotonic() - started) * 1000), saves=time_saved.COMMAND_ACTION.get(name), via=ran_via())

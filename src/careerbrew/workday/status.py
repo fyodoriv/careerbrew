@@ -159,6 +159,8 @@ def update(
         if not HANDLED.match(item):
             raise ValueError(f"--handled {item[:40]!r}: use checkout:<path> or pr:<repo>#<number> (no spaces)")
 
+    before: list[str] = []  # the row's status before this call, read under the lock
+
     def change(have: dict[str, dict[str, Any]], owners: dict[str, str]) -> dict[str, Any]:
         for item in handled_items or []:
             if owners.get(item, step) != step:
@@ -166,6 +168,7 @@ def update(
             owners[item] = step
         row = dict(have.get(step) or blank(step))
         prev = row["status"]
+        before[:] = [prev]
         for key, value in (("status", status), ("summary", summary), ("needs_you", needs_you), ("link", link)):
             if value is not None:
                 row[key] = value if key in ("status", "link") else _text(key, value)
@@ -195,7 +198,8 @@ def update(
 
     row = _write(day or today(), change)
     kind = "builtin" if step in BUILTIN_STEPS else "workflow"  # the kind only: a step's name never goes in the log
-    events.emit("workday.update", status=row["status"], needs_you=bool(row["needs_you"]), error_class=row["error_class"], step_kind=kind, seconds=row.get("seconds"))
+    changed = before != [row["status"]]  # a later --summary or --link on a done row repeats its status: tiles count moves only
+    events.emit("workday.update", status=row["status"], changed=changed, needs_you=bool(row["needs_you"]), error_class=row["error_class"], step_kind=kind, seconds=row.get("seconds") if changed else None)
     return row
 
 

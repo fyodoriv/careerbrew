@@ -80,7 +80,7 @@ With an empty work_steps setting, add steps for every day with `careerbrew confi
 
 ## Usage counts
 
-After the owner's yes to telemetry, `/work` is measured without content: each `day update` sends the step's status, kind, seconds, and failure class (`--error-class`), and `day end` sends how many steps ended done, blocked, failed, or not started. Always pass the real `--error-class` on a failed step: the "Work-day step failures by class" tile picks the next `/work` fix from it. Compare versions in the "Work days by version" tile (`docs/telemetry-tiles.md`). Never answer the consent question for the owner.
+After the owner's yes to telemetry, `/work` is measured without content: each `day update` records the step's status, kind, seconds, and failure class (`--error-class`), and `day end` records how many steps ended done, blocked, failed, still running, or not started; they leave in the once-a-day send. Always pass the real `--error-class` on a failed step: the "Work-day step failures by class" tile picks the next `/work` fix from it. Compare versions in the "Work days by version" tile, and starts, asks, proofs and timeouts in "Work-day funnel and asks" (`docs/telemetry-tiles.md`). Never answer the consent question for the owner.
 
 <!-- careerbrew:dual-host-shared-memory -->
 ## Agent host contract

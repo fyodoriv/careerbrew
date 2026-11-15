@@ -118,7 +118,7 @@ else
 fi
 section broken-stories "Broken stories (failed events by story)" "grep '\"ok\":false' .metrics/events.jsonl" broken_stories || true
 section speed "Speed" "scripts/metrics.sh" speed || true
-section telemetry "Telemetry on this machine" "careerbrew telemetry status" telemetry || true
+section telemetry "Telemetry on this machine" "telemetry.brief() (the telemetry status summary line; no id, no endpoint)" telemetry || true
 section open-work "Open work (PRs, branches, unpushed or uncommitted changes)" "scripts/open-work.sh" open_work || true
 section p0 "Open P0 tasks" "TASKS.md, section P0" p0_tasks || true
 section audit "Monthly requirements audit" "new-project skill: scripts/audit-due.sh" audit || true

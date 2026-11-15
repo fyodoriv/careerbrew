@@ -257,7 +257,7 @@ def finish(by: str = "owner", at: datetime | None = None) -> dict[str, Any]:
         "page": str(page or ""),
     }
     _put(day, "end", rec)
-    events.emit("workday.end", status="ended", action="end", by_clock=by == "clock", prs=counts["prs"], questions=counts["questions"], loops_left=len(loops["running"]), pm_edited=pm["edited"], **_outcomes(day, built))
+    events.emit("workday.end", status="ended", action="end", by_clock=by == "clock", prs=counts["prs"], questions=counts["questions"], loops_left=len(loops["running"]), pm_edited=pm["edited"], steps_waiting=(o := _outcomes(day, built)).get("steps_waiting"), steps_running=o.get("steps_running"), steps_done=o.get("steps_done"), steps_blocked=o.get("steps_blocked"), steps_failed=o.get("steps_failed"), needs_you=o.get("needs_you"))
     return {**rec, "pm": {**rec["pm"], "subject": pm["subject"], "body": body}, "loops": loops, "dashboard": DASHBOARD}
 
 

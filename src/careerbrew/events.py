@@ -46,6 +46,13 @@ def stamp() -> str:
 def emit(event: str, **fields: Any) -> None:
     if os.environ.get("CAREERBREW_EVENTS", "on") == "off":
         return
-    record = {"ts": stamp(), **clean({"event": event, **fields})}
+    record = {"ts": stamp(), "v": _version(), **clean({"event": event, **fields})}
     with log_path().open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(record, sort_keys=True) + "\n")
+
+
+def _version() -> str:
+    """The version that wrote the line: a line sent the next day, after an upgrade, keeps its own version."""
+    from . import __version__
+
+    return __version__

@@ -731,6 +731,7 @@ def test_a_new_version_emits_one_upgrade_event(fake, home, monkeypatch):
     telemetry.maybe_send()  # the first version seen is the baseline: no event
     telemetry._patch(last_attempt_day=None)
     monkeypatch.setattr(telemetry, "__version__", "0.3.0")
+    monkeypatch.setattr(events, "_version", lambda: "0.3.0")  # the new build also writes the log lines
     telemetry.maybe_send()
     telemetry._patch(last_attempt_day=None)
     telemetry.maybe_send()
@@ -949,3 +950,49 @@ def test_day_end_sends_one_count_per_planned_step_including_the_ones_never_start
     planned = [x["step"] for x in plan.build()["steps"]]
     assert {"/alpha", "/beta", "/gamma"} <= set(planned)
     assert (got["steps_done"], got["steps_waiting"], got["steps_failed"], got["steps_blocked"]) == (1, len(planned) - 1, 0, 0), got
+
+
+def test_a_later_update_that_keeps_the_status_is_not_a_second_move(home, monkeypatch):
+    from careerbrew.workday import status
+
+    monkeypatch.setenv("CAREERBREW_EVENTS", "on")
+    monkeypatch.setenv("CAREERBREW_NOW", "2026-10-29T09:00+00:00")
+    cli.main(["init"])
+    steps = ["/alpha"]
+    status.update("/alpha", steps, status="running")
+    status.update("/alpha", steps, status="failed", error_class="auth")
+    status.update("/alpha", steps, summary="still broken")  # same status: an edit, not a second failure
+    rows = [json.loads(x) for x in events.log_path().read_text().splitlines() if '"workday.update"' in x]
+    assert [(r["status"], r["changed"]) for r in rows] == [("running", True), ("failed", True), ("failed", False)]
+    assert "seconds" not in rows[-1]
+
+
+def test_a_line_keeps_the_version_that_wrote_it_after_an_upgrade(home, monkeypatch):
+    monkeypatch.setenv("CAREERBREW_EVENTS", "on")
+    events.emit("cli.run", command="day", status="ok")
+    record = json.loads(events.log_path().read_text().splitlines()[-1])
+    record["v"] = "0.0.9"  # logged by an older build, sent by this one
+    got = telemetry.to_event(record, "id-1")
+    assert got["properties"]["app_version"] == "0.0.9"
+    record["v"] = "not a version"
+    assert telemetry.to_event(record, "id-1")["properties"]["app_version"] == telemetry.machine_fields()["app_version"]
+
+
+def test_a_crash_is_counted_as_an_error_and_still_raises(home, monkeypatch):
+    monkeypatch.setenv("CAREERBREW_EVENTS", "on")
+    cli.main(["init"])
+    import argparse
+
+    real = argparse.ArgumentParser.parse_known_args
+
+    def parse(self, args=None, namespace=None):
+        ns, rest = real(self, args, namespace)
+        if getattr(ns, "cmd", None) == "checklist":
+            ns.fn = lambda _a: (_ for _ in ()).throw(TypeError("boom"))
+        return ns, rest
+
+    monkeypatch.setattr(argparse.ArgumentParser, "parse_known_args", parse)
+    with pytest.raises(TypeError):
+        cli.main(["checklist"])
+    rows = [json.loads(x) for x in events.log_path().read_text().splitlines()]
+    assert {"event": "cli.error", "command": "checklist", "error": "typeerror"}.items() <= rows[-1].items()

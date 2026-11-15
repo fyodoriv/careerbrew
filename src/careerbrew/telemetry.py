@@ -427,7 +427,7 @@ def to_event(record: dict[str, Any], distinct_id: str, since: str = "") -> dict[
         return None  # no stamp, or one from before the yes: it never leaves
     props: dict[str, Any] = {}
     for k, v in record.items():
-        if k in ("event", "ts"):
+        if k in ("event", "ts", "v"):
             continue
         if isinstance(v, str):
             if (value := _string_ok(k, v)) is not None:
@@ -436,6 +436,8 @@ def to_event(record: dict[str, Any], distinct_id: str, since: str = "") -> dict[
             props["duration_ms" if k == "ms" else k] = v
         # Anything else (text, lists, other keys, numbers out of bounds) never leaves the machine.
     props.update(machine_fields(), **{"$process_person_profile": False, "$geoip_disable": True})
+    if isinstance(v := record.get("v"), str) and _VERSION.match(v):
+        props["app_version"] = v  # the version that logged the line, not the one that sends it
     return {"event": name, "distinct_id": distinct_id, "timestamp": ts, "properties": props}
 
 
