@@ -24,6 +24,30 @@ shopt -s nullglob
 tests=(tests/e2e/us-*.sh)
 [ ${#tests[@]} -gt 0 ] || { echo "e2e: no tests/e2e/us-*.sh yet" >&2; exit 1; }
 
+# E2E_SHARD=i/n runs one share of the story files (the hosted gate runs the
+# shares in parallel jobs, docs/ci.md). A story's line "# e2e: weight: <s>"
+# gives its usual seconds on a hosted runner (default 10). The heaviest story
+# goes first, each to the share with the least weight so far, so the shares
+# take about the same time and together run every file exactly once.
+if [ -n "${E2E_SHARD:-}" ]; then
+  if ! [[ "$E2E_SHARD" =~ ^([1-9][0-9]*)/([1-9][0-9]*)$ ]] || [ "${BASH_REMATCH[1]}" -gt "${BASH_REMATCH[2]}" ]; then
+    echo "e2e: E2E_SHARD must be i/n with 1 <= i <= n (got: $E2E_SHARD)" >&2; exit 2
+  fi
+  shard="${BASH_REMATCH[1]}" shards="${BASH_REMATCH[2]}"
+  weight() { local w; w="$(sed -nE 's/^# e2e: weight: ([0-9]+)$/\1/p' "$1" | head -1)"; echo "${w:-10}"; }
+  mine=() load=()
+  for ((s = 1; s <= shards; s++)); do load[s]=0; done
+  while IFS=$'\t' read -r w t; do
+    best=1
+    for ((s = 2; s <= shards; s++)); do [ "${load[s]}" -lt "${load[best]}" ] && best=$s; done
+    load[best]=$(( load[best] + w ))
+    [ "$best" = "$shard" ] && mine+=("$t")
+  done < <(for t in "${tests[@]}"; do printf '%s\t%s\n' "$(weight "$t")" "$t"; done | sort -t$'\t' -k1,1nr -k2,2)
+  tests=(${mine[@]+"${mine[@]}"})
+  echo "e2e: share $shard of $shards: ${#tests[@]} file(s)"
+  [ ${#tests[@]} -gt 0 ] || { echo "e2e: 0 file(s) passed"; exit 0; }
+fi
+
 serial=() browser=() other=()
 for t in "${tests[@]}"; do
   if grep -q 'npx playwright' "$t"; then
@@ -60,7 +84,7 @@ if [ $(( ${#browser[@]} + ${#other[@]} )) -gt 0 ]; then
 fi
 for t in ${serial[@]+"${serial[@]}"}; do run_file "$t"; done
 
-if [ -n "$key" ] && [ "$(scripts/input-key.sh 2>/dev/null)" = "$key" ]; then
+if [ -z "${E2E_SHARD:-}" ] && [ -n "$key" ] && [ "$(scripts/input-key.sh 2>/dev/null)" = "$key" ]; then
   mkdir -p .metrics
   saved="$(mktemp .metrics/e2e-results.XXXXXX)"
   sep=""

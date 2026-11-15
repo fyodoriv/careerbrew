@@ -33,6 +33,7 @@ MENTIONS = {
     ("scripts/checkup.sh", "RECURRING.md"): "a comment",
     ("scripts/learnings-table.py", "docs/learnings"): "run by the learnings step and test_learnings_table.py (unit), which read every file; no story runs it",
     ("src/careerbrew/judge.py", "TASKS.md"): "comments and a message that name a task",
+    (".github/workflows/ci.yml", "docs/learnings"): "the step names `docs learnings` in a CHECK_STEPS list, not the folder",
 }
 # Walks over the whole repo in code that some excluding step runs, each checked by hand.
 WALKS = {

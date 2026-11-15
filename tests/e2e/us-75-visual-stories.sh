@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# e2e: weight: 75  (usual seconds on a hosted runner; scripts/e2e.sh E2E_SHARD)
 # US-75: every story with web views has approved pictures of its key screens, at desktop and phone width, and the gate
 # compares each screen with them on the synthetic seed with the clock pinned (web/playwright.visual.config.ts).
 source "$(dirname "$0")/lib.sh"

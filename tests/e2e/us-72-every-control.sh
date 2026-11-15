@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# e2e: weight: 700  (usual seconds on a hosted runner; scripts/e2e.sh E2E_SHARD)
 # US-72: every control in the web app works. The gate runs the whole Playwright suite here, on one seeded server
 # with its own CAREERBREW_E2E_PORT: no -g filter, so a browser test runs the moment it exists. The suite includes the
 # control inventory (web/e2e/controls.spec.ts): every input, select, textarea, checkbox, button, and form in every

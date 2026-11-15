@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-WORKFLOW = ROOT / ".github/workflows/ci.yml"
+WORKFLOW = ROOT / ".github/workflows/gate-part.yml"  # each part of ci.yml runs this workflow
 REFERENCE = ROOT / "xtask/tests/fixtures/capture/http-reference-rules-promise-v3.json"
 
 

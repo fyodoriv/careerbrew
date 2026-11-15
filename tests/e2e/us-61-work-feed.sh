@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# e2e: weight: 90  (usual seconds on a hosted runner; scripts/e2e.sh E2E_SHARD)
 # US-61: one local work feed for Slack asks, PagerDuty pages, and Outlook mail and meetings:
 # originals encrypted and apart from the analysis, triage by rule, personal events never in the PM update.
 source "$(dirname "$0")/lib.sh"

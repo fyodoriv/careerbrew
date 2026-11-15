@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# e2e: weight: 30  (usual seconds on a hosted runner; scripts/e2e.sh E2E_SHARD)
 # US-58: every web action shows a loading state while it runs and an error with the fix when it fails;
 # every block of every view says what it loads, fails on its own with Retry, and keeps a gap from the next card;
 # on Dashboard and Today one block waits and fails alone while the others show their data.

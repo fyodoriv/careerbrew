@@ -64,9 +64,16 @@ step_key() { # step_key <name>: set k to one step's cache key, from its inputs (
   k="$(scripts/input-key.sh $spec)" || k=""
   input_sets+=("$spec"); input_keys+=("$k")
 }
+# CHECK_STEPS="<step> ..." runs only the named steps: the hosted gate runs in
+# parallel parts this way (docs/ci.md, "Parallel parts"). A name that never
+# runs (a typo, or a step whose tool is missing) fails the gate.
+only=" $(printf '%s' "${CHECK_STEPS:-}" | tr ',' ' ') " seen=" "
 step() {
   # step <name> <command...>: run, time, and log one gate step; skip it on a cache hit.
   name="$1"; shift
+  if [ -n "${CHECK_STEPS:-}" ]; then
+    case "$only" in *" $name "*) seen="$seen$name " ;; *) return 0 ;; esac
+  fi
   local k; step_key "$name"
   case "$name" in format | lint | types | unit | exercises | web-types | e2e | rust-fmt | rust-clippy | rust-test | rust-inventory) k="" ;; esac
   if [ -n "$k" ] && [ "$(cat ".metrics/cache/$name" 2>/dev/null)" = "$k" ]; then
@@ -139,5 +146,12 @@ if [ "$mode" != fast ]; then step e2e scripts/e2e.sh; fi
 if [ "${CHECK_EVALS:-0}" = 1 ]; then
   [ -x evals/run.sh ] || { echo "check.sh: CHECK_EVALS=1 but evals/run.sh is missing" >&2; exit 1; }
   step evals evals/run.sh
+fi
+if [ -n "${CHECK_STEPS:-}" ]; then
+  missing=""
+  for s in $only; do case "$seen" in *" $s "*) ;; *) missing="$missing $s" ;; esac; done
+  [ -z "$missing" ] || { echo "check.sh: CHECK_STEPS names step(s) that did not run:$missing (a typo, or the step's tool is missing)" >&2; exit 1; }
+  echo "check.sh: steps$(printf ' %s' $only) passed"
+  exit 0
 fi
 echo "check.sh: $mode gate passed"
