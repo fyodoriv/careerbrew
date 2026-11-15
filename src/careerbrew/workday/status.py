@@ -36,7 +36,7 @@ from typing import Any
 from .. import events, paths, store
 from .gate import ERROR_CLASSES, MAX_ATTEMPTS, RETRY, next_action
 from .steps import BUILTIN_STEPS, normalize
-from .timing import close, record
+from .timing import ENDS, close, record
 
 STATUSES = ("waiting", "running", "done", "blocked", "failed")
 MAX_TEXT = 200
@@ -199,7 +199,7 @@ def update(
     row = _write(day or today(), change)
     kind = "builtin" if step in BUILTIN_STEPS else "workflow"  # the kind only: a step's name never goes in the log
     changed = before != [row["status"]]  # a later --summary or --link on a done row repeats its status: tiles count moves only
-    events.emit("workday.update", status=row["status"], changed=changed, needs_you=bool(row["needs_you"]), error_class=row["error_class"], step_kind=kind, seconds=row.get("seconds") if changed else None)
+    events.emit("workday.update", status=row["status"], changed=changed, needs_you=bool(row["needs_you"]), error_class=row["error_class"], step_kind=kind, seconds=row.get("seconds") if before == ["running"] and row["status"] in ENDS else None)  # run time only: not owner wait, not a stale run
     return row
 
 

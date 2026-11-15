@@ -1010,3 +1010,30 @@ def test_a_timeout_that_fails_a_step_counts_as_a_tool_failure(home, monkeypatch)
         status.timed_out("/alpha", steps, row["started"])
     rows = [json.loads(x) for x in events.log_path().read_text().splitlines() if '"workday.update"' in x]
     assert {"status": "failed", "changed": True, "error_class": "tool"}.items() <= rows[-1].items(), rows[-1]
+
+
+def test_a_step_that_waited_on_the_owner_sends_no_run_time(home, monkeypatch):
+    from careerbrew.workday import status
+
+    monkeypatch.setenv("CAREERBREW_EVENTS", "on")
+    monkeypatch.setenv("CAREERBREW_NOW", "2026-10-29T09:00+00:00")
+    cli.main(["init"])
+    steps = ["/alpha"]
+    status.update("/alpha", steps, status="running")
+    status.update("/alpha", steps, status="blocked", needs_you="which branch?")
+    status.update("/alpha", steps, status="done")  # the owner answered hours later: not run time
+    status.update("/alpha", steps, status="waiting")  # sent back: the old run's seconds stay home
+    rows = [json.loads(x) for x in events.log_path().read_text().splitlines() if '"workday.update"' in x]
+    assert ["seconds" in r for r in rows] == [False, True, False, False], rows
+
+
+def test_a_re_saved_open_ask_is_not_a_second_ask(home, monkeypatch):
+    from careerbrew.workday import questions
+
+    monkeypatch.setenv("CAREERBREW_EVENTS", "on")
+    monkeypatch.setenv("CAREERBREW_NOW", "2026-10-29T09:00+00:00")
+    cli.main(["init"])
+    questions.add("/alpha", "which branch?")
+    questions.add("/alpha", "which branch?")  # a later day update writes the same ask again
+    rows = [json.loads(x) for x in events.log_path().read_text().splitlines() if '"workday.question"' in x]
+    assert [r["action"] for r in rows] == ["add"], rows

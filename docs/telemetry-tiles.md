@@ -152,7 +152,8 @@ ORDER BY week, installs DESC
 ## Work-day step durations
 
 - **Question**: how long does a `/work` step take, for careerbrew's own step and for workflow steps?
-- **Reads**: `workday.update` (`step_kind`, `seconds`, `status`, `changed`; a row that ended done, blocked, or failed, counted once: a later edit that keeps the status sends `changed` false and no `seconds`, and a timeout sends its own move).
+- **Reads**: `workday.update` (`step_kind`, `seconds`, `status`, `changed`; `seconds` leaves only on the move from `running` to done, blocked, or failed, so it is run time, never owner wait; a later edit sends `changed` false, and a timeout sends its own move).
+- **Decision**: a step kind whose p90 is far above its median, or whose median rises after a release, gets a timeout or a split next.
 - **Empty until**: an install that said yes ends a `/work` step.
 
 ```sql
@@ -245,7 +246,7 @@ ORDER BY clicks DESC, control
 
 - **Question**: of the work days `/work` starts, how many end, how often does it stop to ask the owner, do step proofs pass, and do steps time out?
 - **Decision**: days that start but never end mean the wrap-up is lost (fix `day end` first); asks added faster than closed mean `/work` asks too much; a falling verify pass share or rising timeouts point at the step to fix next.
-- **Reads**: `workday.start` (`traps`, a count; `day start` can run more than once a day, so starts and ends count install-days), `workday.end` with `action` `end`, `workday.question` (`action` `add` or `close`), `workday.verify` (`ok`), `workday.timeout`. Counts and fixed verbs only.
+- **Reads**: `workday.question` `add` is sent once per new ask (a re-save of an open ask sends nothing). `workday.start` (`traps`, a count; `day start` can run more than once a day, so starts and ends count install-days), `workday.end` with `action` `end`, `workday.question` (`action` `add` or `close`), `workday.verify` (`ok`), `workday.timeout`. Counts and fixed verbs only.
 - **Empty until**: an install that said yes runs `careerbrew day start`.
 
 ```sql
