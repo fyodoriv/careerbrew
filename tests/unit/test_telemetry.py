@@ -764,3 +764,142 @@ def test_a_failed_command_leaves_its_command_and_error_class(fake, home, monkeyp
     errors = [e["properties"] for e in fake.events() if e["event"] == "cli.error"]
     assert errors and errors[-1].get("command") == "start" and errors[-1].get("error") == "runtimeerror"
     assert "private-canary-text" not in json.dumps(fake.bodies)
+
+
+# --- /work and web UI coverage (the owner's ask, 2026-11-15) -------------------------------------------------
+
+
+@pytest.mark.parametrize(("env", "via"), [({}, "cli"), ({"CLAUDECODE": "1"}, "agent"), ({"CODEX_SANDBOX": "seatbelt"}, "agent")])
+def test_a_command_says_where_it_ran(fake, home, monkeypatch, env, via):
+    for name in ("CLAUDECODE", "CODEX_SANDBOX"):
+        monkeypatch.delenv(name, raising=False)  # this test may itself run under an agent
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.setattr(cli, "cmd_start", lambda a: 0)
+    cli.main([])
+    telemetry.send()
+    runs = [e["properties"] for e in fake.events() if e["event"] == "cli.run" and e["properties"].get("command") == "start"]
+    assert runs and runs[-1].get("via") == via
+
+
+def test_an_action_run_from_the_web_app_says_ui(fake, home, monkeypatch):
+    from careerbrew import actions
+
+    monkeypatch.delenv("CLAUDECODE", raising=False)
+    monkeypatch.delenv("CODEX_SANDBOX", raising=False)
+    actions.run("telemetry.status", {})
+    telemetry.send()
+    runs = [e["properties"] for e in fake.events() if e["event"] == "cli.run" and e["properties"].get("command") == "telemetry.status"]
+    assert runs and runs[-1].get("via") == "ui"
+
+
+def test_a_work_day_step_failure_leaves_its_class_and_a_session_its_action(fake, home):
+    _log(
+        {"event": "workday.update", "status": "failed", "error_class": "auth", "step_kind": "workflow", "seconds": 12},
+        {"event": "workday.update", "status": "failed", "error_class": CANARY.lower()[:40], "step_kind": "workflow"},
+        {"event": "work.session", "action": "handoff", "status": "ok"},
+        {"event": "work.session", "action": "made-up", "status": "ok"},
+    )
+    telemetry.send()
+    ups = [e["properties"] for e in fake.events() if e["event"] == "workday.update"]
+    assert [u.get("error_class") for u in ups] == ["auth", None]  # only the five fixed classes leave
+    sess = [e["properties"] for e in fake.events() if e["event"] == "work.session"]
+    assert [s.get("action") for s in sess] == ["handoff", None]
+    assert CANARY.lower()[:40] not in json.dumps(fake.bodies)
+
+
+def test_a_failed_step_keeps_its_class_in_the_local_event_log(home, monkeypatch):
+    from careerbrew.workday import status
+
+    monkeypatch.setenv("CAREERBREW_EVENTS", "on")
+    status.update("lint", ["/lint"], status="failed", error_class="network")
+    rows = [json.loads(x) for x in events.log_path().read_text().splitlines()]
+    assert [r.get("error_class") for r in rows if r["event"] == "workday.update"] == ["network"]
+
+
+def test_the_end_of_a_work_day_counts_its_step_outcomes(fake, home):
+    _log({"event": "workday.end", "status": "ended", "action": "end", "steps_done": 4, "steps_blocked": 1, "steps_failed": 1, "steps_waiting": 2, "needs_you": 1})
+    telemetry.send()
+    end = next(e["properties"] for e in fake.events() if e["event"] == "workday.end")
+    assert (end["action"], end["steps_done"], end["steps_blocked"], end["steps_failed"], end["steps_waiting"], end["needs_you"]) == ("end", 4, 1, 1, 2, 1)
+
+
+def test_day_end_emits_its_step_outcome_counts(home, monkeypatch):
+    from careerbrew.workday import end, status
+
+    monkeypatch.setenv("CAREERBREW_EVENTS", "on")
+    rows = [{**status.blank("a"), "status": "done"}, {**status.blank("b"), "status": "blocked", "needs_you": "sign in"}, {**status.blank("c"), "status": "failed"}]
+    assert end.step_outcomes(rows) == {"steps_done": 1, "steps_blocked": 1, "steps_failed": 1, "steps_waiting": 0, "steps_running": 0, "needs_you": 1}
+
+
+@pytest.mark.parametrize(
+    ("path", "route"),
+    [
+        (f"/api/inbox/{CANARY}/accept", "inbox.accept"),
+        (f"/api/inbox-group/{CANARY}/dismiss", "inbox-group.dismiss"),
+        (f"/api/notifications/{CANARY}/snooze", "notifications.snooze"),
+        (f"/api/promises/{CANARY}/done", "promises.done"),
+        (f"/api/approvals/{CANARY}/decide", "approvals.decide"),
+        (f"/api/tasks/{CANARY}/done", "tasks.done"),
+        (f"/api/cards/{CANARY}/review", "cards.review"),
+        (f"/api/explanations/{CANARY}/flag", "explanations.flag"),
+        ("/api/actions/day.log", "actions.run"),
+        ("/api/watch/pause", "watch.pause"),
+        ("/api/pm/send", "pm.send"),
+        ("/api/goals", "goals"),
+        ("/api/jobs/choose", "jobs.choose"),
+    ],
+)
+def test_a_web_control_is_named_by_a_fixed_route_never_by_its_id(path, route):
+    from careerbrew import server
+
+    assert server._act_route(path) == route
+    assert route in telemetry.WEB_ACTS
+
+
+def test_every_data_changing_web_route_is_on_the_act_list():
+    """A new POST route in server.post must get a fixed act name, or its clicks are never counted."""
+    from careerbrew import server
+
+    src = (ROOT / "src" / "careerbrew" / "server.py").read_text()
+    body = src.split("\ndef post(", 1)[1].split("\ndef ", 1)[0]
+    fixed = set(re.findall(r'path == "(/api/[a-z/_-]+)"', body)) | {p for pair in re.findall(r'path in \(("[^)]+)\)', body) for p in re.findall(r'"(/api/[^"]+)"', pair)}
+    for p in fixed - {"/api/timing"}:  # a timing is the page's own beacon, not a click
+        assert server._act_route(p) in telemetry.WEB_ACTS, p
+
+
+def test_a_web_click_leaves_one_act_with_its_route_and_status_never_its_id(fake, home, monkeypatch):
+    from careerbrew import server
+
+    srv, _t = server.serve_in_thread(0, "tok")
+    port = srv.server_address[1]
+    try:
+        for path in (f"/api/promises/{CANARY}/done", "/api/watch/nope"):
+            req = urllib.request.Request(f"http://127.0.0.1:{port}{path}", data=b"{}", headers={"X-Careerbrew-Token": "tok", "Host": f"127.0.0.1:{port}", "Content-Type": "application/json"})
+            try:
+                urllib.request.urlopen(req, timeout=10).close()
+            except urllib.error.HTTPError:
+                pass
+    finally:
+        srv.shutdown()
+        srv.server_close()
+    telemetry.send()
+    acts = [e["properties"] for e in fake.events() if e["event"] == "web.act"]
+    assert [(a.get("route"), a.get("status")) for a in acts] == [("promises.done", "refused"), (None, "refused")]
+    assert all("duration_ms" in a for a in acts)
+    assert CANARY not in json.dumps(fake.bodies)
+
+
+def test_the_step_error_list_is_the_work_day_gates_list():
+    from careerbrew.workday import gate
+
+    assert telemetry.STEP_ERRORS == set(gate.ERROR_CLASSES)
+
+
+def test_every_action_careerbrew_emits_may_leave():
+    """A new `action="<verb>"` in an event must join telemetry.ACTIONS, or its dimension silently drops."""
+    found = set()
+    for f in (ROOT / "src" / "careerbrew").rglob("*.py"):
+        for call in re.findall(r"events\.emit\((.*?)\)\n", f.read_text(), flags=re.S):
+            found |= set(re.findall(r'\baction="([a-z_-]+)"', call))
+    assert found and found <= telemetry.ACTIONS, sorted(found - telemetry.ACTIONS)

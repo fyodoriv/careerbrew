@@ -161,6 +161,24 @@ def _prs(day: date) -> list[dict[str, Any]]:
     return list(found.values())
 
 
+def _outcomes(day: date) -> dict[str, int]:
+    from .status import stored
+
+    try:
+        return step_outcomes(list(stored(day).values()))
+    except Exception:  # noqa: BLE001 (a count must never fail the end of the day)
+        return {}
+
+
+def step_outcomes(rows: list[dict[str, Any]]) -> dict[str, int]:
+    """How the day's steps ended, as counts for `workday.end`: what /work did alone, and what waited on the owner."""
+    from .status import STATUSES
+
+    out = {f"steps_{s}": sum(1 for r in rows if r.get("status") == s) for s in STATUSES}
+    out["needs_you"] = sum(1 for r in rows if r.get("needs_you"))
+    return out
+
+
 def write_handoff(day: date | None = None) -> dict[str, int]:
     """Write today's end-of-day handoff items (open PRs, open question records); returns counts by section."""
     from ..day import handoff
@@ -257,7 +275,7 @@ def finish(by: str = "owner", at: datetime | None = None) -> dict[str, Any]:
         "page": str(page or ""),
     }
     _put(day, "end", rec)
-    events.emit("workday.end", status="ended", action="end", by_clock=by == "clock", prs=counts["prs"], questions=counts["questions"], loops_left=len(loops["running"]), pm_edited=pm["edited"])
+    events.emit("workday.end", status="ended", action="end", by_clock=by == "clock", prs=counts["prs"], questions=counts["questions"], loops_left=len(loops["running"]), pm_edited=pm["edited"], **_outcomes(day))
     return {**rec, "pm": {**rec["pm"], "subject": pm["subject"], "body": body}, "loops": loops, "dashboard": DASHBOARD}
 
 

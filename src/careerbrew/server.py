@@ -768,6 +768,16 @@ def _route(path: str) -> str:
     return path.removeprefix("/api/").replace("/", ".")[:48] or "api"
 
 
+def _act_route(path: str) -> str:
+    """The fixed name of a data-changing web control (`promises.done`, `actions.run`): an id in the path never leaves."""
+    parts = path.removeprefix("/api/").strip("/").split("/")
+    if parts[0] == "actions":
+        return "actions.run"  # the action itself leaves as the cli.run it starts, with via `ui`
+    if len(parts) >= 3:
+        return f"{parts[0]}.{parts[-1]}"[:48]  # /api/<kind>/<id>/<verb>
+    return ".".join(parts)[:48] or "api"
+
+
 def _encode(data: Any) -> bytes:
     return json.dumps(_finite(data), default=str, allow_nan=False).encode()
 
@@ -1135,6 +1145,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._session("POST", url.path)
             except BAD_INPUT as exc:
                 return self._json(HTTPStatus.BAD_REQUEST, {"error": f"bad request: {exc}"[:300]})
+        t0, act = monotonic(), "error"
         try:
             self._guard(url.path)
             length = int(self.headers.get("Content-Length", "0") or 0)
@@ -1149,11 +1160,17 @@ class Handler(BaseHTTPRequestHandler):
             finally:
                 if url.path not in KEEPS_CACHE:
                     self.cache.clear()  # the owner acted: every view rebuilds on its next read, even one that runs before this reply arrives
+            act = "ok"
             self._json(HTTPStatus.OK, result)
         except ApiError as exc:
+            act = "refused"
             self._json(exc.status, {"error": str(exc)})
         except BAD_INPUT as exc:
+            act = "refused"
             self._json(HTTPStatus.BAD_REQUEST, {"error": f"bad request: {exc}"[:300]})
+        finally:
+            if url.path != "/api/timing":  # a timing is the page's own beacon, not a click
+                events.emit("web.act", route=_act_route(url.path), status=act, ms=int((monotonic() - t0) * 1000))
 
     def _static(self, path: str) -> None:
         rel = "index.html" if path in ("", "/") else path.lstrip("/")

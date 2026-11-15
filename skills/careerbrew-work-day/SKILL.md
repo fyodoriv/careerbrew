@@ -78,6 +78,10 @@ A message blocked on a missing permission, policy, role, or group is work to res
 
 With an empty work_steps setting, add steps for every day with `careerbrew config set work_steps "/standup, /review-prs"`. Before adding an owner step, read `careerbrew config` and retain the existing `work_steps` entries; update the same entry if it is already present. `config set` replaces the list. With an empty list, an owner command with ordering can use `careerbrew config set work_steps '[{"step":"/standup","scope":["work"],"after":["/refresh"]}]'`. A company plugin adds its own under `work_steps:` in its manifest, with `after`, `scope`, `uses`, and `longRunning` to say what may run at once (docs/plugins.md, "Work steps").
 
+## Usage counts
+
+After the owner's yes to telemetry, `/work` is measured without content: each `day update` sends the step's status, kind, seconds, and failure class (`--error-class`), and `day end` sends how many steps ended done, blocked, failed, or not started. Always pass the real `--error-class` on a failed step: the "Work-day step failures by class" tile picks the next `/work` fix from it. Compare versions in the "Work days by version" tile (`docs/telemetry-tiles.md`). Never answer the consent question for the owner.
+
 <!-- careerbrew:dual-host-shared-memory -->
 ## Agent host contract
 

@@ -53,6 +53,17 @@ def _owner_ui() -> bool:
     return actions.OWNER_UI.get()
 
 
+# Env vars an agent host sets in the shells it runs: Claude Code sets CLAUDECODE, the Codex CLI sandbox CODEX_SANDBOX.
+AGENT_ENV = ("CLAUDECODE", "CODEX_SANDBOX")
+
+
+def ran_via() -> str:
+    """Where this command runs, for the event log: `ui` (the web app's Actions), `agent` (an agent's shell), or `cli`."""
+    if _owner_ui():
+        return "ui"
+    return "agent" if any(os.environ.get(k) for k in AGENT_ENV) else "cli"
+
+
 def may_show_business() -> bool:
     return sys.stdout.isatty() or _owner_ui() or bool(plugins.effective_policy().get("agent_may_read_business"))
 
@@ -4837,12 +4848,12 @@ def main(argv: list[str] | None = None) -> int:
             machine.guard(args.cmd)
         rc = args.fn(args)
     except (machine.RoleError, sync.SyncError, privacy.PrivacyError, plugins.PluginError, promo.LadderError, KeyError, ValueError, PermissionError, FileNotFoundError, RuntimeError) as exc:
-        events.emit("cli.error", command=name, error=type(exc).__name__.lower())  # events keep lowercase ids only
+        events.emit("cli.error", command=name, error=type(exc).__name__.lower(), via=ran_via())  # events keep lowercase ids only
         say(f"error: {exc}")
         return 2
     from . import time_saved
 
-    events.emit("cli.run", command=name, status="ok" if rc == 0 else "fail", ms=int((time.monotonic() - started) * 1000), saves=time_saved.COMMAND_ACTION.get(name))
+    events.emit("cli.run", command=name, status="ok" if rc == 0 else "fail", ms=int((time.monotonic() - started) * 1000), saves=time_saved.COMMAND_ACTION.get(name), via=ran_via())
     if args.cmd != "telemetry":
         from . import telemetry
 

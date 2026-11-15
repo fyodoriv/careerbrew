@@ -179,6 +179,72 @@ GROUP BY week, from_version, to_version
 ORDER BY week, installs DESC
 ```
 
+## Work days by version
+
+- **Question**: of the `/work` steps a day ends with, what share did `/work` finish alone, and did a new careerbrew version raise or lower it?
+- **Decision**: a version whose done share drops, or whose steps waiting on the owner rise, is a regression to read before the next change to `/work`.
+- **Reads**: `workday.end` with `action` `end` (`steps_done`, `steps_blocked`, `steps_failed`, `steps_waiting`, `needs_you`, `app_version`; counts only, from `workday.end.step_outcomes`).
+- **Empty until**: an install that said yes ends a work day (`careerbrew day end`, or the clock).
+
+```sql
+SELECT properties.app_version AS version, count(DISTINCT distinct_id) AS installs, count() AS work_days,
+       sum(toFloat(properties.steps_done)) AS done, sum(toFloat(properties.steps_blocked)) AS blocked,
+       sum(toFloat(properties.steps_failed)) AS failed, sum(toFloat(properties.steps_waiting)) AS not_started,
+       round(sum(toFloat(properties.steps_done)) / nullIf(sum(toFloat(properties.steps_done) + toFloat(properties.steps_blocked) + toFloat(properties.steps_failed)), 0), 3) AS done_share,
+       quantile(0.5)(toFloat(properties.needs_you)) AS median_needs_you
+FROM events
+WHERE event = 'workday.end' AND properties.action = 'end' AND timestamp > now() - INTERVAL 26 WEEK
+GROUP BY version
+ORDER BY version
+```
+
+## Work-day step failures by class
+
+- **Question**: when a `/work` step fails, why: the environment, a sign-in, the network, a conflict, or the tool itself?
+- **Decision**: the top class is the next `/work` fix (an `auth` lead means better sign-in checks at `day start`).
+- **Reads**: `workday.update` with `status` `failed` (`step_kind`, `error_class`, one of `workday.gate.ERROR_CLASSES`).
+- **Empty until**: an install that said yes has a `/work` step fail.
+
+```sql
+SELECT properties.step_kind AS kind, properties.error_class AS failed_because, count() AS failures, count(DISTINCT distinct_id) AS installs
+FROM events
+WHERE event = 'workday.update' AND properties.status = 'failed' AND timestamp > now() - INTERVAL 8 WEEK
+GROUP BY kind, failed_because
+ORDER BY failures DESC
+```
+
+## Web controls used per week
+
+- **Question**: which web app controls do installs use, and which ones refuse the click?
+- **Decision**: a control no install uses is a candidate to move behind a menu; a high refused share is a broken control to fix.
+- **Reads**: `web.act` (`route`, a name from `telemetry.WEB_ACTS`; `status` `ok`, `refused`, or `error`; `duration_ms`).
+- **Empty until**: an install that said yes clicks a web control that changes data.
+
+```sql
+SELECT toStartOfWeek(timestamp, 1) AS week, properties.route AS control, count(DISTINCT distinct_id) AS installs, count() AS clicks,
+       round(countIf(properties.status != 'ok') / count(), 3) AS refused_share,
+       quantile(0.5)(toFloat(properties.duration_ms)) AS median_ms
+FROM events
+WHERE event = 'web.act' AND timestamp > now() - INTERVAL 26 WEEK
+GROUP BY week, control
+ORDER BY week, installs DESC
+```
+
+## Where commands run
+
+- **Question**: do people run careerbrew in a terminal, from the web app, or through an agent such as `/work`?
+- **Decision**: the surface most runs use gets the next polish first; a command only agents run needs its agent docs kept current.
+- **Reads**: `cli.run` (`via`: `cli`, `ui`, or `agent`; `command` from the fixed list).
+- **Empty until**: the first command after a yes.
+
+```sql
+SELECT toStartOfWeek(timestamp, 1) AS week, properties.via AS via, count(DISTINCT distinct_id) AS installs, count() AS runs
+FROM events
+WHERE event = 'cli.run' AND properties.command IN USER_COMMANDS AND timestamp > now() - INTERVAL 26 WEEK
+GROUP BY week, via
+ORDER BY week, runs DESC
+```
+
 ## Tech tiles: command timings
 
 - **Question**: which commands are slow, and did a version or runtime (Python now, Rust later) make them faster or slower?

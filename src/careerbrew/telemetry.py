@@ -91,7 +91,8 @@ EVENT_NAMES = frozenset(
     work.live.stop work.memory.forget work.memory.in work.memory.out work.note work.plan work.prd work.prep work.priority
     work.project work.promise work.promo work.review_ask work.review_ask.check work.session work.standup
     work.standup.notes work.standup.rows work.task work.team workday.end workday.loop workday.morning workday.question
-    workday.recheck workday.start workday.timeout workday.update workday.verify notify.check careerbrew.install careerbrew.week careerbrew.upgrade web.view""".split()
+    workday.recheck workday.start workday.timeout workday.update workday.verify notify.check careerbrew.install careerbrew.week careerbrew.upgrade web.view
+    web.act""".split()
 )
 STATUSES = frozenset(
     """ok error fail failed refused new done pass open kept held gap ended added written wrap-up waiting upcoming text
@@ -110,6 +111,23 @@ VIEW_ROUTES = frozenset(
     checklist standup actions review setup cards library library.page teach drill goals mistakes exercises reports
     reports.page promises""".split()
 )
+# A data-changing web control, by route name (`server._act_route`): the id in its path (an ask, a promise) never leaves.
+WEB_ACTS = frozenset(
+    """inbox.accept inbox.dismiss inbox.answer inbox.reopen inbox-group.accept inbox-group.dismiss notifications.read
+    notifications.accept notifications.dismiss notifications.snooze promises.done promises.dropped actions.run pm.draft
+    pm.send config drill.voice teach.complete teach.draft teach.feedback goals jobs.choose jobs.unchoose approvals.decide
+    tasks tasks.done cards.review explanations.flag watch.on watch.off watch.pause watch.resume watch.reload""".split()
+)
+# What an event did (`action`): the fixed verbs careerbrew's own code emits; any other value never leaves.
+ACTIONS = frozenset(
+    """absorb accept add answer approve archive ask check close control dismiss done draft dropped end expire export
+    extend gate handoff impact import list measure not-ask open plugin-roster pm-update quiz read reference refresh
+    regrade remind remove reopen research rules set show since snooze source start status suggest track unarchive
+    update""".split()
+)
+# Why a work-day step failed (`workday.gate.ERROR_CLASSES`), and where a command ran: a terminal, the web app, or an agent.
+STEP_ERRORS = frozenset({"env", "auth", "network", "conflict", "tool"})
+VIA = frozenset({"cli", "ui", "agent"})
 # A work-day step is careerbrew's own (`workday.steps.BUILTIN_STEPS`) or one a plugin or repo declares; its name never leaves.
 STEP_KINDS = frozenset({"builtin", "workflow"})
 # Error classes: Python's built-in exceptions and careerbrew's own; any other class is sent as "other".
@@ -374,7 +392,13 @@ def _string_ok(k: str, v: str) -> str | None:
     if k == "tier":
         return v if v in TIERS else None
     if k == "route":
-        return v if v in VIEW_ROUTES else None
+        return v if v in VIEW_ROUTES or v in WEB_ACTS else None
+    if k == "action":
+        return v if v in ACTIONS else None
+    if k == "error_class":
+        return v if v in STEP_ERRORS else None
+    if k == "via":
+        return v if v in VIA else None
     if k == "step_kind":
         return v if v in STEP_KINDS else None
     if k == "from_version":
