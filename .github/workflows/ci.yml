@@ -19,12 +19,17 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      cold:
+        description: skip the Playwright cache (re-measure, docs/ci.md "Dependency caches")
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event.pull_request.number || (github.event_name == 'workflow_dispatch' && github.run_id) || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Each OS runs the same parts. Together they run every step of scripts/check.sh
@@ -55,6 +60,7 @@ jobs:
       steps: ${{ matrix.part.steps }}
       shard: ${{ matrix.part.shard || '' }}
       gitleaks_asset: linux_x64
+      cold: ${{ inputs.cold == true }}
       gitleaks_sha256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
 
   macos:
@@ -79,6 +85,7 @@ jobs:
       steps: ${{ matrix.part.steps }}
       shard: ${{ matrix.part.shard || '' }}
       gitleaks_asset: darwin_arm64
+      cold: ${{ inputs.cold == true }}
       gitleaks_sha256: b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5
 
   # The required checks on main (docs/ci.md, "Branch rule on `main`"): one per OS,
