@@ -379,6 +379,26 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if the hosted artifacts cannot give a metric's inputs (for example the multi-day gate pass rate from `.metrics/events.jsonl`), drop that metric from the Proof section rather than keep a stale number.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (Goal-Question-Metric); Forsgren, Humble & Kim 2018, *Accelerate* (measure from the delivery pipeline).
 
+- [ ] The us-58 loading-label check can miss its 100 ms limit on hosted macOS
+  - **ID**: flaky-us58-loading-label-macos
+  - **Details**: On 2026-11-17 the hosted `e2e-1 (macos-15)` job of PR 116 (head `001ddab6`, run 44115274163) failed in `tests/e2e/us-58-action-feedback.sh` (`web/e2e/feedback.spec.ts`, Goals): "ms from opening the view to a visible loading label", expected < 100, received 118.2. The PR changed only xtask and docs. A rerun of the failed job passed. Find what the first paint waits behind on a slow runner (a font, a first API call, the bundle parse). Fix that cause; a looser limit is the last resort.
+  - **Files**: web/e2e/feedback.spec.ts; tests/e2e/us-58-action-feedback.sh; web/src/views.tsx
+  - **Hypothesis**: with the cause fixed, the hosted macOS us-58 loading-label check fails 0 times in 20 runs, against 1 seen so far.
+  - **Measurement**: `gh run list --workflow ci.yml -L 20 --json conclusion,headSha` plus `gh run view <id> --log-failed | rg 'loading label'` for each failed run.
+  - **Success**: 0 failures of this check in the next 20 hosted macOS runs.
+  - **Pivot**: if it still fails 2 or more times in 20 runs after the fix, measure the label time relative to a same-page baseline paint instead of an absolute 100 ms.
+  - **Anchor**: Luo et al. 2014, "An empirical analysis of flaky tests" (FSE; timing-dependent tests).
+
+- [ ] Fail the gate when the allowlist .gitignore hides a new xtask source file
+  - **ID**: gitignore-xtask-new-files-check
+  - **Details**: On 2026-11-17 PR 116 pushed `mod baseline;` without `xtask/src/baseline.rs` and `xtask/tests/baseline.rs`: `.gitignore` lines `/xtask/src/*` and `/xtask/tests/*` ignore every new file unless it has a `!` line, and `git add -A` skipped both in silence. The hosted `rust-fmt` step failed with "failed to resolve mod `baseline`". Add a gate step (or a pre-commit check) that lists `git ls-files --others --ignored --exclude-standard xtask/src xtask/tests` for `.rs` files and fails with the `!` line to add.
+  - **Files**: scripts/check.sh; .gitignore; tests/unit/test_gate_inputs.py
+  - **Hypothesis**: with the check, an ignored new xtask source file is caught before push in 100% of cases, against 0% now (1 hosted failure seen).
+  - **Measurement**: a unit test that creates an ignored `xtask/src/new.rs` in a scratch repo and expects the check to fail; `gh run list` for later `failed to resolve mod` errors.
+  - **Success**: the planted control fails the check, the clean tree passes, and 0 hosted `failed to resolve mod` errors in the next 20 runs.
+  - **Pivot**: if the check gives false alarms on build output under xtask, switch to comparing `mod` declarations in tracked files with tracked paths.
+  - **Anchor**: Reason 1990, *Human Error* (defence in depth); Forsgren, Humble & Kim 2018 (DORA change failure rate).
+
 - [ ] The macOS browser control inventory can time out on a 15 s element wait
   - **ID**: flaky-controls-inventory-macos
   - **Details**: On 2026-11-16 the hosted `gate (macos-15)` job of PR #110 (head `16b1aefd`) failed in `web/e2e/controls.spec.ts:287` ("inventory on a ... machine: each control is in controls.json with a test that exists"): a 15 s wait for an element ran out. A rerun passed with no change. Read the failed log with `gh run view <run-id> --log-failed` and its Playwright trace first. Find which element the wait was for and what it waited behind (a slow first API call, a cached block refresh). Fix the cause; a longer timeout is the last resort (AGENTS.md "A wall-clock limit in a test is a hang guard").
