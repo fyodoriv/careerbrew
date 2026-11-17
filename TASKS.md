@@ -419,6 +419,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if either OS cannot attribute a grandchild within 0.5x to 2x, mark tree accounting unsupported there and require measured commands to wait for their children.
   - **Anchor**: POSIX `getrusage`/`wait4` (IEEE Std 1003.1-2017; `RUSAGE_CHILDREN` covers only waited-for descendants); Linux cgroup v2 `memory.peak`; Kalibera & Jones 2013 (ISMM).
 
+- [ ] careerbrew uses levels.fyi data for job search and interview prep
+  - **ID**: levels-fyi-integration
+  - **Details**: Integrate levels.fyi sources and tools end to end: (1) job finding: its job listings and compensation data feed `careerbrew-job-hunt` ranking (pay band, level mapping across companies); (2) interview prep: its interview and leveling guides feed `careerbrew-interview-coach` and `knowledge/research/interview-research.yaml` strategy rules. First check its terms of use and any official API or export; record the allowed access per source in the `docs/integrations.md` terms column. If a source forbids automated access, use only what the owner opens by hand (browser research skill) and say so. Add a platform in `src/careerbrew/jobs/platforms.py` with an HTTP fixture in `tests/fixtures/http/`, a story and e2e test, and an eval case. Job-hunt commands stay blocked on a corporate machine.
+  - **Files**: src/careerbrew/jobs/platforms.py; skills/careerbrew-job-hunt/; skills/careerbrew-interview-coach/; knowledge/research/; docs/integrations.md; docs/user-stories.md; tests/
+  - **Hypothesis**: adding levels.fyi pay and level data raises the share of ranked job matches that carry a pay band and a mapped level from the current share to 80% or more, and adds sourced interview strategy rules for the top 10 target companies.
+  - **Measurement**: `uv run careerbrew jobs` summary counts of matches with a pay band and level (synthetic fixture run in the story e2e), and `scripts/check-sources.py` count of levels.fyi-sourced rules.
+  - **Success**: 80% or more of fixture matches carry pay and level; 10 or more sourced strategy rules pass `check-sources.py`.
+  - **Pivot**: if the terms allow no automated access and manual import covers under 30% of matches, drop the platform and keep only cited guide links in `knowledge/`.
+  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Kohavi, Tang & Xu 2020 (trustworthy online experiments).
+
 - [ ] The resources calibration numbers do not print on a passing gate run
   - **ID**: resources-calibration-visible
   - **Details**: The gate's `rust-test` step runs `cargo test --all` without `--nocapture`, so the `calibration` and `inheritance` lines of `xtask/tests/resources.rs` show only on a failed run. Adding `--nocapture` to the gate broke the pinned-arguments test `G03` in `tests/unit/test_gate_cache.py` (`RUST_PRIMARY`), which freezes the tool contract. Write the numbers to a file instead (for example under `.metrics/` or as a job summary), or move the pin together with a successor contract; never loosen the pin silently.
