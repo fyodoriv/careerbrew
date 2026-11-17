@@ -9,6 +9,22 @@ const FIXTURE: &str = env!("CARGO_BIN_EXE_resource_fixture");
 const XTASK: &str = env!("CARGO_BIN_EXE_careerbrew-xtask");
 const ALLOC: u64 = 64 * 1024 * 1024;
 
+/// Prints one measurement line and, when `CAREERBREW_RESOURCES_RECORD` names
+/// a file, appends it there. A passing `cargo test` hides stderr, and the gate's
+/// pinned arguments refuse `--nocapture`; the hosted gate prints the file.
+fn record(line: String) {
+    eprintln!("{line}");
+    if let Some(path) = std::env::var_os("CAREERBREW_RESOURCES_RECORD") {
+        use std::io::Write;
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .expect("open resources record");
+        writeln!(file, "{line}").expect("write resources record");
+    }
+}
+
 fn run(args: &[&str]) -> resources::Usage {
     let args = args.iter().map(OsString::from).collect::<Vec<_>>();
     resources::measure(Path::new(FIXTURE), &args).expect("measure")
@@ -49,7 +65,7 @@ fn known_allocation_is_within_tolerance_on_this_os() {
     let (idle, loaded) = raw_pair();
     let delta = resources::check_calibration(idle.max_rss_bytes, loaded.max_rss_bytes, ALLOC)
         .unwrap_or_else(|reason| panic!("{} calibration: {reason}", idle.os));
-    eprintln!(
+    record(format!(
         "calibration {}: unit={} idle={} loaded={} delta={} ratio={:.3}",
         idle.os,
         idle.unit.name(),
@@ -57,7 +73,7 @@ fn known_allocation_is_within_tolerance_on_this_os() {
         loaded.max_rss_bytes,
         delta,
         delta as f64 / ALLOC as f64
-    );
+    ));
 }
 
 #[test]
@@ -147,14 +163,14 @@ fn idle_baseline_from_the_cli_does_not_inherit_a_large_parent() {
         .expect("xtask");
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).expect("json");
     let via_cli = value["max_rss_bytes"].as_u64().unwrap();
-    eprintln!(
+    record(format!(
         "inheritance {}: parent={} direct_idle={} direct_may_include_parent={} cli_idle={}",
         direct.os,
         direct.parent_max_rss_bytes,
         direct.max_rss_bytes,
         direct.rss_may_include_parent(),
         via_cli
-    );
+    ));
     assert!(
         via_cli < 32 * 1024 * 1024,
         "CLI idle child inherited {via_cli} bytes"
@@ -217,11 +233,11 @@ fn an_unwaited_grandchild_allocation_is_within_tolerance() {
         ALLOC,
     )
     .unwrap_or_else(|reason| panic!("tree calibration: {reason}"));
-    eprintln!(
+    record(format!(
         "tree calibration {}: method={} delta={} ratio={:.3}",
         idle["os"],
         idle["tree_method"],
         delta,
         delta as f64 / ALLOC as f64
-    );
+    ));
 }

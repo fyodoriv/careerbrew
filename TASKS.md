@@ -411,7 +411,7 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 - [ ] `rust-00`: count grandchildren in the resource collector
   - **ID**: rust-00-process-tree-resources
-  - **Details**: Process-tree accounting is built (process group; Linux subreaper plus `wait4(-pgid)`, macOS `proc_pid_rusage` sampling; registered in `docs/rust-migration.md` "Process-tree resource accounting"), with the grandchild controls. Left: record the hosted `tree calibration` ratios for both OSes in that section, and apply the pivot if either OS is outside 0.5x to 2x in two runs. A descendant that leaves the process group is not counted; a cgroup (Linux) would close that gap if needed. Review of PR 113 found two more gaps: (1) on macOS `tree_max_rss_bytes` mixes the child's `ru_maxrss` (resident) with descendants' `phys_footprint` (`xtask/src/resources.rs:363-365`, `:473`); use one metric for both or document the mix; (2) on Linux, if a group member's parent leaves the group (`setsid`), `wait4(-pgid)` returns `ECHILD` while that member still runs, so its usage is lost (`resources.rs:286`); the cgroup fix covers this too.
+  - **Details**: Process-tree accounting is built (process group; Linux subreaper plus `wait4(-pgid)`, macOS `proc_pid_rusage` sampling; registered in `docs/rust-migration.md` "Process-tree resource accounting"), with the grandchild controls. Hosted ratios are recorded (PR 115: macOS 0.996x, Linux 0.972x; in range, no pivot). Left: the two review gaps below. A descendant that leaves the process group is not counted; a cgroup (Linux) would close that gap if needed. Review of PR 113 found two more gaps: (1) on macOS `tree_max_rss_bytes` mixes the child's `ru_maxrss` (resident) with descendants' `phys_footprint` (`xtask/src/resources.rs:363-365`, `:473`); use one metric for both or document the mix; (2) on Linux, if a group member's parent leaves the group (`setsid`), `wait4(-pgid)` returns `ECHILD` while that member still runs, so its usage is lost (`resources.rs:286`); the cgroup fix covers this too.
   - **Files**: xtask/src/; xtask/tests/resources.rs; docs/rust-migration.md
   - **Hypothesis**: a tree collector reports a grandchild's 64 MiB allocation within 0.75x to 1.5x on macOS and Linux, where the current collector reports about 0.
   - **Measurement**: `cargo test -p careerbrew-xtask --test resources` on the hosted `gate (ubuntu-24.04)` and `gate (macos-15)` jobs, with the grandchild control.
@@ -428,16 +428,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Success**: 80% or more of fixture matches carry pay and level; 10 or more sourced strategy rules pass `check-sources.py`.
   - **Pivot**: if the terms allow no automated access and manual import covers under 30% of matches, drop the platform and keep only cited guide links in `knowledge/`.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Kohavi, Tang & Xu 2020 (trustworthy online experiments).
-
-- [ ] The resources calibration numbers do not print on a passing gate run
-  - **ID**: resources-calibration-visible
-  - **Details**: The gate's `rust-test` step runs `cargo test --all` without `--nocapture`, so the `calibration` and `inheritance` lines of `xtask/tests/resources.rs` show only on a failed run. Adding `--nocapture` to the gate broke the pinned-arguments test `G03` in `tests/unit/test_gate_cache.py` (`RUST_PRIMARY`), which freezes the tool contract. Write the numbers to a file instead (for example under `.metrics/` or as a job summary), or move the pin together with a successor contract; never loosen the pin silently.
-  - **Files**: xtask/tests/resources.rs; scripts/check.sh; tests/unit/test_gate_cache.py; docs/rust-migration.md
-  - **Hypothesis**: every passing hosted gate run shows the calibration ratio for both OSes, against 0 of N passing runs now.
-  - **Measurement**: `gh run view <id> --log | rg 'calibration'` on the next 5 passing hosted gate runs.
-  - **Success**: 5 of 5 passing runs show the macOS and Linux ratios, and `G03` stays green.
-  - **Pivot**: if the numbers can only show by changing the pinned arguments, stop and record the ratios by hand per release in `docs/rust-migration.md`.
-  - **Anchor**: Basili, Caldiera & Rombach 1994 (Goal-Question-Metric: a metric you cannot see is not measured).
 
 - [ ] `scripts/check.sh` and `scripts/e2e.sh` queue themselves through heavy-run
   - **ID**: gate-scripts-self-queue
