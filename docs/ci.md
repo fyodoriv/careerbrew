@@ -252,7 +252,8 @@ Re-measure:
    - uv: `enable-cache: true` on setup-uv, and the guarded step that links
      `$UV_CACHE_DIR` to `~/.cache/uv` (it exits early when `UV_CACHE_DIR` is empty).
    - npm: `cache: npm` and `cache-dependency-path: web/package-lock.json` on setup-node.
-   - Rust: the trial step from commit 703ae3af on `ci/cache-measure`
+   - Rust: the trial step "Cache Rust build (trial)" in `gate-part.yml` at
+     commit f3441ceff5fd, the head of warm run 43992340679
      (`Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0`, v2.9.3).
 2. Run one warm priming run and discard it.
 3. Run 5 warm and 5 cold, interleaved: `gh workflow run ci.yml --ref <branch>`
