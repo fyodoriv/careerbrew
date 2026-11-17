@@ -35,6 +35,14 @@ else
     fi
   fi
   if [ -f Cargo.toml ]; then PATH="$RUST_READY_BIN:$PATH" RUSTUP_AUTO_INSTALL=0 "$RUST_READY_BIN/cargo" fetch; fi
+  # Rebuild each Rust crate that ships, so a pulled Rust change reaches this machine.
+  # The list is empty today: nothing is built (tests/unit/test_rust_shipped_crates.py).
+  if [ -f Cargo.toml ] && [ -f scripts/rust-shipped-crates.txt ]; then
+    while read -r crate; do
+      case "$crate" in ''|'#'*) continue ;; esac
+      PATH="$RUST_READY_BIN:$PATH" RUSTUP_AUTO_INSTALL=0 "$RUST_READY_BIN/cargo" build --release --locked --manifest-path "$crate/Cargo.toml"
+    done < scripts/rust-shipped-crates.txt
+  fi
 fi
 
 step "Web app (TypeScript)"
