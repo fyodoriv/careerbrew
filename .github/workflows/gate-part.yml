@@ -25,6 +25,14 @@ on:
       gitleaks_sha256:
         type: string
         required: true
+      cold:
+        description: run with every dependency cache off, to re-measure cache gains (docs/ci.md, "Dependency caches")
+        type: boolean
+        default: false
+      rust_cache:
+        description: trial of Swatinem/rust-cache for the Rust steps (docs/ci.md, "Dependency caches")
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -58,7 +66,7 @@ jobs:
 
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          enable-cache: true
+          enable-cache: ${{ !inputs.cold }}
           # The frozen HTTP reference (xtask/tests/fixtures/capture) holds this exact
           # version in its Server header; tests/unit/test_hosted_ci.py keeps them equal.
           python-version: "3.12.16"
@@ -73,7 +81,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: npm
+          cache: ${{ !inputs.cold && 'npm' || '' }}
           cache-dependency-path: web/package-lock.json
 
       - name: Rust toolchain (the pin in rust-toolchain.toml)
@@ -85,6 +93,10 @@ jobs:
           # RUSTUP_TOOLCHAIN, and the supervisor tests refuse that override.
           dirname "$(rustup which --toolchain "$pin" rustc)" >> "$GITHUB_PATH"
           rustc --version
+
+      - name: Cache Rust build (trial)
+        if: ${{ inputs.rust_cache && !inputs.cold }}
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
       - name: gitleaks (pinned release, checked SHA-256)
         env:
@@ -100,6 +112,7 @@ jobs:
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - name: Cache Playwright browsers
+        if: ${{ !inputs.cold }}
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
