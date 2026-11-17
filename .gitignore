@@ -89,6 +89,7 @@ __pycache__/
 !/xtask/src/baseline.rs
 !/xtask/src/baseline_verdict.rs
 !/xtask/src/main.rs
+!/xtask/src/measure.rs
 !/xtask/src/inventory.rs
 !/xtask/src/toolchain_identity.rs
 !/xtask/src/trial_plan.rs
@@ -100,6 +101,7 @@ __pycache__/
 !/xtask/tests/i01_fixture.rs
 !/xtask/tests/resources.rs
 !/xtask/tests/baseline.rs
+!/xtask/tests/measure.rs
 !/xtask/tests/fixtures/
 /xtask/tests/fixtures/*
 !/xtask/tests/fixtures/i01/
