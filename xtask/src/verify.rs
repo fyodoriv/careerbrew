@@ -2,7 +2,10 @@
 //! its Rust candidate on the same synthetic cases, each side in its own fresh
 //! synthetic home, and compare stdout and the exit code byte for byte. It
 //! writes a content-free JSON record: step, case count, pass or fail per case
-//! id, the sources hash and the source revision. A step with no Rust
+//! id, the sources hash, the source revision, whether the candidate came
+//! from the test-only flag, and the candidate binary's sha256 (checked before
+//! and after the runs). A candidate that cannot run, times out or prints
+//! output that is not UTF-8 or too large fails its case. A step with no Rust
 //! candidate is refused, never passed.
 use crate::{baseline, capture_actions};
 use serde_json::{json, Value};
@@ -46,6 +49,12 @@ fn sources_sha256(root: &Path) -> Result<String, String> {
     Ok(capture_actions::digest(sources.to_string().as_bytes()))
 }
 
+/// The sha256 of the candidate binary's bytes.
+fn binary_sha256(path: &Path) -> Result<String, String> {
+    let bytes = std::fs::read(path).map_err(|_| "cannot read the candidate binary")?;
+    Ok(capture_actions::digest(&bytes))
+}
+
 /// Builds the record. `candidate` is the test-only override; without it the
 /// step's registered candidate is used.
 pub fn record(
@@ -62,6 +71,7 @@ pub fn record(
         return Err("CAREERBREW_HOME is set but empty".into());
     }
     let registered = step.candidate.map(|path| root.join(path));
+    let test_candidate = candidate.is_some();
     let Some(candidate) = candidate.map(Path::to_path_buf).or(registered) else {
         return Err(format!(
             "step {} has no Rust candidate yet; verify refused",
@@ -75,6 +85,7 @@ pub fn record(
         return Err("the candidate binary does not exist".into());
     }
     let hash = sources_sha256(root)?;
+    let candidate_sha256 = binary_sha256(&candidate)?;
     let mut cases = Vec::with_capacity(step.cases.len());
     let mut failed = Vec::new();
     for (case, args) in step.cases {
@@ -84,24 +95,43 @@ pub fn record(
         if oracle_exit != Some(0) {
             return Err(format!("oracle case {case} did not exit 0; verify refused"));
         }
-        let (candidate_exit, candidate_stdout) = side(root, &candidate, args)?;
-        let exit_matches = candidate_exit == oracle_exit;
-        let stdout_matches = candidate_stdout.as_bytes() == oracle_stdout.as_bytes();
-        let passed = exit_matches && stdout_matches;
-        if !passed {
+        let oracle_stdout_sha256 = capture_actions::digest(oracle_stdout.as_bytes());
+        // A spawn failure, timeout, non-UTF-8 or oversize output fails the
+        // case; the reason text stays out of the record (it may hold paths).
+        let entry = match side(root, &candidate, args) {
+            Ok((candidate_exit, candidate_stdout)) => {
+                let exit_matches = candidate_exit == oracle_exit;
+                let stdout_matches = candidate_stdout.as_bytes() == oracle_stdout.as_bytes();
+                json!({
+                    "case": case,
+                    "passed": exit_matches && stdout_matches,
+                    "candidate_ran": true,
+                    "exit_matches": exit_matches,
+                    "stdout_matches": stdout_matches,
+                    "oracle_stdout_sha256": oracle_stdout_sha256,
+                    "candidate_stdout_sha256": capture_actions::digest(candidate_stdout.as_bytes()),
+                })
+            }
+            Err(_) => json!({
+                "case": case,
+                "passed": false,
+                "candidate_ran": false,
+                "exit_matches": false,
+                "stdout_matches": false,
+                "oracle_stdout_sha256": oracle_stdout_sha256,
+                "candidate_stdout_sha256": Value::Null,
+            }),
+        };
+        if entry["passed"] != true {
             failed.push((*case).to_owned());
         }
-        cases.push(json!({
-            "case": case,
-            "passed": passed,
-            "exit_matches": exit_matches,
-            "stdout_matches": stdout_matches,
-            "oracle_stdout_sha256": capture_actions::digest(oracle_stdout.as_bytes()),
-            "candidate_stdout_sha256": capture_actions::digest(candidate_stdout.as_bytes()),
-        }));
+        cases.push(entry);
     }
     if sources_sha256(root)? != hash {
         return Err("a relevant source changed during verify".into());
+    }
+    if binary_sha256(&candidate)? != candidate_sha256 {
+        return Err("the candidate binary changed during verify".into());
     }
     Ok(json!({
         "schema": SCHEMA,
@@ -109,6 +139,8 @@ pub fn record(
         "source_revision": baseline::revision(root)?,
         "source_tree_dirty": baseline::dirty(root)?,
         "sources_sha256": hash,
+        "test_candidate": test_candidate,
+        "candidate_sha256": candidate_sha256,
         "case_count": cases.len(),
         "passed_count": cases.len() - failed.len(),
         "failed_cases": failed,

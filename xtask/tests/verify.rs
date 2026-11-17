@@ -1,9 +1,11 @@
 //! Controls for `migration verify`: a registered step with no Rust candidate
 //! is refused; with the test-only candidate flag, a candidate that matches the
 //! oracle passes, one with a different stdout fails naming the case, and one
-//! with the same stdout but a nonzero exit fails. Also refuses an unknown
-//! step, a relative `--out` and an existing output. Each test owns its temp
-//! folder.
+//! with the same stdout but a nonzero exit fails, and one that prints
+//! invalid UTF-8 fails its case with the record written. Refusals: an unknown
+//! step, a relative `--out`, an oracle that exits nonzero and an empty
+//! CAREERBREW_HOME. The passing test also checks that a second run refuses
+//! its existing output. Each test owns its temp folder.
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -84,6 +86,8 @@ fn a_candidate_identical_to_the_oracle_passes() {
     assert_eq!(value["cases"][0]["passed"], true);
     assert_eq!(value["source_revision"].as_str().unwrap().len(), 40);
     assert_eq!(value["sources_sha256"].as_str().unwrap().len(), 64);
+    assert_eq!(value["test_candidate"], true);
+    assert_eq!(value["candidate_sha256"].as_str().unwrap().len(), 64);
     // Content-free: no local path of this machine.
     let text = std::fs::read_to_string(&out).unwrap();
     assert!(!text.contains(scratch.path().to_str().unwrap()));
@@ -156,4 +160,59 @@ fn a_relative_out_is_refused() {
         .unwrap();
     assert_eq!(result.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&result.stderr).contains("--out must be an absolute path"));
+}
+
+#[test]
+fn a_candidate_with_invalid_utf8_output_fails_its_case() {
+    let scratch = tempfile::tempdir().unwrap();
+    let out = scratch.path().join("verify.json");
+    let bad = candidate(scratch.path(), "printf '\\377\\376'");
+    let result = verify("rust-03", &out)
+        .arg("--test-candidate")
+        .arg(&bad)
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&result.stderr).contains("actions-json"));
+    let value = read(&out);
+    assert_eq!(value["passed"], false);
+    assert_eq!(value["failed_cases"][0], "actions-json");
+    assert_eq!(value["cases"][0]["candidate_ran"], false);
+    assert_eq!(value["cases"][0]["passed"], false);
+}
+
+#[test]
+fn a_nonzero_oracle_is_refused() {
+    let scratch = tempfile::tempdir().unwrap();
+    let python = scratch.path().join("python");
+    std::fs::write(&python, "#!/bin/sh\nexit 7\n").unwrap();
+    std::fs::set_permissions(&python, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let same = candidate(scratch.path(), "exit 0");
+    let out = scratch.path().join("verify.json");
+    let result = Command::new(XTASK)
+        .args(["migration", "verify", "--step", "rust-03", "--python"])
+        .arg(&python)
+        .arg("--out")
+        .arg(&out)
+        .arg("--test-candidate")
+        .arg(&same)
+        .env_remove("CAREERBREW_HOME")
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&result.stderr).contains("did not exit 0"));
+    assert!(!out.exists());
+}
+
+#[test]
+fn an_empty_careerbrew_home_is_refused() {
+    let scratch = tempfile::tempdir().unwrap();
+    let out = scratch.path().join("verify.json");
+    let result = verify("rust-03", &out)
+        .env("CAREERBREW_HOME", "")
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&result.stderr).contains("CAREERBREW_HOME is set but empty"));
+    assert!(!out.exists());
 }
