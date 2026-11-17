@@ -1,16 +1,16 @@
 # Company plugin update plan: adopt the 2026-11 core
 
-**Task**: `company-plugin-adopt-core-2026-11` in `TASKS.md` (P0).
+**Task**: `company-plugin-adopt-core-2026-11` in [TASKS.md](../TASKS.md) (P0).
 **Who runs it**: a person or agent on a company machine, in the company
 plugin repo (`careerbrew-<org-overlay>`). The personal Mac never touches that
 repo. Nothing company-specific ever comes back into this public repo.
-**Contract**: [plugins.md](../plugins.md) (manifest and policy),
-[corporate-machine.md](../corporate-machine.md) (setup and `machine ready`),
-[ci.md](../ci.md) (hosted checks), [rust-migration.md](../rust-migration.md).
+**Contract**: [plugins.md](plugins.md) (manifest and policy),
+[corporate-machine.md](corporate-machine.md) (setup and `machine ready`),
+[ci.md](ci.md) (hosted checks), [rust-migration.md](rust-migration.md).
 **Base commit read**: `main` at `480acf34` (2026-11-16).
 
-This file is in `docs/plans/`, which the public release tree leaves out
-(`config/public-release-exclude.txt`). Do not link to it from a public file.
+This page is public, like [rust-migration.md](rust-migration.md): the release
+check refuses any file in `docs/plans/` on `main`. It holds placeholders only.
 
 ## Why
 
@@ -94,7 +94,7 @@ private pattern.
 
 Facts on the core:
 
-- The merge gate is the hosted checks: `gate (ubuntu-24.04)`, `gate (macos-15)`, `public-readiness` ([ci.md](../ci.md)).
+- The merge gate is the hosted checks: `gate (ubuntu-24.04)`, `gate (macos-15)`, `public-readiness` ([ci.md](ci.md)).
 - A PreToolUse hook `hooks/block-local-tests.sh` is in flight in a PR. It is not on `main` at `480acf34` (`ls hooks/` shows only `lefthook`, `pre-commit`, `pre-push`). When it lands, it blocks an agent's local test run. The opt-out is `CAREERBREW_ALLOW_LOCAL_TESTS=1`.
 
 Steps for the plugin:
@@ -132,7 +132,7 @@ file. A corporate machine starts at consent `no`.
 ## Step (d): Rust migration
 
 Facts: no CLI command, HTTP route, or watcher calls Rust
-([rust-migration.md](../rust-migration.md#current-state)). The app runs on
+([rust-migration.md](rust-migration.md#current-state)). The app runs on
 Python. `rust-07` ports the live plugin and machine policy checks; it is
 blocked behind `rust-00` to `rust-05`.
 
@@ -147,14 +147,14 @@ blocked behind `rust-00` to `rust-05`.
 
 ## Step (e): CI cache decisions
 
-Facts: [ci.md](../ci.md#no-gate-cache-between-hosted-runs) measured that a
+Facts: [ci.md](ci.md#no-gate-cache-between-hosted-runs) measured that a
 hosted gate cache saves under 2%, so the core has none. A follow-up PR that
 measures more cache options is in flight.
 
 1. Plugin CI is small (step b). Add no cache step until a run takes over 5 minutes.
 2. If you add one, key it on every input: the files, the runner image, the tool versions. Never cache `private/`, a secret, or the private-pattern file.
 3. Use no `pull_request_target` and no cache saved from fork code.
-4. When the core's cache PR merges, read its result in [ci.md](../ci.md). Change plugin CI only if that result applies to plugin-sized jobs.
+4. When the core's cache PR merges, read its result in [ci.md](ci.md). Change plugin CI only if that result applies to plugin-sized jobs.
 
 **Verify**: the plugin workflow file has no `actions/cache` step, or its key names the image and tool versions; plugin CI stays green.
 

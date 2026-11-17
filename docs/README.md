@@ -17,6 +17,7 @@ One row per doc: the question it answers and who reads it.
 | [metrics.md](metrics.md) | Which outcome metrics exist, and how is capability coverage measured? | both |
 | [telemetry-tiles.md](telemetry-tiles.md) | Which PostHog tiles show field use (active installs, setup success, retention, errors, weekly outcomes), and what is each tile's exact query? | both |
 | [integrations.md](integrations.md) | How do Slack, Google Docs, Jira, GitHub, Zoom, Outlook, and PagerDuty connect, how does the work feed triage them, and how do corporate and personal machines work together? | both |
+| [company-plugin-update.md](company-plugin-update.md) | What must a company plugin change for the 2026-11 core (public repo, hosted CI, telemetry, Rust, CI cache), and which manifest and policy fields exist? | both |
 | [corporate-machine.md](corporate-machine.md) | How do I set up a corporate laptop and build the company plugin? | both |
 | [migrate-to-public-history.md](migrate-to-public-history.md) | My old checkout says `diverged`: how do I move it to the new history without losing work? | both |
 | [learn.md](learn.md) | How do I learn a project so it sticks, and how does careerbrew measure that it stuck? | both |
