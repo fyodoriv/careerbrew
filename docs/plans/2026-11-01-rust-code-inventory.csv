@@ -894,6 +894,7 @@ experiments/hash/src/main.rs,keep-native,rust-00,Disconnected synthetic Rust has
 tests/unit/test_rust_hash_experiment.py,port,rust-27,Synthetic differential controls for the disconnected Rust hash experiment
 crates/vault/src/lib.rs,keep-native,rust-00,Disconnected Rust vault codec pending interoperability and storage qualification
 crates/vault/src/main.rs,keep-native,rust-00,Synthetic-only vault compatibility test transport
+tests/unit/test_rust_shipped_crates.py,port,rust-27,Guard: a shipped crate must be on the setup rebuild list
 tests/unit/test_rust_vault_interop.py,port,rust-27,Synthetic Python and Rust vault interoperability controls
 tests/unit/test_rust_vault_base64_parity.py,port,rust-27,Synthetic Python and Rust Base64 decoder parity matrix
 xtask/tests/store_supervisor.rs,keep-native,rust-00,Synthetic store supervisor ownership and pipe controls
