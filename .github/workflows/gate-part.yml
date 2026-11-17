@@ -75,6 +75,8 @@ jobs:
       # its cache at the default place.
       - name: Put the uv cache at its default path
         run: |
+          # With the cache off (a cold run), setup-uv sets no UV_CACHE_DIR.
+          [ -n "${UV_CACHE_DIR:-}" ] || exit 0
           mkdir -p "$UV_CACHE_DIR" "$HOME/.cache"
           [ -e "$HOME/.cache/uv" ] || ln -s "$UV_CACHE_DIR" "$HOME/.cache/uv"
 
