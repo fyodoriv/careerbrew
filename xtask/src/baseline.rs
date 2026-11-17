@@ -22,12 +22,19 @@ pub const CACHE_STATE: &str = "warm-imports-fresh-synthetic-home";
 pub struct Step {
     pub id: &'static str,
     pub oracle: &'static [&'static str],
+    /// `verify` cases: an id and the CLI arguments after `careerbrew`.
+    pub cases: &'static [(&'static str, &'static [&'static str])],
+    /// The step's built Rust candidate, relative to the repo root. None until
+    /// the port lands; `verify` refuses the step until then.
+    pub candidate: Option<&'static str>,
 }
 
 pub const STEPS: &[Step] = &[Step {
     // rust-03 ports the native CLI with one read-only pilot: the action catalog.
     id: "rust-03",
     oracle: &["-B", "-m", "careerbrew", "actions", "--json"],
+    cases: &[("actions-json", &["actions", "--json"])],
+    candidate: None,
 }];
 
 pub fn step(id: &str) -> Result<&'static Step, String> {

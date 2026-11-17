@@ -10,6 +10,7 @@ mod observer_probe;
 mod resources;
 mod toolchain_identity;
 mod trial_plan;
+mod verify;
 
 use std::process::ExitCode;
 
@@ -73,6 +74,9 @@ fn main() -> ExitCode {
     }
     if args.len() >= 2 && args[0] == "migration" && args[1] == "measure" {
         return measure_command(&args[2..]);
+    }
+    if args.len() >= 2 && args[0] == "migration" && args[1] == "verify" {
+        return verify_command(&args[2..]);
     }
     if let [migration, action, flag, compiler] = args.as_slice() {
         if migration == "migration" && action == "toolchain-identity" && flag == "--rustc" {
@@ -238,6 +242,7 @@ fn main() -> ExitCode {
     eprintln!("       cargo xtask migration inventory --embedded-check");
     eprintln!("       cargo xtask migration baseline --step <id> --python <absolute-path> --out <new-file> [--runs <n>] [--test-allow-few-runs]");
     eprintln!("       cargo xtask migration measure --step <id> --out <new-file> [--runs <n>] [--test-allow-few-runs] [--test-candidate <absolute-path>]");
+    eprintln!("       cargo xtask migration verify --step <id> --python <absolute-path> --out <new-file> [--test-candidate <absolute-path>]");
     eprintln!("       cargo xtask migration toolchain-identity --rustc <absolute-path>");
     eprintln!(
         "       cargo xtask migration capture-actions --python <absolute-path> --out <new-file>"
@@ -404,6 +409,77 @@ fn measure_command(rest: &[std::ffi::OsString]) -> ExitCode {
         }
         Err(reason) => {
             eprintln!("migration measure: {reason}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// `migration verify --step <id> --python <path> --out <new-file> [--test-candidate <path>]`.
+/// Exit 0 when every case matches; 1 on a refusal or a failed case.
+fn verify_command(rest: &[std::ffi::OsString]) -> ExitCode {
+    let (mut step, mut python, mut output, mut candidate) = (None, None, None, None);
+    for pair in rest.chunks(2) {
+        let [flag, value] = pair else {
+            eprintln!("migration verify: every flag needs a value");
+            return ExitCode::from(2);
+        };
+        let slot = match flag.to_str() {
+            Some("--step") => &mut step,
+            Some("--python") => &mut python,
+            Some("--out") => &mut output,
+            // Test-only: point at a candidate binary before a port registers one.
+            Some("--test-candidate") => &mut candidate,
+            _ => {
+                eprintln!("migration verify: unknown flag");
+                return ExitCode::from(2);
+            }
+        };
+        if slot.replace(value.clone()).is_some() {
+            eprintln!("migration verify: a flag is repeated");
+            return ExitCode::from(2);
+        }
+    }
+    let (Some(step), Some(python), Some(output)) = (step, python, output) else {
+        eprintln!("migration verify: --step, --python and --out are required");
+        return ExitCode::from(2);
+    };
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    match verify::run(
+        root,
+        &step.to_string_lossy(),
+        std::path::Path::new(&python),
+        candidate.as_deref().map(std::path::Path::new),
+        std::path::Path::new(&output),
+    ) {
+        Ok(record) => {
+            let failed = record["failed_cases"]
+                .as_array()
+                .map(|cases| {
+                    cases
+                        .iter()
+                        .filter_map(|case| case.as_str())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                })
+                .unwrap_or_default();
+            println!(
+                "migration verify: step={} cases={} passed={} failed={}",
+                record["step"].as_str().unwrap_or(""),
+                record["case_count"],
+                record["passed_count"],
+                if failed.is_empty() { "none" } else { &failed },
+            );
+            if record["passed"] == true {
+                ExitCode::SUCCESS
+            } else {
+                eprintln!("migration verify: case(s) differ from the oracle: {failed}");
+                ExitCode::FAILURE
+            }
+        }
+        Err(reason) => {
+            eprintln!("migration verify: {reason}");
             ExitCode::FAILURE
         }
     }
