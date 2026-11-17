@@ -59,8 +59,9 @@ fn main() -> ExitCode {
                     }
                 }
                 Err(reason) => {
-                    eprintln!("migration resources: {reason}");
-                    ExitCode::FAILURE
+                    // Exit 3 is a measurement error, never the child's exit code.
+                    println!("{}", serde_json::json!({"error": reason, "pass": false}));
+                    ExitCode::from(3)
                 }
             };
         }

@@ -26,7 +26,7 @@ fn known_allocation_is_within_tolerance_on_this_os() {
     let (idle, loaded) = raw_pair();
     let delta = resources::check_calibration(idle.max_rss_bytes, loaded.max_rss_bytes, ALLOC)
         .unwrap_or_else(|reason| panic!("{} calibration: {reason}", idle.os));
-    println!(
+    eprintln!(
         "calibration {}: unit={} idle={} loaded={} delta={} ratio={:.3}",
         idle.os,
         idle.unit.name(),
@@ -106,4 +106,53 @@ fn malformed_rusage_fields_are_refused() {
     for bad in [negative_time, big_usec, negative_rss] {
         assert!(resources::validate_rusage(&bad).is_err());
     }
+}
+
+#[test]
+fn idle_baseline_from_the_cli_does_not_inherit_a_large_parent() {
+    // Hold about 128 MiB of touched memory in this process.
+    let mut held = vec![0u8; 128 * 1024 * 1024];
+    for (index, byte) in held.iter_mut().enumerate() {
+        *byte = (index % 251) as u8 | 1;
+    }
+    std::hint::black_box(&held);
+    let direct = run(&["alloc", "0"]);
+    let output = Command::new(XTASK)
+        .args(["migration", "resources", "--cmd", FIXTURE, "alloc", "0"])
+        .output()
+        .expect("xtask");
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).expect("json");
+    let via_cli = value["max_rss_bytes"].as_u64().unwrap();
+    eprintln!(
+        "inheritance {}: parent={} direct_idle={} direct_may_include_parent={} cli_idle={}",
+        direct.os,
+        direct.parent_max_rss_bytes,
+        direct.max_rss_bytes,
+        direct.rss_may_include_parent(),
+        via_cli
+    );
+    assert!(
+        via_cli < 32 * 1024 * 1024,
+        "CLI idle child inherited {via_cli} bytes"
+    );
+    if direct.max_rss_bytes >= 64 * 1024 * 1024 {
+        assert!(direct.rss_may_include_parent(), "{direct:?}");
+    }
+}
+
+#[test]
+fn a_spawn_failure_is_exit_3_with_a_json_error() {
+    let output = Command::new(XTASK)
+        .args([
+            "migration",
+            "resources",
+            "--cmd",
+            "/nonexistent/careerbrew-fixture",
+        ])
+        .output()
+        .expect("xtask");
+    assert_eq!(output.status.code(), Some(3));
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).expect("json");
+    assert!(value["error"].is_string());
+    assert_eq!(value["pass"], false);
 }

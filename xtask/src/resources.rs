@@ -72,9 +72,18 @@ pub struct Usage {
     pub max_rss_raw: u64,
     pub max_rss_bytes: u64,
     pub wall_us: u64,
+    /// The measuring process's own peak RSS when it spawned the child.
+    pub parent_max_rss_bytes: u64,
 }
 
 impl Usage {
+    /// On Linux, exec can fold the spawning process's high-water RSS into the
+    /// child's `ru_maxrss`. A child peak at or below the parent's own peak may
+    /// be that floor, not the child's memory.
+    pub fn rss_may_include_parent(&self) -> bool {
+        self.os == "linux" && self.max_rss_bytes <= self.parent_max_rss_bytes
+    }
+
     pub fn passed(&self) -> bool {
         self.outcome == Outcome::Exited(0)
     }
@@ -91,7 +100,8 @@ impl Usage {
                 "{{\"scope\":\"owned-child\",\"grandchildren\":\"not-qualified\",",
                 "\"os\":\"{}\",\"rss_unit_raw\":\"{}\",\"outcome\":\"{}\",\"{}\":{},",
                 "\"pass\":{},\"user_cpu_us\":{},\"system_cpu_us\":{},",
-                "\"max_rss_raw\":{},\"max_rss_bytes\":{},\"wall_us\":{}}}"
+                "\"max_rss_raw\":{},\"max_rss_bytes\":{},\"wall_us\":{},",
+                "\"parent_max_rss_bytes\":{},\"rss_may_include_parent\":{}}}"
             ),
             self.os,
             self.unit.name(),
@@ -103,7 +113,9 @@ impl Usage {
             self.system_cpu_us,
             self.max_rss_raw,
             self.max_rss_bytes,
-            self.wall_us
+            self.wall_us,
+            self.parent_max_rss_bytes,
+            self.rss_may_include_parent()
         )
     }
 }
@@ -133,6 +145,12 @@ pub fn measure(program: &Path, args: &[std::ffi::OsString]) -> Result<Usage, Str
     if !program.is_absolute() {
         return Err("--cmd must be an absolute path".to_string());
     }
+    // SAFETY: rusage is plain data; getrusage fills it for this process.
+    let mut own: libc::rusage = unsafe { std::mem::zeroed() };
+    if unsafe { libc::getrusage(libc::RUSAGE_SELF, &mut own) } != 0 {
+        return Err("getrusage failed".to_string());
+    }
+    let parent_max_rss_bytes = unit.to_bytes(own.ru_maxrss.max(0) as u64);
     let started = Instant::now();
     let child = Command::new(program)
         .args(args)
@@ -177,6 +195,7 @@ pub fn measure(program: &Path, args: &[std::ffi::OsString]) -> Result<Usage, Str
         max_rss_raw,
         max_rss_bytes: unit.to_bytes(max_rss_raw),
         wall_us,
+        parent_max_rss_bytes,
     })
 }
 
