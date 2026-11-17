@@ -21,7 +21,7 @@ does nothing keeps working, but:
 | Area | What changed in the core | What a plugin misses if it does nothing |
 |---|---|---|
 | (a) Public repo | The core is public. Its leak gates fail closed. | Nothing breaks. A company term pasted into a core issue or PR leaks. |
-| (b) Tests | Tests run on hosted CI only. A PreToolUse hook `hooks/block-local-tests.sh` is on `main` (PR #108, merged 2026-11-16). It blocks tests only in a careerbrew core checkout. | The hook never blocks tests in the plugin repo. Without plugin CI, plugin changes go untested. |
+| (b) Tests | Tests run on hosted CI only. A PreToolUse hook `hooks/block-local-tests.sh` is on `main` (PR #108). It blocks tests only in a careerbrew core checkout. | The hook never blocks tests in the plugin repo. Without plugin CI, plugin changes go untested. |
 | (c) Telemetry | `policy.telemetry: false` is the only plugin switch. The company log sink is a proposal. | Nothing, if the plugin forbids telemetry. A plugin that adds `telemetry_sink` now gets no effect. |
 | (d) Rust | No Rust runs in production. `rust-07` (live policy port) is planned. | Nothing today. When `rust-07` lands, a manifest that only Python accepts may fail. |
 | (e) CI cache | No gate cache between hosted runs (measured: under 2% saving). A follow-up measurement is in flight. | Nothing. Do not add an `actions/cache` step on the plugin's word alone. |
@@ -96,7 +96,7 @@ private pattern.
 Facts on the core:
 
 - The merge gate is the hosted checks: `gate (ubuntu-24.04)`, `gate (macos-15)`, `public-readiness` ([ci.md](ci.md)).
-- A PreToolUse hook `hooks/block-local-tests.sh` is on `main` since PR #108 (merged 2026-11-16). It blocks an agent's local test run in a careerbrew core checkout. The opt-out is `CAREERBREW_ALLOW_LOCAL_TESTS=1`.
+- A PreToolUse hook `hooks/block-local-tests.sh` is on `main` (PR #108). It blocks an agent's local test run in a careerbrew core checkout. The opt-out is `CAREERBREW_ALLOW_LOCAL_TESTS=1`.
 - The hook does not protect a plugin repo. It exits 0 (allows the command) outside a careerbrew core checkout.
 - Path assumption: its Agentfile command hardcodes `$HOME/apps/careerbrew/hooks/block-local-tests.sh`. A core checkout in another folder has no hook at all.
 - So the plugin repo needs its own rule: plugin CI (step 1 below) is the only test gate.

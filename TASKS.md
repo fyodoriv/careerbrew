@@ -9,7 +9,7 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 - [ ] Company plugin: adopt the 2026-11 core (public repo, hosted CI, telemetry, Rust, CI cache)
   - **ID**: company-plugin-adopt-core-2026-11
   - **Blocked**: owner step: runs only on a company machine, in the private `careerbrew-<org-overlay>` repo; nothing company-specific comes back here
-  - **Details**: Follow `docs/company-plugin-update.md` steps (a) to (e): a private-pattern leak check in the plugin repo; plugin CI on hosted runners and no local core suite (hook `hooks/block-local-tests.sh` covers only a core checkout at `~/apps/careerbrew`, opt-out `CAREERBREW_ALLOW_LOCAL_TESTS=1`, in flight); `policy.telemetry: false` unless the company approves (`telemetry_sink` is not a field yet, task `telemetry-plugin-sink`); only verified manifest fields, ready for `rust-07`; no plugin CI cache until a run passes 5 minutes (`docs/ci.md`).
+  - **Details**: Follow `docs/company-plugin-update.md` steps (a) to (e): a private-pattern leak check in the plugin repo; plugin CI on hosted runners and no local core suite (hook `hooks/block-local-tests.sh` covers only a core checkout at `~/apps/careerbrew`, opt-out `CAREERBREW_ALLOW_LOCAL_TESTS=1`, on `main` since PR #108); `policy.telemetry: false` unless the company approves (`telemetry_sink` is not a field yet, task `telemetry-plugin-sink`); only verified manifest fields, ready for `rust-07`; no plugin CI cache until a run passes 5 minutes (`docs/ci.md`).
   - **Files**: docs/company-plugin-update.md; the company plugin repository (outside this repository)
   - **Hypothesis**: a plugin that follows the plan keeps `corporate readiness` at or above its baseline and leaks 0 company terms, because every step uses only fields and gates that exist on `main`.
   - **Measurement**: `uv run careerbrew machine ready` (the `corporate readiness: N/N` line, before and after); `uv run careerbrew plugin verify`; the plugin's `scripts/plugin-leak-check.sh <draft>` count.
@@ -391,7 +391,7 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 - [ ] The Day log unit test "shows 10 suggestions at a time" saw 10 items where it expected 4
   - **ID**: flaky-daylog-suggestions-filter
-  - **Details**: In hosted CI run 43992348423 the web unit test `web/src/daylog.test.tsx` "shows 10 suggestions at a time with a kind filter, and Housekeeping folded with its count" failed: after the click on "goal (4)" it expected 4 list items and got 10. The assert runs right after `fireEvent.click`, so the filtered list may not have rendered yet, or the hash change did not reach the panel. Reproduce on hosted CI with a repeat run, then wait for the filtered state (`findAllByRole`, or wait for the "Showing" text) instead of a sync read.
+  - **Details**: In hosted CI run 43992348423 the web unit test `web/src/daylog.test.tsx` "shows 10 suggestions at a time with a kind filter, and Housekeeping folded with its count" failed in the `checks (ubuntu-24.04)` part; `gh run view 43992348423 --log-failed` shows `AssertionError: expected [ …(10) ] to have a length of 4 but got 10` (after the click on "goal (4)"). The assert runs right after `fireEvent.click`, so the filtered list may not have rendered yet, or the hash change did not reach the panel. Reproduce on hosted CI with a repeat run, then wait for the filtered state (`findAllByRole`, or wait for the "Showing" text) instead of a sync read.
   - **Files**: web/src/daylog.test.tsx; web/src/daylog.tsx
   - **Hypothesis**: an async wait for the filtered list takes this test's hosted failure rate from 1 seen to 0 in 20 runs.
   - **Measurement**: `gh run list --workflow ci.yml -L 20` and `gh run view <id> --log-failed | rg 'shows 10 suggestions'`.
@@ -401,10 +401,10 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 - [ ] The gitleaks download in the public-readiness job can fail the job
   - **ID**: gitleaks-download-cache
-  - **Details**: Hosted run 43992355392 failed in the gitleaks download step: the `curl` of the pinned release from github.com failed, not the scan. The step already pins `GITLEAKS_VERSION` and checks `GITLEAKS_SHA256` (`.github/workflows/public-readiness.yml`, "gitleaks (pinned release, checked SHA-256)"). Cache the checked tarball with `actions/cache` keyed by version and hash, or retry the download a bounded number of times; keep the SHA-256 check. Coordinate with the open PR that owns `docs/ci.md` and `.github/workflows/`.
-  - **Files**: .github/workflows/public-readiness.yml; docs/ci.md
-  - **Hypothesis**: a cached, hash-checked binary takes download failures of the `public-readiness` job from 1 seen to 0 in 30 runs.
-  - **Measurement**: `gh run list --workflow public-readiness.yml -L 30 --json conclusion,databaseId` and `gh run view <id> --log-failed | rg -i 'gitleaks|curl'`.
+  - **Details**: Hosted run 43992355392 failed in the `e2e-2 (ubuntu-24.04)` part at the gitleaks download, not the scan; `gh run view 43992355392 --log-failed` shows `curl: (22) The requested URL returned error: 502`. Both `.github/workflows/gate-part.yml` and `.github/workflows/public-readiness.yml` download the release; the step already pins `GITLEAKS_VERSION` and checks `GITLEAKS_SHA256`. Cache the checked tarball with `actions/cache` keyed by version and hash, or retry the download a bounded number of times; keep the SHA-256 check. Coordinate with the open PR that owns `docs/ci.md` and `.github/workflows/`.
+  - **Files**: .github/workflows/gate-part.yml; .github/workflows/public-readiness.yml; docs/ci.md
+  - **Hypothesis**: a cached, hash-checked binary takes gitleaks download failures in hosted runs from 1 seen to 0 in 30 runs.
+  - **Measurement**: `gh run list -L 30 --json conclusion,databaseId,workflowName` and `gh run view <id> --log-failed | rg -i 'gitleaks|curl'`.
   - **Success**: 0 gitleaks download failures in 30 runs, and the SHA-256 check still runs on every cache miss.
   - **Pivot**: if the cache adds more than 20 s to the job or the hash check can be skipped on a hit, drop the cache and use a bounded retry.
   - **Anchor**: Forsgren, Humble & Kim 2018, *Accelerate* (change failure rate); SLSA v1.0 (pinned, verified build inputs).
