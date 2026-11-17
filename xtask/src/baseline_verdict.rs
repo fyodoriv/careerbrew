@@ -67,7 +67,7 @@ fn has_canary(observation: Observation<'_>, canaries: &[&[u8]]) -> bool {
     })
 }
 
-fn cpu_p95(mut samples: Vec<u64>) -> u64 {
+pub(crate) fn cpu_p95(mut samples: Vec<u64>) -> u64 {
     let index = samples.len() - samples.len() / 20 - 1;
     *samples.select_nth_unstable(index).1
 }

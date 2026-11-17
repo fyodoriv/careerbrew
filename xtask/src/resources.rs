@@ -331,6 +331,15 @@ impl Sampler {
 /// Run `program` with `args` as an owned child in its own process group,
 /// reap it with `wait4`, and count the descendants left in that group.
 pub fn measure(program: &Path, args: &[std::ffi::OsString]) -> Result<Usage, String> {
+    measure_in(program, args, None)
+}
+
+/// Like `measure`, but with `environment` the child gets only those variables.
+pub fn measure_in(
+    program: &Path,
+    args: &[std::ffi::OsString],
+    environment: Option<&std::collections::BTreeMap<String, String>>,
+) -> Result<Usage, String> {
     let (os, unit) = host_unit()?;
     if !program.is_absolute() {
         return Err("--cmd must be an absolute path".to_string());
@@ -343,7 +352,11 @@ pub fn measure(program: &Path, args: &[std::ffi::OsString]) -> Result<Usage, Str
     let parent_max_rss_bytes = unit.to_bytes(own.ru_maxrss.max(0) as u64);
     prepare_tree()?;
     let started = Instant::now();
-    let child = Command::new(program)
+    let mut command = Command::new(program);
+    if let Some(environment) = environment {
+        command.env_clear().envs(environment);
+    }
+    let child = command
         .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::null())

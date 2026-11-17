@@ -1104,7 +1104,9 @@ The tool has no `--help`. A wrong argument prints the usage and exits 2.
 | `cargo xtask migration resources --cmd <absolute-path> [args]` | runs one owned child, reaps it with `wait4`, and prints JSON: outcome (exit code or signal), user and system CPU time, peak RSS raw and in bytes. The process exit code is not the child's exit code: 0 means the child exited cleanly with 0; 1 means it was killed by a signal or exited nonzero; 2 is a usage error (a relative path); 3 is a measurement error (spawn, `wait4` or `getrusage` failed), printed as a JSON `error` object. On Linux, `rss_may_include_parent` marks a child peak at or below the measuring process's own peak. macOS and Linux only; another OS is refused. Grandchildren are not qualified. |
 | `cargo xtask migration observer-probe --image <immutable-id> [--out <new-directory> [--freeze-only\|--fault-controls-only]]` | the fixed Linux process-observer probe in an owned, network-disabled container |
 
-**Not built yet:** `baseline`, `verify`, `measure` and `decide`. Every port step
+| `cargo xtask migration baseline --step <id> --python <absolute-path> --out <new-file> [--runs <n>]` | runs the step's registered Python oracle N times (default 30) through the process-tree collector. Each run gets a fresh synthetic home. It writes a content-free JSON record: step, command, OS, arch, Rust and Python versions, source revision, a hash of the relevant sources, raw samples (tree CPU user and system time, tree peak RSS, wall time) and p50 and p95. It refuses an unknown step, an oracle run that does not exit 0, a set but empty `CAREERBREW_HOME`, an existing output, and a source change during the runs. Registered steps: `rust-03` (`careerbrew actions --json`). |
+
+**Not built yet:** `verify`, `measure` and `decide`. Every port step
 needs them.
 
 ### Tests and gate steps
@@ -1153,6 +1155,7 @@ draft pull request are not on the public repository.
 | HTTP contract capture | 13 control groups; 21 request cases in each of two fresh processes | `cargo test -p careerbrew-xtask --test capture_http` |
 | Data contract capture | 10 corpus cases in each of two fresh trials; 13 control groups | `cargo test -p careerbrew-xtask --test capture_data` |
 | Activation manifest | three partial slices; 20 of 20 controls; zero multi-function cycles | `cargo test -p careerbrew-xtask --test activation_manifest` |
+| Baseline record | 1 positive control (3 runs of `rust-03` write a valid record, no local path, no overwrite); 3 refusals (unknown step, planted oracle that exits 7, empty `CAREERBREW_HOME`) | `cargo test -p careerbrew-xtask --test baseline` |
 | Owned-child resources | 4 pre-registered controls: 64 MiB calibration, planted wrong unit refused, CPU burn above 0, `SIGKILL` reported as `signaled` and exit 1. 4 added after registration (marked as such): JSON shape and relative-path refusal; malformed `rusage` fields refused (from draft #64); idle child run through the CLI from a parent that holds 128 MiB does not inherit it; a spawn failure is exit 3 with a JSON error. 2 process-tree controls (unwaited grandchild CPU burn and 64 MiB hold). Ratios: see "Owned-child resource accounting". | `cargo test -p careerbrew-xtask --test resources` |
 | Synthetic store supervisor | 16 controls for the future mixed Python and Rust store race | `cargo test -p careerbrew-xtask --test store_supervisor` |
 | Local Rust readiness | 12 readiness controls and the Serde doctor cases | `uv run pytest -q tests/unit/test_rust_readiness.py tests/unit/test_doctor_rust_deps.py` |
@@ -1290,8 +1293,11 @@ Observed (hosted run 44099007218, PR 115, `tree calibration` lines):
 2. Done for the owned child: calibrated units on macOS (1.000x) and Linux
    (0.979x) with `cargo xtask migration resources`, measured from a small
    parent. Process-tree accounting is done: macOS 0.996x, Linux 0.972x.
-3. Build `cargo xtask migration baseline`, `verify`, `measure` and `decide` on
-   top of the verdict, the trial planner, the captures and the collector.
+3. `cargo xtask migration baseline` is built (4 controls in
+   `cargo test -p careerbrew-xtask --test baseline`; the hosted gate prints its
+   `baseline` line with the resource calibration lines). Next: `verify`,
+   `measure` and `decide` on top of the verdict, the trial planner, the
+   captures and the collector.
 4. Register the noise floors and the per-contract normalization rules.
 5. Add the planted slow-path control and prove the decide step holds it.
 6. Extend the inventory to embedded code and generated entry points.
