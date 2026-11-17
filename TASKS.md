@@ -429,6 +429,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if the cache adds more than 20 s to the job or the hash check can be skipped on a hit, drop the cache and use a bounded retry.
   - **Anchor**: Forsgren, Humble & Kim 2018, *Accelerate* (change failure rate); SLSA v1.0 (pinned, verified build inputs).
 
+- [ ] `rust-00`: count descendants that leave the process group
+  - **ID**: rust-00-process-tree-escapees
+  - **Details**: The tree collector counts only process-group members (`docs/rust-migration.md` "Process-tree resource accounting"). A descendant that calls `setsid` or `setpgid`, and a parent that left the group, are not counted; a parent that never exits keeps the Linux call polling. A cgroup v2 scope per call (Linux) would close this gap.
+  - **Files**: xtask/src/resources.rs; xtask/tests/resources.rs; docs/rust-migration.md
+  - **Hypothesis**: a cgroup collector counts a `setsid` descendant's 300 ms CPU burn within 0.75x to 1.5x on Linux, where the group collector reports about 0.
+  - **Measurement**: `cargo test -p careerbrew-xtask --test resources` on hosted `gate (ubuntu-24.04)`, with a `setsid` burn control.
+  - **Success**: the control counts 225 to 450 ms and all existing controls pass.
+  - **Pivot**: if hosted runners cannot create a delegated cgroup, document the gap as unsupported and stop.
+  - **Anchor**: Linux cgroup v2 (`cpu.stat`, `memory.peak`); Kalibera & Jones 2013 (ISMM).
+
 - [ ] careerbrew uses levels.fyi data for job search and interview prep
   - **ID**: levels-fyi-integration
   - **Details**: Integrate levels.fyi sources and tools end to end: (1) job finding: its job listings and compensation data feed `careerbrew-job-hunt` ranking (pay band, level mapping across companies); (2) interview prep: its interview and leveling guides feed `careerbrew-interview-coach` and `knowledge/research/interview-research.yaml` strategy rules. First check its terms of use and any official API or export; record the allowed access per source in the `docs/integrations.md` terms column. If a source forbids automated access, use only what the owner opens by hand (browser research skill) and say so. Add a platform in `src/careerbrew/jobs/platforms.py` with an HTTP fixture in `tests/fixtures/http/`, a story and e2e test, and an eval case. Job-hunt commands stay blocked on a corporate machine.

@@ -6,7 +6,9 @@
 //! group is empty. A descendant that leaves the group (`setsid`, `setpgid`)
 //! is not counted, and a descendant that never exits keeps the call waiting.
 //! On Linux a member whose parent left the group is waited for until that
-//! parent exits and the member comes back to the subreaper.
+//! parent exits and the member comes back to the subreaper. If that parent
+//! never exits (a daemon), the call polls every 2 ms and never returns.
+//! The parent that left the group is reaped (no zombie stays) but not counted.
 //! Each call owns its child and process group for the call's lifetime and
 //! keeps no state between calls. The Linux subreaper flag is process-scope
 //! state of the measuring process: it is set once and stays set.
@@ -186,8 +188,10 @@ const TREE_METHOD: &str = "unsupported";
 #[cfg(target_os = "macos")]
 pub const TREE_RSS_METRIC: &str =
     "child=ru_maxrss;descendants=max(lifetime_phys_footprint,resident_size)";
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "linux")]
 pub const TREE_RSS_METRIC: &str = "child=ru_maxrss;descendants=ru_maxrss";
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+pub const TREE_RSS_METRIC: &str = "unsupported";
 
 /// Reap `pid` with `wait4`, retrying on EINTR. `None` means still running.
 type Reaped = (libc::c_int, libc::rusage);
@@ -257,9 +261,19 @@ fn collect_tree(pgid: libc::pid_t, unit: RssUnit) -> Result<Tree, String> {
             // to us when that parent exits. Wait while the group still has a
             // member; a failed signal-0 check (ESRCH) means it is empty.
             Some(libc::ECHILD) => {
+                // A parent that left the group was reparented to us; reap it
+                // so no zombie stays. It is not a member, so it is not counted.
+                reap_strays(pgid);
                 // SAFETY: signal 0 only checks that the group has a member.
                 if unsafe { libc::kill(-pgid, 0) } != 0 {
-                    return Ok(tree);
+                    let gone = std::io::Error::last_os_error();
+                    if gone.raw_os_error() == Some(libc::ESRCH) {
+                        return Ok(tree);
+                    }
+                    return Err(format!(
+                        "kill(-pgid, 0) on the process group failed: {}",
+                        gone.kind()
+                    ));
                 }
                 std::thread::sleep(std::time::Duration::from_millis(2));
             }
@@ -271,6 +285,40 @@ fn collect_tree(pgid: libc::pid_t, unit: RssUnit) -> Result<Tree, String> {
             }
         }
     }
+}
+
+/// Linux: reap, without blocking, every exited child of ours outside the
+/// group (a parent that called `setsid`). Their usage is not counted; members
+/// are only peeked (`WNOWAIT`) and stay for `wait4(-pgid)`.
+#[cfg(target_os = "linux")]
+fn reap_strays(pgid: libc::pid_t) {
+    loop {
+        // SAFETY: siginfo_t is plain data; waitid fills it. WNOWAIT only
+        // peeks, so a group member is left for `wait4(-pgid)` to count.
+        let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
+        let flags = libc::WEXITED | libc::WNOHANG | libc::WNOWAIT;
+        let got = unsafe { libc::waitid(libc::P_ALL, 0, &mut info, flags) };
+        if got != 0 {
+            if std::io::Error::last_os_error().raw_os_error() == Some(libc::EINTR) {
+                continue;
+            }
+            return;
+        }
+        // SAFETY: waitid filled si_pid for an exited child.
+        let pid = unsafe { info.si_pid() };
+        if pid <= 0 || unsafe { libc::getpgid(pid) } == pgid {
+            return;
+        }
+        let mut status: libc::c_int = 0;
+        // SAFETY: reaps the exited non-member peeked above.
+        unsafe { libc::waitpid(pid, &mut status, libc::WNOHANG) };
+    }
+}
+
+/// macOS: a descendant's peak, as `TREE_RSS_METRIC` names it.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn descendant_peak(phys_footprint: u64, resident_size: u64) -> u64 {
+    phys_footprint.max(resident_size)
 }
 
 /// macOS has no subreaper, so each group member is sampled while it lives.
@@ -325,9 +373,7 @@ impl Sampler {
                 continue;
             }
             alive += 1;
-            let peak = info
-                .ri_lifetime_max_phys_footprint
-                .max(info.ri_resident_size);
+            let peak = descendant_peak(info.ri_lifetime_max_phys_footprint, info.ri_resident_size);
             let entry = self
                 .seen
                 .entry((pid, info.ri_proc_start_abstime))
@@ -467,4 +513,15 @@ pub fn check_calibration(
         ));
     }
     Ok(delta)
+}
+
+#[cfg(test)]
+mod peak_tests {
+    use super::descendant_peak;
+
+    #[test]
+    fn the_descendant_peak_is_the_larger_of_footprint_and_resident() {
+        assert_eq!(descendant_peak(10, 3), 10);
+        assert_eq!(descendant_peak(3, 10), 10);
+    }
 }

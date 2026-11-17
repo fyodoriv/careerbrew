@@ -250,15 +250,19 @@ fn the_tree_peak_names_the_metric_of_each_part() {
     let value = cli_json(&["alloc", "0"]);
     let expected = if cfg!(target_os = "macos") {
         "child=ru_maxrss;descendants=max(lifetime_phys_footprint,resident_size)"
-    } else {
+    } else if cfg!(target_os = "linux") {
         "child=ru_maxrss;descendants=ru_maxrss"
+    } else {
+        "unsupported"
     };
     assert_eq!(value["tree_rss_metric"], expected, "{value}");
 }
 
-/// Review gap 2: a group member whose parent left the group (`setsid`) is
-/// not a child of the measuring process, so `wait4(-pgid)` says `ECHILD`
-/// while it still runs. Its CPU must still be counted.
+/// Review gap 2 (Linux only): a group member whose parent left the group
+/// (`setsid`) is not a child of the measuring process, so `wait4(-pgid)`
+/// says `ECHILD` while it still runs. Its CPU must still be counted. macOS
+/// samples the group and never uses `ECHILD`, so it proves nothing there.
+#[cfg(target_os = "linux")]
 #[test]
 fn a_member_whose_parent_left_the_group_is_counted() {
     let value = cli_json(&["split", "500", "burn", "300"]);
