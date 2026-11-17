@@ -1106,7 +1106,9 @@ The tool has no `--help`. A wrong argument prints the usage and exits 2.
 
 | `cargo xtask migration baseline --step <id> --python <absolute-path> --out <absolute-new-file> [--runs <n>]` | runs the step's registered Python oracle N times (default 30) through the process-tree collector. Each run gets a fresh synthetic home. The oracle starts in the repo root. It writes a content-free JSON record: step, command, OS, arch, Rust and Python versions, source revision, `source_tree_dirty` (from `git status --porcelain`), a hash of the relevant sources (the capture sources plus `baseline.rs` and `resources.rs`), `fixtures_sha256` (`tests/fixtures/http`), `cache_state` (`warm-imports-fresh-synthetic-home`: imports and OS caches are warm, only the data folder is fresh), `meets_protocol_minimum`, raw samples (tree CPU user and system time, tree peak RSS, wall time, `parent_max_rss_bytes`, `rss_may_include_parent`) and p50 and p95. It refuses an unknown step, fewer than 30 runs (the test-only flag `--test-allow-few-runs` allows them and records `meets_protocol_minimum: false`), a relative `--python` or `--out`, an oracle run that does not exit 0, a set but empty `CAREERBREW_HOME`, an existing output, and a source or fixture change during the runs. Registered steps: `rust-03` (`careerbrew actions --json`). |
 
-**Not built yet:** `verify`, `measure` and `decide`. Every port step
+| `cargo xtask migration verify --step <id> --python <absolute-path> --out <absolute-new-file>` | runs each of the step's registered cases on the Python oracle (`<python> -B -m careerbrew <args>`) and on the step's Rust candidate (`<candidate> <args>`). Each side of each case gets a fresh synthetic home and starts in the repo root. It compares stdout and the exit code byte for byte. It writes a content-free JSON record: step, source revision, `source_tree_dirty`, `sources_sha256` (the capture sources plus `baseline.rs` and `verify.rs`), `case_count`, `passed_count`, `failed_cases`, and per case its id, pass or fail, `exit_matches`, `stdout_matches` and both stdout hashes. Exit 0 only when every case matches; a differing case writes the record, names the case and exits 1. It refuses an unknown step, a step with no Rust candidate yet (`step rust-NN has no Rust candidate yet; verify refused`), an oracle case that does not exit 0, a relative `--python` or `--out`, a set but empty `CAREERBREW_HOME`, an existing output, and a source change during the run. The test-only flag `--test-candidate <absolute-path>` points at a candidate before a port registers one. Registered cases: `rust-03` `actions-json` (`actions --json`); no candidate yet. Not yet covered: the HTTP, data and side-effect comparisons, the native tests, the step's user stories and denying Python to the native run. |
+
+**Not built yet:** `measure` and `decide`. Every port step
 needs them.
 
 ### Tests and gate steps
@@ -1122,7 +1124,7 @@ needs them.
 - Integration tests in `xtask/tests/`: `activation_manifest`, `capture_actions`,
   `capture_data`, `capture_data_cli`, `capture_http`, `i01_fixture`,
   `observer_deadline`, `observer_owner`, `observer_parser`,
-  `observer_transport`, `resources`, `store_supervisor`.
+  `observer_transport`, `resources`, `store_supervisor`, `baseline`, `verify`.
 - Python cross-checks in `tests/unit/`: `test_rust_vault_interop.py`,
   `test_rust_vault_base64_parity.py`, `test_rust_hash_experiment.py`,
   `test_rust_readiness.py`, `test_doctor_rust_deps.py`,
@@ -1156,6 +1158,7 @@ draft pull request are not on the public repository.
 | Data contract capture | 10 corpus cases in each of two fresh trials; 13 control groups | `cargo test -p careerbrew-xtask --test capture_data` |
 | Activation manifest | three partial slices; 20 of 20 controls; zero multi-function cycles | `cargo test -p careerbrew-xtask --test activation_manifest` |
 | Baseline record | 1 positive control (3 test-flag runs of `rust-03` write a valid record, no local path, no overwrite with the bytes unchanged); 5 refusals (unknown step, planted oracle that exits 7, empty `CAREERBREW_HOME`, 29 runs without the test flag, relative `--out`) | `cargo test -p careerbrew-xtask --test baseline` |
+| Differential verify | 1 positive control (a test candidate that runs the oracle passes `rust-03`, no local path, no overwrite with the bytes unchanged); 2 planted defects (a different stdout fails and names `actions-json`; the same stdout with exit 3 fails); 3 refusals (no Rust candidate yet, unknown step, relative `--out`) | `cargo test -p careerbrew-xtask --test verify` |
 | Owned-child resources | 4 pre-registered controls: 64 MiB calibration, planted wrong unit refused, CPU burn above 0, `SIGKILL` reported as `signaled` and exit 1. 4 added after registration (marked as such): JSON shape and relative-path refusal; malformed `rusage` fields refused (from draft #64); idle child run through the CLI from a parent that holds 128 MiB does not inherit it; a spawn failure is exit 3 with a JSON error. 2 process-tree controls (unwaited grandchild CPU burn and 64 MiB hold). Ratios: see "Owned-child resource accounting". | `cargo test -p careerbrew-xtask --test resources` |
 | Synthetic store supervisor | 16 controls for the future mixed Python and Rust store race | `cargo test -p careerbrew-xtask --test store_supervisor` |
 | Local Rust readiness | 12 readiness controls and the Serde doctor cases | `uv run pytest -q tests/unit/test_rust_readiness.py tests/unit/test_doctor_rust_deps.py` |
@@ -1295,9 +1298,12 @@ Observed (hosted run 44099007218, PR 115, `tree calibration` lines):
    parent. Process-tree accounting is done: macOS 0.996x, Linux 0.972x.
 3. `cargo xtask migration baseline` is built (6 controls in
    `cargo test -p careerbrew-xtask --test baseline`; the hosted gate prints its
-   `baseline` line with the resource calibration lines). Next: `verify`,
-   `measure` and `decide` on top of the verdict, the trial planner, the
-   captures and the collector.
+   `baseline` line with the resource calibration lines).
+   `cargo xtask migration verify` is built for CLI stdout and exit code
+   (6 controls in `cargo test -p careerbrew-xtask --test verify`). Next:
+   extend `verify` to the HTTP, data and side-effect contracts, then `measure`
+   and `decide` on top of the verdict, the trial planner, the captures and the
+   collector.
 4. Register the noise floors and the per-contract normalization rules.
 5. Add the planted slow-path control and prove the decide step holds it.
 6. Extend the inventory to embedded code and generated entry points.

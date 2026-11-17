@@ -920,3 +920,5 @@ xtask/src/bin/resource_fixture.rs,keep-native,rust-00,Synthetic allocation CPU a
 xtask/tests/resources.rs,keep-native,rust-00,Native resource calibration wrong-unit CPU and signal controls
 xtask/src/baseline.rs,keep-native,rust-00,Step registry and Python oracle baseline record over the process-tree collector
 xtask/tests/baseline.rs,keep-native,rust-00,Baseline record positive control and unknown step nonzero oracle and empty home refusals
+xtask/src/verify.rs,keep-native,rust-00,Differential verify of a step Rust candidate against its Python oracle with a content-free record
+xtask/tests/verify.rs,keep-native,rust-00,Verify refusal without a candidate and identical different-output and nonzero candidate controls
