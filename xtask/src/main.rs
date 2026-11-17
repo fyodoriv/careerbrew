@@ -1,3 +1,4 @@
+mod baseline;
 mod baseline_verdict;
 mod capture_actions;
 #[cfg(not(test))]
@@ -65,6 +66,9 @@ fn main() -> ExitCode {
                 }
             };
         }
+    }
+    if args.len() >= 2 && args[0] == "migration" && args[1] == "baseline" {
+        return baseline_command(&args[2..]);
     }
     if let [migration, action, flag, compiler] = args.as_slice() {
         if migration == "migration" && action == "toolchain-identity" && flag == "--rustc" {
@@ -228,6 +232,7 @@ fn main() -> ExitCode {
     eprintln!("usage: cargo xtask migration self-test");
     eprintln!("       cargo xtask migration inventory --check");
     eprintln!("       cargo xtask migration inventory --embedded-check");
+    eprintln!("       cargo xtask migration baseline --step <id> --python <absolute-path> --out <new-file> [--runs <n>] [--test-allow-few-runs]");
     eprintln!("       cargo xtask migration toolchain-identity --rustc <absolute-path>");
     eprintln!(
         "       cargo xtask migration capture-actions --python <absolute-path> --out <new-file>"
@@ -240,4 +245,78 @@ fn main() -> ExitCode {
     );
     eprintln!("       cargo xtask migration observer-probe --image <immutable-id> [--out <new-directory> [--freeze-only|--fault-controls-only]]");
     ExitCode::from(2)
+}
+
+/// `migration baseline --step <id> --python <path> --out <new-file> [--runs <n>]`.
+fn baseline_command(rest: &[std::ffi::OsString]) -> ExitCode {
+    let (mut step, mut python, mut output, mut runs) = (None, None, None, None);
+    // Test-only: allow fewer runs than the protocol minimum.
+    let allow_few_runs = rest.iter().any(|arg| arg == "--test-allow-few-runs");
+    let rest = rest
+        .iter()
+        .filter(|arg| *arg != "--test-allow-few-runs")
+        .cloned()
+        .collect::<Vec<_>>();
+    for pair in rest.chunks(2) {
+        let [flag, value] = pair else {
+            eprintln!("migration baseline: every flag needs a value");
+            return ExitCode::from(2);
+        };
+        let slot = match flag.to_str() {
+            Some("--step") => &mut step,
+            Some("--python") => &mut python,
+            Some("--out") => &mut output,
+            Some("--runs") => &mut runs,
+            _ => {
+                eprintln!("migration baseline: unknown flag");
+                return ExitCode::from(2);
+            }
+        };
+        if slot.replace(value.clone()).is_some() {
+            eprintln!("migration baseline: a flag is repeated");
+            return ExitCode::from(2);
+        }
+    }
+    let (Some(step), Some(python), Some(output)) = (step, python, output) else {
+        eprintln!("migration baseline: --step, --python and --out are required");
+        return ExitCode::from(2);
+    };
+    let runs = match runs.map(|value| value.to_string_lossy().parse::<usize>()) {
+        None => baseline::DEFAULT_RUNS,
+        Some(Ok(runs)) => runs,
+        Some(Err(_)) => {
+            eprintln!("migration baseline: --runs must be a number");
+            return ExitCode::from(2);
+        }
+    };
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    match baseline::run(
+        root,
+        &step.to_string_lossy(),
+        std::path::Path::new(&python),
+        runs,
+        allow_few_runs,
+        std::path::Path::new(&output),
+    ) {
+        Ok(record) => {
+            let summary = &record["summary"];
+            println!(
+                "migration baseline: step={} os={} runs={} cpu_us_p50={} cpu_us_p95={} tree_max_rss_bytes_p50={} tree_max_rss_bytes_p95={}",
+                record["step"].as_str().unwrap_or(""),
+                record["os"].as_str().unwrap_or(""),
+                record["runs"],
+                summary["cpu_us_p50"],
+                summary["cpu_us_p95"],
+                summary["tree_max_rss_bytes_p50"],
+                summary["tree_max_rss_bytes_p95"],
+            );
+            ExitCode::SUCCESS
+        }
+        Err(reason) => {
+            eprintln!("migration baseline: {reason}");
+            ExitCode::FAILURE
+        }
+    }
 }
