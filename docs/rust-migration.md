@@ -83,7 +83,7 @@ support contract.
 | The API timing tool reports timings, with no hard latency limits | `scripts/api-timing.py` | fact; cold and warm API calls, and the change-version probe |
 | Exercise checks run Python solutions and scale generators | `src/careerbrew/tutor/exercises.py` (`validate`, `run`, `_child`); `knowledge/exercises/*.yaml` | fact; the normal `exercises` gate step |
 | Card-code checks use `compile()` and an embedded Node and esbuild call | `scripts/check-card-code.py` | fact; the normal card-code gate step |
-| `cargo xtask migration baseline`, `verify`, `measure` and `decide` do not exist yet | [Current state](#current-state) | `rust-00` must create them |
+| `cargo xtask migration measure` does not exist yet | [Current state](#current-state) | `rust-00` must create it |
 | No before and after Rust speed or memory result exists | each step records its own baseline | verify per step |
 
 Pending changes and new modules count from their final landed versions. An old
@@ -1107,7 +1107,9 @@ The tool has no `--help`. A wrong argument prints the usage and exits 2.
 | `cargo xtask migration baseline --step <id> --python <absolute-path> --out <absolute-new-file> [--runs <n>]` | runs the step's registered Python oracle N times (default 30) through the process-tree collector. Each run gets a fresh synthetic home. The oracle starts in the repo root. It writes a content-free JSON record: step, command, OS, arch, Rust and Python versions, source revision, `source_tree_dirty` (from `git status --porcelain`), a hash of the relevant sources (the capture sources plus `baseline.rs` and `resources.rs`), `fixtures_sha256` (`tests/fixtures/http`), `cache_state` (`warm-imports-fresh-synthetic-home`: imports and OS caches are warm, only the data folder is fresh), `meets_protocol_minimum`, raw samples (tree CPU user and system time, tree peak RSS, wall time, `parent_max_rss_bytes`, `rss_may_include_parent`) and p50 and p95. It refuses an unknown step, fewer than 30 runs (the test-only flag `--test-allow-few-runs` allows them and records `meets_protocol_minimum: false`), a relative `--python` or `--out`, an oracle run that does not exit 0, a set but empty `CAREERBREW_HOME`, an existing output, and a source or fixture change during the runs. Registered steps: `rust-03` (`careerbrew actions --json`). |
 | `cargo xtask migration decide --step <id> --baseline <absolute-file> --verify <absolute-file> --measure <absolute-file> --out <absolute-new-file>` | reads one step's baseline record (`careerbrew-migration-baseline-v1`), a verify record (`careerbrew-migration-verify-v1`: `step`, a nonempty `checks` list of `{id, passed}`, and a `violations` map with the counts `contract`, `privacy`, `authorization`, `role`, `side_effect`, `missing_writes`, `duplicate_writes`) and a measure record (`careerbrew-migration-measure-v1`: `step`, a `regimes` list of `{cache_state, pair_ids, cached, candidate_cpu_us, candidate_tree_max_rss_bytes}`, cache state cold or warm; both regimes must be present). The three input paths must be absolute. The baseline's `meets_protocol_minimum` must agree with its sample count (30 or more), and its `cache_state` must be the baseline regime; otherwise the record is refused. It writes a content-free `careerbrew-migration-decide-v1` record: `activate`, or `keep-python` with fixed reason ids (`baseline-below-protocol-minimum`, `baseline-dirty-tree`, `regime-missing`, `verify-check-failed`, `verify-violation`, `too-few-unique-pairs`, `cached-sample`, `cpu-regressed`, `rss-regressed`). CPU compares the candidate p95 with the baseline `cpu_us_p95`; memory compares the candidate maximum with the baseline sample maximum; exactly 110% passes (activates). No noise floor is registered yet, so every case uses the ratio. Exit 0 activates, 1 keeps Python, 2 refuses a malformed record, a wrong schema, a step mismatch, an unknown step, a relative input path or an existing `--out` and writes nothing. The verify and measure shapes are minimal until those commands land. |
 
-**Not built yet:** `verify` and `measure`. Every port step needs them.
+| `cargo xtask migration verify --step <id> --python <absolute-path> --out <absolute-new-file>` | runs each of the step's registered cases on the Python oracle (`<python> -B -m careerbrew <args>`) and on the step's Rust candidate (`<candidate> <args>`). Each side of each case gets a fresh synthetic home and starts in the repo root. It compares stdout and the exit code byte for byte. A case whose output holds a local path needs a normalization rule before it can be registered. It writes a content-free JSON record: step, source revision, `source_tree_dirty`, `sources_sha256` (the capture sources plus `baseline.rs` and `verify.rs`), `test_candidate` (true when `--test-candidate` chose the candidate) and `candidate_sha256` (hashed before and after the runs; a change refuses the record), `case_count`, `passed_count`, `failed_cases`, and per case its id, pass or fail, `candidate_ran`, `exit_matches`, `stdout_matches` and both stdout hashes. A candidate that cannot start, times out, or prints output that is not UTF-8 or is too large fails its case (`candidate_ran: false`). Exit 0 only when every case matches; a differing case writes the record, names the case and exits 1. It refuses an unknown step, a step with no Rust candidate yet (`step rust-NN has no Rust candidate yet; verify refused`), an oracle case that does not exit 0, a relative `--python` or `--out`, a set but empty `CAREERBREW_HOME`, an existing output, and a source change during the run. The test-only flag `--test-candidate <absolute-path>` points at a candidate before a port registers one. Registered cases: `rust-03` `actions-json` (`actions --json`); no candidate yet. Not yet covered: the HTTP, data and side-effect comparisons, the native tests, the step's user stories and denying Python to the native run. |
+
+**Not built yet:** `measure`. Every port step needs it.
 
 ### Tests and gate steps
 
@@ -1120,9 +1122,9 @@ The tool has no `--help`. A wrong argument prints the usage and exits 2.
 - The hosted CI installs the pinned toolchain and runs the gate on Ubuntu and
   macOS ([docs/ci.md](ci.md)). It was green on `main` at `ecbbb7fc`.
 - Integration tests in `xtask/tests/`: `activation_manifest`, `capture_actions`,
-  `capture_data`, `capture_data_cli`, `capture_http`, `decide`, `i01_fixture`,
+  `baseline`, `capture_data`, `capture_data_cli`, `capture_http`, `decide`, `i01_fixture`,
   `observer_deadline`, `observer_owner`, `observer_parser`,
-  `observer_transport`, `resources`, `store_supervisor`.
+  `observer_transport`, `resources`, `store_supervisor`, `verify`.
 - Python cross-checks in `tests/unit/`: `test_rust_vault_interop.py`,
   `test_rust_vault_base64_parity.py`, `test_rust_hash_experiment.py`,
   `test_rust_readiness.py`, `test_doctor_rust_deps.py`,
@@ -1156,6 +1158,7 @@ draft pull request are not on the public repository.
 | Data contract capture | 10 corpus cases in each of two fresh trials; 13 control groups | `cargo test -p careerbrew-xtask --test capture_data` |
 | Activation manifest | three partial slices; 20 of 20 controls; zero multi-function cycles | `cargo test -p careerbrew-xtask --test activation_manifest` |
 | Baseline record | 1 positive control (3 test-flag runs of `rust-03` write a valid record, no local path, no overwrite with the bytes unchanged); 5 refusals (unknown step, planted oracle that exits 7, empty `CAREERBREW_HOME`, 29 runs without the test flag, relative `--out`) | `cargo test -p careerbrew-xtask --test baseline` |
+| Differential verify | 1 positive control (a test candidate that runs the oracle passes `rust-03`, no local path, no overwrite with the bytes unchanged); 2 planted defects (a different stdout fails and names `actions-json`; the same stdout with exit 3 fails); 3 refusals (no Rust candidate yet, unknown step, relative `--out`) | `cargo test -p careerbrew-xtask --test verify` |
 | Owned-child resources | 4 pre-registered controls: 64 MiB calibration, planted wrong unit refused, CPU burn above 0, `SIGKILL` reported as `signaled` and exit 1. 4 added after registration (marked as such): JSON shape and relative-path refusal; malformed `rusage` fields refused (from draft #64); idle child run through the CLI from a parent that holds 128 MiB does not inherit it; a spawn failure is exit 3 with a JSON error. 2 process-tree controls (unwaited grandchild CPU burn and 64 MiB hold). Ratios: see "Owned-child resource accounting". | `cargo test -p careerbrew-xtask --test resources` |
 | Synthetic store supervisor | 16 controls for the future mixed Python and Rust store race | `cargo test -p careerbrew-xtask --test store_supervisor` |
 | Local Rust readiness | 12 readiness controls and the Serde doctor cases | `uv run pytest -q tests/unit/test_rust_readiness.py tests/unit/test_doctor_rust_deps.py` |
@@ -1254,10 +1257,13 @@ peak of any one process, not a sum) and `tree_method`.
 
 - **Method:** the child starts in its own process group. Linux: the measuring
   process sets `PR_SET_CHILD_SUBREAPER`, so orphans come back to it, and it
-  reaps the group with `wait4(-pgid)` until `ECHILD`. macOS has no subreaper:
+  reaps the group with `wait4(-pgid)`; on `ECHILD` it keeps waiting while
+  `kill(-pgid, 0)` finds a member (see "Member whose parent left the group"
+  below). macOS has no subreaper:
   it samples each group member with `proc_pid_rusage` (`RUSAGE_INFO_V4`,
   Mach ticks converted with `mach_timebase_info`) every 2 ms until the group
-  is empty. The peak is `ri_lifetime_max_phys_footprint`. Sampling can miss
+  is empty. A descendant's peak is
+  `max(ri_lifetime_max_phys_footprint, ri_resident_size)`. Sampling can miss
   the last CPU slice and a process shorter than one interval. A descendant
   that never exits keeps the command waiting.
 - **Hypothesis:** a child that starts a grandchild and exits without waiting
@@ -1286,6 +1292,26 @@ Observed (hosted run 44099007218, PR 115, `tree calibration` lines):
   so the pivot does not apply. One hosted run so far; the pivot needs two
   runs outside 0.5x to 2x, and every gate run now prints the line.
 
+Review gaps closed (PR 113 review):
+
+- **Mixed peak metric (macOS).** The JSON field `tree_rss_metric` names what
+  `tree_max_rss_bytes` compares. macOS:
+  `child=ru_maxrss;descendants=max(lifetime_phys_footprint,resident_size)`,
+  because no lifetime resident peak exists for another process. Linux:
+  `child=ru_maxrss;descendants=ru_maxrss`. Control:
+  `the_tree_peak_names_the_metric_of_each_part`.
+- **Member whose parent left the group (Linux).** When `wait4(-pgid)` says
+  `ECHILD`, the collector checks the group with `kill(-pgid, 0)` and keeps
+  waiting while a member lives; that member comes back to the subreaper when
+  its parent exits. The parent that left the group is reaped with
+  `waitid(P_ALL, WNOWAIT)` then `waitpid`, so no zombie stays, but it is not counted. Any
+  `kill` error other than `ESRCH` is an error, not an empty group. If that
+  parent never exits (a daemon), the call polls every 2 ms forever. Control
+  (Linux only): `a_member_whose_parent_left_the_group_is_counted`.
+  Unsupported targets report `tree_rss_metric` `unsupported`.
+  Control: `a_member_whose_parent_left_the_group_is_counted` (fixture mode
+  `split 500 burn 300`).
+
 ### Next, in order
 
 1. Recheck the gate: `gh pr checks` on a fresh pull request, and
@@ -1295,9 +1321,12 @@ Observed (hosted run 44099007218, PR 115, `tree calibration` lines):
    parent. Process-tree accounting is done: macOS 0.996x, Linux 0.972x.
 3. `cargo xtask migration baseline` is built (6 controls in
    `cargo test -p careerbrew-xtask --test baseline`; the hosted gate prints its
-   `baseline` line with the resource calibration lines). Next: `verify`,
-   `measure` and `decide` on top of the verdict, the trial planner, the
-   captures and the collector.
+   `baseline` line with the resource calibration lines).
+   `cargo xtask migration verify` is built for CLI stdout and exit code
+   (6 controls in `cargo test -p careerbrew-xtask --test verify`). Next:
+   extend `verify` to the HTTP, data and side-effect contracts, then `measure`
+   and `decide` on top of the verdict, the trial planner, the captures and the
+   collector.
 4. Register the noise floors and the per-contract normalization rules.
 5. Add the planted slow-path control and prove the decide step holds it.
 6. Extend the inventory to embedded code and generated entry points.

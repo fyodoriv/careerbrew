@@ -241,3 +241,35 @@ fn an_unwaited_grandchild_allocation_is_within_tolerance() {
         delta as f64 / ALLOC as f64
     ));
 }
+
+/// Review gap 1: on macOS the child's peak is `ru_maxrss` (resident) and a
+/// descendant's is the sampled phys footprint or resident size. The JSON
+/// names the mix, so a reader never takes it for one metric.
+#[test]
+fn the_tree_peak_names_the_metric_of_each_part() {
+    let value = cli_json(&["alloc", "0"]);
+    let expected = if cfg!(target_os = "macos") {
+        "child=ru_maxrss;descendants=max(lifetime_phys_footprint,resident_size)"
+    } else if cfg!(target_os = "linux") {
+        "child=ru_maxrss;descendants=ru_maxrss"
+    } else {
+        "unsupported"
+    };
+    assert_eq!(value["tree_rss_metric"], expected, "{value}");
+}
+
+/// Review gap 2 (Linux only): a group member whose parent left the group
+/// (`setsid`) is not a child of the measuring process, so `wait4(-pgid)`
+/// says `ECHILD` while it still runs. Its CPU must still be counted. macOS
+/// samples the group and never uses `ECHILD`, so it proves nothing there.
+#[cfg(target_os = "linux")]
+#[test]
+fn a_member_whose_parent_left_the_group_is_counted() {
+    let value = cli_json(&["split", "500", "burn", "300"]);
+    let child = field(&value, "user_cpu_us") + field(&value, "system_cpu_us");
+    let tree = field(&value, "tree_user_cpu_us") + field(&value, "tree_system_cpu_us");
+    assert!(
+        tree >= child + 100_000,
+        "member left behind by a setsid parent not counted: {value}"
+    );
+}
