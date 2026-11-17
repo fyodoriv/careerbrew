@@ -178,7 +178,10 @@ fn an_unwaited_grandchild_cpu_burn_is_counted() {
     let child = field(&value, "user_cpu_us") + field(&value, "system_cpu_us");
     let tree = field(&value, "tree_user_cpu_us") + field(&value, "tree_system_cpu_us");
     assert!(field(&value, "descendants") >= 1, "{value}");
-    assert!(tree >= child + 100_000, "grandchild CPU not counted: {value}");
+    assert!(
+        tree >= child + 100_000,
+        "grandchild CPU not counted: {value}"
+    );
 }
 
 #[test]

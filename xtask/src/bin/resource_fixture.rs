@@ -14,6 +14,8 @@ fn touch(size: usize) -> Vec<u8> {
     buffer
 }
 
+// The `orphan` mode leaves its grandchild unwaited on purpose.
+#[allow(clippy::zombie_processes)]
 fn main() {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     match args
