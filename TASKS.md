@@ -369,6 +369,56 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P1
 
+- [ ] The macOS browser control inventory can time out on a 15 s element wait
+  - **ID**: flaky-controls-inventory-macos
+  - **Details**: On 2026-11-16 the hosted `gate (macos-15)` job of PR #110 (head `16b1aefd`) failed in `web/e2e/controls.spec.ts:287` ("inventory on a ... machine: each control is in controls.json with a test that exists"): a 15 s wait for an element ran out. A rerun passed with no change. Read the failed log with `gh run view <run-id> --log-failed` and its Playwright trace first. Find which element the wait was for and what it waited behind (a slow first API call, a cached block refresh). Fix the cause; a longer timeout is the last resort (AGENTS.md "A wall-clock limit in a test is a hang guard").
+  - **Files**: web/e2e/controls.spec.ts; web/e2e/controls.json
+  - **Hypothesis**: with the cause fixed, the hosted macOS `controls.spec.ts` inventory fails 0 times in 20 runs, against 1 seen so far.
+  - **Measurement**: `gh run list --workflow ci.yml -L 20 --json conclusion,headSha` plus `gh run view <id> --log-failed | rg 'controls.spec.ts'` for each failed run.
+  - **Success**: 0 failures of this test in the next 20 hosted macOS runs.
+  - **Pivot**: if it still fails 2 or more times in 20 runs after the fix, mark the test serial on macOS and split the inventory per view.
+  - **Anchor**: Luo et al. 2014, "An empirical analysis of flaky tests" (FSE; async wait is the top cause).
+
+- [ ] The Day log unit test "shows 10 suggestions at a time" saw 10 items where it expected 4
+  - **ID**: flaky-daylog-suggestions-filter
+  - **Details**: In hosted CI run 43992348423 the web unit test `web/src/daylog.test.tsx` "shows 10 suggestions at a time with a kind filter, and Housekeeping folded with its count" failed: after the click on "goal (4)" it expected 4 list items and got 10. The assert runs right after `fireEvent.click`, so the filtered list may not have rendered yet, or the hash change did not reach the panel. Reproduce on hosted CI with a repeat run, then wait for the filtered state (`findAllByRole`, or wait for the "Showing" text) instead of a sync read.
+  - **Files**: web/src/daylog.test.tsx; web/src/daylog.tsx
+  - **Hypothesis**: an async wait for the filtered list takes this test's hosted failure rate from 1 seen to 0 in 20 runs.
+  - **Measurement**: `gh run list --workflow ci.yml -L 20` and `gh run view <id> --log-failed | rg 'shows 10 suggestions'`.
+  - **Success**: 0 failures in the next 20 hosted runs.
+  - **Pivot**: if it fails again with the async wait, the bug is in the filter itself, not the test: stop changing the test and write a failing reproduction of the filter.
+  - **Anchor**: Luo et al. 2014, "An empirical analysis of flaky tests" (FSE).
+
+- [ ] The gitleaks download in the public-readiness job can fail the job
+  - **ID**: gitleaks-download-cache
+  - **Details**: Hosted run 43992355392 failed in the gitleaks download step: the `curl` of the pinned release from github.com failed, not the scan. The step already pins `GITLEAKS_VERSION` and checks `GITLEAKS_SHA256` (`.github/workflows/public-readiness.yml`, "gitleaks (pinned release, checked SHA-256)"). Cache the checked tarball with `actions/cache` keyed by version and hash, or retry the download a bounded number of times; keep the SHA-256 check. Coordinate with the open PR that owns `docs/ci.md` and `.github/workflows/`.
+  - **Files**: .github/workflows/public-readiness.yml; docs/ci.md
+  - **Hypothesis**: a cached, hash-checked binary takes download failures of the `public-readiness` job from 1 seen to 0 in 30 runs.
+  - **Measurement**: `gh run list --workflow public-readiness.yml -L 30 --json conclusion,databaseId` and `gh run view <id> --log-failed | rg -i 'gitleaks|curl'`.
+  - **Success**: 0 gitleaks download failures in 30 runs, and the SHA-256 check still runs on every cache miss.
+  - **Pivot**: if the cache adds more than 20 s to the job or the hash check can be skipped on a hit, drop the cache and use a bounded retry.
+  - **Anchor**: Forsgren, Humble & Kim 2018, *Accelerate* (change failure rate); SLSA v1.0 (pinned, verified build inputs).
+
+- [ ] `rust-00`: count grandchildren in the resource collector
+  - **ID**: rust-00-process-tree-resources
+  - **Details**: `cargo xtask migration resources` (PR #110) counts only the direct owned child, reaped with `wait4`. Grandchildren that the child does not wait for are not counted, so whole-process-tree resource collection is still "not qualified" in `docs/rust-migration.md` "State of rust-00". Pre-register the method first (for example a process group or a Linux cgroup, and a macOS fallback), then add a grandchild control: a child that spawns a 64 MiB grandchild and exits without waiting.
+  - **Files**: xtask/src/; xtask/tests/resources.rs; docs/rust-migration.md
+  - **Hypothesis**: a tree collector reports a grandchild's 64 MiB allocation within 0.75x to 1.5x on macOS and Linux, where the current collector reports about 0.
+  - **Measurement**: `cargo test -p careerbrew-xtask --test resources` on the hosted `gate (ubuntu-24.04)` and `gate (macos-15)` jobs, with the grandchild control.
+  - **Success**: the grandchild delta is 48 to 96 MiB on both OSes, and the 4 existing owned-child controls still pass.
+  - **Pivot**: if either OS cannot attribute a grandchild within 0.5x to 2x, mark tree accounting unsupported there and require measured commands to wait for their children.
+  - **Anchor**: POSIX `getrusage`/`wait4` (IEEE Std 1003.1-2017; `RUSAGE_CHILDREN` covers only waited-for descendants); Linux cgroup v2 `memory.peak`; Kalibera & Jones 2013 (ISMM).
+
+- [ ] The resources calibration numbers do not print on a passing gate run
+  - **ID**: resources-calibration-visible
+  - **Details**: The gate's `rust-test` step runs `cargo test --all` without `--nocapture`, so the `calibration` and `inheritance` lines of `xtask/tests/resources.rs` show only on a failed run. Adding `--nocapture` to the gate broke the pinned-arguments test `G03` in `tests/unit/test_gate_cache.py` (`RUST_PRIMARY`), which freezes the tool contract. Write the numbers to a file instead (for example under `.metrics/` or as a job summary), or move the pin together with a successor contract; never loosen the pin silently.
+  - **Files**: xtask/tests/resources.rs; scripts/check.sh; tests/unit/test_gate_cache.py; docs/rust-migration.md
+  - **Hypothesis**: every passing hosted gate run shows the calibration ratio for both OSes, against 0 of N passing runs now.
+  - **Measurement**: `gh run view <id> --log | rg 'calibration'` on the next 5 passing hosted gate runs.
+  - **Success**: 5 of 5 passing runs show the macOS and Linux ratios, and `G03` stays green.
+  - **Pivot**: if the numbers can only show by changing the pinned arguments, stop and record the ratios by hand per release in `docs/rust-migration.md`.
+  - **Anchor**: Basili, Caldiera & Rombach 1994 (Goal-Question-Metric: a metric you cannot see is not measured).
+
 - [ ] `scripts/check.sh` and `scripts/e2e.sh` queue themselves through heavy-run
   - **ID**: gate-scripts-self-queue
   - **Details**: On 2026-11-15 an unqueued `scripts/public-readiness.sh --first-run` (which runs the fast gate) ran beside `dotfiles apply` and a real-time app, and the Mac froze (forced off, no memory pressure). dotfiles PR 713 makes the agent hook refuse unwrapped gate scripts, but the hook guards only agent shells: a terminal, a git hook or another agent host still runs them unqueued. `scripts/batch-gate.sh` already wraps its gate in `heavy-run` (lines 64-65). Make `check.sh` and `e2e.sh` re-exec themselves under `heavy-run` when it is installed and `HEAVY_RUN_HELD` is unset; keep `check.sh inputs` and `--help` unqueued. Hosted runners have no `heavy-run` and must run as now.

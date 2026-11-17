@@ -59,6 +59,7 @@ Run every command from the repo root.
 | E2E tests only (in parallel; a failing file's log prints at the end; `E2E_JOBS=1` runs them one by one) | `scripts/e2e.sh` |
 | LLM-judged evals and owner labels | `EVALS_LLM=1 evals/run.sh` · `evals/run.sh show` · `evals/run.sh label <case> pass\|fail` · `evals/run.sh agreement` |
 | Capture the current Python action catalog in two synthetic homes | `cargo xtask migration capture-actions --python "$PWD/.venv/bin/python" --out "$PWD/.metrics/action-contract.json"` after `uv sync --locked --offline`; output must be a new local file; receipts include local paths and observe retained owned changes only |
+| One owned child's CPU time and peak RSS (direct child only; grandchildren not counted) | `cargo xtask migration resources --cmd <absolute-path> [args]`; exit codes and calibration: [`docs/rust-migration.md`](docs/rust-migration.md) "Owned-child resource accounting" |
 | Fixed Linux observer preparation | `cargo xtask migration observer-probe --image <frozen-image-id>`; follow the fixed observer protocol, retain receipts locally, and obtain release before actual execution |
 | Speed report | `scripts/metrics.sh` |
 | README Proof numbers (after a green gate; writes `docs/proof/metrics.json`, then the README section) | `scripts/metrics.sh proof` |
@@ -91,7 +92,7 @@ Run every command from the repo root.
 | Add a dependency | the manifest, plus a check in `scripts/doctor.sh` | `README.md` if setup changes |
 | Record a decision that is hard to undo | a new `docs/decisions/NNNN-*.md` | none |
 | Plan a change bigger than one PR | `docs/plans/YYYY-MM-DD-<topic>.md` | none |
-| Work on a Rust migration step (`rust-00` to `rust-28` in `TASKS.md`) | follow its step in [`docs/rust-migration.md`](docs/rust-migration.md): measurement protocol, activation rule, inputs, outputs and gate | that page's "Current state" and owner map; the code inventory and activation tables per its source-map refresh rule |
+| Work on a Rust migration step (`rust-00` to `rust-28` in `TASKS.md`) | follow its step in [`docs/rust-migration.md`](docs/rust-migration.md): measurement protocol, activation rule, inputs, outputs and gate; a crate that starts to ship goes on `scripts/rust-shipped-crates.txt` (`tests/unit/test_rust_shipped_crates.py`) | that page's "Current state" and owner map; the code inventory and activation tables per its source-map refresh rule |
 | Record what a shipped change taught us | the pull request body, under Predicted / Observed / Lesson (no new file in the learnings folder: the public tree leaves it out) | none |
 | Add or close a task | `TASKS.md` | none |
 | Add an assistant feature | `skills/<feature>/SKILL.md` and a case in `evals/cases/` | `README.md` |
