@@ -119,4 +119,16 @@ jobs:
         env:
           CHECK_STEPS: ${{ inputs.steps }}
           E2E_SHARD: ${{ inputs.shard }}
+          # xtask/tests/resources.rs appends its calibration lines here (docs/rust-migration.md).
+          CAREERBREW_RESOURCES_RECORD: ${{ runner.temp }}/resources-calibration.txt
         run: scripts/check.sh
+
+      # A passing cargo test hides these lines; print them to the log and the job summary.
+      - name: Resource calibration lines
+        if: always()
+        env:
+          RECORD: ${{ runner.temp }}/resources-calibration.txt
+        run: |
+          [ -f "$RECORD" ] || exit 0
+          cat "$RECORD"
+          { echo '### Resource calibration'; echo '```'; cat "$RECORD"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
