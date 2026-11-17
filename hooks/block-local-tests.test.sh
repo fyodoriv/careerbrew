@@ -51,6 +51,43 @@ for c in "ls tests | xargs pytest" "xargs -n1 -I{} uv run pytest {}" "find tests
   check 2 "$c"
 done
 
+# Review findings (PR #108): quoted command words.
+for c in '"pytest"' "'pytest'" '"cargo" test' "'npm' test" '"uv" run pytest' 'python -m "pytest"' \
+         'npm run "test"' 'py"test"'; do
+  check 2 "$c"
+done
+
+# Review findings: text piped or fed into a shell, and nested bash -c.
+for c in "echo pytest | bash" "printf 'pytest' | sh" 'bash <<< "pytest"' $'bash <<EOT\npytest\nEOT' \
+         $'cat <<EOT | bash\nscripts/check.sh fast\nEOT' "bash -c 'bash -c \"pytest\"'"; do
+  check 2 "$c"
+done
+
+# Review findings: wrappers by full path, and wrapper flags that take a value.
+for c in "/usr/bin/env pytest" "/usr/bin/time pytest" "env -u FOO pytest" "env -C /tmp pytest" \
+         'env -S "pytest -q"' "sudo -u root pytest" "builtin command pytest" "stdbuf -oL pytest" \
+         "setsid pytest" "arch -arm64 pytest" "script -q /dev/null pytest" "parallel pytest ::: a b" \
+         "watch -n 5 pytest" "uv tool run pytest" "pipx run pytest" "uv run --with-requirements r.txt pytest" \
+         "rustup run stable cargo test" "coverage run -m pytest" "python -mpytest" \
+         'python -c "import pytest; pytest.main()"'; do
+  check 2 "$c"
+done
+
+# Review findings: more test runners.
+for c in "npm t" "bun run test" "yarn workspace web test" "npx jest" "deno test" "cargo xtask test"; do
+  check 2 "$c"
+done
+
+# Review findings: absolute and ~ paths into a checkout, from a session folder outside it.
+HOME_CB="$TMP/home"; mkdir -p "$HOME_CB/apps"; ln -s "$CHECKOUT" "$HOME_CB/apps/careerbrew"
+for c in "bash ~/apps/careerbrew/scripts/check.sh" "$CHECKOUT/.venv/bin/pytest" "pytest $CHECKOUT/tests" \
+         "uv run --project $CHECKOUT pytest" "make -C ~/apps/careerbrew test"; do
+  check 2 "$c" "$OTHER" "HOME=$HOME_CB"
+done
+
+# Review findings: a syntax check is not a test run.
+check 0 "bash -n scripts/check.sh"
+
 # A command that names the checkout folder is blocked from any session folder.
 check 2 "cd $CHECKOUT && uv run pytest" "$OTHER"
 check 2 "cargo test --manifest-path $CHECKOUT/Cargo.toml" "$OTHER"

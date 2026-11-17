@@ -99,6 +99,12 @@ command does not work: the hook reads its own environment. The hook's own
 test is `bash hooks/block-local-tests.test.sh`
 (`tests/unit/test_block_local_tests_hook.py` runs it in the gate).
 
+agentbrew keys a hook by its event, matcher and agents. A later layered
+Agentfile (for example a company overlay) that declares its own PreToolUse /
+Bash hook with the same key replaces this entry, so keep the guard in that
+file too. Static matching also has limits: it cannot see indirection such as
+`x=pytest; $x`, base64 text piped into `sh`, or a shell alias.
+
 The checkup (`scripts/checkup.sh`) runs no gate either. It reads the hosted
 result for the commit `main` points at now with `scripts/hosted-gate.sh`: the
 push runs of both merge workflows, `ci.yml` and `public-readiness.yml`.

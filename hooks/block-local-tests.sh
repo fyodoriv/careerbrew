@@ -18,6 +18,9 @@
 # Opt-out: CAREERBREW_ALLOW_LOCAL_TESTS=1, exported before the agent starts.
 # Setting it inside an agent command has no effect: the hook reads its own
 # environment, not the command text.
+# Limits: static matching cannot catch indirection, such as `x=pytest; $x`,
+# base64 text piped into sh, a shell alias or function, or a script file
+# that runs tests. It is a guard rail against habit, not a sandbox.
 # Adapted from agentbrew hooks/checks/block-local-tests.sh.
 # Test: bash hooks/block-local-tests.test.sh
 
@@ -29,7 +32,7 @@ input=$(cat)
 
 # Fast exit: most commands hold no word that can start a test run.
 case "$input" in
-  *test*|*cargo*|*check.sh*|*e2e*|*batch-gate*|*run.sh*|*playwright*|*visual*) ;;
+  *test*|*cargo*|*check.sh*|*e2e*|*batch-gate*|*run.sh*|*playwright*|*visual*|*npm*|*yarn*|*bun*|*jest*|*deno*|*xtask*|*make*) ;;
   *) exit 0 ;;
 esac
 
@@ -46,26 +49,47 @@ cwd="$(_field cwd)"
 [ -n "$cwd" ] || cwd="$PWD"
 
 # Quoted text is data, not a command: drop heredoc bodies and replace each
-# quoted string with Q. The string after `bash -c`, `sh -c`, `eval` or
-# `npx -c`/`npm exec -c` runs as a command, so it moves to its own line at
-# the end. Quoted words that look like a path stay, so `cd "~/apps/careerbrew"`
-# still names its folder.
+# quoted string with Q. A quoted plain word (`"pytest"`, `py"test"`) is
+# unquoted, since the shell runs it the same. Text that a shell runs moves to
+# its own line, and is scanned again until nothing new comes out: the string
+# after `bash -c`, `sh -c`, `env -S`, `eval` or `npx -c`/`npm exec -c`, a
+# heredoc or here-string fed to a shell, `echo X | bash`, and `$(...)`.
+# `python -c` code that names pytest counts as `pytest`. Quoted words that
+# look like a path stay, so `cd "~/apps/careerbrew"` still names its folder.
 _strip_text() {
-  perl -0777 -pe '
-    my @extra;
-    s/<<-?\s*(["\x27]?)(\w+)\1([^\n]*\n)(?:.*?\n)??[ \t]*\2[ \t]*$/ $3/gms;
-    s/\b(?:ba|z|da)?sh[ \t]+(?:-\w+[ \t]+)*-\w*c\w*[ \t]+("(?:[^"\\]|\\.)*"|\x27[^\x27]*\x27)/
-      my $q = $1; push @extra, substr($q, 1, -1); "sh -c Q"/gse;
-    s/\b((?:npx|bunx|(?:npm|pnpm)(?:[ \t]+(?:--prefix|-w|--workspace|-C|--dir|--filter|-F|--loglevel)[ \t]+[^\s;&|]+|[ \t]+-[^\s;&|]+)*[ \t]+(?:exec|x|dlx))(?:[ \t]+-[^\s;&|]+)*?[ \t])(?:-c|--call)[ \t=]+("(?:[^"\\]|\\.)*"|\x27[^\x27]*\x27)/
-      my ($p, $q) = ($1, $2); push @extra, substr($q, 1, -1); "${p}-c Q"/gse;
-    s/\beval[ \t]+("(?:[^"\\]|\\.)*"|\x27[^\x27]*\x27)/
-      my $q = $1; push @extra, substr($q, 1, -1); "eval Q"/gse;
-    s/("(?:[^"\\]|\\.)*"|\x27[^\x27]*\x27)/
-      my $in = substr($1, 1, -1);
-      $in =~ m{^[\w.~\x2f\$-]*\x2f[\w.~\x2f\$-]*$} ? $in : length($in) ? "Q" : ""/gse;
-    s/\$\(([^()]*)\)/push @extra, $1; "S"/ge;
-    s/`([^`]*)`/push @extra, $1; "S"/ge;
-    $_ .= join("", map { "\n$_\n" } @extra);
+  perl -0777 -ne '
+    my $QS = qr/"(?:[^"\\]|\\.)*"|\x27[^\x27]*\x27/;
+    my $SH = qr/(?:^|[\s|;&(\x2f])(?:ba|z|da)?sh\b/;
+    sub unq { my $q = shift; $q =~ s/^(["\x27])(.*)\1$/$2/s; return $q; }
+    my @queue = ($_); my @out; my $n = 0;
+    while (@queue && $n++ < 64) {
+      my $t = shift @queue; my @extra;
+
+      $t =~ s/<<-?\s*(["\x27]?)(\w+)\1([^\n]*\n)((?:.*?\n)??)[ \t]*\2[ \t]*$/
+        my ($rest, $body) = ($3, $4); my ($pre) = ($` =~ m{([^\n]*)\z});
+        push @extra, $body if ("$pre $rest" =~ $SH); " $rest"/gmse;
+      $t =~ s/\b((?:ba|z|da)?sh(?:[ \t]+-\S+)*[ \t]*)<<<[ \t]*($QS|[^\s;&|]+)/
+        push @extra, unq($2); "$1"/gse;
+      $t =~ s/\b(?:echo|printf)((?:[ \t]+-\w+)*)[ \t]+($QS|[^|;&\n]+?)[ \t]*\|[ \t]*(?=\S*?(?:ba|z|da)?sh\b)/
+        my $x = unq($2); $x =~ s{\\n}{\n}g; push @extra, $x; "true | "/gse;
+      $t =~ s/\b(?:ba|z|da)?sh[ \t]+(?:-\w+[ \t]+)*-\w*c\w*[ \t]+($QS)/
+        push @extra, unq($1); "sh -c Q"/gse;
+      $t =~ s/\benv((?:[ \t]+-[^S\s]\S*)*)[ \t]+-S[ \t]*($QS)/
+        push @extra, unq($2); "env$1 -S Q"/gse;
+      $t =~ s/\b(python[\d.]*|coverage)\b([^|;&\n]*?)[ \t]-c[ \t]*($QS)/
+        my ($p, $f, $c) = ($1, $2, unq($3)); push @extra, "pytest" if $c =~ m{pytest|unittest}; "$p$f -c Q"/gse;
+      $t =~ s/\b((?:npx|bunx|(?:npm|pnpm)(?:[ \t]+(?:--prefix|-w|--workspace|-C|--dir|--filter|-F|--loglevel)[ \t]+[^\s;&|]+|[ \t]+-[^\s;&|]+)*[ \t]+(?:exec|x|dlx))(?:[ \t]+-[^\s;&|]+)*?[ \t])(?:-c|--call)[ \t=]+($QS)/
+        push @extra, unq($2); "${1}-c Q"/gse;
+      $t =~ s/\beval[ \t]+($QS)/push @extra, unq($1); "eval Q"/gse;
+      $t =~ s/($QS)/
+        my $in = unq($1);
+        $in =~ m{^[A-Za-z0-9_.:+-]+$} ? $in
+          : $in =~ m{^[\w.~\x2f\$-]*\x2f[\w.~\x2f\$-]*$} ? $in : length($in) ? "Q" : ""/gse;
+      $t =~ s/\$\(([^()]*)\)/push @extra, $1; "S"/ge;
+      $t =~ s/`([^`]*)`/push @extra, $1; "S"/ge;
+      push @out, $t; push @queue, @extra;
+    }
+    print join("\n", @out), "\n";
   '
 }
 
@@ -99,7 +123,10 @@ dirs=("$cwd")
 while IFS= read -r d; do
   [ -n "$d" ] && dirs+=("$d")
 done < <(printf '%s\n' "$stripped" \
-  | perl -ne 'while (/(?:^|[;&|(]\s*|\s)(?:cd|-C|--prefix|--dir|--directory|--manifest-path)[ \t=]+([^\s;&|()]+)/g) { print "$1\n" }')
+  | perl -ne 'while (/(?:^|[;&|(]\s*|\s)(?:cd|-C|--prefix|--dir|--directory|--manifest-path|--project)[ \t=]+([^\s;&|()]+)/g) { print "$1\n" }
+      while (/(?:^|[\s=;&|(])((?:\x2f|~\x2f|\$\{?HOME\}?\x2f)[^\s;&|()]+)/g) { print "$1\n" }')
+# Folders named by path arguments (any `/x` or `~/x` word), so
+# `pytest ~/apps/careerbrew/tests` is judged by that folder.
 
 # True when an npm script name runs tests.
 _is_test_script() {
@@ -114,9 +141,19 @@ _is_test_run() {
   local -a w
   read -r -a w <<< "$1" || true
   while [ "${#w[@]}" -gt 0 ]; do
-    case "${w[0]}" in
-      *=*|if|while|until|then|do|else|elif|'!'|time|nohup|exec|command|sudo|caffeinate|env|eval|heavy-run|--exclusive)
+    if [[ "${w[0]}" == *=* ]]; then w=("${w[@]:1}"); continue; fi
+    case "${w[0]##*/}" in
+      if|while|until|then|do|else|elif|'!'|time|nohup|exec|command|builtin|caffeinate|eval|heavy-run|--exclusive|setsid|stdbuf|arch)
         w=("${w[@]:1}") ;;
+      env|sudo|watch|script) local wrap="${w[0]##*/}"; w=("${w[@]:1}")
+        while [ "${#w[@]}" -gt 0 ] && [[ "${w[0]}" == -* || "${w[0]}" == *=* ]]; do
+          case "$wrap:${w[0]}" in
+            env:-u|env:-C|env:-S|env:--unset|env:--chdir|sudo:-u|sudo:-g|sudo:-C|watch:-n|watch:--interval) w=("${w[@]:2}") ;;
+            *) w=("${w[@]:1}") ;;
+          esac
+        done
+        # `script -q FILE CMD` writes to FILE and runs CMD.
+        [ "$wrap" = script ] && [ "${#w[@]}" -gt 0 ] && w=("${w[@]:1}") ;;
       nice|timeout) w=("${w[@]:1}")
         while [ "${#w[@]}" -gt 0 ] && [[ "${w[0]}" == -* || "${w[0]}" =~ ^[0-9.]+[smhd]?$ ]]; do w=("${w[@]:1}"); done ;;
       -*) w=("${w[@]:1}") ;;
@@ -142,19 +179,44 @@ _is_test_run() {
       local i
       for i in "${!w[@]}"; do
         [ "${w[$i]}" = -m ] && [ "${w[$((i + 1))]:-}" = pytest ] && return 0
+        [ "${w[$i]}" = -mpytest ] && return 0
       done
       # `python scripts/tests_affected.py --run` runs pytest.
       _is_test_run "${w[*]:1}"
       return ;;
+    coverage)
+      # `coverage run -m pytest` runs pytest.
+      [ "${w[1]:-}" = run ] || return 1
+      _is_test_run "python ${w[*]:2}"; return ;;
+    rustup)
+      # `rustup run <toolchain> X` starts X.
+      [ "${w[1]:-}" = run ] || return 1
+      _is_test_run "${w[*]:3}"; return ;;
+    pipx)
+      [ "${w[1]:-}" = run ] || return 1
+      _is_test_run "uvx ${w[*]:2}"; return ;;
+    make|gmake)
+      for a in "${w[@]:1}"; do case "$a" in -n|--dry-run|--just-print|--recon) return 1 ;; esac; done
+      for a in "${w[@]:1}"; do case "$a" in check|test|test-*|test_*|e2e|e2e-*) return 0 ;; esac; done
+      return 1 ;;
+    jest) return 0 ;;
+    deno) [ "${w[1]:-}" = test ] && return 0; return 1 ;;
     uv)
-      # `uv run [flags] X` starts X. Common flags with a value come first.
+      # `uv run [flags] X` and `uv tool run X` start X. Common flags with a
+      # value come first.
       w=("${w[@]:1}")
-      while [ "${#w[@]}" -gt 0 ] && [[ "${w[0]}" == -* ]]; do w=("${w[@]:1}"); done
+      while [ "${#w[@]}" -gt 0 ] && [[ "${w[0]}" == -* ]]; do
+        case "${w[0]}" in
+          --project|--directory|--python|-p|--config-file|--cache-dir) w=("${w[@]:2}") ;;
+          *) w=("${w[@]:1}") ;;
+        esac
+      done
+      [ "${w[0]:-}" = tool ] && [ "${w[1]:-}" = run ] && { _is_test_run "uvx ${w[*]:2}"; return; }
       [ "${w[0]:-}" = run ] || return 1
       w=("${w[@]:1}")
       while [ "${#w[@]}" -gt 0 ] && [[ "${w[0]}" == -* ]]; do
         case "${w[0]}" in
-          --with|--python|-p|--project|--directory|--package|--extra|--group|--env-file) w=("${w[@]:2}") ;;
+          --with|--with-requirements|--with-editable|--python|-p|--project|--directory|--package|--extra|--group|--env-file|--index|--index-url) w=("${w[@]:2}") ;;
           *) w=("${w[@]:1}") ;;
         esac
       done
@@ -170,6 +232,8 @@ _is_test_run() {
         esac
       done
       case "${w[0]:-}" in test|t|nextest) return 0 ;; esac
+      # `cargo xtask test` runs the native test tasks.
+      [ "${w[0]:-}" = xtask ] && [ "${w[1]:-}" = test ] && return 0
       return 1 ;;
     npm|pnpm|yarn)
       # Global flags (and the values of the common ones) may come first.
@@ -181,6 +245,8 @@ _is_test_run() {
         esac
       done
       [ "${#w[@]}" -gt 0 ] || return 1
+      # `yarn workspace web test` runs the web workspace's script.
+      if [ "${w[0]}" = workspace ]; then w=("${w[@]:2}"); [ "${#w[@]}" -gt 0 ] || return 1; fi
       case "${w[0]}" in
         # `npm exec X`, `npm x X` and `pnpm dlx X` start X, like npx.
         exec|x|dlx) _is_test_run "npx ${w[*]:1}"; return ;;
@@ -198,7 +264,7 @@ _is_test_run() {
         _is_test_run "npx ${w[*]}"; return
       fi
       return 1 ;;
-    xargs|npx|bunx|uvx)
+    xargs|npx|bunx|uvx|parallel)
       # A launcher: skip its own flags (and their values), then judge the
       # command it starts.
       w=("${w[@]:1}")
@@ -230,6 +296,7 @@ _is_test_run() {
       return 1 ;;
     bun)
       [ "${w[1]:-}" = test ] && return 0
+      [ "${w[1]:-}" = run ] && { _is_test_script "${w[2]:-}"; return; }
       return 1 ;;
     node|tsx|ts-node)
       for a in "${w[@]:1}"; do
@@ -237,7 +304,10 @@ _is_test_run() {
       done
       return 1 ;;
     bash|sh|zsh)
-      # `bash scripts/check.sh fast` runs the gate.
+      # `bash scripts/check.sh fast` runs the gate; `bash -n X` only checks syntax.
+      for a in "${w[@]:1}"; do
+        case "$a" in -n|-*n*) [[ "$a" != --* ]] && return 1 ;; -*) ;; *) break ;; esac
+      done
       _is_test_run "${w[*]:1}"
       return ;;
   esac
