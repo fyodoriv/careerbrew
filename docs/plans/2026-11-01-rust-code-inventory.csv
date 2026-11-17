@@ -922,5 +922,7 @@ xtask/src/baseline.rs,keep-native,rust-00,Step registry and Python oracle baseli
 xtask/tests/baseline.rs,keep-native,rust-00,Baseline record positive control and unknown step nonzero oracle and empty home refusals
 xtask/src/decide.rs,keep-native,rust-00,Decide verdict over baseline verify and measure records
 xtask/tests/decide.rs,keep-native,rust-00,Decide controls: activation each keep reason and each listed refusal
+xtask/src/measure.rs,keep-native,rust-00,Rust candidate registry and measure record over the shared baseline sampler
+xtask/tests/measure.rs,keep-native,rust-00,Measure record positive control via test candidate and no-candidate unknown-step nonzero refusals
 xtask/src/verify.rs,keep-native,rust-00,Differential verify of a step Rust candidate against its Python oracle with a content-free record
 xtask/tests/verify.rs,keep-native,rust-00,Verify refusal without a candidate and identical different-output and nonzero candidate controls
