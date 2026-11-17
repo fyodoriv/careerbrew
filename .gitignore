@@ -86,6 +86,7 @@ __pycache__/
 !/xtask/src/bin/store_supervisor_fixture.rs
 !/xtask/src/bin/resource_fixture.rs
 !/xtask/src/resources.rs
+!/xtask/src/baseline.rs
 !/xtask/src/baseline_verdict.rs
 !/xtask/src/main.rs
 !/xtask/src/inventory.rs
@@ -98,6 +99,7 @@ __pycache__/
 !/xtask/tests/capture_actions.rs
 !/xtask/tests/i01_fixture.rs
 !/xtask/tests/resources.rs
+!/xtask/tests/baseline.rs
 !/xtask/tests/fixtures/
 /xtask/tests/fixtures/*
 !/xtask/tests/fixtures/i01/
