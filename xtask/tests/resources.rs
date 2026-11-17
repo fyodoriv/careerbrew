@@ -92,3 +92,18 @@ fn command_prints_json_and_refuses_a_relative_path() {
         .expect("xtask");
     assert_eq!(relative.status.code(), Some(2));
 }
+
+#[test]
+fn malformed_rusage_fields_are_refused() {
+    let clean: libc::rusage = unsafe { std::mem::zeroed() };
+    assert!(resources::validate_rusage(&clean).is_ok());
+    let mut negative_time = clean;
+    negative_time.ru_utime.tv_sec = -1;
+    let mut big_usec = clean;
+    big_usec.ru_stime.tv_usec = 1_000_000;
+    let mut negative_rss = clean;
+    negative_rss.ru_maxrss = -1;
+    for bad in [negative_time, big_usec, negative_rss] {
+        assert!(resources::validate_rusage(&bad).is_err());
+    }
+}

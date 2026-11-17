@@ -1150,7 +1150,7 @@ draft pull request are not on the public repository.
 | HTTP contract capture | 13 control groups; 21 request cases in each of two fresh processes | `cargo test -p careerbrew-xtask --test capture_http` |
 | Data contract capture | 10 corpus cases in each of two fresh trials; 13 control groups | `cargo test -p careerbrew-xtask --test capture_data` |
 | Activation manifest | three partial slices; 20 of 20 controls; zero multi-function cycles | `cargo test -p careerbrew-xtask --test activation_manifest` |
-| Owned-child resources | 5 controls: 64 MiB calibration (macOS local: delta 1.000x in 3 of 3 runs), planted wrong unit refused, CPU burn above 0, `SIGKILL` reported as `signaled` and exit 1, JSON and relative-path refusal | `cargo test -p careerbrew-xtask --test resources` |
+| Owned-child resources | 6 controls: malformed `rusage` fields refused (from draft #64), 64 MiB calibration (macOS local: delta 1.000x in 3 of 3 runs), planted wrong unit refused, CPU burn above 0, `SIGKILL` reported as `signaled` and exit 1, JSON and relative-path refusal | `cargo test -p careerbrew-xtask --test resources` |
 | Synthetic store supervisor | 16 controls for the future mixed Python and Rust store race | `cargo test -p careerbrew-xtask --test store_supervisor` |
 | Local Rust readiness | 12 readiness controls and the Serde doctor cases | `uv run pytest -q tests/unit/test_rust_readiness.py tests/unit/test_doctor_rust_deps.py` |
 | Linux observer | one qualified trial on one Linux/arm64 tuple: 5 of 5 event classes, the incomplete (no-follow) trace refused, both real fault controls passed, owned containers absent after cleanup | `heavy-run --exclusive cargo xtask migration observer-probe --image <id>` |

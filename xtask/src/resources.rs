@@ -108,6 +108,19 @@ impl Usage {
     }
 }
 
+/// Refuse a malformed `rusage`: negative or out-of-range time, negative RSS.
+pub fn validate_rusage(usage: &libc::rusage) -> Result<(), String> {
+    for (name, time) in [("ru_utime", usage.ru_utime), ("ru_stime", usage.ru_stime)] {
+        if time.tv_sec < 0 || time.tv_usec < 0 || time.tv_usec >= 1_000_000 {
+            return Err(format!("{name} is out of range"));
+        }
+    }
+    if usage.ru_maxrss < 0 {
+        return Err("ru_maxrss is negative".to_string());
+    }
+    Ok(())
+}
+
 fn micros(time: libc::timeval) -> u64 {
     (time.tv_sec as u64)
         .saturating_mul(1_000_000)
@@ -153,7 +166,8 @@ pub fn measure(program: &Path, args: &[std::ffi::OsString]) -> Result<Usage, Str
     } else {
         return Err("child ended in an unknown state".to_string());
     };
-    let max_rss_raw = usage.ru_maxrss.max(0) as u64;
+    validate_rusage(&usage)?;
+    let max_rss_raw = usage.ru_maxrss as u64;
     Ok(Usage {
         os,
         unit,
