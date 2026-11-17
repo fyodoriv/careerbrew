@@ -429,16 +429,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if the cache adds more than 20 s to the job or the hash check can be skipped on a hit, drop the cache and use a bounded retry.
   - **Anchor**: Forsgren, Humble & Kim 2018, *Accelerate* (change failure rate); SLSA v1.0 (pinned, verified build inputs).
 
-- [ ] `rust-00`: count grandchildren in the resource collector
-  - **ID**: rust-00-process-tree-resources
-  - **Details**: Process-tree accounting is built (process group; Linux subreaper plus `wait4(-pgid)`, macOS `proc_pid_rusage` sampling; registered in `docs/rust-migration.md` "Process-tree resource accounting"), with the grandchild controls. Hosted ratios are recorded (PR 115: macOS 0.996x, Linux 0.972x; in range, no pivot). Left: the two review gaps below. A descendant that leaves the process group is not counted; a cgroup (Linux) would close that gap if needed. Review of PR 113 found two more gaps: (1) on macOS `tree_max_rss_bytes` mixes the child's `ru_maxrss` (resident) with descendants' `phys_footprint` (`xtask/src/resources.rs:363-365`, `:473`); use one metric for both or document the mix; (2) on Linux, if a group member's parent leaves the group (`setsid`), `wait4(-pgid)` returns `ECHILD` while that member still runs, so its usage is lost (`resources.rs:286`); the cgroup fix covers this too.
-  - **Files**: xtask/src/; xtask/tests/resources.rs; docs/rust-migration.md
-  - **Hypothesis**: a tree collector reports a grandchild's 64 MiB allocation within 0.75x to 1.5x on macOS and Linux, where the current collector reports about 0.
-  - **Measurement**: `cargo test -p careerbrew-xtask --test resources` on the hosted `gate (ubuntu-24.04)` and `gate (macos-15)` jobs, with the grandchild control.
-  - **Success**: the grandchild delta is 48 to 96 MiB on both OSes, and the 4 existing owned-child controls still pass.
-  - **Pivot**: if either OS cannot attribute a grandchild within 0.5x to 2x, mark tree accounting unsupported there and require measured commands to wait for their children.
-  - **Anchor**: POSIX `getrusage`/`wait4` (IEEE Std 1003.1-2017; `RUSAGE_CHILDREN` covers only waited-for descendants); Linux cgroup v2 `memory.peak`; Kalibera & Jones 2013 (ISMM).
-
 - [ ] careerbrew uses levels.fyi data for job search and interview prep
   - **ID**: levels-fyi-integration
   - **Details**: Integrate levels.fyi sources and tools end to end: (1) job finding: its job listings and compensation data feed `careerbrew-job-hunt` ranking (pay band, level mapping across companies); (2) interview prep: its interview and leveling guides feed `careerbrew-interview-coach` and `knowledge/research/interview-research.yaml` strategy rules. First check its terms of use and any official API or export; record the allowed access per source in the `docs/integrations.md` terms column. If a source forbids automated access, use only what the owner opens by hand (browser research skill) and say so. Add a platform in `src/careerbrew/jobs/platforms.py` with an HTTP fixture in `tests/fixtures/http/`, a story and e2e test, and an eval case. Job-hunt commands stay blocked on a corporate machine.

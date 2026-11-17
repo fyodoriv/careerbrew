@@ -5,6 +5,8 @@
 //! `wait4(-pgid)`; on macOS they are sampled with `proc_pid_rusage` until the
 //! group is empty. A descendant that leaves the group (`setsid`, `setpgid`)
 //! is not counted, and a descendant that never exits keeps the call waiting.
+//! On Linux a member whose parent left the group is waited for until that
+//! parent exits and the member comes back to the subreaper.
 //! Each call owns its child and process group for the call's lifetime and
 //! keeps no state between calls. The Linux subreaper flag is process-scope
 //! state of the measuring process: it is set once and stays set.
@@ -112,7 +114,8 @@ impl Usage {
         let field = if kind == "exited" { "code" } else { "signal" };
         format!(
             concat!(
-                "{{\"scope\":\"process-tree\",\"tree_method\":\"{}\",\"descendants\":{},",
+                "{{\"scope\":\"process-tree\",\"tree_method\":\"{}\",",
+                "\"tree_rss_metric\":\"{}\",\"descendants\":{},",
                 "\"tree_user_cpu_us\":{},\"tree_system_cpu_us\":{},\"tree_max_rss_bytes\":{},",
                 "\"os\":\"{}\",\"rss_unit_raw\":\"{}\",\"outcome\":\"{}\",\"{}\":{},",
                 "\"pass\":{},\"user_cpu_us\":{},\"system_cpu_us\":{},",
@@ -120,6 +123,7 @@ impl Usage {
                 "\"parent_max_rss_bytes\":{},\"rss_may_include_parent\":{}}}"
             ),
             self.tree_method,
+            TREE_RSS_METRIC,
             self.descendants,
             self.tree_user_cpu_us,
             self.tree_system_cpu_us,
@@ -175,6 +179,15 @@ const TREE_METHOD: &str = "subreaper-wait4";
 const TREE_METHOD: &str = "sampled-proc-pid-rusage";
 #[cfg(not(any(target_os = "macos", target_os = "linux")))]
 const TREE_METHOD: &str = "unsupported";
+
+/// What `tree_max_rss_bytes` compares. macOS has no lifetime resident peak
+/// for another process, so a descendant's part is its sampled phys footprint
+/// or resident size, while the child's part stays `ru_maxrss` (resident).
+#[cfg(target_os = "macos")]
+pub const TREE_RSS_METRIC: &str =
+    "child=ru_maxrss;descendants=max(lifetime_phys_footprint,resident_size)";
+#[cfg(not(target_os = "macos"))]
+pub const TREE_RSS_METRIC: &str = "child=ru_maxrss;descendants=ru_maxrss";
 
 /// Reap `pid` with `wait4`, retrying on EINTR. `None` means still running.
 type Reaped = (libc::c_int, libc::rusage);
@@ -239,7 +252,17 @@ fn collect_tree(pgid: libc::pid_t, unit: RssUnit) -> Result<Tree, String> {
         let error = std::io::Error::last_os_error();
         match error.raw_os_error() {
             Some(libc::EINTR) => continue,
-            Some(libc::ECHILD) => return Ok(tree),
+            // No child of ours is left in the group. A member whose parent
+            // left the group (`setsid`) is not our child yet: it comes back
+            // to us when that parent exits. Wait while the group still has a
+            // member; a failed signal-0 check (ESRCH) means it is empty.
+            Some(libc::ECHILD) => {
+                // SAFETY: signal 0 only checks that the group has a member.
+                if unsafe { libc::kill(-pgid, 0) } != 0 {
+                    return Ok(tree);
+                }
+                std::thread::sleep(std::time::Duration::from_millis(2));
+            }
             _ => {
                 return Err(format!(
                     "wait4 on the process group failed: {}",

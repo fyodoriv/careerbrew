@@ -1286,6 +1286,21 @@ Observed (hosted run 44099007218, PR 115, `tree calibration` lines):
   so the pivot does not apply. One hosted run so far; the pivot needs two
   runs outside 0.5x to 2x, and every gate run now prints the line.
 
+Review gaps closed (PR 113 review):
+
+- **Mixed peak metric (macOS).** The JSON field `tree_rss_metric` names what
+  `tree_max_rss_bytes` compares. macOS:
+  `child=ru_maxrss;descendants=max(lifetime_phys_footprint,resident_size)`,
+  because no lifetime resident peak exists for another process. Linux:
+  `child=ru_maxrss;descendants=ru_maxrss`. Control:
+  `the_tree_peak_names_the_metric_of_each_part`.
+- **Member whose parent left the group (Linux).** When `wait4(-pgid)` says
+  `ECHILD`, the collector checks the group with `kill(-pgid, 0)` and keeps
+  waiting while a member lives; that member comes back to the subreaper when
+  its parent exits. The parent that left the group is still not counted.
+  Control: `a_member_whose_parent_left_the_group_is_counted` (fixture mode
+  `split 500 burn 300`).
+
 ### Next, in order
 
 1. Recheck the gate: `gh pr checks` on a fresh pull request, and
