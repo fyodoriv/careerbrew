@@ -45,13 +45,13 @@ pub fn step(id: &str) -> Result<&'static Step, String> {
 }
 
 /// Nearest-rank median.
-fn p50(samples: &[u64]) -> u64 {
+pub(crate) fn p50(samples: &[u64]) -> u64 {
     let mut sorted = samples.to_vec();
     sorted.sort_unstable();
     sorted[sorted.len().div_ceil(2) - 1]
 }
 
-fn toolchain(root: &Path) -> Result<String, String> {
+pub(crate) fn toolchain(root: &Path) -> Result<String, String> {
     let text = std::fs::read_to_string(root.join("rust-toolchain.toml"))
         .map_err(|_| "cannot read rust-toolchain.toml")?;
     text.lines()
@@ -89,19 +89,25 @@ pub(crate) fn dirty(root: &Path) -> Result<bool, String> {
 
 /// The capture sources plus the baseline and collector sources.
 fn hashed_sources(root: &Path) -> Result<Value, String> {
+    hashed_sources_with(root, &[])
+}
+
+/// The capture sources, the baseline and collector sources, and `extra`.
+pub(crate) fn hashed_sources_with(root: &Path, extra: &[&str]) -> Result<Value, String> {
     let mut sources = capture_actions::sources(root)?;
     let map = sources
         .as_object_mut()
         .ok_or("capture sources are not a map")?;
-    for name in ["xtask/src/baseline.rs", "xtask/src/resources.rs"] {
+    let base = ["xtask/src/baseline.rs", "xtask/src/resources.rs"];
+    for name in base.iter().chain(extra) {
         let bytes = std::fs::read(root.join(name)).map_err(|_| "baseline source missing")?;
-        map.insert(name.to_owned(), json!(capture_actions::digest(&bytes)));
+        map.insert((*name).to_owned(), json!(capture_actions::digest(&bytes)));
     }
     Ok(sources)
 }
 
 /// One hash over the HTTP fixtures the oracle environment points at.
-fn fixtures_sha256(root: &Path) -> Result<String, String> {
+pub(crate) fn fixtures_sha256(root: &Path) -> Result<String, String> {
     let files = capture_actions::files(root, &root.join("tests/fixtures/http"), None)?;
     Ok(capture_actions::digest(json!(files).to_string().as_bytes()))
 }
@@ -133,41 +139,7 @@ pub fn record(
     let fixtures = fixtures_sha256(root)?;
     let sources_sha256 = capture_actions::digest(sources.to_string().as_bytes());
     let args = step.oracle.iter().map(OsString::from).collect::<Vec<_>>();
-    let mut samples = Vec::with_capacity(runs);
-    let (mut cpu, mut rss, mut wall) = (Vec::new(), Vec::new(), Vec::new());
-    let mut method = "unknown";
-    for run in 1..=runs {
-        let scratch = tempfile::tempdir().map_err(|_| "cannot create baseline home")?;
-        let environment = capture_actions::owned_environment(root, &scratch.path().join("owned"))?;
-        if environment
-            .get("CAREERBREW_HOME")
-            .is_none_or(|home| home.is_empty())
-        {
-            return Err("synthetic CAREERBREW_HOME is empty".into());
-        }
-        let usage = resources::measure_in(python, &args, Some(&environment), Some(root))?;
-        if !usage.passed() {
-            return Err(format!("oracle run {run} did not exit 0; baseline refused"));
-        }
-        method = usage.tree_method;
-        let cpu_us = usage
-            .tree_user_cpu_us
-            .saturating_add(usage.tree_system_cpu_us);
-        cpu.push(cpu_us);
-        rss.push(usage.tree_max_rss_bytes);
-        wall.push(usage.wall_us);
-        samples.push(json!({
-            "run": run,
-            "tree_user_cpu_us": usage.tree_user_cpu_us,
-            "tree_system_cpu_us": usage.tree_system_cpu_us,
-            "tree_cpu_us": cpu_us,
-            "tree_max_rss_bytes": usage.tree_max_rss_bytes,
-            "descendants": usage.descendants,
-            "wall_us": usage.wall_us,
-            "parent_max_rss_bytes": usage.parent_max_rss_bytes,
-            "rss_may_include_parent": usage.rss_may_include_parent(),
-        }));
-    }
+    let (samples, summary, method) = sample(root, python, &args, runs, "oracle", "baseline")?;
     if hashed_sources(root)? != sources || fixtures_sha256(root)? != fixtures {
         return Err("a relevant source changed during the baseline".into());
     }
@@ -191,15 +163,65 @@ pub fn record(
         "tree_method": method,
         "runs": runs,
         "samples": samples,
-        "summary": {
-            "cpu_us_p50": p50(&cpu),
-            "cpu_us_p95": baseline_verdict::cpu_p95(cpu.clone()),
-            "tree_max_rss_bytes_p50": p50(&rss),
-            "tree_max_rss_bytes_p95": baseline_verdict::cpu_p95(rss.clone()),
-            "wall_us_p50": p50(&wall),
-            "wall_us_p95": baseline_verdict::cpu_p95(wall.clone()),
-        },
+        "summary": summary,
     }))
+}
+
+/// Runs `program args` `runs` times, each in a fresh synthetic home, through
+/// the process-tree collector. Returns the raw samples, the p50 and p95
+/// summary and the tree method. A run that does not exit 0 is refused.
+pub(crate) fn sample(
+    root: &Path,
+    program: &Path,
+    args: &[OsString],
+    runs: usize,
+    role: &str,
+    kind: &str,
+) -> Result<(Vec<Value>, Value, &'static str), String> {
+    let mut samples = Vec::with_capacity(runs);
+    let (mut cpu, mut rss, mut wall) = (Vec::new(), Vec::new(), Vec::new());
+    let mut method = "unknown";
+    for run in 1..=runs {
+        let scratch = tempfile::tempdir().map_err(|_| format!("cannot create {kind} home"))?;
+        let environment = capture_actions::owned_environment(root, &scratch.path().join("owned"))?;
+        if environment
+            .get("CAREERBREW_HOME")
+            .is_none_or(|home| home.is_empty())
+        {
+            return Err("synthetic CAREERBREW_HOME is empty".into());
+        }
+        let usage = resources::measure_in(program, args, Some(&environment), Some(root))?;
+        if !usage.passed() {
+            return Err(format!("{role} run {run} did not exit 0; {kind} refused"));
+        }
+        method = usage.tree_method;
+        let cpu_us = usage
+            .tree_user_cpu_us
+            .saturating_add(usage.tree_system_cpu_us);
+        cpu.push(cpu_us);
+        rss.push(usage.tree_max_rss_bytes);
+        wall.push(usage.wall_us);
+        samples.push(json!({
+            "run": run,
+            "tree_user_cpu_us": usage.tree_user_cpu_us,
+            "tree_system_cpu_us": usage.tree_system_cpu_us,
+            "tree_cpu_us": cpu_us,
+            "tree_max_rss_bytes": usage.tree_max_rss_bytes,
+            "descendants": usage.descendants,
+            "wall_us": usage.wall_us,
+            "parent_max_rss_bytes": usage.parent_max_rss_bytes,
+            "rss_may_include_parent": usage.rss_may_include_parent(),
+        }));
+    }
+    let summary = json!({
+        "cpu_us_p50": p50(&cpu),
+        "cpu_us_p95": baseline_verdict::cpu_p95(cpu.clone()),
+        "tree_max_rss_bytes_p50": p50(&rss),
+        "tree_max_rss_bytes_p95": baseline_verdict::cpu_p95(rss.clone()),
+        "wall_us_p50": p50(&wall),
+        "wall_us_p95": baseline_verdict::cpu_p95(wall.clone()),
+    });
+    Ok((samples, summary, method))
 }
 
 pub fn run(

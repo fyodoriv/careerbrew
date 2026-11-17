@@ -5,6 +5,7 @@ mod capture_actions;
 mod capture_data;
 mod capture_http;
 mod inventory;
+mod measure;
 mod observer_probe;
 mod resources;
 mod toolchain_identity;
@@ -70,6 +71,9 @@ fn main() -> ExitCode {
     }
     if args.len() >= 2 && args[0] == "migration" && args[1] == "baseline" {
         return baseline_command(&args[2..]);
+    }
+    if args.len() >= 2 && args[0] == "migration" && args[1] == "measure" {
+        return measure_command(&args[2..]);
     }
     if args.len() >= 2 && args[0] == "migration" && args[1] == "verify" {
         return verify_command(&args[2..]);
@@ -237,6 +241,7 @@ fn main() -> ExitCode {
     eprintln!("       cargo xtask migration inventory --check");
     eprintln!("       cargo xtask migration inventory --embedded-check");
     eprintln!("       cargo xtask migration baseline --step <id> --python <absolute-path> --out <new-file> [--runs <n>] [--test-allow-few-runs]");
+    eprintln!("       cargo xtask migration measure --step <id> --out <new-file> [--runs <n>] [--test-allow-few-runs] [--test-candidate <absolute-path>]");
     eprintln!("       cargo xtask migration verify --step <id> --python <absolute-path> --out <new-file> [--test-candidate <absolute-path>]");
     eprintln!("       cargo xtask migration toolchain-identity --rustc <absolute-path>");
     eprintln!(
@@ -321,6 +326,89 @@ fn baseline_command(rest: &[std::ffi::OsString]) -> ExitCode {
         }
         Err(reason) => {
             eprintln!("migration baseline: {reason}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// `migration measure --step <id> --out <new-file> [--runs <n>]`.
+fn measure_command(rest: &[std::ffi::OsString]) -> ExitCode {
+    let (mut step, mut output, mut runs, mut candidate) = (None, None, None, None);
+    // Test-only: allow fewer runs than the protocol minimum.
+    let allow_few_runs = rest.iter().any(|arg| arg == "--test-allow-few-runs");
+    let rest = rest
+        .iter()
+        .filter(|arg| *arg != "--test-allow-few-runs")
+        .cloned()
+        .collect::<Vec<_>>();
+    for pair in rest.chunks(2) {
+        let [flag, value] = pair else {
+            eprintln!("migration measure: every flag needs a value");
+            return ExitCode::from(2);
+        };
+        let slot = match flag.to_str() {
+            Some("--step") => &mut step,
+            Some("--out") => &mut output,
+            Some("--runs") => &mut runs,
+            // Test-only: measure this executable instead of the registered candidate.
+            Some("--test-candidate") => &mut candidate,
+            Some("--pairs") => {
+                eprintln!("migration measure: --pairs is not built yet; this interim sampler takes --runs");
+                return ExitCode::from(2);
+            }
+            _ => {
+                eprintln!("migration measure: unknown flag");
+                return ExitCode::from(2);
+            }
+        };
+        if slot.replace(value.clone()).is_some() {
+            eprintln!("migration measure: a flag is repeated");
+            return ExitCode::from(2);
+        }
+    }
+    let (Some(step), Some(output)) = (step, output) else {
+        eprintln!("migration measure: --step and --out are required");
+        return ExitCode::from(2);
+    };
+    let runs = match runs.map(|value| value.to_string_lossy().parse::<usize>()) {
+        None => baseline::DEFAULT_RUNS,
+        Some(Ok(runs)) => runs,
+        Some(Err(_)) => {
+            eprintln!("migration measure: --runs must be a number");
+            return ExitCode::from(2);
+        }
+    };
+    let source = match &candidate {
+        Some(path) => measure::Source::TestOverride(std::path::Path::new(path)),
+        None => measure::Source::Registered,
+    };
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    match measure::run(
+        root,
+        &step.to_string_lossy(),
+        &source,
+        runs,
+        allow_few_runs,
+        std::path::Path::new(&output),
+    ) {
+        Ok(record) => {
+            let summary = &record["summary"];
+            println!(
+                "migration measure: step={} os={} runs={} cpu_us_p50={} cpu_us_p95={} tree_max_rss_bytes_p50={} tree_max_rss_bytes_p95={}",
+                record["step"].as_str().unwrap_or(""),
+                record["os"].as_str().unwrap_or(""),
+                record["runs"],
+                summary["cpu_us_p50"],
+                summary["cpu_us_p95"],
+                summary["tree_max_rss_bytes_p50"],
+                summary["tree_max_rss_bytes_p95"],
+            );
+            ExitCode::SUCCESS
+        }
+        Err(reason) => {
+            eprintln!("migration measure: {reason}");
             ExitCode::FAILURE
         }
     }
