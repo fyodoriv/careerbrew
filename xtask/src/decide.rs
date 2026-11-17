@@ -6,13 +6,15 @@
 //!
 //! Input shapes (minimal, until `verify` and `measure` land):
 //! - baseline: `careerbrew-migration-baseline-v1` from `baseline.rs`; reads
-//!   `step`, `meets_protocol_minimum`, `summary.cpu_us_p95` and the
-//!   `tree_max_rss_bytes` of each sample.
+//!   `step`, `meets_protocol_minimum` (checked against the sample count),
+//!   `source_tree_dirty`, `cache_state` (must be the baseline regime),
+//!   `summary.cpu_us_p95` and the `tree_max_rss_bytes` of each sample.
 //! - verify: `careerbrew-migration-verify-v1` with `step`, a nonempty
 //!   `checks` list of `{id, passed}` and a `violations` map of counts.
 //! - measure: `careerbrew-migration-measure-v1` with `step` and a nonempty
 //!   `regimes` list of `{cache_state, pair_ids, cached, candidate_cpu_us,
-//!   candidate_tree_max_rss_bytes}`; one sample per pair.
+//!   candidate_tree_max_rss_bytes}`; one sample per pair. Both `cold` and
+//!   `warm` must be present, each with at least 30 unique pairs.
 use crate::{baseline, baseline_verdict};
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
@@ -90,6 +92,15 @@ pub fn verdict(step: &str, base: &Value, verify: &Value, measure: &Value) -> Res
     let base_minimum = base["meets_protocol_minimum"]
         .as_bool()
         .ok_or("malformed baseline meets_protocol_minimum")?;
+    if base_minimum && samples.len() < baseline::MIN_RUNS {
+        return Err("the baseline claims the protocol minimum with too few samples".into());
+    }
+    let base_dirty = base["source_tree_dirty"]
+        .as_bool()
+        .ok_or("malformed baseline source_tree_dirty")?;
+    if base["cache_state"].as_str() != Some(baseline::CACHE_STATE) {
+        return Err("the baseline record has another cache state".into());
+    }
 
     let checks = verify["checks"]
         .as_array()
@@ -120,6 +131,9 @@ pub fn verdict(step: &str, base: &Value, verify: &Value, measure: &Value) -> Res
     let mut reasons = BTreeSet::new();
     if !base_minimum {
         reasons.insert("baseline-below-protocol-minimum");
+    }
+    if base_dirty {
+        reasons.insert("baseline-dirty-tree");
     }
     if failed_checks > 0 {
         reasons.insert("verify-check-failed");
@@ -169,6 +183,9 @@ pub fn verdict(step: &str, base: &Value, verify: &Value, measure: &Value) -> Res
             "candidate_tree_max_rss_bytes": rss_max,
         }));
     }
+    if !(states.contains("cold") && states.contains("warm")) {
+        reasons.insert("regime-missing");
+    }
     let decision = if reasons.is_empty() {
         "activate"
     } else {
@@ -181,6 +198,7 @@ pub fn verdict(step: &str, base: &Value, verify: &Value, measure: &Value) -> Res
         "reasons": reasons.into_iter().collect::<Vec<_>>(),
         "limit_ratio": "1.10",
         "noise_floor": "unregistered",
+        "baseline_cache_state": baseline::CACHE_STATE,
         "baseline_cpu_us_p95": base_cpu,
         "baseline_tree_max_rss_bytes": base_rss,
         "verify_checks": checks.len(),
