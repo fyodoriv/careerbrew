@@ -1229,10 +1229,17 @@ Observed (filled from hosted CI logs, `calibration` and `inheritance` lines):
   `resources` CLI reports 4,104,192 bytes. macOS does not inherit
   (1,359,872 bytes both ways). So the qualified path is the CLI, from a small
   parent; a direct in-process call on Linux reports a floor, flagged as such.
+- Hosted run 44099007218 (PR 115): `macos-15` idle 1,458,176, loaded
+  68,534,272, delta 67,076,096 bytes, ratio 1.000; `ubuntu-24.04` idle
+  4,218,880, loaded 69,193,728, delta 64,974,848 bytes, ratio 0.968. Both OSes
+  are inside 0.75x to 1.5x in two hosted runs, so the pivot does not apply.
 - The gate step runs `cargo test --all` without `--nocapture` (the gate's
-  frozen tool contract refuses extra arguments), so these lines show only in
-  a failed run or a manual `--nocapture` run. The numbers above come from
-  one hosted run with `--nocapture`.
+  frozen tool contract, `G03` in `tests/unit/test_gate_cache.py`, refuses
+  extra arguments). So the tests also append each `calibration`,
+  `inheritance` and `tree calibration` line to the file that
+  `CAREERBREW_RESOURCES_RECORD` names. The hosted gate sets it, and its
+  "Resource calibration lines" step prints the file to the job log and the job
+  summary: `gh run view --job <native-job-id> --log | rg calibration`.
 
 ### Process-tree resource accounting (pre-registered 2026-11-17)
 
@@ -1266,7 +1273,15 @@ peak of any one process, not a sum) and `tree_method`.
   `prctl(2)` `PR_SET_CHILD_SUBREAPER`; Darwin `proc_pid_rusage`; Kalibera and
   Jones 2013 (ISMM).
 
-Observed: pending the first hosted run (`tree calibration` lines).
+Observed (hosted run 44099007218, PR 115, `tree calibration` lines):
+
+- `macos-15`, method `sampled-proc-pid-rusage`: delta 66,846,720 bytes,
+  ratio 0.996.
+- `ubuntu-24.04`, method `subreaper-wait4`: delta 65,200,128 bytes, ratio
+  0.972.
+- Both inside 0.75x to 1.5x, and the grandchild CPU control passed on both,
+  so the pivot does not apply. One hosted run so far; the pivot needs two
+  runs outside 0.5x to 2x, and every gate run now prints the line.
 
 ### Next, in order
 
@@ -1274,7 +1289,7 @@ Observed: pending the first hosted run (`tree calibration` lines).
    `cargo xtask migration self-test` and `inventory --check` locally.
 2. Done for the owned child: calibrated units on macOS (1.000x) and Linux
    (0.979x) with `cargo xtask migration resources`, measured from a small
-   parent. Process-tree accounting is built; record its hosted ratios.
+   parent. Process-tree accounting is done: macOS 0.996x, Linux 0.972x.
 3. Build `cargo xtask migration baseline`, `verify`, `measure` and `decide` on
    top of the verdict, the trial planner, the captures and the collector.
 4. Register the noise floors and the per-contract normalization rules.
