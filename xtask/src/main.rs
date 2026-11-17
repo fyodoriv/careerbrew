@@ -347,6 +347,10 @@ fn measure_command(rest: &[std::ffi::OsString]) -> ExitCode {
             Some("--runs") => &mut runs,
             // Test-only: measure this executable instead of the registered candidate.
             Some("--test-candidate") => &mut candidate,
+            Some("--pairs") => {
+                eprintln!("migration measure: --pairs is not built yet; this interim sampler takes --runs");
+                return ExitCode::from(2);
+            }
             _ => {
                 eprintln!("migration measure: unknown flag");
                 return ExitCode::from(2);

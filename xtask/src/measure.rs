@@ -2,6 +2,9 @@
 //! N times through the process-tree collector, the same way `baseline` runs
 //! the Python oracle, and write a content-free JSON record with the same
 //! shape (raw samples, p50 and p95). A step with no Rust candidate fails.
+//! Interim: the candidate runs alone in one warm regime. The protocol's
+//! paired oracle and candidate runs (`--pairs`) and the cold regime are not
+//! built yet.
 use crate::{baseline, capture_actions, resources};
 use serde_json::{json, Value};
 use std::ffi::OsString;
@@ -59,7 +62,6 @@ pub fn record(
     runs: usize,
     allow_few_runs: bool,
 ) -> Result<Value, String> {
-    let (program, args) = candidate(root, id, source)?;
     if runs == 0 {
         return Err("--runs must be at least 1".into());
     }
@@ -69,9 +71,16 @@ pub fn record(
             baseline::MIN_RUNS
         ));
     }
+    // A test override never makes a protocol record: it needs the test flag.
+    let test_override = matches!(source, Source::TestOverride(_));
+    if test_override && !allow_few_runs {
+        return Err("--test-candidate needs --test-allow-few-runs".into());
+    }
+    let (program, args) = candidate(root, id, source)?;
     if std::env::var_os("CAREERBREW_HOME").is_some_and(|home| home.is_empty()) {
         return Err("CAREERBREW_HOME is set but empty".into());
     }
+    // Binds only the candidate executable file, not files it may load.
     let binary = std::fs::read(&program).map_err(|_| "cannot read the Rust candidate")?;
     let candidate_sha256 = capture_actions::digest(&binary);
     let sources = baseline::hashed_sources_with(root, &["xtask/src/measure.rs"])?;
@@ -96,7 +105,7 @@ pub fn record(
         "schema": SCHEMA,
         "step": id,
         "side": "rust-candidate",
-        "test_override": matches!(source, Source::TestOverride(_)),
+        "test_override": test_override,
         "command": command,
         "candidate_sha256": candidate_sha256,
         "os": os,
@@ -107,7 +116,7 @@ pub fn record(
         "sources_sha256": sources_sha256,
         "fixtures_sha256": fixtures,
         "cache_state": baseline::CACHE_STATE,
-        "meets_protocol_minimum": runs >= baseline::MIN_RUNS,
+        "meets_protocol_minimum": runs >= baseline::MIN_RUNS && !test_override,
         "tree_method": method,
         "runs": runs,
         "samples": samples,
