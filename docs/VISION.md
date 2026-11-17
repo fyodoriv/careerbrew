@@ -39,7 +39,15 @@ One programmer (the owner) who runs careerbrew through a coding agent and the CL
 
 | Tool | Overlap | Verdict |
 |---|---|---|
-| [santifer/career-ops](https://github.com/santifer/career-ops) | Job scoring on weighted dimensions inside Claude Code, tailored CVs, a tracker | Borrow the weighted-dimension idea. Build the rest: strategy tiers with one-shot gates, the tutor, work mode, plugins, and privacy |
+| [career-ops-hq/career-ops](https://github.com/career-ops-hq/career-ops) (was `santifer/career-ops`) | Job scoring (1 to 5 against your CV) in Claude Code, Codex and other AI CLIs, tailored CVs and cover letters, interview prep, a tracker | Borrow the weighted-dimension idea. Build the rest: strategy tiers with one-shot gates, the tutor, work mode, plugins, and privacy |
 | brag-doc skills (pm-claude-skills `brag-doc`, awesome-copilot `brag-sheet`), [brag-ai](https://pypi.org/project/brag-ai/) | Evidence capture for reviews | Build: careerbrew maps evidence to a ladder and ranks the gaps |
 | [FSRS / py-fsrs](https://github.com/open-spaced-repetition/py-fsrs) | Spaced-repetition scheduling | Use (dependency) |
 | agentbrew team overlays | The overlay shape for company content | Use the shape. Extend with several plugins at once, hash verification, policies, and a data purge |
+
+**Re-checked 2026-11-16** against live public sources (GitHub API, PyPI JSON):
+
+- career-ops: re-checked. The repo moved to `career-ops-hq/career-ops` (the old link redirects). It is active (pushed 2026-11-16) and now also covers interview prep and AI CLIs beyond Claude Code. The verdict stands: it has no work mode, plugins, or tutor.
+- brag-doc skills: re-checked. `brag-doc` is in `mohitagw15856/pm-claude-skills`, and `skills/brag-sheet` is in `github/awesome-copilot`.
+- brag-ai: re-checked. PyPI latest is 0.1.4, last upload 2025-10-15.
+- py-fsrs: re-checked. Active (pushed 2026-11-13); PyPI `fsrs` latest is 6.3.3.
+- agentbrew team overlays: not re-checked; kept its old date. It is the owner's own tool, not a competitor.

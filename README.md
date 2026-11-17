@@ -302,11 +302,13 @@ local and include local source/runtime paths. This developer harness compares
 two fixed Python API trials with the frozen reference. It does not activate a
 Rust application route or prove resource improvements.
 
-The full plan to move careerbrew to Rust, with each step's gate and the current state, is [docs/rust-migration.md](docs/rust-migration.md).
+The full plan to move careerbrew to Rust, with each step's gate and the current state, is [docs/rust-migration.md](docs/rust-migration.md). What it measures today: [State of rust-00](docs/rust-migration.md#state-of-rust-00).
 
 ## Docs
 
 The docs map is [docs/README.md](docs/README.md). Agents start at [AGENTS.md](AGENTS.md). Privacy rules: [docs/privacy.md](docs/privacy.md).
+
+Tests run on hosted CI only ([docs/ci.md](docs/ci.md)).
 
 To let an agent work on careerbrew itself, run `/careerbrew-grind` in Claude Code. It runs the checkup, finishes open PRs and branches, and ships every open issue you filed and every unblocked task, one PR each. Issues by other people wait until you say yes.
 

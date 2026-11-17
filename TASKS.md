@@ -9,7 +9,7 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 - [ ] Company plugin: adopt the 2026-11 core (public repo, hosted CI, telemetry, Rust, CI cache)
   - **ID**: company-plugin-adopt-core-2026-11
   - **Blocked**: owner step: runs only on a company machine, in the private `careerbrew-<org-overlay>` repo; nothing company-specific comes back here
-  - **Details**: Follow `docs/company-plugin-update.md` steps (a) to (e): a private-pattern leak check in the plugin repo; plugin CI on hosted runners and no local core suite (hook `hooks/block-local-tests.sh` covers only a core checkout at `~/apps/careerbrew`, opt-out `CAREERBREW_ALLOW_LOCAL_TESTS=1`, in flight); `policy.telemetry: false` unless the company approves (`telemetry_sink` is not a field yet, task `telemetry-plugin-sink`); only verified manifest fields, ready for `rust-07`; no plugin CI cache until a run passes 5 minutes (`docs/ci.md`).
+  - **Details**: Follow `docs/company-plugin-update.md` steps (a) to (e): a private-pattern leak check in the plugin repo; plugin CI on hosted runners and no local core suite (hook `hooks/block-local-tests.sh` covers only a core checkout at `~/apps/careerbrew`, opt-out `CAREERBREW_ALLOW_LOCAL_TESTS=1`, on `main` since PR #108); `policy.telemetry: false` unless the company approves (`telemetry_sink` is not a field yet, task `telemetry-plugin-sink`); only verified manifest fields, ready for `rust-07`; no plugin CI cache until a run passes 5 minutes (`docs/ci.md`).
   - **Files**: docs/company-plugin-update.md; the company plugin repository (outside this repository)
   - **Hypothesis**: a plugin that follows the plan keeps `corporate readiness` at or above its baseline and leaks 0 company terms, because every step uses only fields and gates that exist on `main`.
   - **Measurement**: `uv run careerbrew machine ready` (the `corporate readiness: N/N` line, before and after); `uv run careerbrew plugin verify`; the plugin's `scripts/plugin-leak-check.sh <draft>` count.
@@ -368,6 +368,66 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
 
 ## P1
+
+- [ ] README Proof numbers come from hosted CI, not a local gate
+  - **ID**: proof-metrics-from-hosted-ci
+  - **Details**: `scripts/metrics.sh proof` writes `docs/proof/metrics.json` and the README Proof section from a local green `scripts/check.sh` and `scripts/e2e.sh` (`docs/metrics.md` "README proof"). Local test runs are blocked now (`hooks/block-local-tests.sh`, PR #108), so every proof number is stuck at its 2026-10-26 date. Make the hosted gate upload the inputs `metrics.sh proof` reads (e2e results, gate step events, eval and leak counts) as an artifact. Then make `metrics.sh proof` read them from a named run (`gh run download`), or add a `workflow_dispatch` job that runs the proof step and opens a PR with the refreshed files. Label each number with the run id and runner OS, never a machine of the owner. Keep `tests/unit/test_proof.py` (README and JSON must match). Coordinate with the open PR that owns `docs/ci.md` and `.github/workflows/`.
+  - **Files**: scripts/metrics.sh; scripts/proof.py; .github/workflows/; docs/metrics.md; docs/proof/metrics.json; tests/unit/test_proof.py
+  - **Hypothesis**: proof numbers built from hosted artifacts take the age of the README Proof section from 21+ days (2026-10-26 on 2026-11-16) to 7 days or less, with no local test run.
+  - **Measurement**: `jq -r '.metrics[].date' docs/proof/metrics.json | sort | head -1` compared with today's date, and `rg -c 'run [0-9]+' docs/proof/metrics.json` for the run-id label on each metric.
+  - **Success**: every metric in `docs/proof/metrics.json` names a hosted run id and is at most 7 days old, and `test_proof.py` passes on the hosted gate.
+  - **Pivot**: if the hosted artifacts cannot give a metric's inputs (for example the multi-day gate pass rate from `.metrics/events.jsonl`), drop that metric from the Proof section rather than keep a stale number.
+  - **Anchor**: Basili, Caldiera & Rombach 1994 (Goal-Question-Metric); Forsgren, Humble & Kim 2018, *Accelerate* (measure from the delivery pipeline).
+
+- [ ] The macOS browser control inventory can time out on a 15 s element wait
+  - **ID**: flaky-controls-inventory-macos
+  - **Details**: On 2026-11-16 the hosted `gate (macos-15)` job of PR #110 (head `16b1aefd`) failed in `web/e2e/controls.spec.ts:287` ("inventory on a ... machine: each control is in controls.json with a test that exists"): a 15 s wait for an element ran out. A rerun passed with no change. Read the failed log with `gh run view <run-id> --log-failed` and its Playwright trace first. Find which element the wait was for and what it waited behind (a slow first API call, a cached block refresh). Fix the cause; a longer timeout is the last resort (AGENTS.md "A wall-clock limit in a test is a hang guard").
+  - **Files**: web/e2e/controls.spec.ts; web/e2e/controls.json
+  - **Hypothesis**: with the cause fixed, the hosted macOS `controls.spec.ts` inventory fails 0 times in 20 runs, against 1 seen so far.
+  - **Measurement**: `gh run list --workflow ci.yml -L 20 --json conclusion,headSha` plus `gh run view <id> --log-failed | rg 'controls.spec.ts'` for each failed run.
+  - **Success**: 0 failures of this test in the next 20 hosted macOS runs.
+  - **Pivot**: if it still fails 2 or more times in 20 runs after the fix, mark the test serial on macOS and split the inventory per view.
+  - **Anchor**: Luo et al. 2014, "An empirical analysis of flaky tests" (FSE; async wait is the top cause).
+
+- [ ] The Day log unit test "shows 10 suggestions at a time" saw 10 items where it expected 4
+  - **ID**: flaky-daylog-suggestions-filter
+  - **Details**: In hosted CI run 43992348423 the web unit test `web/src/daylog.test.tsx` "shows 10 suggestions at a time with a kind filter, and Housekeeping folded with its count" failed in the `checks (ubuntu-24.04)` part; `gh run view 43992348423 --log-failed` shows `AssertionError: expected [ …(10) ] to have a length of 4 but got 10` (after the click on "goal (4)"). The assert runs right after `fireEvent.click`, so the filtered list may not have rendered yet, or the hash change did not reach the panel. Reproduce on hosted CI with a repeat run, then wait for the filtered state (`findAllByRole`, or wait for the "Showing" text) instead of a sync read.
+  - **Files**: web/src/daylog.test.tsx; web/src/daylog.tsx
+  - **Hypothesis**: an async wait for the filtered list takes this test's hosted failure rate from 1 seen to 0 in 20 runs.
+  - **Measurement**: `gh run list --workflow ci.yml -L 20` and `gh run view <id> --log-failed | rg 'shows 10 suggestions'`.
+  - **Success**: 0 failures in the next 20 hosted runs.
+  - **Pivot**: if it fails again with the async wait, the bug is in the filter itself, not the test: stop changing the test and write a failing reproduction of the filter.
+  - **Anchor**: Luo et al. 2014, "An empirical analysis of flaky tests" (FSE).
+
+- [ ] The gitleaks download in the public-readiness job can fail the job
+  - **ID**: gitleaks-download-cache
+  - **Details**: Hosted run 43992355392 failed in the `e2e-2 (ubuntu-24.04)` part at the gitleaks download, not the scan; `gh run view 43992355392 --log-failed` shows `curl: (22) The requested URL returned error: 502`. Both `.github/workflows/gate-part.yml` and `.github/workflows/public-readiness.yml` download the release; the step already pins `GITLEAKS_VERSION` and checks `GITLEAKS_SHA256`. Cache the checked tarball with `actions/cache` keyed by version and hash, or retry the download a bounded number of times; keep the SHA-256 check. Coordinate with the open PR that owns `docs/ci.md` and `.github/workflows/`.
+  - **Files**: .github/workflows/gate-part.yml; .github/workflows/public-readiness.yml; docs/ci.md
+  - **Hypothesis**: a cached, hash-checked binary takes gitleaks download failures in hosted runs from 1 seen to 0 in 30 runs.
+  - **Measurement**: `gh run list -L 30 --json conclusion,databaseId,workflowName` and `gh run view <id> --log-failed | rg -i 'gitleaks|curl'`.
+  - **Success**: 0 gitleaks download failures in 30 runs, and the SHA-256 check still runs on every cache miss.
+  - **Pivot**: if the cache adds more than 20 s to the job or the hash check can be skipped on a hit, drop the cache and use a bounded retry.
+  - **Anchor**: Forsgren, Humble & Kim 2018, *Accelerate* (change failure rate); SLSA v1.0 (pinned, verified build inputs).
+
+- [ ] `rust-00`: count grandchildren in the resource collector
+  - **ID**: rust-00-process-tree-resources
+  - **Details**: `cargo xtask migration resources` (PR #110) counts only the direct owned child, reaped with `wait4`. Grandchildren that the child does not wait for are not counted, so whole-process-tree resource collection is still "not qualified" in `docs/rust-migration.md` "State of rust-00". Pre-register the method first (for example a process group or a Linux cgroup, and a macOS fallback), then add a grandchild control: a child that spawns a 64 MiB grandchild and exits without waiting.
+  - **Files**: xtask/src/; xtask/tests/resources.rs; docs/rust-migration.md
+  - **Hypothesis**: a tree collector reports a grandchild's 64 MiB allocation within 0.75x to 1.5x on macOS and Linux, where the current collector reports about 0.
+  - **Measurement**: `cargo test -p careerbrew-xtask --test resources` on the hosted `gate (ubuntu-24.04)` and `gate (macos-15)` jobs, with the grandchild control.
+  - **Success**: the grandchild delta is 48 to 96 MiB on both OSes, and the 4 existing owned-child controls still pass.
+  - **Pivot**: if either OS cannot attribute a grandchild within 0.5x to 2x, mark tree accounting unsupported there and require measured commands to wait for their children.
+  - **Anchor**: POSIX `getrusage`/`wait4` (IEEE Std 1003.1-2017; `RUSAGE_CHILDREN` covers only waited-for descendants); Linux cgroup v2 `memory.peak`; Kalibera & Jones 2013 (ISMM).
+
+- [ ] The resources calibration numbers do not print on a passing gate run
+  - **ID**: resources-calibration-visible
+  - **Details**: The gate's `rust-test` step runs `cargo test --all` without `--nocapture`, so the `calibration` and `inheritance` lines of `xtask/tests/resources.rs` show only on a failed run. Adding `--nocapture` to the gate broke the pinned-arguments test `G03` in `tests/unit/test_gate_cache.py` (`RUST_PRIMARY`), which freezes the tool contract. Write the numbers to a file instead (for example under `.metrics/` or as a job summary), or move the pin together with a successor contract; never loosen the pin silently.
+  - **Files**: xtask/tests/resources.rs; scripts/check.sh; tests/unit/test_gate_cache.py; docs/rust-migration.md
+  - **Hypothesis**: every passing hosted gate run shows the calibration ratio for both OSes, against 0 of N passing runs now.
+  - **Measurement**: `gh run view <id> --log | rg 'calibration'` on the next 5 passing hosted gate runs.
+  - **Success**: 5 of 5 passing runs show the macOS and Linux ratios, and `G03` stays green.
+  - **Pivot**: if the numbers can only show by changing the pinned arguments, stop and record the ratios by hand per release in `docs/rust-migration.md`.
+  - **Anchor**: Basili, Caldiera & Rombach 1994 (Goal-Question-Metric: a metric you cannot see is not measured).
 
 - [ ] `scripts/check.sh` and `scripts/e2e.sh` queue themselves through heavy-run
   - **ID**: gate-scripts-self-queue
