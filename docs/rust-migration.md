@@ -1105,9 +1105,9 @@ The tool has no `--help`. A wrong argument prints the usage and exits 2.
 | `cargo xtask migration observer-probe --image <immutable-id> [--out <new-directory> [--freeze-only\|--fault-controls-only]]` | the fixed Linux process-observer probe in an owned, network-disabled container |
 
 | `cargo xtask migration baseline --step <id> --python <absolute-path> --out <absolute-new-file> [--runs <n>]` | runs the step's registered Python oracle N times (default 30) through the process-tree collector. Each run gets a fresh synthetic home. The oracle starts in the repo root. It writes a content-free JSON record: step, command, OS, arch, Rust and Python versions, source revision, `source_tree_dirty` (from `git status --porcelain`), a hash of the relevant sources (the capture sources plus `baseline.rs` and `resources.rs`), `fixtures_sha256` (`tests/fixtures/http`), `cache_state` (`warm-imports-fresh-synthetic-home`: imports and OS caches are warm, only the data folder is fresh), `meets_protocol_minimum`, raw samples (tree CPU user and system time, tree peak RSS, wall time, `parent_max_rss_bytes`, `rss_may_include_parent`) and p50 and p95. It refuses an unknown step, fewer than 30 runs (the test-only flag `--test-allow-few-runs` allows them and records `meets_protocol_minimum: false`), a relative `--python` or `--out`, an oracle run that does not exit 0, a set but empty `CAREERBREW_HOME`, an existing output, and a source or fixture change during the runs. Registered steps: `rust-03` (`careerbrew actions --json`). |
+| `cargo xtask migration decide --step <id> --baseline <file> --verify <file> --measure <file> --out <absolute-new-file>` | reads one step's baseline record (`careerbrew-migration-baseline-v1`), a verify record (`careerbrew-migration-verify-v1`: `step`, a nonempty `checks` list of `{id, passed}`, and a `violations` map with the counts `contract`, `privacy`, `authorization`, `role`, `side_effect`, `missing_writes`, `duplicate_writes`) and a measure record (`careerbrew-migration-measure-v1`: `step`, a `regimes` list of `{cache_state, pair_ids, cached, candidate_cpu_us, candidate_tree_max_rss_bytes}`, cache state cold or warm). It writes a content-free `careerbrew-migration-decide-v1` record: `activate`, or `keep-python` with fixed reason ids (`baseline-below-protocol-minimum`, `verify-check-failed`, `verify-violation`, `too-few-unique-pairs`, `cached-sample`, `cpu-regressed`, `rss-regressed`). CPU compares the candidate p95 with the baseline `cpu_us_p95`; memory compares the candidate maximum with the baseline sample maximum; exactly 110% keeps. No noise floor is registered yet, so every case uses the ratio. Exit 0 activates, 1 keeps Python, 2 refuses a malformed record, a wrong schema, a step mismatch or an unknown step and writes nothing. The verify and measure shapes are minimal until those commands land. |
 
-**Not built yet:** `verify`, `measure` and `decide`. Every port step
-needs them.
+**Not built yet:** `verify` and `measure`. Every port step needs them.
 
 ### Tests and gate steps
 
@@ -1120,7 +1120,7 @@ needs them.
 - The hosted CI installs the pinned toolchain and runs the gate on Ubuntu and
   macOS ([docs/ci.md](ci.md)). It was green on `main` at `ecbbb7fc`.
 - Integration tests in `xtask/tests/`: `activation_manifest`, `capture_actions`,
-  `capture_data`, `capture_data_cli`, `capture_http`, `i01_fixture`,
+  `capture_data`, `capture_data_cli`, `capture_http`, `decide`, `i01_fixture`,
   `observer_deadline`, `observer_owner`, `observer_parser`,
   `observer_transport`, `resources`, `store_supervisor`.
 - Python cross-checks in `tests/unit/`: `test_rust_vault_interop.py`,

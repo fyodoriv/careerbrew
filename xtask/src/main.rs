@@ -4,6 +4,7 @@ mod capture_actions;
 #[cfg(not(test))]
 mod capture_data;
 mod capture_http;
+mod decide;
 mod inventory;
 mod observer_probe;
 mod resources;
@@ -66,6 +67,9 @@ fn main() -> ExitCode {
                 }
             };
         }
+    }
+    if args.len() >= 2 && args[0] == "migration" && args[1] == "decide" {
+        return decide_command(&args[2..]);
     }
     if args.len() >= 2 && args[0] == "migration" && args[1] == "baseline" {
         return baseline_command(&args[2..]);
@@ -243,6 +247,7 @@ fn main() -> ExitCode {
     eprintln!(
         "       cargo xtask migration capture-data --python <absolute-path> --out <new-file>"
     );
+    eprintln!("       cargo xtask migration decide --step <id> --baseline <file> --verify <file> --measure <file> --out <new-file>");
     eprintln!("       cargo xtask migration observer-probe --image <immutable-id> [--out <new-directory> [--freeze-only|--fault-controls-only]]");
     ExitCode::from(2)
 }
@@ -317,6 +322,75 @@ fn baseline_command(rest: &[std::ffi::OsString]) -> ExitCode {
         Err(reason) => {
             eprintln!("migration baseline: {reason}");
             ExitCode::FAILURE
+        }
+    }
+}
+
+/// `migration decide --step <id> --baseline <f> --verify <f> --measure <f> --out <new-file>`.
+/// Exit 0: activate. Exit 1: keep-python (verdict written). Exit 2: usage or
+/// refused input (nothing written).
+fn decide_command(rest: &[std::ffi::OsString]) -> ExitCode {
+    let mut slots: [Option<std::ffi::OsString>; 5] = Default::default();
+    for pair in rest.chunks(2) {
+        let [flag, value] = pair else {
+            eprintln!("migration decide: every flag needs a value");
+            return ExitCode::from(2);
+        };
+        let index = match flag.to_str() {
+            Some("--step") => 0,
+            Some("--baseline") => 1,
+            Some("--verify") => 2,
+            Some("--measure") => 3,
+            Some("--out") => 4,
+            _ => {
+                eprintln!("migration decide: unknown flag");
+                return ExitCode::from(2);
+            }
+        };
+        if slots[index].replace(value.clone()).is_some() {
+            eprintln!("migration decide: a flag is repeated");
+            return ExitCode::from(2);
+        }
+    }
+    let [Some(step), Some(base), Some(verify), Some(measure), Some(output)] = slots else {
+        eprintln!(
+            "migration decide: --step, --baseline, --verify, --measure and --out are required"
+        );
+        return ExitCode::from(2);
+    };
+    let path = std::path::Path::new;
+    match decide::run(
+        &step.to_string_lossy(),
+        path(&base),
+        path(&verify),
+        path(&measure),
+        path(&output),
+    ) {
+        Ok(record) => {
+            let decision = record["decision"].as_str().unwrap_or("");
+            let reasons = record["reasons"]
+                .as_array()
+                .map(|reasons| {
+                    reasons
+                        .iter()
+                        .filter_map(|reason| reason.as_str())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                })
+                .unwrap_or_default();
+            println!(
+                "migration decide: step={} decision={decision} reasons={reasons}",
+                record["step"].as_str().unwrap_or("")
+            );
+            if decision == "activate" {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
+        }
+        Err(reason) => {
+            eprintln!("migration decide: {reason}");
+            ExitCode::from(2)
         }
     }
 }
