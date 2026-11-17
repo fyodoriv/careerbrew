@@ -47,12 +47,12 @@ Run every command from the repo root.
 | Checkup (whole repo: when it last ran here and the commits since, open PRs and branches, health, the hosted gate on main, broken stories, speed, P0s, monthly audit) | `scripts/checkup.sh` (ends with a run page and one summary line; a copy stays at `.metrics/checkup.html`; it reads the gate from `scripts/hosted-gate.sh`, and `CHECKUP_LOCAL_GATE=1` runs `scripts/check.sh` here instead); agents: `/careerbrew-checkup`, which ends by filing each problem found (duplicate search first, drafts checked with `careerbrew privacy scan --file`) |
 | What a long run did, its blockers, and next commands (content-free, for agents) | `uv run careerbrew report latest --json` (open the page: `uv run careerbrew open --report latest`) |
 | Install | `uv sync` |
-| One test | `uv run pytest tests/test_file.py::test_name -q` |
+| One test (hosted CI only; the `block-local-tests` hook blocks it here) | `uv run pytest tests/test_file.py::test_name -q` |
 | Select Python tests while iterating | `uv run python scripts/tests_affected.py [<ref>]` lists modules. Add `--run` in a trusted checkout and Python environment. The hosted checks run the full gate for the pull request. |
-| Several related test files | `heavy-run uv run pytest -q -n 8 <files>` |
+| Several related test files (hosted CI only) | `heavy-run uv run pytest -q -n 8 <files>` |
 | Lint and format | `uv run ruff check --fix . && uv run ruff format .` |
 | Type check | `uv run pyright` |
-| Fast gate (each commit; unit tests run in parallel with pytest-xdist, `UNIT_JOBS=0` runs them one by one) | `scripts/check.sh fast` |
+| Fast gate (hosted CI only; unit tests run in parallel with pytest-xdist, `UNIT_JOBS=0` runs them one by one) | `scripts/check.sh fast` |
 | Full gate with e2e (optional on your machine: the hosted checks run it for every pull request, [`docs/ci.md`](docs/ci.md); eligible steps cache by their inputs; leak scan, format, lint, `types`, unit, exercises, `web-types`, e2e and Rust steps do not reuse cache entries) | `scripts/check.sh` (`NO_CACHE=1` for a full rerun) |
 | Run only some gate steps, or one share of the e2e stories (the hosted parts do this, [`docs/ci.md`](docs/ci.md) "Parallel parts") | `CHECK_STEPS="unit exercises" scripts/check.sh` · `CHECK_STEPS=e2e E2E_SHARD=1/2 scripts/check.sh` |
 | A gate step's inputs (git pathspecs, like nx target inputs; empty means every file) | `scripts/check.sh inputs <step>...` (change them in `inputs_of`; `tests/unit/test_gate_inputs.py` must pass) |
@@ -139,7 +139,7 @@ Run every command from the repo root.
 
 ## Rules
 
-1. A change is done when the hosted checks of its pull request are green: `gate (ubuntu-24.04)`, `gate (macos-15)` and `public-readiness` ([`docs/ci.md`](docs/ci.md)). Show the `gh pr checks <pr>` output. Never wait for a local full gate: run `scripts/check.sh fast` or single tests while you work, and let the runners run the full gate.
+1. A change is done when the hosted checks of its pull request are green: `gate (ubuntu-24.04)`, `gate (macos-15)` and `public-readiness` ([`docs/ci.md`](docs/ci.md)). Show the `gh pr checks <pr>` output. Tests run on hosted CI only: run lint, format and type checks while you work, push, and read `gh pr checks <pr>`. The `hooks/block-local-tests.sh` hook blocks local test runs (opt-out: `CAREERBREW_ALLOW_LOCAL_TESTS=1` exported before the agent starts).
 2. A bug fix starts with a failing test that reproduces it.
 3. Each change updates its docs in the same commit (see `## Docs upkeep`).
 4. Touch only what the task needs. Note other problems as tasks in `TASKS.md`.
@@ -405,7 +405,7 @@ A trap that cost time gets a dated row here, or becomes a check.
 
 1. Branch `type/short-description` from `main`.
 2. Write the task's Hypothesis, Measurement, Success, and Pivot before the code.
-3. Make the change with its tests and docs. Run the tests you changed, or `scripts/check.sh fast`, while you work. Push as soon as the change is reviewable: a push runs only the leak and secret scans (seconds), and the hosted checks run the full gate on clean runners ([`docs/ci.md`](docs/ci.md)). A local full gate (`scripts/check.sh`, or `scripts/batch-gate.sh` for up to 4 PRs) is optional; use it only when the hosted checks are unavailable.
+3. Make the change with its tests and docs. Run lint, format and type checks while you work; tests run on hosted CI only. Push as soon as the change is reviewable: a push runs only the leak and secret scans (seconds), and the hosted checks run the full gate on clean runners ([`docs/ci.md`](docs/ci.md)). A local gate (`scripts/check.sh`, or `scripts/batch-gate.sh`) runs only with the opt-out, when the hosted checks are unavailable.
 4. Commit with a conventional header (`feat:`, `fix:`, `docs:`, `chore:`).
 5. Open a PR with `## Summary`, `## Details`, `## Docs`, and Predicted / Observed / Lesson. The lesson goes in the PR body under Predicted / Observed / Lesson; add no file to the learnings folder under `docs/` (the public tree leaves that folder out, and the `public-readiness` check fails a pull request that adds one). Merge when the hosted checks are green (`gh pr checks <pr>`); read a red check with `gh run view <run-id> --log-failed` before any fix.
 6. A merge that users notice (`feat:` or `fix:`) gets a patch release soon after: `scripts/release.sh <x.y.z>` on a branch, a PR, then `scripts/release.sh tag`. The version tiles in `docs/telemetry-tiles.md` need it to move.

@@ -69,7 +69,8 @@ The runners set `UNIT_JOBS=2` and `E2E_JOBS=2`: a standard runner has few CPUs.
 
 ## Work with the hosted checks
 
-1. While you work, run the tests you changed, or `scripts/check.sh fast`.
+1. While you work, run lint, format and type checks only. Tests run on
+   hosted CI only (see "Tests run on hosted CI only" below).
 2. Push when the change is reviewable. The pre-push hook takes seconds: it
    checks the push context, runs the leak scan, and runs gitleaks on every
    commit the push adds. It runs no test.
@@ -81,8 +82,22 @@ The lesson of a change goes in the pull request body (Predicted / Observed /
 Lesson). Do not add a file to the learnings folder under `docs/`: the public
 tree leaves that folder out, so `public-readiness` fails that pull request.
 
-A full local gate (`scripts/check.sh`) still works and is optional. Use it
-when the hosted checks are unavailable.
+## Tests run on hosted CI only
+
+The `hooks/block-local-tests.sh` hook (Claude Code PreToolUse on Bash,
+declared in `Agentfile.yaml`) blocks a local test run in a careerbrew
+checkout: pytest, cargo test or nextest, `scripts/check.sh`,
+`scripts/e2e.sh`, `scripts/batch-gate.sh`, `tests/e2e/*.sh`,
+`evals/run.sh`, and the web tests (`npm test`, `npm run visual*`, vitest,
+`playwright test`), also through heavy-run, xargs, npx, bash -c or eval.
+Lint, format, type checks and builds stay allowed. Read the result with
+`gh pr checks <pr> --watch` and `gh run view <run-id> --log-failed`.
+
+When the hosted checks are unavailable, export
+`CAREERBREW_ALLOW_LOCAL_TESTS=1` before the agent starts. Setting it inside a
+command does not work: the hook reads its own environment. The hook's own
+test is `bash hooks/block-local-tests.test.sh`
+(`tests/unit/test_block_local_tests_hook.py` runs it in the gate).
 
 The checkup (`scripts/checkup.sh`) runs no gate either. It reads the hosted
 result for the commit `main` points at now with `scripts/hosted-gate.sh`: the

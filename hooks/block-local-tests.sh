@@ -1,0 +1,272 @@
+#!/bin/bash
+# careerbrew/hooks/block-local-tests.sh
+#
+# Hook: block-local-tests. Event: PreToolUse on Bash. Verdict: block (exit 2).
+# Source rule: AGENTS.md "Rules" 1: hosted checks are the gate, so tests do
+# not run on this machine.
+#
+# Blocks a local test run inside a careerbrew checkout: pytest (also through
+# python -m, uv run, uvx), cargo test, cargo nextest, scripts/check.sh,
+# scripts/e2e.sh, scripts/batch-gate.sh, scripts/tests_affected.py --run,
+# tests/e2e/*.sh, evals/run.sh, npm test, npm run test* and visual*, vitest,
+# playwright test, node --test and bun test. Also when started by heavy-run,
+# xargs, find -exec, npx, npm exec, pnpm dlx, yarn, bunx, bash -c or eval.
+# Allowed: lint, format, typecheck, build, one hook's own .test.sh, and any
+# command outside a careerbrew checkout. A checkout is a folder (or a parent
+# of it) whose pyproject.toml says name = "careerbrew" and that holds
+# scripts/check.sh.
+# Opt-out: CAREERBREW_ALLOW_LOCAL_TESTS=1, exported before the agent starts.
+# Setting it inside an agent command has no effect: the hook reads its own
+# environment, not the command text.
+# Adapted from agentbrew hooks/checks/block-local-tests.sh.
+# Test: bash hooks/block-local-tests.test.sh
+
+set -euo pipefail
+
+[ "${CAREERBREW_ALLOW_LOCAL_TESTS:-}" = 1 ] && exit 0
+
+input=$(cat)
+
+# Fast exit: most commands hold no word that can start a test run.
+case "$input" in
+  *test*|*cargo*|*check.sh*|*e2e*|*batch-gate*|*run.sh*|*playwright*|*visual*) ;;
+  *) exit 0 ;;
+esac
+
+_field() {
+  python3 -c 'import json,sys
+d=json.loads(sys.stdin.read() or "{}")
+for k in sys.argv[1].split("."):
+    d=d.get(k) if isinstance(d,dict) else None
+print(d if isinstance(d,str) else "")' "$1" <<< "$input" 2>/dev/null || true
+}
+command="$(_field tool_input.command)"
+[ -n "$command" ] || exit 0
+cwd="$(_field cwd)"
+[ -n "$cwd" ] || cwd="$PWD"
+
+# Quoted text is data, not a command: drop heredoc bodies and replace each
+# quoted string with Q. The string after `bash -c`, `sh -c`, `eval` or
+# `npx -c`/`npm exec -c` runs as a command, so it moves to its own line at
+# the end. Quoted words that look like a path stay, so `cd "~/apps/careerbrew"`
+# still names its folder.
+_strip_text() {
+  perl -0777 -pe '
+    my @extra;
+    s/<<-?\s*(["\x27]?)(\w+)\1([^\n]*\n)(?:.*?\n)??[ \t]*\2[ \t]*$/ $3/gms;
+    s/\b(?:ba|z|da)?sh[ \t]+(?:-\w+[ \t]+)*-\w*c\w*[ \t]+("(?:[^"\\]|\\.)*"|\x27[^\x27]*\x27)/
+      my $q = $1; push @extra, substr($q, 1, -1); "sh -c Q"/gse;
+    s/\b((?:npx|bunx|(?:npm|pnpm)(?:[ \t]+(?:--prefix|-w|--workspace|-C|--dir|--filter|-F|--loglevel)[ \t]+[^\s;&|]+|[ \t]+-[^\s;&|]+)*[ \t]+(?:exec|x|dlx))(?:[ \t]+-[^\s;&|]+)*?[ \t])(?:-c|--call)[ \t=]+("(?:[^"\\]|\\.)*"|\x27[^\x27]*\x27)/
+      my ($p, $q) = ($1, $2); push @extra, substr($q, 1, -1); "${p}-c Q"/gse;
+    s/\beval[ \t]+("(?:[^"\\]|\\.)*"|\x27[^\x27]*\x27)/
+      my $q = $1; push @extra, substr($q, 1, -1); "eval Q"/gse;
+    s/("(?:[^"\\]|\\.)*"|\x27[^\x27]*\x27)/
+      my $in = substr($1, 1, -1);
+      $in =~ m{^[\w.~\x2f\$-]*\x2f[\w.~\x2f\$-]*$} ? $in : length($in) ? "Q" : ""/gse;
+    s/\$\(([^()]*)\)/push @extra, $1; "S"/ge;
+    s/`([^`]*)`/push @extra, $1; "S"/ge;
+    $_ .= join("", map { "\n$_\n" } @extra);
+  '
+}
+
+# True when dir (or a parent of it) is a careerbrew checkout.
+_is_careerbrew_checkout() {
+  local d="$1"
+  # shellcheck disable=SC2016,SC2088  # the patterns match literal text
+  case "$d" in
+    "~") d="$HOME" ;;
+    "~/"*) d="$HOME/${d#\~/}" ;;
+    '$HOME'|'${HOME}') d="$HOME" ;;
+    '$HOME/'*) d="$HOME/${d#\$HOME/}" ;;
+    '${HOME}/'*) d="$HOME/${d#\$\{HOME\}/}" ;;
+  esac
+  case "$d" in /*) ;; *) d="$cwd/$d" ;; esac
+  while [ -n "$d" ] && [ "$d" != / ]; do
+    if [ -f "$d/scripts/check.sh" ] && [ -f "$d/pyproject.toml" ] \
+      && grep -qE '^name[[:space:]]*=[[:space:]]*"careerbrew"' "$d/pyproject.toml"; then
+      return 0
+    fi
+    d="${d%/*}"
+  done
+  return 1
+}
+
+stripped="$(printf '%s\n' "$command" | _strip_text)"
+
+# Folders the command may run in: the session folder plus every `cd X`,
+# `-C X`, `--prefix X`, `--dir X`, `--directory X` and `--manifest-path X`.
+dirs=("$cwd")
+while IFS= read -r d; do
+  [ -n "$d" ] && dirs+=("$d")
+done < <(printf '%s\n' "$stripped" \
+  | perl -ne 'while (/(?:^|[;&|(]\s*|\s)(?:cd|-C|--prefix|--dir|--directory|--manifest-path)[ \t=]+([^\s;&|()]+)/g) { print "$1\n" }')
+
+# True when an npm script name runs tests.
+_is_test_script() {
+  case "$1" in
+    test|test:*|t|visual|visual:*) return 0 ;;
+  esac
+  return 1
+}
+
+# True when one simple command runs a test suite.
+_is_test_run() {
+  local -a w
+  read -r -a w <<< "$1" || true
+  while [ "${#w[@]}" -gt 0 ]; do
+    case "${w[0]}" in
+      *=*|if|while|until|then|do|else|elif|'!'|time|nohup|exec|command|sudo|caffeinate|env|eval|heavy-run|--exclusive)
+        w=("${w[@]:1}") ;;
+      nice|timeout) w=("${w[@]:1}")
+        while [ "${#w[@]}" -gt 0 ] && [[ "${w[0]}" == -* || "${w[0]}" =~ ^[0-9.]+[smhd]?$ ]]; do w=("${w[@]:1}"); done ;;
+      -*) w=("${w[@]:1}") ;;
+      *) break ;;
+    esac
+  done
+  [ "${#w[@]}" -gt 0 ] || return 1
+  local word="${w[0]}" tool="${w[0]##*/}" a
+  # Gate and story scripts, by their path in the repo.
+  case "$word" in
+    *scripts/check.sh)
+      # `scripts/check.sh inputs <step>` only prints a step's inputs.
+      [ "${w[1]:-}" = inputs ] && return 1
+      return 0 ;;
+    *scripts/e2e.sh|*scripts/batch-gate.sh|*evals/run.sh|*tests/e2e/*.sh) return 0 ;;
+    *scripts/tests_affected.py)
+      for a in "${w[@]:1}"; do [ "$a" = --run ] && return 0; done
+      return 1 ;;
+  esac
+  case "$tool" in
+    pytest|py.test) return 0 ;;
+    python|python3|python3.*)
+      local i
+      for i in "${!w[@]}"; do
+        [ "${w[$i]}" = -m ] && [ "${w[$((i + 1))]:-}" = pytest ] && return 0
+      done
+      # `python scripts/tests_affected.py --run` runs pytest.
+      _is_test_run "${w[*]:1}"
+      return ;;
+    uv)
+      # `uv run [flags] X` starts X. Common flags with a value come first.
+      w=("${w[@]:1}")
+      while [ "${#w[@]}" -gt 0 ] && [[ "${w[0]}" == -* ]]; do w=("${w[@]:1}"); done
+      [ "${w[0]:-}" = run ] || return 1
+      w=("${w[@]:1}")
+      while [ "${#w[@]}" -gt 0 ] && [[ "${w[0]}" == -* ]]; do
+        case "${w[0]}" in
+          --with|--python|-p|--project|--directory|--package|--extra|--group|--env-file) w=("${w[@]:2}") ;;
+          *) w=("${w[@]:1}") ;;
+        esac
+      done
+      [ "${#w[@]}" -gt 0 ] || return 1
+      _is_test_run "${w[*]}"
+      return ;;
+    cargo)
+      w=("${w[@]:1}")
+      while [ "${#w[@]}" -gt 0 ] && [[ "${w[0]}" == -* || "${w[0]}" == +* ]]; do
+        case "${w[0]}" in
+          --manifest-path|--config|-Z|--color) w=("${w[@]:2}") ;;
+          *) w=("${w[@]:1}") ;;
+        esac
+      done
+      case "${w[0]:-}" in test|t|nextest) return 0 ;; esac
+      return 1 ;;
+    npm|pnpm|yarn)
+      # Global flags (and the values of the common ones) may come first.
+      w=("${w[@]:1}")
+      while [ "${#w[@]}" -gt 0 ] && [[ "${w[0]}" == -* ]]; do
+        case "${w[0]}" in
+          --prefix|-w|--workspace|-C|--dir|--filter|-F|--loglevel|--cwd) w=("${w[@]:2}") ;;
+          *) w=("${w[@]:1}") ;;
+        esac
+      done
+      [ "${#w[@]}" -gt 0 ] || return 1
+      case "${w[0]}" in
+        # `npm exec X`, `npm x X` and `pnpm dlx X` start X, like npx.
+        exec|x|dlx) _is_test_run "npx ${w[*]:1}"; return ;;
+        test|t) return 0 ;;
+        run|run-script)
+          w=("${w[@]:1}")
+          while [ "${#w[@]}" -gt 0 ] && [[ "${w[0]}" == -* ]]; do w=("${w[@]:1}"); done
+          [ "${#w[@]}" -gt 0 ] || return 1
+          _is_test_script "${w[0]}"; return ;;
+      esac
+      # `yarn test` and `pnpm visual` run the script without `run`.
+      # `yarn vitest` and `pnpm vitest` start the tool, like npx.
+      if [ "$tool" != npm ]; then
+        _is_test_script "${w[0]}" && return 0
+        _is_test_run "npx ${w[*]}"; return
+      fi
+      return 1 ;;
+    xargs|npx|bunx|uvx)
+      # A launcher: skip its own flags (and their values), then judge the
+      # command it starts.
+      w=("${w[@]:1}")
+      while [ "${#w[@]}" -gt 0 ] && [[ "${w[0]}" == -* ]]; do
+        case "$tool:${w[0]}" in
+          npx:-p|npx:--package|bunx:-p|bunx:--package|uvx:--from|uvx:--with|uvx:--python|xargs:-[adEIJLnPRSs]|xargs:--arg-file|xargs:--delimiter|xargs:--max-args|xargs:--max-chars|xargs:--max-procs) w=("${w[@]:2}") ;;
+          # GNU `--replace` takes no separate value (`--replace=R` is one word).
+          *) w=("${w[@]:1}") ;;
+        esac
+      done
+      [ "${#w[@]}" -gt 0 ] || return 1
+      _is_test_run "${w[*]}"
+      return ;;
+    find)
+      # `find ... -exec CMD ...` starts CMD.
+      local i
+      for i in "${!w[@]}"; do
+        case "${w[$i]}" in -exec|-execdir|-ok|-okdir)
+          _is_test_run "${w[*]:$((i + 1))}" && return 0 ;;
+        esac
+      done
+      return 1 ;;
+    vitest)
+      # A lone version or help flag, or `vitest list`, runs no tests.
+      case "${w[*]:1}" in --version|-v|--help|-h|list|list\ *) return 1 ;; esac
+      return 0 ;;
+    playwright)
+      [ "${w[1]:-}" = test ] && return 0
+      return 1 ;;
+    bun)
+      [ "${w[1]:-}" = test ] && return 0
+      return 1 ;;
+    node|tsx|ts-node)
+      for a in "${w[@]:1}"; do
+        case "$a" in --test|--test=*) return 0 ;; esac
+      done
+      return 1 ;;
+    bash|sh|zsh)
+      # `bash scripts/check.sh fast` runs the gate.
+      _is_test_run "${w[*]:1}"
+      return ;;
+  esac
+  return 1
+}
+
+hit=""
+while IFS= read -r line; do
+  while IFS= read -r seg; do
+    seg="${seg#"${seg%%[![:space:]]*}"}"
+    [ -n "$seg" ] || continue
+    if _is_test_run "$seg"; then hit="$seg"; break 2; fi
+  # An empty {} is an xargs or find placeholder, not a brace group.
+  done < <(printf '%s\n' "$line" | sed -E 's/\{\}/ARG/g; s/(&&|\|\||;|\||[(){}])/\n/g')
+done <<< "$stripped"
+[ -n "$hit" ] || exit 0
+
+for d in "${dirs[@]}"; do
+  if _is_careerbrew_checkout "$d"; then
+    cat >&2 <<'MSG'
+BLOCKED: careerbrew tests run on hosted CI only, not on this machine.
+Run lint, format or a type check locally (`uv run ruff check .`, `uv run pyright`,
+`npm run typecheck`). Then push the branch and read the hosted checks:
+  gh pr checks <pr> --watch
+  gh run view <run-id> --log-failed
+Opt-out: export CAREERBREW_ALLOW_LOCAL_TESTS=1 before the agent starts.
+See docs/ci.md ("Tests run on hosted CI only").
+MSG
+    exit 2
+  fi
+done
+exit 0
