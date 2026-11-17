@@ -5,6 +5,7 @@ mod capture_data;
 mod capture_http;
 mod inventory;
 mod observer_probe;
+mod resources;
 mod toolchain_identity;
 mod trial_plan;
 
@@ -40,6 +41,29 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         };
+    }
+    if let [migration, action, flag, command, rest @ ..] = args.as_slice() {
+        if migration == "migration" && action == "resources" && flag == "--cmd" {
+            let program = std::path::Path::new(command);
+            if !program.is_absolute() {
+                eprintln!("migration resources: --cmd must be an absolute path");
+                return ExitCode::from(2);
+            }
+            return match resources::measure(program, rest) {
+                Ok(usage) => {
+                    println!("{}", usage.to_json());
+                    if usage.passed() {
+                        ExitCode::SUCCESS
+                    } else {
+                        ExitCode::FAILURE
+                    }
+                }
+                Err(reason) => {
+                    eprintln!("migration resources: {reason}");
+                    ExitCode::FAILURE
+                }
+            };
+        }
     }
     if let [migration, action, flag, compiler] = args.as_slice() {
         if migration == "migration" && action == "toolchain-identity" && flag == "--rustc" {

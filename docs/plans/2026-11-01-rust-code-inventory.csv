@@ -911,3 +911,6 @@ tests/unit/test_telemetry_tiles.py,port,rust-27,Port each assertion/helper with 
 scripts/release.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_version.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_owner_venv_guard.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+xtask/src/resources.rs,keep-native,rust-00,Owned-child wait4 CPU and peak RSS accounting with calibrated units
+xtask/src/bin/resource_fixture.rs,keep-native,rust-00,Synthetic allocation CPU and signal child for resource controls
+xtask/tests/resources.rs,keep-native,rust-00,Native resource calibration wrong-unit CPU and signal controls

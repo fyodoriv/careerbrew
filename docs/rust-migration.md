@@ -1098,6 +1098,7 @@ The tool has no `--help`. A wrong argument prints the usage and exits 2.
 | `cargo xtask migration capture-actions --python <absolute-path> --out <new-file>` | runs `python -B -m careerbrew actions --json` twice in fresh synthetic homes and compares stdout, stderr, exit, schema and writes |
 | `cargo xtask migration capture-http --python <absolute-path> --out <new-file>` | runs two fresh synthetic server processes over a frozen HTTP corpus (21 request cases) |
 | `cargo xtask migration capture-data --python <absolute-path> --out <new-file>` | runs a ten-case write and read corpus twice and compares typed values, encrypted boundaries and declared writes |
+| `cargo xtask migration resources --cmd <absolute-path> [args]` | runs one owned child, reaps it with `wait4`, and prints JSON: outcome (exit code or signal), user and system CPU time, peak RSS raw and in bytes. Exit 0 only for a clean exit 0; a signal or nonzero exit is exit 1. A relative path exits 2. macOS and Linux only; another OS is refused. Grandchildren are not qualified. |
 | `cargo xtask migration observer-probe --image <immutable-id> [--out <new-directory> [--freeze-only\|--fault-controls-only]]` | the fixed Linux process-observer probe in an owned, network-disabled container |
 
 **Not built yet:** `baseline`, `verify`, `measure` and `decide`. Every port step
@@ -1116,7 +1117,7 @@ needs them.
 - Integration tests in `xtask/tests/`: `activation_manifest`, `capture_actions`,
   `capture_data`, `capture_data_cli`, `capture_http`, `i01_fixture`,
   `observer_deadline`, `observer_owner`, `observer_parser`,
-  `observer_transport`, `store_supervisor`.
+  `observer_transport`, `resources`, `store_supervisor`.
 - Python cross-checks in `tests/unit/`: `test_rust_vault_interop.py`,
   `test_rust_vault_base64_parity.py`, `test_rust_hash_experiment.py`,
   `test_rust_readiness.py`, `test_doctor_rust_deps.py`,
@@ -1149,6 +1150,7 @@ draft pull request are not on the public repository.
 | HTTP contract capture | 13 control groups; 21 request cases in each of two fresh processes | `cargo test -p careerbrew-xtask --test capture_http` |
 | Data contract capture | 10 corpus cases in each of two fresh trials; 13 control groups | `cargo test -p careerbrew-xtask --test capture_data` |
 | Activation manifest | three partial slices; 20 of 20 controls; zero multi-function cycles | `cargo test -p careerbrew-xtask --test activation_manifest` |
+| Owned-child resources | 5 controls: 64 MiB calibration (macOS local: delta 1.000x in 3 of 3 runs), planted wrong unit refused, CPU burn above 0, `SIGKILL` reported as `signaled` and exit 1, JSON and relative-path refusal | `cargo test -p careerbrew-xtask --test resources` |
 | Synthetic store supervisor | 16 controls for the future mixed Python and Rust store race | `cargo test -p careerbrew-xtask --test store_supervisor` |
 | Local Rust readiness | 12 readiness controls and the Serde doctor cases | `uv run pytest -q tests/unit/test_rust_readiness.py tests/unit/test_doctor_rust_deps.py` |
 | Linux observer | one qualified trial on one Linux/arm64 tuple: 5 of 5 event classes, the incomplete (no-follow) trace refused, both real fault controls passed, owned containers absent after cleanup | `heavy-run --exclusive cargo xtask migration observer-probe --image <id>` |
@@ -1170,10 +1172,10 @@ are **component parity only** and switch nothing:
   full harness. A first offline image build failed (the pinned `strace`
   package was not in the cache); a separate network-enabled preparation then
   built the image. Raw receipts stay local and are not in the repository.
-- Whole-process-tree resource collection is **not qualified**. The old draft
-  had raw owned-child `wait4` accounting and a prepared Darwin RSS unit
-  calibration (it predicted bytes, not KiB, in 6 of 6 fixed runs). That work
-  was not merged and is not in the public tree. Redo it here.
+- Whole-process-tree resource collection is **not qualified**. Owned-child
+  `wait4` accounting with a calibrated RSS unit is built (see
+  "Owned-child resource accounting" below). It covers the direct child only;
+  grandchildren that the child does not wait for are not counted.
 - One full local gate on the old draft failed one owned-process cleanup test
   (all others passed). Its cause was never found. A later fast gate passed
   without explaining it. The hosted gate on `main` is green today; treat any
@@ -1215,8 +1217,9 @@ Grandchildren are **not qualified** by this part.
 
 1. Recheck the gate: `gh pr checks` on a fresh pull request, and
    `cargo xtask migration self-test` and `inventory --check` locally.
-2. Build owned-child resource accounting with calibrated units on each
-   supported host (macOS and Linux). Pre-register the calibration first.
+2. Done: owned-child resource accounting with calibrated units on macOS and
+   Linux (`cargo xtask migration resources`). Process-tree accounting is
+   still open.
 3. Build `cargo xtask migration baseline`, `verify`, `measure` and `decide` on
    top of the verdict, the trial planner, the captures and the collector.
 4. Register the noise floors and the per-contract normalization rules.
@@ -1357,7 +1360,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 
 | Step | Files it owns | CLI handlers it ports | Test files whose assertions it ports |
 | --- | --- | --- | --- |
-| [`rust-00`](#rust-00-build-the-baseline-harness-and-complete-code-inventory) | 69 | 0 | 0 |
+| [`rust-00`](#rust-00-build-the-baseline-harness-and-complete-code-inventory) | 72 | 0 | 0 |
 | [`rust-01`](#rust-01-prove-maintained-dependency-and-data-interoperability) | 0 | 0 | 0 |
 | [`rust-02`](#rust-02-port-pure-setting-schemas-paths-clocks-and-hashes) | 3 | 1 | 4 |
 | [`rust-03`](#rust-03-introduce-the-native-cli-and-one-read-only-pilot) | 2 | 1 | 1 |
@@ -1386,9 +1389,9 @@ row stays, but it means the **dispatcher**, not the handlers:
 | [`rust-26`](#rust-26-complete-native-cli-coverage-and-default-entry-point) | 12 | 0 | 0 |
 | [`rust-27`](#rust-27-port-developer-tools-test-harnesses-installers-and-release-checks) | 477 | 0 | 68 |
 | [`rust-28`](#rust-28-retire-the-old-implementation-and-verify-fresh-machine-releases) | 4 | 0 | 0 |
-| **All steps** | **955 of 955** | **168 of 168** | **374 of 374** |
+| **All steps** | **958 of 958** | **168 of 168** | **374 of 374** |
 
-#### rust-00: Build the baseline harness and complete code inventory (69 files)
+#### rust-00: Build the baseline harness and complete code inventory (72 files)
 
 - `.cargo/` (1): `config.toml`
 - `./` (3): `Cargo.lock`, `Cargo.toml`, `rust-toolchain.toml`
@@ -1398,10 +1401,10 @@ row stays, but it means the **dispatcher**, not the handlers:
 - `experiments/hash/` (1): `Cargo.toml`
 - `experiments/hash/src/` (1): `main.rs`
 - `xtask/` (1): `Cargo.toml`
-- `xtask/src/` (9): `baseline_verdict.rs`, `capture_actions.rs`, `capture_data.rs`, `capture_http.rs`, `inventory.rs`, `main.rs`, `observer_probe.rs`, `toolchain_identity.rs`, `trial_plan.rs`
-- `xtask/src/bin/` (1): `store_supervisor_fixture.rs`
+- `xtask/src/` (10): `baseline_verdict.rs`, `capture_actions.rs`, `capture_data.rs`, `capture_http.rs`, `inventory.rs`, `main.rs`, `observer_probe.rs`, `resources.rs`, `toolchain_identity.rs`, `trial_plan.rs`
+- `xtask/src/bin/` (2): `resource_fixture.rs`, `store_supervisor_fixture.rs`
 - `xtask/src/observer_probe/` (3): `ownership.rs`, `parser.rs`, `transport.rs`
-- `xtask/tests/` (11): `activation_manifest.rs`, `capture_actions.rs`, `capture_data.rs`, `capture_data_cli.rs`, `capture_http.rs`, `i01_fixture.rs`, `observer_deadline.rs`, `observer_owner.rs`, `observer_parser.rs`, `observer_transport.rs`, `store_supervisor.rs`
+- `xtask/tests/` (12): `activation_manifest.rs`, `capture_actions.rs`, `capture_data.rs`, `capture_data_cli.rs`, `capture_http.rs`, `i01_fixture.rs`, `observer_deadline.rs`, `observer_owner.rs`, `observer_parser.rs`, `observer_transport.rs`, `resources.rs`, `store_supervisor.rs`
 - `xtask/tests/fixtures/capture/` (12): `actions-reference-promise-v2.json`, `actions-reference-rules-promise-v3.json`, `actions-reference-rules-v2.json`, `actions-reference-v1.json`, `actions-v1.json`, `data_reference_v1.provenance.json`, `data_reference_v1.semantic.json`, `http-reference-promise-v2.json`, `http-reference-rules-promise-v3.json`, `http-reference-rules-v2.json`, `http-reference-v1.json`, `http-v1.json`
 - `xtask/tests/fixtures/i01/` (1): `pending-identities-v1.tsv`
 - `xtask/tests/fixtures/linux-observer-replay-v7/` (5): `README.md`, `manifest.json`, `status.json`, `trace.10`, `trace.11`
