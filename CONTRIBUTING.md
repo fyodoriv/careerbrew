@@ -47,8 +47,8 @@ The agent never posts anything on its own. It works in these steps:
 4. Only after your yes does it post (`agentbrew report ... --yes`). A refused
    or failed re-scan (`✗`) is never posted.
 5. If the fix looks small, it asks a second question: "Want me to make a PR
-   that fixes it?" Only after that second yes does it make the change, run
-   the fast gate (`scripts/check.sh fast`), and open the PR with `agentbrew contribute`
+   that fixes it?" Only after that second yes does it make the change, push the
+   branch so the hosted checks run the tests, and open the PR with `agentbrew contribute`
    (it forks the repo for you).
 
 A run with nobody at the keyboard only saves the draft

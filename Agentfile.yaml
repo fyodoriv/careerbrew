@@ -13,3 +13,11 @@ skillDirectories:
 # Slash commands (/careerbrew-corporate, /careerbrew-checkup, /careerbrew-grind) deploy from here.
 commands:
   - ./commands
+
+# Tests run on hosted CI only (docs/ci.md). agentbrew copies the command as is,
+# so it names the main checkout's stable path; the hook itself checks that the
+# command runs inside a careerbrew checkout. A missing file does nothing.
+hooks:
+  - event: PreToolUse
+    matcher: Bash
+    command: 'f="$HOME/apps/careerbrew/hooks/block-local-tests.sh"; [ ! -f "$f" ] || bash "$f"'

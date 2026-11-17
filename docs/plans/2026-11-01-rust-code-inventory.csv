@@ -7,6 +7,8 @@ evals/run.py,port,rust-27,Port each assertion/helper with its domain slice; reti
 evals/run.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 hooks/pre-commit,port,rust-27,Executable hook/bootstrap; native tool must retain original policy and exit semantics
 hooks/pre-push,port,rust-27,Executable hook/bootstrap; native tool must retain original policy and exit semantics
+hooks/block-local-tests.sh,port,rust-27,Executable hook/bootstrap; native tool must retain original policy and exit semantics
+hooks/block-local-tests.test.sh,port,rust-27,Executable hook/bootstrap; native tool must retain original policy and exit semantics
 knowledge/exercises/001-contains-duplicate.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
 knowledge/exercises/002-valid-anagram.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
 knowledge/exercises/003-two-sum.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
@@ -463,6 +465,7 @@ tests/unit/test_grader_findings.py,port,rust-27,Port each assertion/helper with 
 tests/unit/test_grind_command.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_hosted_ci.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_hosted_gate.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_block_local_tests_hook.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_hot_reload.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_import_memory_questions.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_install_prompt.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
