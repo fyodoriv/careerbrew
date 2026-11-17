@@ -232,7 +232,7 @@ fn main() -> ExitCode {
     eprintln!("usage: cargo xtask migration self-test");
     eprintln!("       cargo xtask migration inventory --check");
     eprintln!("       cargo xtask migration inventory --embedded-check");
-    eprintln!("       cargo xtask migration baseline --step <id> --python <absolute-path> --out <new-file> [--runs <n>]");
+    eprintln!("       cargo xtask migration baseline --step <id> --python <absolute-path> --out <new-file> [--runs <n>] [--test-allow-few-runs]");
     eprintln!("       cargo xtask migration toolchain-identity --rustc <absolute-path>");
     eprintln!(
         "       cargo xtask migration capture-actions --python <absolute-path> --out <new-file>"
@@ -250,6 +250,13 @@ fn main() -> ExitCode {
 /// `migration baseline --step <id> --python <path> --out <new-file> [--runs <n>]`.
 fn baseline_command(rest: &[std::ffi::OsString]) -> ExitCode {
     let (mut step, mut python, mut output, mut runs) = (None, None, None, None);
+    // Test-only: allow fewer runs than the protocol minimum.
+    let allow_few_runs = rest.iter().any(|arg| arg == "--test-allow-few-runs");
+    let rest = rest
+        .iter()
+        .filter(|arg| *arg != "--test-allow-few-runs")
+        .cloned()
+        .collect::<Vec<_>>();
     for pair in rest.chunks(2) {
         let [flag, value] = pair else {
             eprintln!("migration baseline: every flag needs a value");
@@ -290,6 +297,7 @@ fn baseline_command(rest: &[std::ffi::OsString]) -> ExitCode {
         &step.to_string_lossy(),
         std::path::Path::new(&python),
         runs,
+        allow_few_runs,
         std::path::Path::new(&output),
     ) {
         Ok(record) => {

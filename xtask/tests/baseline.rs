@@ -20,7 +20,7 @@ fn baseline(python: &Path, step: &str, out: &Path, runs: &str) -> Command {
         .arg(python)
         .arg("--out")
         .arg(out)
-        .args(["--runs", runs])
+        .args(["--runs", runs, "--test-allow-few-runs"])
         .env_remove("CAREERBREW_HOME");
     command
 }
@@ -58,6 +58,10 @@ fn registered_step_writes_a_valid_record() {
     assert_eq!(value["step"], "rust-03");
     assert_eq!(value["runs"], 3);
     assert_eq!(value["command"][0], "<python>");
+    assert_eq!(value["cache_state"], "warm-imports-fresh-synthetic-home");
+    assert_eq!(value["meets_protocol_minimum"], false);
+    assert!(value["source_tree_dirty"].is_boolean());
+    assert_eq!(value["fixtures_sha256"].as_str().unwrap().len(), 64);
     assert_eq!(value["source_revision"].as_str().unwrap().len(), 40);
     assert_eq!(value["sources_sha256"].as_str().unwrap().len(), 64);
     assert!(value["python_version"]
@@ -69,6 +73,8 @@ fn registered_step_writes_a_valid_record() {
     for sample in samples {
         assert!(sample["tree_cpu_us"].as_u64().unwrap() > 0);
         assert!(sample["tree_max_rss_bytes"].as_u64().unwrap() > 1024 * 1024);
+        assert!(sample["rss_may_include_parent"].is_boolean());
+        assert!(sample["parent_max_rss_bytes"].as_u64().is_some());
     }
     let summary = &value["summary"];
     assert!(summary["cpu_us_p50"].as_u64().unwrap() <= summary["cpu_us_p95"].as_u64().unwrap());
@@ -77,8 +83,48 @@ fn registered_step_writes_a_valid_record() {
     assert!(!text.contains(scratch.path().to_str().unwrap()));
     assert!(!text.contains(root().to_str().unwrap()));
     // A second run never overwrites a record.
+    let before = std::fs::read(&out).unwrap();
     let again = baseline(&python, "rust-03", &out, "1").output().unwrap();
-    assert!(!again.status.success());
+    assert_eq!(again.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&again.stderr).contains("baseline output already exists"));
+    assert_eq!(std::fs::read(&out).unwrap(), before);
+}
+
+#[test]
+fn fewer_than_thirty_runs_are_refused_without_the_test_flag() {
+    let scratch = tempfile::tempdir().unwrap();
+    let out = scratch.path().join("baseline.json");
+    let result = Command::new(XTASK)
+        .args(["migration", "baseline", "--step", "rust-03", "--python"])
+        .arg(root().join(".venv/bin/python"))
+        .arg("--out")
+        .arg(&out)
+        .args(["--runs", "29"])
+        .env_remove("CAREERBREW_HOME")
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&result.stderr).contains("below the protocol minimum of 30"));
+    assert!(!out.exists());
+}
+
+#[test]
+fn relative_out_is_refused() {
+    let result = Command::new(XTASK)
+        .args(["migration", "baseline", "--step", "rust-03", "--python"])
+        .arg(root().join(".venv/bin/python"))
+        .args([
+            "--out",
+            "baseline.json",
+            "--runs",
+            "1",
+            "--test-allow-few-runs",
+        ])
+        .env_remove("CAREERBREW_HOME")
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&result.stderr).contains("--out must be an absolute path"));
 }
 
 #[test]

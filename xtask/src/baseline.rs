@@ -11,6 +11,11 @@ use std::process::Command;
 
 pub const SCHEMA: &str = "careerbrew-migration-baseline-v1";
 pub const DEFAULT_RUNS: usize = 30;
+/// The protocol's minimum sample count; fewer runs need the test-only flag.
+pub const MIN_RUNS: usize = 30;
+/// The oracle imports from the checkout with warm OS file caches; only the
+/// careerbrew data folder is fresh for each run.
+pub const CACHE_STATE: &str = "warm-imports-fresh-synthetic-home";
 
 /// A registered step: its id and the Python oracle arguments after the
 /// interpreter. The oracle must be read-only and must exit 0.
@@ -61,10 +66,54 @@ fn revision(root: &Path) -> Result<String, String> {
     Ok(stdout.trim().to_owned())
 }
 
-pub fn record(root: &Path, id: &str, python: &Path, runs: usize) -> Result<Value, String> {
+/// True when `git status --porcelain` lists any change.
+fn dirty(root: &Path) -> Result<bool, String> {
+    let mut command = Command::new("/usr/bin/git");
+    command
+        .args(["status", "--porcelain"])
+        .current_dir(root)
+        .env_clear();
+    let (_, exit, stdout, stderr) = capture_actions::execute(command)?;
+    if exit != Some(0) || !stderr.is_empty() {
+        return Err("cannot observe tree state".into());
+    }
+    Ok(!stdout.trim().is_empty())
+}
+
+/// The capture sources plus the baseline and collector sources.
+fn hashed_sources(root: &Path) -> Result<Value, String> {
+    let mut sources = capture_actions::sources(root)?;
+    let map = sources
+        .as_object_mut()
+        .ok_or("capture sources are not a map")?;
+    for name in ["xtask/src/baseline.rs", "xtask/src/resources.rs"] {
+        let bytes = std::fs::read(root.join(name)).map_err(|_| "baseline source missing")?;
+        map.insert(name.to_owned(), json!(capture_actions::digest(&bytes)));
+    }
+    Ok(sources)
+}
+
+/// One hash over the HTTP fixtures the oracle environment points at.
+fn fixtures_sha256(root: &Path) -> Result<String, String> {
+    let files = capture_actions::files(root, &root.join("tests/fixtures/http"), None)?;
+    Ok(capture_actions::digest(json!(files).to_string().as_bytes()))
+}
+
+pub fn record(
+    root: &Path,
+    id: &str,
+    python: &Path,
+    runs: usize,
+    allow_few_runs: bool,
+) -> Result<Value, String> {
     let step = step(id)?;
     if runs == 0 {
         return Err("--runs must be at least 1".into());
+    }
+    if runs < MIN_RUNS && !allow_few_runs {
+        return Err(format!(
+            "--runs {runs} is below the protocol minimum of {MIN_RUNS}"
+        ));
     }
     if !python.is_absolute() {
         return Err("--python must be an absolute path".into());
@@ -73,7 +122,8 @@ pub fn record(root: &Path, id: &str, python: &Path, runs: usize) -> Result<Value
         return Err("CAREERBREW_HOME is set but empty".into());
     }
     let python_version = capture_actions::version(python)?;
-    let sources = capture_actions::sources(root)?;
+    let sources = hashed_sources(root)?;
+    let fixtures = fixtures_sha256(root)?;
     let sources_sha256 = capture_actions::digest(sources.to_string().as_bytes());
     let args = step.oracle.iter().map(OsString::from).collect::<Vec<_>>();
     let mut samples = Vec::with_capacity(runs);
@@ -88,7 +138,7 @@ pub fn record(root: &Path, id: &str, python: &Path, runs: usize) -> Result<Value
         {
             return Err("synthetic CAREERBREW_HOME is empty".into());
         }
-        let usage = resources::measure_in(python, &args, Some(&environment))?;
+        let usage = resources::measure_in(python, &args, Some(&environment), Some(root))?;
         if !usage.passed() {
             return Err(format!("oracle run {run} did not exit 0; baseline refused"));
         }
@@ -107,9 +157,11 @@ pub fn record(root: &Path, id: &str, python: &Path, runs: usize) -> Result<Value
             "tree_max_rss_bytes": usage.tree_max_rss_bytes,
             "descendants": usage.descendants,
             "wall_us": usage.wall_us,
+            "parent_max_rss_bytes": usage.parent_max_rss_bytes,
+            "rss_may_include_parent": usage.rss_may_include_parent(),
         }));
     }
-    if capture_actions::sources(root)? != sources {
+    if hashed_sources(root)? != sources || fixtures_sha256(root)? != fixtures {
         return Err("a relevant source changed during the baseline".into());
     }
     let (os, _) = resources::host_unit()?;
@@ -124,8 +176,11 @@ pub fn record(root: &Path, id: &str, python: &Path, runs: usize) -> Result<Value
         "rust_toolchain": toolchain(root)?,
         "python_version": python_version.trim(),
         "source_revision": revision(root)?,
+        "source_tree_dirty": dirty(root)?,
         "sources_sha256": sources_sha256,
-        "cache_state": "fresh-synthetic-home",
+        "fixtures_sha256": fixtures,
+        "cache_state": CACHE_STATE,
+        "meets_protocol_minimum": runs >= MIN_RUNS,
         "tree_method": method,
         "runs": runs,
         "samples": samples,
@@ -145,12 +200,16 @@ pub fn run(
     id: &str,
     python: &Path,
     runs: usize,
+    allow_few_runs: bool,
     output: &Path,
 ) -> Result<Value, String> {
+    if !output.is_absolute() {
+        return Err("--out must be an absolute path".into());
+    }
     if output.exists() {
         return Err("baseline output already exists".into());
     }
-    let record = record(root, id, python, runs)?;
+    let record = record(root, id, python, runs, allow_few_runs)?;
     capture_actions::write_receipt(&record, output)?;
     Ok(record)
 }
