@@ -43,7 +43,7 @@ done
 
 # Launchers: xargs, find -exec, npx, npm exec, pnpm dlx, yarn, bunx, uvx, bash -c, eval.
 for c in "ls tests | xargs pytest" "xargs -n1 -I{} uv run pytest {}" "find tests -name 'test_*.py' -exec pytest {} +" \
-         "find . -execdir cargo test \\;" "npm exec vitest" "npm exec -- vitest run" "npx -p @playwright/test playwright test" \
+         "find tests -execdir cargo test \\;" "npm exec vitest" "npm exec -- vitest run" "npx -p @playwright/test playwright test" \
          "npm exec -c 'vitest run'" "pnpm dlx vitest run" "yarn vitest" "yarn test" "pnpm visual" "bunx vitest" \
          "bun test" "uvx pytest" "uvx --from pytest pytest" "npx tsx --test x.ts" "node --test x.mjs" \
          "bash -c 'uv run pytest'" "sh -c \"scripts/check.sh fast\"" "eval pytest" "eval 'cargo test'" \
