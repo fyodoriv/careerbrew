@@ -21,11 +21,7 @@ on:
   workflow_dispatch:
     inputs:
       cold:
-        description: turn every dependency cache off (re-measure, docs/ci.md "Dependency caches")
-        type: boolean
-        default: false
-      rust_cache:
-        description: trial of the Rust build cache
+        description: skip the Playwright cache (re-measure, docs/ci.md "Dependency caches")
         type: boolean
         default: false
 
@@ -65,7 +61,6 @@ jobs:
       shard: ${{ matrix.part.shard || '' }}
       gitleaks_asset: linux_x64
       cold: ${{ inputs.cold == true }}
-      rust_cache: ${{ inputs.rust_cache == true }}
       gitleaks_sha256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
 
   macos:
@@ -91,7 +86,6 @@ jobs:
       shard: ${{ matrix.part.shard || '' }}
       gitleaks_asset: darwin_arm64
       cold: ${{ inputs.cold == true }}
-      rust_cache: ${{ inputs.rust_cache == true }}
       gitleaks_sha256: b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5
 
   # The required checks on main (docs/ci.md, "Branch rule on `main`"): one per OS,

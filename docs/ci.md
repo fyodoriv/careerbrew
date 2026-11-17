@@ -51,8 +51,9 @@ contributor runs.
 
 The uv step pins the exact Python version, because the frozen HTTP reference
 of the Rust capture tests holds it in a `Server` header
-(`tests/unit/test_hosted_ci.py` keeps the two equal). One step links the uv
-cache to its default path: a capture test runs uv with a cleared environment.
+(`tests/unit/test_hosted_ci.py` keeps the two equal). The uv cache is off, so
+uv uses its default cache path, which a capture test needs: it runs uv with a
+cleared environment.
 
 Each job also makes a local `main` branch (a pull request checkout is detached,
 and one story bundles `main`), puts the pinned Rust tools first on `PATH` (not
@@ -207,6 +208,32 @@ a macOS minute on a private repository is billed as 10.
   and a push fell from 12 to 16 minutes under load (`AGENTS.md`, Gotchas) to under 10 seconds.
 - Runner labels of one run: `gh run view <run-id> --json jobs -q '.jobs[].labels'`. Only `ubuntu-24.04` and `macos-15` may appear.
 - Owner step, once after the first week: read the billing page and confirm 0 paid minutes. An agent cannot see that page.
+
+## Dependency caches
+
+Measured on 2026-11-16: 5 warm and 5 cold `workflow_dispatch` runs of `ci.yml`.
+Each number is the mean seconds per run, summed over the 4 parts of one OS. A
+cache's total is its restore and save steps plus the install it speeds up.
+`scripts/setup.sh` runs both `uv sync` and `npm ci`, so the uv and npm caches
+are judged together.
+
+| Cache | OS | Warm mean | Cold mean | n | Decision | Run ids |
+|---|---|---|---|---|---|---|
+| uv + npm (setup-uv, setup-node, `scripts/setup.sh`) | ubuntu-24.04 | 77.6 s | 76.2 s | 5 + 5 | drop | warm 43992340679, 43992348423, 43992355392, 43992362019, 43992368437; cold 44011221761, 44011224538, 44011227846, 44011231568, 44011235377 |
+| uv + npm (setup-uv, setup-node, `scripts/setup.sh`) | macos-15 | 116.2 s | 109.4 s | 5 + 5 | drop | same |
+| Playwright browsers (cache step + `playwright install`) | ubuntu-24.04 | 93.2 s | 112.6 s | 5 + 5 | keep | same |
+| Playwright browsers (cache step + `playwright install`) | macos-15 | 30.8 s | 39.6 s | 5 + 5 | keep | same |
+| Rust build, Swatinem/rust-cache trial (cache step + native gate step) | ubuntu-24.04 | 509.7 s (n=4) | 429.4 s | 4 + 5 | not added | same |
+| Rust build, Swatinem/rust-cache trial (cache step + native gate step) | macos-15 | 740.2 s | 718.2 s | 5 + 5 | not added | same |
+
+- The ubuntu Rust warm mean leaves out run 43992362019: its native gate failed
+  early at the Python `exercises` step, not at a Rust step.
+- Some warm runs failed on steps that were not timed, with no link to caching.
+  Their timed steps still count.
+- Re-measure the Playwright cache: `gh workflow run ci.yml --ref <branch> -f cold=true`
+  5 times, and 5 times without `-f cold=true`. Then compare the steps with
+  `gh run view <run-id> --json jobs`. To re-measure uv or npm, set
+  `enable-cache: true` or `cache: npm` again on a branch first.
 
 ## No gate cache between hosted runs
 

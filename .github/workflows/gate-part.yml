@@ -26,11 +26,7 @@ on:
         type: string
         required: true
       cold:
-        description: run with every dependency cache off, to re-measure cache gains (docs/ci.md, "Dependency caches")
-        type: boolean
-        default: false
-      rust_cache:
-        description: trial of Swatinem/rust-cache for the Rust steps (docs/ci.md, "Dependency caches")
+        description: skip the Playwright cache, to re-measure its gain (docs/ci.md, "Dependency caches")
         type: boolean
         default: false
 
@@ -66,25 +62,16 @@ jobs:
 
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          enable-cache: ${{ !inputs.cold }}
+          # No uv cache: it cost more than it saved (docs/ci.md, "Dependency caches").
+          enable-cache: false
           # The frozen HTTP reference (xtask/tests/fixtures/capture) holds this exact
           # version in its Server header; tests/unit/test_hosted_ci.py keeps them equal.
           python-version: "3.12.16"
 
-      # A Rust capture test runs uv with a cleared environment, so uv must find
-      # its cache at the default place.
-      - name: Put the uv cache at its default path
-        run: |
-          # With the cache off (a cold run), setup-uv sets no UV_CACHE_DIR.
-          [ -n "${UV_CACHE_DIR:-}" ] || exit 0
-          mkdir -p "$UV_CACHE_DIR" "$HOME/.cache"
-          [ -e "$HOME/.cache/uv" ] || ln -s "$UV_CACHE_DIR" "$HOME/.cache/uv"
-
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: ${{ !inputs.cold && 'npm' || '' }}
-          cache-dependency-path: web/package-lock.json
+          # No npm cache: it cost more than it saved (docs/ci.md, "Dependency caches").
 
       - name: Rust toolchain (the pin in rust-toolchain.toml)
         run: |
@@ -95,10 +82,6 @@ jobs:
           # RUSTUP_TOOLCHAIN, and the supervisor tests refuse that override.
           dirname "$(rustup which --toolchain "$pin" rustc)" >> "$GITHUB_PATH"
           rustc --version
-
-      - name: Cache Rust build (trial)
-        if: ${{ inputs.rust_cache && !inputs.cold }}
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
 
       - name: gitleaks (pinned release, checked SHA-256)
         env:
