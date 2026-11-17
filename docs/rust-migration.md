@@ -1257,10 +1257,13 @@ peak of any one process, not a sum) and `tree_method`.
 
 - **Method:** the child starts in its own process group. Linux: the measuring
   process sets `PR_SET_CHILD_SUBREAPER`, so orphans come back to it, and it
-  reaps the group with `wait4(-pgid)` until `ECHILD`. macOS has no subreaper:
+  reaps the group with `wait4(-pgid)`; on `ECHILD` it keeps waiting while
+  `kill(-pgid, 0)` finds a member (see "Member whose parent left the group"
+  below). macOS has no subreaper:
   it samples each group member with `proc_pid_rusage` (`RUSAGE_INFO_V4`,
   Mach ticks converted with `mach_timebase_info`) every 2 ms until the group
-  is empty. The peak is `ri_lifetime_max_phys_footprint`. Sampling can miss
+  is empty. A descendant's peak is
+  `max(ri_lifetime_max_phys_footprint, ri_resident_size)`. Sampling can miss
   the last CPU slice and a process shorter than one interval. A descendant
   that never exits keeps the command waiting.
 - **Hypothesis:** a child that starts a grandchild and exits without waiting
@@ -1288,6 +1291,26 @@ Observed (hosted run 44099007218, PR 115, `tree calibration` lines):
 - Both inside 0.75x to 1.5x, and the grandchild CPU control passed on both,
   so the pivot does not apply. One hosted run so far; the pivot needs two
   runs outside 0.5x to 2x, and every gate run now prints the line.
+
+Review gaps closed (PR 113 review):
+
+- **Mixed peak metric (macOS).** The JSON field `tree_rss_metric` names what
+  `tree_max_rss_bytes` compares. macOS:
+  `child=ru_maxrss;descendants=max(lifetime_phys_footprint,resident_size)`,
+  because no lifetime resident peak exists for another process. Linux:
+  `child=ru_maxrss;descendants=ru_maxrss`. Control:
+  `the_tree_peak_names_the_metric_of_each_part`.
+- **Member whose parent left the group (Linux).** When `wait4(-pgid)` says
+  `ECHILD`, the collector checks the group with `kill(-pgid, 0)` and keeps
+  waiting while a member lives; that member comes back to the subreaper when
+  its parent exits. The parent that left the group is reaped with
+  `waitid(P_ALL, WNOWAIT)` then `waitpid`, so no zombie stays, but it is not counted. Any
+  `kill` error other than `ESRCH` is an error, not an empty group. If that
+  parent never exits (a daemon), the call polls every 2 ms forever. Control
+  (Linux only): `a_member_whose_parent_left_the_group_is_counted`.
+  Unsupported targets report `tree_rss_metric` `unsupported`.
+  Control: `a_member_whose_parent_left_the_group_is_counted` (fixture mode
+  `split 500 burn 300`).
 
 ### Next, in order
 

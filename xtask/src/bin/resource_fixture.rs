@@ -3,6 +3,10 @@
 //! `sigkill` kills itself, `hold <bytes> <ms>` touches memory and keeps it,
 //! `orphan <mode> <args>...` starts this binary as a grandchild in that mode
 //! and exits at once without waiting for it.
+//! `split <ms> <mode> <args>...` starts a grandchild in `detach` mode, waits
+//! 100 ms and exits; `detach <ms> <mode> <args>...` starts a member in that
+//! mode (still in the group), calls `setsid` to leave the group, sleeps
+//! `<ms>` and exits without waiting for the member.
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -41,6 +45,32 @@ fn main() {
                 .stderr(Stdio::null())
                 .spawn()
                 .expect("grandchild");
+        }
+        ["split", millis, rest @ ..] if !rest.is_empty() => {
+            Command::new(std::env::current_exe().expect("own path"))
+                .arg("detach")
+                .arg(millis)
+                .args(rest)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .expect("grandchild");
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        ["detach", millis, rest @ ..] if !rest.is_empty() => {
+            Command::new(std::env::current_exe().expect("own path"))
+                .args(rest)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .expect("member");
+            // SAFETY: setsid only moves this process to a new session.
+            if unsafe { libc::setsid() } < 0 {
+                std::process::exit(3);
+            }
+            std::thread::sleep(Duration::from_millis(millis.parse().expect("millis")));
         }
         ["burn", millis] => {
             let until = Instant::now() + Duration::from_millis(millis.parse().expect("millis"));
