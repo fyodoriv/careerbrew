@@ -211,29 +211,56 @@ a macOS minute on a private repository is billed as 10.
 
 ## Dependency caches
 
-Measured on 2026-11-16: 5 warm and 5 cold `workflow_dispatch` runs of `ci.yml`.
-Each number is the mean seconds per run, summed over the 4 parts of one OS. A
-cache's total is its restore and save steps plus the install it speeds up.
+Measured on 2026-11-16 with `workflow_dispatch` runs of `ci.yml`: a warm arm
+(caches on) and a cold arm (caches off). Each number is the mean seconds per
+run, ± one standard deviation, summed over the 4 parts of one OS. A cache's
+total is its restore step, its Post (save) step, and the install it speeds up.
 `scripts/setup.sh` runs both `uv sync` and `npm ci`, so the uv and npm caches
 are judged together.
 
-| Cache | OS | Warm mean | Cold mean | n | Decision | Run ids |
-|---|---|---|---|---|---|---|
-| uv + npm (setup-uv, setup-node, `scripts/setup.sh`) | ubuntu-24.04 | 77.6 s | 76.2 s | 5 + 5 | drop | warm 43992340679, 43992348423, 43992355392, 43992362019, 43992368437; cold 44011221761, 44011224538, 44011227846, 44011231568, 44011235377 |
-| uv + npm (setup-uv, setup-node, `scripts/setup.sh`) | macos-15 | 116.2 s | 109.4 s | 5 + 5 | drop | same |
-| Playwright browsers (cache step + `playwright install`) | ubuntu-24.04 | 93.2 s | 112.6 s | 5 + 5 | keep | same |
-| Playwright browsers (cache step + `playwright install`) | macos-15 | 30.8 s | 39.6 s | 5 + 5 | keep | same |
-| Rust build, Swatinem/rust-cache trial (cache step + native gate step) | ubuntu-24.04 | 509.7 s (n=4) | 429.4 s | 4 + 5 | not added | same |
-| Rust build, Swatinem/rust-cache trial (cache step + native gate step) | macos-15 | 740.2 s | 718.2 s | 5 + 5 | not added | same |
+Rule: keep a cache only if warm saves at least 10% of its steps' time and the
+gap is larger than one pooled standard deviation.
 
-- The ubuntu Rust warm mean leaves out run 43992362019: its native gate failed
+| Cache | OS | Warm mean ± sd | Cold mean ± sd | n (warm + cold) | Decision |
+|---|---|---|---|---|---|
+| uv + npm (setup-uv, setup-node, `scripts/setup.sh`) | ubuntu-24.04 | 82.5 ± 5.7 s | 77.6 ± 5.8 s | 4 + 5 | drop: no measurable gain |
+| uv + npm (setup-uv, setup-node, `scripts/setup.sh`) | macos-15 | 116.2 ± 16.5 s | 109.4 ± 4.3 s | 5 + 5 | drop: no measurable gain |
+| Playwright browsers (cache step + `playwright install`) | ubuntu-24.04 | 97.8 ± 19.4 s | 112.6 ± 8.2 s | 4 + 5 | keep: saves 13%, gap 14.8 s vs pooled sd 14.1 s (close to the line) |
+| Playwright browsers (cache step + `playwright install`) | macos-15 | 30.8 ± 5.4 s | 39.6 ± 2.1 s | 5 + 5 | keep: saves 22% |
+| Rust build, Swatinem/rust-cache trial (cache step + native gate step) | ubuntu-24.04 | 509.5 ± 23.8 s | 429.4 ± 38.4 s | 4 + 5 (insufficient; decision unaffected) | not added: no measurable gain |
+| Rust build, Swatinem/rust-cache trial (cache step + native gate step) | macos-15 | 740.2 ± 67.6 s | 718.2 ± 21.4 s | 5 + 5 | not added: no measurable gain |
+
+Run ids: warm 43992340679, 43992348423, 43992355392, 43992362019, 43992368437
+(primed by 43989268939); cold 44011221761, 44011224538, 44011227846,
+44011231568, 44011235377.
+
+Limits of this measurement:
+
+- The ubuntu uv + npm and Playwright warm rows leave out run 43992355392: its
+  e2e-2 part failed at gitleaks and skipped those steps, so its sums were partial.
+- The ubuntu Rust warm row leaves out run 43992362019: its native gate failed
   early at the Python `exercises` step, not at a Rust step.
-- Some warm runs failed on steps that were not timed, with no link to caching.
-  Their timed steps still count.
-- Re-measure the Playwright cache: `gh workflow run ci.yml --ref <branch> -f cold=true`
-  5 times, and 5 times without `-f cold=true`. Then compare the steps with
-  `gh run view <run-id> --json jobs`. To re-measure uv or npm, set
-  `enable-cache: true` or `cache: npm` again on a branch first.
+- Some other warm runs failed on steps that were not timed. Their timed steps count.
+- Whether each warm restore was a hit or a miss was not recorded.
+- The arms were not interleaved: all warm runs started first, the cold runs
+  about an hour later, so runner load may differ.
+
+Re-measure:
+
+1. On a branch, restore what a cache needs:
+   - Playwright: nothing; `-f cold=true` skips its cache step.
+   - uv: `enable-cache: true` on setup-uv, and the guarded step that links
+     `$UV_CACHE_DIR` to `~/.cache/uv` (it exits early when `UV_CACHE_DIR` is empty).
+   - npm: `cache: npm` and `cache-dependency-path: web/package-lock.json` on setup-node.
+   - Rust: the trial step from commit 703ae3af on `ci/cache-measure`
+     (`Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0`, v2.9.3).
+2. Run one warm priming run and discard it.
+3. Run 5 warm and 5 cold, interleaved: `gh workflow run ci.yml --ref <branch>`
+   and `gh workflow run ci.yml --ref <branch> -f cold=true`.
+4. List them: `gh run list --workflow ci.yml --event workflow_dispatch --branch <branch>`.
+5. Read each step's times with `gh run view <run-id> --json jobs`. Log each
+   restore's cache-hit output (`gh run view <run-id> --log`). Drop a run whose
+   timed steps were skipped.
 
 ## No gate cache between hosted runs
 
