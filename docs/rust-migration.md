@@ -1216,16 +1216,28 @@ Grandchildren are **not qualified** by this part.
 Observed (filled from hosted CI logs, `calibration` and `inheritance` lines):
 
 - macOS local debug build: delta 1.000x (67,125,248 of 67,108,864 bytes), 3 of 3 runs.
-- Hosted results: pending.
+- Hosted `macos-15` (run 44001512071): idle 1,359,872, loaded 68,485,120,
+  delta 67,125,248 bytes, ratio 1.000.
+- Hosted `ubuntu-24.04` (same run): idle 3,481,600, loaded 69,201,920,
+  delta 65,720,320 bytes, ratio 0.979.
+- Parent inheritance, from a test parent that holds 128 MiB: on Linux a
+  child spawned directly reports the parent's peak (137,568,256 bytes,
+  `rss_may_include_parent: true`); the same idle child run through the
+  `resources` CLI reports 4,104,192 bytes. macOS does not inherit
+  (1,359,872 bytes both ways). So the qualified path is the CLI, from a small
+  parent; a direct in-process call on Linux reports a floor, flagged as such.
+- The gate step runs `cargo test --all` without `--nocapture` (the gate's
+  frozen tool contract refuses extra arguments), so these lines show only in
+  a failed run or a manual `--nocapture` run. The numbers above come from
+  one hosted run with `--nocapture`.
 
 ### Next, in order
 
 1. Recheck the gate: `gh pr checks` on a fresh pull request, and
    `cargo xtask migration self-test` and `inventory --check` locally.
-2. Pending: owned-child resource accounting with calibrated units on macOS
-   and Linux (`cargo xtask migration resources`) is built; it stays pending
-   until the hosted Linux and macOS ratios are recorded below. Process-tree
-   accounting is still open.
+2. Done for the owned child: calibrated units on macOS (1.000x) and Linux
+   (0.979x) with `cargo xtask migration resources`, measured from a small
+   parent. Process-tree accounting is still open.
 3. Build `cargo xtask migration baseline`, `verify`, `measure` and `decide` on
    top of the verdict, the trial planner, the captures and the collector.
 4. Register the noise floors and the per-contract normalization rules.

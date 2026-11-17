@@ -135,7 +135,7 @@ fi
 if [ -f Cargo.toml ]; then
   step rust-fmt cargo fmt --all --check
   step rust-clippy cargo clippy --all-targets -- -D warnings
-  step rust-test cargo test --all -- --nocapture
+  step rust-test cargo test --all
   step rust-inventory cargo xtask migration inventory --check
 fi
 
