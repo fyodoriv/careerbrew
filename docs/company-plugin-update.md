@@ -9,8 +9,9 @@ repo. Nothing company-specific ever comes back into this public repo.
 [ci.md](ci.md) (hosted checks), [rust-migration.md](rust-migration.md).
 **Base commit read**: `main` at `480acf34` (2026-11-16).
 
-This page is public, like [rust-migration.md](rust-migration.md): the release
-check refuses any file in `docs/plans/` on `main`. It holds placeholders only.
+This page is public, like [rust-migration.md](rust-migration.md): `docs/plans/`
+is left out of the public release tree, so a public page must not link into it.
+It holds placeholders only.
 
 ## Why
 
@@ -20,7 +21,7 @@ does nothing keeps working, but:
 | Area | What changed in the core | What a plugin misses if it does nothing |
 |---|---|---|
 | (a) Public repo | The core is public. Its leak gates fail closed. | Nothing breaks. A company term pasted into a core issue or PR leaks. |
-| (b) Tests | Tests run on hosted CI only. A PreToolUse hook `hooks/block-local-tests.sh` is in flight. | Agents on the company Mac run heavy local suites, or get blocked with no plugin-side CI. |
+| (b) Tests | Tests run on hosted CI only. A PreToolUse hook `hooks/block-local-tests.sh` is in flight (PR #108). It blocks tests only in a careerbrew core checkout. | The hook never blocks tests in the plugin repo. Without plugin CI, plugin changes go untested. |
 | (c) Telemetry | `policy.telemetry: false` is the only plugin switch. The company log sink is a proposal. | Nothing, if the plugin forbids telemetry. A plugin that adds `telemetry_sink` now gets no effect. |
 | (d) Rust | No Rust runs in production. `rust-07` (live policy port) is planned. | Nothing today. When `rust-07` lands, a manifest that only Python accepts may fail. |
 | (e) CI cache | No gate cache between hosted runs (measured: under 2% saving). A follow-up measurement is in flight. | Nothing. Do not add an `actions/cache` step on the plugin's word alone. |
@@ -82,11 +83,11 @@ private pattern.
 
 1. Confirm the plugin repo is private on the company host: open its settings page on `github.example.com` and check "Private".
 2. Add a private-pattern file to the plugin repo, for example `config/private-pattern.txt` (company names, codenames, internal hosts). It lives only in the plugin repo.
-3. Add a check script `scripts/leak-check.sh` to the plugin repo. It reads that file and greps every file that may leave the company (an issue draft, a report to the core). Print only a count, never the match.
+3. Add a check script `scripts/plugin-leak-check.sh` to the plugin repo. It reads that file and greps every file that may leave the company (an issue draft, a report to the core). Print only a count, never the match.
 4. Never copy a plugin file, a host, or a term into a core issue, PR, or test. Use `<org-overlay>`, `*.example.com`, `PROJ-123`.
 5. Before you file a core issue from the company Mac, run `careerbrew privacy scan --file <draft>`. It uses the plugin's `sensitive_terms`.
 
-**Verify**: `bash scripts/leak-check.sh <draft>` prints `0`; `careerbrew privacy scan --file <draft>` passes; `uv run careerbrew machine ready` still shows the baseline N/N.
+**Verify**: `bash scripts/plugin-leak-check.sh <draft>` prints `0`; `careerbrew privacy scan --file <draft>` passes; `uv run careerbrew machine ready` still shows the baseline N/N.
 
 **Rollback**: remove the script and the pattern file in one revert commit. No core change is involved.
 
@@ -95,7 +96,10 @@ private pattern.
 Facts on the core:
 
 - The merge gate is the hosted checks: `gate (ubuntu-24.04)`, `gate (macos-15)`, `public-readiness` ([ci.md](ci.md)).
-- A PreToolUse hook `hooks/block-local-tests.sh` is in flight in a PR. It is not on `main` at `480acf34` (`ls hooks/` shows only `lefthook`, `pre-commit`, `pre-push`). When it lands, it blocks an agent's local test run. The opt-out is `CAREERBREW_ALLOW_LOCAL_TESTS=1`.
+- A PreToolUse hook `hooks/block-local-tests.sh` is in flight in PR #108. It is not on `main` at `480acf34` (`ls hooks/` shows only `lefthook`, `pre-commit`, `pre-push`). When it lands, it blocks an agent's local test run in a careerbrew core checkout. The opt-out is `CAREERBREW_ALLOW_LOCAL_TESTS=1`.
+- The hook does not protect a plugin repo. It exits 0 (allows the command) outside a careerbrew core checkout.
+- Path assumption: its Agentfile command hardcodes `$HOME/apps/careerbrew/hooks/block-local-tests.sh`. A core checkout in another folder has no hook at all.
+- So the plugin repo needs its own rule: plugin CI (step 1 below) is the only test gate.
 
 Steps for the plugin:
 
@@ -106,12 +110,12 @@ Steps for the plugin:
    - run the step (a) leak check;
    - pin every action by full commit SHA, not by `@v4`.
 2. Add a weekly job that does the same against the newest core `main`, so a core change that breaks the plugin shows early.
-3. On the company Mac, do not run the core suite locally. When the hook lands, leave `CAREERBREW_ALLOW_LOCAL_TESTS` unset. Set it to `1` for one command only when hosted CI is down, and say so in the PR.
-4. Do not run the core e2e suite in plugin CI. It needs no plugin and costs about 30 minutes.
+3. On the company Mac, do not run the core suite locally. When the hook lands, leave `CAREERBREW_ALLOW_LOCAL_TESTS` unset. Set it to `1` for one command only when hosted CI is down, and say so in the PR. If the core checkout is not at `~/apps/careerbrew`, the hook does not run: follow this rule by hand.
+4. Do not run the core e2e suite in plugin CI. It needs no plugin and costs about 14 minutes (the whole gate job is about 30).
 
 **Verify**: the plugin PR's hosted checks are green (company CI page); `uv run careerbrew plugin verify` prints ok; after the hook lands, `rg -n CAREERBREW_ALLOW_LOCAL_TESTS hooks/block-local-tests.sh` in the core finds the opt-out.
 
-**Rollback**: delete the workflow file. The hook is a core change: unset nothing, it has no plugin side.
+**Rollback**: delete the workflow file. The hook has no plugin-side setting to undo.
 
 ## Step (c): telemetry
 
@@ -125,7 +129,7 @@ file. A corporate machine starts at consent `no`.
 3. Do not add `policy.telemetry_sink`. It is not a field yet. When task `telemetry-plugin-sink` lands, follow task `telemetry-plugin-sink-company` (its own steps: written approval, token in an allowed secret backend, `consent: ask` unless approved in writing).
 4. Run `careerbrew plugin refresh`.
 
-**Verify**: `uv run careerbrew telemetry status` names the plugin block ("a plugin policy forbids telemetry on this machine") when `telemetry: false`; `uv run careerbrew telemetry send --dry-run` sends nothing; `uv run careerbrew machine ready` shows the baseline N/N.
+**Verify**: with `telemetry: false`, `uv run careerbrew telemetry status` prints `telemetry: off (a plugin policy forbids telemetry on this machine)` (`status()` → `enabled()` → `blocked()`, `src/careerbrew/telemetry.py:340`); `uv run careerbrew telemetry on` prints the same reason as a `note:` line (`src/careerbrew/cli.py:2793`); `uv run careerbrew telemetry send --dry-run` sends nothing; `uv run careerbrew machine ready` shows the baseline N/N.
 
 **Rollback**: remove the `telemetry` line and run `careerbrew plugin refresh`. Consent stays `no` on a corporate machine, so nothing sends until the user says yes.
 
