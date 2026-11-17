@@ -1153,7 +1153,7 @@ draft pull request are not on the public repository.
 | HTTP contract capture | 13 control groups; 21 request cases in each of two fresh processes | `cargo test -p careerbrew-xtask --test capture_http` |
 | Data contract capture | 10 corpus cases in each of two fresh trials; 13 control groups | `cargo test -p careerbrew-xtask --test capture_data` |
 | Activation manifest | three partial slices; 20 of 20 controls; zero multi-function cycles | `cargo test -p careerbrew-xtask --test activation_manifest` |
-| Owned-child resources | 4 pre-registered controls: 64 MiB calibration, planted wrong unit refused, CPU burn above 0, `SIGKILL` reported as `signaled` and exit 1. 4 added after registration (marked as such): JSON shape and relative-path refusal; malformed `rusage` fields refused (from draft #64); idle child run through the CLI from a parent that holds 128 MiB does not inherit it; a spawn failure is exit 3 with a JSON error. Ratios: see "Owned-child resource accounting". | `cargo test -p careerbrew-xtask --test resources` |
+| Owned-child resources | 4 pre-registered controls: 64 MiB calibration, planted wrong unit refused, CPU burn above 0, `SIGKILL` reported as `signaled` and exit 1. 4 added after registration (marked as such): JSON shape and relative-path refusal; malformed `rusage` fields refused (from draft #64); idle child run through the CLI from a parent that holds 128 MiB does not inherit it; a spawn failure is exit 3 with a JSON error. 2 process-tree controls (unwaited grandchild CPU burn and 64 MiB hold). Ratios: see "Owned-child resource accounting". | `cargo test -p careerbrew-xtask --test resources` |
 | Synthetic store supervisor | 16 controls for the future mixed Python and Rust store race | `cargo test -p careerbrew-xtask --test store_supervisor` |
 | Local Rust readiness | 12 readiness controls and the Serde doctor cases | `uv run pytest -q tests/unit/test_rust_readiness.py tests/unit/test_doctor_rust_deps.py` |
 | Linux observer | one qualified trial on one Linux/arm64 tuple: 5 of 5 event classes, the incomplete (no-follow) trace refused, both real fault controls passed, owned containers absent after cleanup | `heavy-run --exclusive cargo xtask migration observer-probe --image <id>` |
@@ -1175,10 +1175,10 @@ are **component parity only** and switch nothing:
   full harness. A first offline image build failed (the pinned `strace`
   package was not in the cache); a separate network-enabled preparation then
   built the image. Raw receipts stay local and are not in the repository.
-- Whole-process-tree resource collection is **not qualified**. Owned-child
-  `wait4` accounting with a calibrated RSS unit is built (see
-  "Owned-child resource accounting" below). It covers the direct child only;
-  grandchildren that the child does not wait for are not counted.
+- Whole-process-tree resource collection is **built, not yet qualified**
+  (see "Process-tree resource accounting" below). It counts descendants that
+  stay in the child's process group; a descendant that calls `setsid` or
+  `setpgid` is not counted. Hosted numbers are still to be recorded.
 - One full local gate on the old draft failed one owned-process cleanup test
   (all others passed). Its cause was never found. A later fast gate passed
   without explaining it. The hosted gate on `main` is green today; treat any
@@ -1234,13 +1234,47 @@ Observed (filled from hosted CI logs, `calibration` and `inheritance` lines):
   a failed run or a manual `--nocapture` run. The numbers above come from
   one hosted run with `--nocapture`.
 
+### Process-tree resource accounting (pre-registered 2026-11-17)
+
+Registered before the code. Scope: the owned child and every descendant that
+stays in the child's process group. The owned-child fields and their
+calibration above stay unchanged; the tree adds `descendants`,
+`tree_user_cpu_us`, `tree_system_cpu_us`, `tree_max_rss_bytes` (the largest
+peak of any one process, not a sum) and `tree_method`.
+
+- **Method:** the child starts in its own process group. Linux: the measuring
+  process sets `PR_SET_CHILD_SUBREAPER`, so orphans come back to it, and it
+  reaps the group with `wait4(-pgid)` until `ECHILD`. macOS has no subreaper:
+  it samples each group member with `proc_pid_rusage` (`RUSAGE_INFO_V4`,
+  Mach ticks converted with `mach_timebase_info`) every 2 ms until the group
+  is empty. The peak is `ri_lifetime_max_phys_footprint`. Sampling can miss
+  the last CPU slice and a process shorter than one interval. A descendant
+  that never exits keeps the command waiting.
+- **Hypothesis:** a child that starts a grandchild and exits without waiting
+  shows the grandchild's 64 MiB allocation and its CPU burn in the tree
+  fields, where the owned-child collector shows about 0.
+- **Measurement:** `cargo test -p careerbrew-xtask --test resources` on hosted
+  `ubuntu-24.04` and `macos-15`, two added controls:
+  1. `orphan burn 300`: tree CPU at least 100 ms above the child's CPU;
+  2. `orphan hold <bytes> 200`: the tree peak delta against `orphan hold 0
+     200` passes the same 0.75x to 1.5x calibration.
+- **Success:** both controls and the existing controls pass on both OSes.
+- **Pivot:** if either OS falls outside 0.5x to 2x in two hosted runs, mark
+  tree accounting unsupported there and require measured commands to wait
+  for their own children.
+- **Anchor:** POSIX `getrusage`/`wait4` (IEEE Std 1003.1-2017); Linux
+  `prctl(2)` `PR_SET_CHILD_SUBREAPER`; Darwin `proc_pid_rusage`; Kalibera and
+  Jones 2013 (ISMM).
+
+Observed: pending the first hosted run (`tree calibration` lines).
+
 ### Next, in order
 
 1. Recheck the gate: `gh pr checks` on a fresh pull request, and
    `cargo xtask migration self-test` and `inventory --check` locally.
 2. Done for the owned child: calibrated units on macOS (1.000x) and Linux
    (0.979x) with `cargo xtask migration resources`, measured from a small
-   parent. Process-tree accounting is still open.
+   parent. Process-tree accounting is built; record its hosted ratios.
 3. Build `cargo xtask migration baseline`, `verify`, `measure` and `decide` on
    top of the verdict, the trial planner, the captures and the collector.
 4. Register the noise floors and the per-contract normalization rules.

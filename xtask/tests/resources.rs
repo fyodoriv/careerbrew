@@ -14,9 +14,32 @@ fn run(args: &[&str]) -> resources::Usage {
     resources::measure(Path::new(FIXTURE), &args).expect("measure")
 }
 
+/// The qualified path is the CLI: a small parent, so a Linux child never
+/// reports this test process's RSS floor (another test holds 128 MiB here).
+fn cli_usage(args: &[&str]) -> resources::Usage {
+    let value = cli_json(args);
+    let (os, unit) = resources::host_unit().expect("host unit");
+    resources::Usage {
+        os,
+        unit,
+        outcome: resources::Outcome::Exited(0),
+        user_cpu_us: field(&value, "user_cpu_us"),
+        system_cpu_us: field(&value, "system_cpu_us"),
+        max_rss_raw: field(&value, "max_rss_raw"),
+        max_rss_bytes: field(&value, "max_rss_bytes"),
+        wall_us: field(&value, "wall_us"),
+        parent_max_rss_bytes: field(&value, "parent_max_rss_bytes"),
+        descendants: field(&value, "descendants"),
+        tree_user_cpu_us: field(&value, "tree_user_cpu_us"),
+        tree_system_cpu_us: field(&value, "tree_system_cpu_us"),
+        tree_max_rss_bytes: field(&value, "tree_max_rss_bytes"),
+        tree_method: "cli",
+    }
+}
+
 fn raw_pair() -> (resources::Usage, resources::Usage) {
-    let idle = run(&["alloc", "0"]);
-    let loaded = run(&["alloc", &ALLOC.to_string()]);
+    let idle = cli_usage(&["alloc", "0"]);
+    let loaded = cli_usage(&["alloc", &ALLOC.to_string()]);
     assert!(idle.passed() && loaded.passed());
     (idle, loaded)
 }
@@ -85,7 +108,8 @@ fn command_prints_json_and_refuses_a_relative_path() {
     let text = String::from_utf8(output.stdout).unwrap();
     let value: serde_json::Value = serde_json::from_str(text.trim()).expect("json");
     assert_eq!(value["pass"], true);
-    assert_eq!(value["grandchildren"], "not-qualified");
+    assert_eq!(value["scope"], "process-tree");
+    assert_eq!(value["descendants"], 0);
     let relative = Command::new(XTASK)
         .args(["migration", "resources", "--cmd", "resource_fixture"])
         .output()
@@ -155,4 +179,49 @@ fn a_spawn_failure_is_exit_3_with_a_json_error() {
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).expect("json");
     assert!(value["error"].is_string());
     assert_eq!(value["pass"], false);
+}
+
+fn cli_json(args: &[&str]) -> serde_json::Value {
+    let mut full = vec!["migration", "resources", "--cmd", FIXTURE];
+    full.extend_from_slice(args);
+    let output = Command::new(XTASK).args(&full).output().expect("xtask");
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    serde_json::from_slice(&output.stdout).expect("json")
+}
+
+fn field(value: &serde_json::Value, name: &str) -> u64 {
+    value[name]
+        .as_u64()
+        .unwrap_or_else(|| panic!("missing {name}: {value}"))
+}
+
+#[test]
+fn an_unwaited_grandchild_cpu_burn_is_counted() {
+    let value = cli_json(&["orphan", "burn", "300"]);
+    let child = field(&value, "user_cpu_us") + field(&value, "system_cpu_us");
+    let tree = field(&value, "tree_user_cpu_us") + field(&value, "tree_system_cpu_us");
+    assert!(field(&value, "descendants") >= 1, "{value}");
+    assert!(
+        tree >= child + 100_000,
+        "grandchild CPU not counted: {value}"
+    );
+}
+
+#[test]
+fn an_unwaited_grandchild_allocation_is_within_tolerance() {
+    let idle = cli_json(&["orphan", "hold", "0", "200"]);
+    let loaded = cli_json(&["orphan", "hold", &ALLOC.to_string(), "200"]);
+    let delta = resources::check_calibration(
+        field(&idle, "tree_max_rss_bytes"),
+        field(&loaded, "tree_max_rss_bytes"),
+        ALLOC,
+    )
+    .unwrap_or_else(|reason| panic!("tree calibration: {reason}"));
+    eprintln!(
+        "tree calibration {}: method={} delta={} ratio={:.3}",
+        idle["os"],
+        idle["tree_method"],
+        delta,
+        delta as f64 / ALLOC as f64
+    );
 }

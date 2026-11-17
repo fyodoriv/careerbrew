@@ -411,7 +411,7 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 - [ ] `rust-00`: count grandchildren in the resource collector
   - **ID**: rust-00-process-tree-resources
-  - **Details**: `cargo xtask migration resources` (PR #110) counts only the direct owned child, reaped with `wait4`. Grandchildren that the child does not wait for are not counted, so whole-process-tree resource collection is still "not qualified" in `docs/rust-migration.md` "State of rust-00". Pre-register the method first (for example a process group or a Linux cgroup, and a macOS fallback), then add a grandchild control: a child that spawns a 64 MiB grandchild and exits without waiting.
+  - **Details**: Process-tree accounting is built (process group; Linux subreaper plus `wait4(-pgid)`, macOS `proc_pid_rusage` sampling; registered in `docs/rust-migration.md` "Process-tree resource accounting"), with the grandchild controls. Left: record the hosted `tree calibration` ratios for both OSes in that section, and apply the pivot if either OS is outside 0.5x to 2x in two runs. A descendant that leaves the process group is not counted; a cgroup (Linux) would close that gap if needed.
   - **Files**: xtask/src/; xtask/tests/resources.rs; docs/rust-migration.md
   - **Hypothesis**: a tree collector reports a grandchild's 64 MiB allocation within 0.75x to 1.5x on macOS and Linux, where the current collector reports about 0.
   - **Measurement**: `cargo test -p careerbrew-xtask --test resources` on the hosted `gate (ubuntu-24.04)` and `gate (macos-15)` jobs, with the grandchild control.
