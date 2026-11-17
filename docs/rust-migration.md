@@ -1183,6 +1183,34 @@ are **component parity only** and switch nothing:
 - Embedded-code discovery (beyond the reviewed anchors) and process
   observation for the inventory are open.
 
+### Owned-child resource accounting (pre-registered 2026-11-16)
+
+Registered before the code. Scope: one owned child, reaped with `wait4`.
+Grandchildren are **not qualified** by this part.
+
+- **Hypothesis:** `cargo xtask migration resources --cmd <absolute-path>`
+  reports the child's user and system CPU time and its peak RSS in bytes on
+  macOS and Linux. The raw `ru_maxrss` unit differs: bytes on Darwin, KiB on
+  Linux. With the right unit, a child that allocates and touches 64 MiB shows
+  a peak RSS 64 MiB above an idle child of the same binary, within tolerance.
+- **Measurement:** the hosted gate runs `cargo test --all`, which includes
+  `cargo test -p careerbrew-xtask --test resources` on `ubuntu-24.04` and
+  `macos-15`. Four controls:
+  1. a 64 MiB allocation child: the RSS delta over an idle child is in range;
+  2. a CPU-burn child: user plus system CPU time is above 0;
+  3. a child killed by `SIGKILL`: reported as `signaled`, exit 1, never a pass;
+  4. a planted wrong unit (the other OS's unit applied to the same raw value):
+     the calibration check must refuse it.
+- **Success:** all 4 controls pass on both hosted OSes. The calibration delta
+  is between 0.75x and 1.5x of 64 MiB (48 to 96 MiB) on each OS.
+- **Pivot:** if the delta falls outside 0.5x to 2x on either OS in two hosted
+  runs, `wait4` `ru_maxrss` is not a usable RSS source there. Then stop and
+  read `/proc/<pid>/status` (Linux) or `proc_pid_rusage` (macOS) instead.
+- **Anchor:** POSIX `getrusage`/`wait4` (IEEE Std 1003.1-2017); Linux
+  `getrusage(2)` ("ru_maxrss ... in kilobytes"); Darwin `getrusage(2)`
+  (bytes). Measurement method: Kalibera and Jones 2013, "Rigorous
+  Benchmarking in Reasonable Time" (ISMM).
+
 ### Next, in order
 
 1. Recheck the gate: `gh pr checks` on a fresh pull request, and
