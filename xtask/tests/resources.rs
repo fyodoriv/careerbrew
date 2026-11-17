@@ -14,9 +14,32 @@ fn run(args: &[&str]) -> resources::Usage {
     resources::measure(Path::new(FIXTURE), &args).expect("measure")
 }
 
+/// The qualified path is the CLI: a small parent, so a Linux child never
+/// reports this test process's RSS floor (another test holds 128 MiB here).
+fn cli_usage(args: &[&str]) -> resources::Usage {
+    let value = cli_json(args);
+    let (os, unit) = resources::host_unit().expect("host unit");
+    resources::Usage {
+        os,
+        unit,
+        outcome: resources::Outcome::Exited(0),
+        user_cpu_us: field(&value, "user_cpu_us"),
+        system_cpu_us: field(&value, "system_cpu_us"),
+        max_rss_raw: field(&value, "max_rss_raw"),
+        max_rss_bytes: field(&value, "max_rss_bytes"),
+        wall_us: field(&value, "wall_us"),
+        parent_max_rss_bytes: field(&value, "parent_max_rss_bytes"),
+        descendants: field(&value, "descendants"),
+        tree_user_cpu_us: field(&value, "tree_user_cpu_us"),
+        tree_system_cpu_us: field(&value, "tree_system_cpu_us"),
+        tree_max_rss_bytes: field(&value, "tree_max_rss_bytes"),
+        tree_method: "cli",
+    }
+}
+
 fn raw_pair() -> (resources::Usage, resources::Usage) {
-    let idle = run(&["alloc", "0"]);
-    let loaded = run(&["alloc", &ALLOC.to_string()]);
+    let idle = cli_usage(&["alloc", "0"]);
+    let loaded = cli_usage(&["alloc", &ALLOC.to_string()]);
     assert!(idle.passed() && loaded.passed());
     (idle, loaded)
 }
