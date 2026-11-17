@@ -369,6 +369,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P1
 
+- [ ] README Proof numbers come from hosted CI, not a local gate
+  - **ID**: proof-metrics-from-hosted-ci
+  - **Details**: `scripts/metrics.sh proof` writes `docs/proof/metrics.json` and the README Proof section from a local green `scripts/check.sh` and `scripts/e2e.sh` (`docs/metrics.md` "README proof"). Local test runs are blocked now (`hooks/block-local-tests.sh`, PR #108), so every proof number is stuck at its 2026-10-26 date. Make the hosted gate upload the inputs `metrics.sh proof` reads (e2e results, gate step events, eval and leak counts) as an artifact. Then make `metrics.sh proof` read them from a named run (`gh run download`), or add a `workflow_dispatch` job that runs the proof step and opens a PR with the refreshed files. Label each number with the run id and runner OS, never a machine of the owner. Keep `tests/unit/test_proof.py` (README and JSON must match). Coordinate with the open PR that owns `docs/ci.md` and `.github/workflows/`.
+  - **Files**: scripts/metrics.sh; scripts/proof.py; .github/workflows/; docs/metrics.md; docs/proof/metrics.json; tests/unit/test_proof.py
+  - **Hypothesis**: proof numbers built from hosted artifacts take the age of the README Proof section from 21+ days (2026-10-26 on 2026-11-16) to 7 days or less, with no local test run.
+  - **Measurement**: `jq -r '.metrics[].date' docs/proof/metrics.json | sort | head -1` compared with today's date, and `rg -c 'run [0-9]+' docs/proof/metrics.json` for the run-id label on each metric.
+  - **Success**: every metric in `docs/proof/metrics.json` names a hosted run id and is at most 7 days old, and `test_proof.py` passes on the hosted gate.
+  - **Pivot**: if the hosted artifacts cannot give a metric's inputs (for example the multi-day gate pass rate from `.metrics/events.jsonl`), drop that metric from the Proof section rather than keep a stale number.
+  - **Anchor**: Basili, Caldiera & Rombach 1994 (Goal-Question-Metric); Forsgren, Humble & Kim 2018, *Accelerate* (measure from the delivery pipeline).
+
 - [ ] The macOS browser control inventory can time out on a 15 s element wait
   - **ID**: flaky-controls-inventory-macos
   - **Details**: On 2026-11-16 the hosted `gate (macos-15)` job of PR #110 (head `16b1aefd`) failed in `web/e2e/controls.spec.ts:287` ("inventory on a ... machine: each control is in controls.json with a test that exists"): a 15 s wait for an element ran out. A rerun passed with no change. Read the failed log with `gh run view <run-id> --log-failed` and its Playwright trace first. Find which element the wait was for and what it waited behind (a slow first API call, a cached block refresh). Fix the cause; a longer timeout is the last resort (AGENTS.md "A wall-clock limit in a test is a hang guard").
