@@ -462,7 +462,7 @@ Every step below shares these rules. They are not repeated in each step.
   `cargo xtask migration self-test` and `cargo xtask migration inventory --check`
   pass. The common parity, resource and privacy gates also apply.
 - **Measurement now:** `cargo run -q --locked --offline -p careerbrew-xtask -- migration self-test`
-  (17 harness controls today, exit 0) and
+  (22 harness controls today, exit 0) and
   `cargo run -q --locked --offline -p careerbrew-xtask -- migration inventory --check`
   (0 unassigned paths). Run both under `heavy-run`. The `baseline`, `verify`,
   `measure` and `decide` commands replace them when they exist.
@@ -495,6 +495,71 @@ Every step below shares these rules. They are not repeated in each step.
   against the Python oracle, with a planted wrong-vector control that must
   fail). No `measure` or `decide` resource run: there is no product path to
   time.
+
+#### rust-01 vector framework
+
+`migration verify --step rust-01` compares dependency vectors, not CLI runs.
+
+- **Vector set:** a fixture `xtask/tests/fixtures/depvec/<set>.json`:
+  `{"set": "<set>", "vectors": [{"id", "op", "input"}]}`. Vectors are
+  synthetic only.
+- **Oracle:** `xtask/tests/fixtures/depvec/driver.py <set> <file>` runs each
+  vector with careerbrew's own code (for `json-yaml`: `store._json_text`,
+  `store._SAFE_LOADER` and the `store.write_yaml` dump call).
+- **Candidate:** `careerbrew-depvec <set> <file>` (`crates/depvec/`), built
+  with `cargo build -p careerbrew-depvec`; verify runs
+  `target/debug/careerbrew-depvec` unless `--test-candidate` names another.
+- **Output:** each side prints `{"set", "results": [{"id", "output"}]}`;
+  an output is `{"ok": <value>}` or `{"error": true}`. Values use a typed
+  form (`crates/depvec/src/canon.rs`), so an int against a float or a date
+  against a string is a difference.
+- **Compare:** one case per vector, `<set>:<id>`, passed when the outputs are
+  equal. The oracle must answer every vector, or verify is refused. A
+  candidate that fails, misses a vector or adds one fails cases. Each side
+  runs in its own fresh synthetic home.
+- **Planted control:** `--test-wrong-vector <set>` wraps the set's first
+  input for the candidate only; that case must fail and verify exits 1
+  (`xtask/tests/depvec.rs`). `migration self-test` also runs 5 compare
+  controls on synthetic answers.
+
+**Add a vector set** (one PR per set):
+
+1. Add the fixture `xtask/tests/fixtures/depvec/<set>.json` (verify finds
+   sets by file name; `xtask/src/depvec.rs` does not change), and its
+   `.gitignore` allow line.
+2. Add a module `crates/depvec/src/<set>.rs` with
+   `pub fn run(op: &str, input: &Value) -> Result<Value, String>`.
+3. Add the registry lines: `("<set>", <module>::run),` in `SETS` in
+   `crates/depvec/src/lib.rs`, and `"<set>": <function>,` in `SETS` in
+   `driver.py`.
+4. Add the inventory rows for the new source files and stage them together.
+5. Add the crate rows to the decision table below.
+
+**Set `json-yaml` (45 vectors):** `json-read` (`json.loads`, key order,
+repeated keys, Unicode, surrogate pairs, ints to 64 bits, floats, errors),
+`json-write` (the exact `store._json_text` bytes: sorted keys, 2-space
+indent, `ensure_ascii`, `default=str` dates), `yaml-read` (old data under
+PyYAML's YAML 1.1 safe loader: `yes`/`on` bools, octal, hex, binary and
+base-60 ints, `1_000`, `.inf`, dates and timestamps with offsets, anchors,
+repeated keys, block scalars, one document) and `yaml-roundtrip` (each side
+writes and reads its own text).
+
+Known gaps, not in the vectors yet (each is a rejected meaning until a later
+PR covers it): JSON floats that Python writes with an exponent (`1e+16`);
+ints past 64 bits; `NaN` and `Infinity` in JSON; YAML merge keys (`<<`) and
+tags other than `!!str`; `.nan` (its sign bit differs by CPU in PyYAML); and
+writing YAML for a string that looks like a date or `1_000`, or a datetime
+(the `yaml-rust2` emitter does not quote these).
+
+#### rust-01 dependency decisions
+
+| Need | Crate | Version | Licence | Decision | Evidence |
+| --- | --- | --- | --- | --- | --- |
+| JSON read and write | `serde_json` | 1.0.154 | MIT OR Apache-2.0 | kept | already pinned by `xtask` and `crates/vault`; `json-read` and `json-write` vectors; no `preserve_order` feature, since workspace feature unification would change `xtask`'s map order (key order comes from a serde visitor instead) |
+| YAML read and write | `yaml-rust2` | 0.13.0 | MIT OR Apache-2.0 | kept | maintained (release 2026-09); its parser events carry the scalar style, which PyYAML's YAML 1.1 plain-scalar rules need; `yaml-read` and `yaml-roundtrip` vectors. Pulls `arraydeque` (MIT OR Apache-2.0), `hashlink` and `hashbrown` (MIT OR Apache-2.0) and `foldhash` (Zlib) |
+| YAML read and write | `serde_yaml` | 0.9.34 | MIT OR Apache-2.0 | rejected | archived and unmaintained since 2024 |
+| YAML read and write | `serde_norway`, `serde_yaml_ng` | 0.9.42, 0.10.0 | MIT OR Apache-2.0 | rejected | serde forks of `serde_yaml`: their values do not keep the scalar style, so a quoted `'yes'` and a plain `yes` look the same and YAML 1.1 reads cannot match PyYAML |
+| YAML read and write | `serde-saphyr` | 2.2.0 | MIT OR Apache-2.0 | not chosen yet | active, but its newest release is days old; look again if `yaml-rust2` falls behind |
 
 ### rust-02: Port pure setting schemas, paths, clocks and hashes
 
@@ -1089,6 +1154,7 @@ is `rust-01`.
 | --- | --- | --- | --- |
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
 | `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
+| `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`json-yaml` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
 | `experiments/hash/` | `careerbrew-hash-experiment` | the pure `changes._h` hash for a supported synthetic JSON subset. It refuses values outside that subset. | none: component parity only |
 
 - No crate ships: `scripts/rust-shipped-crates.txt` is empty. A crate whose
@@ -1108,7 +1174,7 @@ The tool has no `--help`. A wrong argument prints the usage and exits 2.
 
 | Command | What it does |
 | --- | --- |
-| `cargo xtask migration self-test` | runs the 8 paired-verdict controls, the 6 trial-planner controls and the 3 planted slow-path decide controls, all on synthetic data |
+| `cargo xtask migration self-test` | runs the 8 paired-verdict controls, the 6 trial-planner controls, the 3 planted slow-path decide controls and the 5 rust-01 vector-compare controls, all on synthetic data |
 | `cargo xtask migration inventory --check` | checks that every tracked direct code path in the staged Git index has exactly one row in the [code inventory](plans/2026-11-01-rust-code-inventory.csv), then runs the `--sites-check` below |
 | `cargo xtask migration inventory --sites-check` | discovers embedded code and generated entry points in the staged Git index and checks each against the [embedded sites](plans/2026-11-17-rust-embedded-sites.csv); an unassigned site, a row whose site is gone, a repeated row or a bad task is refused |
 | `cargo xtask migration inventory --sites-list` | prints every discovered site as a `kind,path,key,task` manifest row; a new site has an empty task to fill in |
@@ -1457,8 +1523,8 @@ against an always-`activate` harness and expects it to fail, and the
 equal-cost control runs against an always-`keep-python` harness and expects
 it to fail. The controls pass a fixed zero noise floor, so they prove the
 1.10 ratio whatever floor the registry holds for `rust-03` later.
-`tests/decide.rs` runs `migration self-test` and expects 17 controls
-(8 paired verdict, 6 trial planner, 3 decide).
+`tests/decide.rs` runs `migration self-test` and expects 22 controls
+(8 paired verdict, 6 trial planner, 3 decide, 5 rust-01 vector compare).
 
 **Measurement:** `cargo test -p careerbrew-xtask --test measure --test decide`
 and `cargo test -p careerbrew-xtask --bin careerbrew-xtask decide::controls`

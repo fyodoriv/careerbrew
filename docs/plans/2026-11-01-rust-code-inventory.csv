@@ -930,3 +930,11 @@ xtask/src/verify.rs,keep-native,rust-00,Differential verify of a step Rust candi
 xtask/tests/verify.rs,keep-native,rust-00,Verify refusals and CLI HTTP side-effect DATA and role contract controls with planted defects
 xtask/src/noise_floor.rs,keep-native,rust-00,Noise floor registry per step and OS and the noise-floor measurement from a baseline record
 xtask/src/normalize.rs,keep-native,rust-00,Per-case verify normalization rules and the unregistered local path refusal
+crates/depvec/src/lib.rs,keep-native,rust-00,rust-01 dependency vector registry and runner over maintained crates
+crates/depvec/src/main.rs,keep-native,rust-00,rust-01 dependency vector candidate binary for migration verify
+crates/depvec/src/canon.rs,keep-native,rust-00,rust-01 typed value form shared by the vector candidate and oracle
+crates/depvec/src/json_yaml.rs,keep-native,rust-00,rust-01 JSON and YAML vector set with serde_json and yaml-rust2
+crates/depvec/tests/cli.rs,keep-native,rust-00,rust-01 dependency vector binary controls
+xtask/src/depvec.rs,keep-native,rust-00,rust-01 dependency vector verify with planted wrong-vector controls
+xtask/tests/depvec.rs,keep-native,rust-00,rust-01 verify controls against the Python vector oracle with a planted wrong vector
+xtask/tests/fixtures/depvec/driver.py,port,rust-27,Retire the rust-01 Python dependency vector oracle with the Python migration oracle

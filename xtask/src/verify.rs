@@ -41,7 +41,7 @@
 //! cannot see yet. A candidate that cannot run, times out or prints output
 //! that is not UTF-8 or too large fails its case. A step with no Rust
 //! candidate is refused, never passed.
-use crate::{baseline, capture_actions, capture_http, decide, normalize};
+use crate::{baseline, capture_actions, capture_http, decide, depvec, normalize};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -768,7 +768,15 @@ pub fn record(
     python: &Path,
     candidate: Option<&Path>,
     test_oracle: Option<&Path>,
+    wrong: Option<&str>,
 ) -> Result<Value, String> {
+    // rust-01 has no CLI contract: it compares dependency vectors.
+    if id == depvec::STEP {
+        return depvec::record(root, python, candidate, test_oracle, wrong);
+    }
+    if wrong.is_some() {
+        return Err("--test-wrong-vector applies only to a vector step".into());
+    }
     let step = baseline::step(id)?;
     if !python.is_absolute() {
         return Err("--python must be an absolute path".into());
@@ -854,6 +862,7 @@ pub fn run(
     python: &Path,
     candidate: Option<&Path>,
     test_oracle: Option<&Path>,
+    wrong: Option<&str>,
     output: &Path,
 ) -> Result<Value, String> {
     if !output.is_absolute() {
@@ -862,7 +871,7 @@ pub fn run(
     if output.exists() {
         return Err("verify output already exists".into());
     }
-    let record = record(root, id, python, candidate, test_oracle)?;
+    let record = record(root, id, python, candidate, test_oracle, wrong)?;
     capture_actions::write_receipt(&record, output)?;
     Ok(record)
 }
