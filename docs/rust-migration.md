@@ -461,7 +461,7 @@ Every step below shares these rules. They are not repeated in each step.
   `cargo xtask migration self-test` and `cargo xtask migration inventory --check`
   pass. The common parity, resource and privacy gates also apply.
 - **Measurement now:** `cargo run -q --locked --offline -p careerbrew-xtask -- migration self-test`
-  (14 harness controls today, exit 0) and
+  (17 harness controls today, exit 0) and
   `cargo run -q --locked --offline -p careerbrew-xtask -- migration inventory --check`
   (0 unassigned paths). Run both under `heavy-run`. The `baseline`, `verify`,
   `measure` and `decide` commands replace them when they exist.
@@ -1107,7 +1107,7 @@ The tool has no `--help`. A wrong argument prints the usage and exits 2.
 
 | Command | What it does |
 | --- | --- |
-| `cargo xtask migration self-test` | runs the 8 paired-verdict controls and the 6 trial-planner controls, all on synthetic data |
+| `cargo xtask migration self-test` | runs the 8 paired-verdict controls, the 6 trial-planner controls and the 3 planted slow-path decide controls, all on synthetic data |
 | `cargo xtask migration inventory --check` | checks that every tracked direct code path in the staged Git index has exactly one row in the [code inventory](plans/2026-11-01-rust-code-inventory.csv), then runs the `--sites-check` below |
 | `cargo xtask migration inventory --sites-check` | discovers embedded code and generated entry points in the staged Git index and checks each against the [embedded sites](plans/2026-11-17-rust-embedded-sites.csv); an unassigned site, a row whose site is gone, a repeated row or a bad task is refused |
 | `cargo xtask migration inventory --sites-list` | prints every discovered site as a `kind,path,key,task` manifest row; a new site has an empty task to fill in |
@@ -1168,6 +1168,7 @@ draft pull request are not on the public repository.
 | Workspace, toolchain pin, `cargo xtask` alias | in place | `cargo xtask migration self-test` |
 | Paired verdict (`baseline_verdict.rs`) | 8 of 8 synthetic controls pass; an empty check suite is refused | `cargo xtask migration self-test` |
 | Trial planner (`trial_plan.rs`) | 6 of 6 controls pass | `cargo xtask migration self-test` |
+| Planted slow path (`decide::controls`) | 3 of 3 self-test controls (3x CPU holds with `cpu-regressed`, 2x RSS holds with `rss-regressed`, equal cost activates); each slow control fails an always-activate harness, and the equal-cost control fails an always-hold harness; 3 end-to-end controls on real `rust-03` records (slow CPU and 512 MiB candidates pass `verify`, and `decide` holds them; an equal-cost candidate gets no resource reason). See "Planted slow-path controls" | `cargo xtask migration self-test`; `cargo test -p careerbrew-xtask --test measure --test decide` |
 | Direct-path inventory | 0 unassigned tracked direct paths; 4 negative controls (removed, duplicated, untracked row, broken CSV field) refused; runs in the normal gate | `cargo xtask migration inventory --check` |
 | Embedded anchors | the reviewed sites match staged source; a missing or repeated anchor is refused | `cargo xtask migration inventory --embedded-check` |
 | Embedded sites and entry points | 188 discovered sites assigned (123 embedded lines, 25 agent skills, 17 workflow runs, 8 npm scripts, 6 agent commands, 4 lefthook runs, 3 git hooks, 1 agent hook, 1 console script); 13 controls (each kind found and prose skipped, full pass, unassigned planted site, removed site, duplicate row and bad task, unlisted real interpreter forms, tool flags skipped, a repeated identical line, YAML run blocks, skill directories and flow lists, malformed entry-point files, non-UTF-8 files, list rows as manifest rows) in `xtask/src/sites_tests.rs`; runs in the normal gate inside `inventory --check` | `cargo xtask migration inventory --sites-check` |
@@ -1394,6 +1395,64 @@ baselines differs by more than 3x between runs on one OS, the p95-p5 method
 is too noisy; switch to a bootstrap interval before registering numbers.
 **Anchor:** Kalibera and Jones 2013 (variation and minimum effect size).
 
+### Planted slow-path controls (pre-registered 2026-11-18)
+
+Registered before the code, with its controls, for "Next" item 5.
+
+**Hypothesis.** A candidate that prints the oracle's exact output but costs
+far more CPU or memory passes `verify` and still gets `keep-python` from
+`decide`. An equal-cost candidate gets no resource reason. So the decide step
+holds a slow path on its own, not only through the output compare.
+
+**Controls, end to end** (real `baseline`, `verify`, `measure --pairs` and
+`decide` records on `rust-03`, test flags, 3 runs and 3 pairs; in
+`xtask/tests/measure.rs`). Each candidate runs the real Python oracle:
+
+| Candidate | Expected |
+| --- | --- |
+| slow CPU: runs the oracle 3 times, prints once (about 3x CPU) | `verify` passes; `decide` `keep-python` with `cpu-regressed` |
+| big memory: a child holds 512 MiB, then the oracle | `verify` passes; `decide` `keep-python` with `rss-regressed` |
+| equal cost: `exec` of the oracle | `verify` passes; no `cpu-regressed` and no `rss-regressed` |
+
+`decide` reads the real `verify` record, with its `checks` and `violations`,
+so each run proves the whole baseline, verify, measure and decide chain. A test
+candidate gets no arguments from `measure`, so each candidate names
+`actions --json` itself.
+
+With test flags, every verdict also holds `too-few-unique-pairs` and
+`baseline-below-protocol-minimum`, so the equal-cost run cannot activate end
+to end. Activation of an equal-cost candidate is proved in the self-test on
+synthetic records of 30 samples and pairs.
+
+The equal-cost run passes `decide` a test noise floor above every sample,
+with an absolute limit of 3x the baseline. A hosted runner can swing CPU
+time by more than 10% between the baseline and the measure runs, so the
+1.10 ratio would make this run a coin flip, not a check. The 3x limit still
+holds a real slow path. The slow CPU and 512 MiB runs keep the live 1.10
+ratio.
+
+**Controls, self-test** (`decide::controls`, joined to
+`cargo xtask migration self-test`): on synthetic 30-sample records, a 3x CPU
+candidate holds with `cpu-regressed`, a 2x RSS candidate holds with
+`rss-regressed`, and an equal-cost candidate activates. A harness that
+accepts each slow path must fail its control: a unit test runs each control
+against an always-`activate` harness and expects it to fail, and the
+equal-cost control runs against an always-`keep-python` harness and expects
+it to fail. The controls pass a fixed zero noise floor, so they prove the
+1.10 ratio whatever floor the registry holds for `rust-03` later.
+`tests/decide.rs` runs `migration self-test` and expects 17 controls
+(8 paired verdict, 6 trial planner, 3 decide).
+
+**Measurement:** `cargo test -p careerbrew-xtask --test measure --test decide`
+and `cargo test -p careerbrew-xtask --bin careerbrew-xtask decide::controls`
+on the hosted gate. **Success:** 3 of 3 end-to-end controls and 3 of 3
+self-test controls pass, and the always-accept and always-hold runs fail. **Pivot:** if the
+equal-cost end-to-end run shows `cpu-regressed` in 2 or more hosted runs, a
+3-sample p95 is too noisy for this check; compare against the paired oracle
+samples (task `rust-00-decide-paired-regimes`) before trusting the ratio.
+**Anchor:** Kalibera and Jones 2013 (variation and minimum effect size);
+Jia and Harman 2011 (planted faults prove a check can fail).
+
 ### Next, in order
 
 1. Recheck the gate: `gh pr checks` on a fresh pull request, and
@@ -1417,7 +1476,9 @@ is too noisy; switch to a bootstrap interval before registering numbers.
    real `rust-03` floors from hosted baselines (task
    `rust-00-measure-noise-floors`), and rules for the HTTP and data
    contracts when `verify` covers them.
-5. Add the planted slow-path control and prove the decide step holds it.
+5. Done: the planted slow-path controls ("Planted slow-path controls").
+   `decide` holds a 3x CPU and a 512 MiB candidate that pass `verify`; the
+   self-test runs 17 controls.
 6. The inventory covers embedded code and generated entry points
    (`inventory --sites-check`, run by `inventory --check`). Next: process
    observation of what a run really starts.

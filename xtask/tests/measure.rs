@@ -399,3 +399,144 @@ fn existing_out_is_refused_before_any_run() {
     assert_eq!(std::fs::read(&out).unwrap(), b"keep");
     assert!(!marker.exists());
 }
+
+/// Runs the real baseline, verify, measure and decide records for one
+/// planted candidate on `rust-03` with the test flags; returns the verify
+/// record and the decide record.
+fn planted(body: &str, wide_floor: bool) -> (Value, Value) {
+    let scratch = tempfile::tempdir().unwrap();
+    // `verify` also runs the DATA, role and HTTP contracts: serve them with
+    // the Python drivers and CLI, as `http_then` in tests/verify.rs does.
+    let py = python().display().to_string();
+    let drivers = root().join("xtask/tests/fixtures/capture");
+    let http = format!(
+        "if [ \"$1\" = '--careerbrew-data-contract' ]; then shift; exec '{py}' -B -S '{}' \"$@\"; fi\n\
+         if [ \"$1\" = jobs ]; then exec '{py}' -B -m careerbrew \"$@\"; fi\n\
+         if [ \"$1\" = '--careerbrew-http-contract' ]; then exec '{py}' -B '{}'; fi\n{body}",
+        drivers.join("data_driver.py").display(),
+        drivers.join("http_driver.py").display(),
+    );
+    let candidate = script(scratch.path(), &http);
+    let base = scratch.path().join("baseline.json");
+    passed(
+        &Command::new(XTASK)
+            .args(["migration", "baseline", "--step", "rust-03", "--python"])
+            .arg(python())
+            .arg("--out")
+            .arg(&base)
+            .args(["--runs", "3", "--test-allow-few-runs"])
+            .env_remove("CAREERBREW_HOME")
+            .output()
+            .unwrap(),
+    );
+    let verify = scratch.path().join("verify.json");
+    passed(
+        &Command::new(XTASK)
+            .args(["migration", "verify", "--step", "rust-03", "--python"])
+            .arg(python())
+            .arg("--out")
+            .arg(&verify)
+            .arg("--test-candidate")
+            .arg(&candidate)
+            .env_remove("CAREERBREW_HOME")
+            .output()
+            .unwrap(),
+    );
+    let measured = scratch.path().join("measure.json");
+    passed(
+        &with_candidate("rust-03", &measured, "3", &candidate)
+            .output()
+            .unwrap(),
+    );
+    let read =
+        |path: &Path| -> Value { serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap() };
+    let verified = read(&verify);
+    // decide reads the real verify record: its `checks` and `violations`.
+    let out = scratch.path().join("decide.json");
+    let mut decide = Command::new(XTASK);
+    decide
+        .args(["migration", "decide", "--step", "rust-03", "--baseline"])
+        .arg(&base)
+        .arg("--verify")
+        .arg(&verify)
+        .arg("--measure")
+        .arg(&measured)
+        .arg("--out")
+        .arg(&out);
+    if wide_floor {
+        // A hosted runner can swing CPU time by more than 10% between the
+        // baseline and the measure runs. A floor above every sample makes
+        // decide use an absolute limit of 3x the baseline instead of the
+        // 1.10 ratio, so only a real slow path can add a resource reason.
+        let recorded = read(&base);
+        let cpu = recorded["summary"]["cpu_us_p95"].as_u64().unwrap();
+        let rss = recorded["samples"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|sample| sample["tree_max_rss_bytes"].as_u64().unwrap())
+            .max()
+            .unwrap();
+        let floor = scratch.path().join("floor.json");
+        let limits = json!({
+            "cpu_floor_us": u64::MAX, "cpu_absolute_us": cpu * 3,
+            "rss_floor_bytes": u64::MAX, "rss_absolute_bytes": rss * 3,
+        });
+        std::fs::write(&floor, serde_json::to_vec(&limits).unwrap()).unwrap();
+        decide.arg("--test-noise-floor").arg(&floor);
+    }
+    let result = decide.output().unwrap();
+    // Keep-python is exit 1; a refusal (exit 2) would mean no verdict.
+    assert_eq!(result.status.code(), Some(1), "{result:?}");
+    (verified, read(&out))
+}
+
+/// The oracle command with its own arguments: `measure` runs a test
+/// candidate with no arguments, `verify` passes the case arguments.
+fn oracle_line() -> String {
+    format!("\"{}\" -B -m careerbrew actions --json", python().display())
+}
+
+fn holds_for(verdict: &Value, reason: &str) {
+    assert_eq!(verdict["decision"], "keep-python", "{verdict}");
+    let reasons = verdict["reasons"].as_array().unwrap();
+    assert!(reasons.contains(&json!(reason)), "{verdict}");
+}
+
+#[test]
+fn planted_slow_cpu_candidate_passes_verify_and_decide_holds_it() {
+    let once = oracle_line();
+    let body = format!("set -e\n{once}\n{once} >/dev/null\n{once} >/dev/null");
+    let (verify, verdict) = planted(&body, false);
+    assert_eq!(verify["passed"], true, "{verify}");
+    holds_for(&verdict, "cpu-regressed");
+}
+
+#[test]
+fn planted_big_memory_candidate_passes_verify_and_decide_holds_it() {
+    let body = format!(
+        "set -e\n\"{}\" -c 'held = bytes(1) * (512 << 20)'\nexec {}",
+        python().display(),
+        oracle_line()
+    );
+    let (verify, verdict) = planted(&body, false);
+    assert_eq!(verify["passed"], true, "{verify}");
+    holds_for(&verdict, "rss-regressed");
+}
+
+#[test]
+fn equal_cost_candidate_has_no_resource_reason() {
+    let (verify, verdict) = planted(&format!("exec {}", oracle_line()), true);
+    assert_eq!(verify["passed"], true, "{verify}");
+    // No resource reason holds it; only the test-flag sample sizes may.
+    // The self-test proves that an equal-cost candidate activates on 30
+    // samples.
+    let reasons = verdict["reasons"].as_array().unwrap();
+    for resource in ["cpu-regressed", "rss-regressed"] {
+        assert!(!reasons.contains(&json!(resource)), "{verdict}");
+    }
+    assert!(
+        reasons.contains(&json!("too-few-unique-pairs")),
+        "{verdict}"
+    );
+}

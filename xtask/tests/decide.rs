@@ -558,6 +558,19 @@ fn noise_floor_measures_a_baseline_record() {
     assert_eq!(output.status.code(), Some(2), "{output:?}");
 }
 
+#[test]
+fn self_test_runs_the_decide_slow_path_controls() {
+    let output = std::process::Command::new(XTASK)
+        .args(["migration", "self-test"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "migration self-test: 17 controls passed\n"
+    );
+}
+
 /// Sets one regime's paired oracle CPU samples and its candidate CPU.
 fn paired(state: usize, oracle: u64, candidate: u64) -> Value {
     let mut record = measure(1000);
