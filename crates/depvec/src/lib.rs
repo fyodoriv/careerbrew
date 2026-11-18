@@ -12,6 +12,7 @@ pub mod code_parse;
 pub mod fernet;
 pub mod fsrs_schedule;
 pub mod json_yaml;
+pub mod runtime;
 
 use serde_json::{json, Value};
 
@@ -26,6 +27,7 @@ pub const SETS: &[(&str, Run)] = &[
 ];
 pub const SETS: &[(&str, Run)] = &[("fernet", fernet::run), ("json-yaml", json_yaml::run)];
 pub const SETS: &[(&str, Run)] = &[("json-yaml", json_yaml::run), ("fsrs", fsrs_schedule::run)];
+pub const SETS: &[(&str, Run)] = &[("json-yaml", json_yaml::run), ("runtime", runtime::run)];
 
 /// Runs every vector of a fixture. A vector that fails gives `{"error":
 /// true}`; the reason stays out of the output, since only the outcome is

@@ -605,6 +605,25 @@ vectors pin fuzzing off on both sides, and the Rust port needs its own fuzz
 with the same ranges; the crate computes in `f32` and py-fsrs in `f64`, so
 values agree to 2 decimals here but long histories can drift; the crate caps
 stability at 36,500 days and py-fsrs does not.
+**Set `runtime` (38 vectors):** `http-fixture-path` (the
+`connectors._fixture_path` key: netloc as written, path runs outside
+`[A-Za-z0-9_.-]` made one `_`, `root` for no path, query and fragment
+dropped), `http-fixture-read` (the file `connectors.http_get` reads from
+synthetic fixtures: `.json`, then `.xml`, `.html`, `.csv`; no match is an
+error), `lock-probe` (flock exclusion across processes and languages: a Rust
+`File::lock` holder against a Python `fcntl.flock` peer process, and a
+Python holder against a Rust probe; exclusive and shared modes, and a
+released lock) and `run-limited` (the `exercises._limits` CPU and memory
+limits and the `exercises._child` wall timeout and outcome rules, on fixed
+`/bin/sh` programs: ok, exit 3, a CPU spin, a sleep). The lock peer on the
+Rust side is `.venv/bin/python` under the repo root (verify runs the
+candidate there), or `CAREERBREW_DEPVEC_PYTHON`.
+
+Known gaps for `runtime`: hosts with capitals and URLs with non-ASCII or
+space characters in the path (`http::Uri` refuses some that `urlsplit`
+accepts); `fcntl.lockf` and `fcntl.LOCK_UN` from another process; process
+groups (neither side kills grandchildren); no real network request, so no
+HTTP client crate is pinned yet.
 
 #### rust-01 dependency decisions
 
@@ -645,6 +664,14 @@ sides (`strict-appended-after-padding`).
 | FSRS card schedule | `fsrs` | 7.0.0 | BSD-3-Clause | kept | official Open Spaced Repetition crate (release 2026-11); `FSRS6_DEFAULT_PARAMETERS` equal py-fsrs 6.3.2 `DEFAULT_PARAMETERS` (`parameters` vector) and its FSRS-6 formulas match py-fsrs's (18 `fsrs` vectors). Version 7 no longer pulls `burn`. New dependencies: `ndarray`, `rayon`, `rand` 0.10, `rand_distr`, `itertools`, `snafu`, `num-*`, `crossbeam-*`, `either`, `matrixmultiply`, `rawpointer`, `portable-atomic*`, `chacha20`, `cpufeatures`, `getrandom`, `heck`, `autocfg`, `r-efi` (MIT OR Apache-2.0, `r-efi` also LGPL-2.1-or-later as an option), `bytemuck`, `wide`, `safe_arch` (Zlib OR Apache-2.0 OR MIT), `libm` (MIT) |
 | FSRS card schedule | `rs-fsrs` | 1.2.1 | non-standard (crates.io) | rejected | last release 2024-10; no SPDX licence on crates.io; it predates the 21-weight FSRS-6 set with a trainable decay that py-fsrs 6.3.2 uses |
 | FSRS learning steps, state and due time | (none) | | | adapter | the `fsrs` crate has the memory model only; py-fsrs's step and state rules are a small adapter in `crates/depvec/src/fsrs_schedule.rs`, checked by the `schedule` vectors |
+| HTTP fixture URL split | `http` (`http::Uri`) | 1.5.0 | MIT OR Apache-2.0 | kept | keeps the authority as written, like `urlsplit().netloc`, and drops the fragment; pulls only `bytes` (MIT OR Apache-2.0); `http-fixture-path` and `http-fixture-read` vectors |
+| HTTP fixture URL split | `url` | 2.5.8 | MIT OR Apache-2.0 | rejected | lowercases hosts, drops default ports and percent-encodes paths, so the fixture key differs from `urlsplit`; pulls about 40 ICU crates (Unicode-3.0) |
+| HTTP client | `ureq` | none | MIT OR Apache-2.0 | deferred | no vector makes a network request yet; picked and pinned in the step that first sends one |
+| File locks | `std::fs::File::lock` | Rust 1.100.0 | MIT OR Apache-2.0 | kept | standard library since Rust 1.89; flock on Unix, the same lock as Python `fcntl.flock`; `lock-probe` vectors cross both directions |
+| File locks | `fs4`, `fd-lock` | latest | MIT OR Apache-2.0 | rejected | the standard library now gives the same flock lock with no extra crate |
+| Subprocess CPU and memory limits | `rlimit` | 0.11.0 | MIT | kept | maintained `setrlimit` wrapper over `libc` (already in the lock file), called in `pre_exec` like `exercises._limits`; `run-limited` vectors |
+| Subprocess wall timeout | `wait-timeout` | 0.2.1 | MIT | kept | small, stable, widely used; kill and reap on timeout like `subprocess.run(timeout=)`; `run-limited` vectors |
+| Subprocess limits | `process_control` | latest | MIT OR Apache-2.0 | rejected | has wall and memory limits but no CPU-time limit |
 
 ### rust-02: Port pure setting schemas, paths, clocks and hashes
 
@@ -1241,6 +1268,7 @@ is `rust-01`.
 | `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
 | `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`json-yaml` and `calendar` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
 | `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`json-yaml` and `code-parse` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
+| `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`json-yaml` and `runtime` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
 | `experiments/hash/` | `careerbrew-hash-experiment` | the pure `changes._h` hash for a supported synthetic JSON subset. It refuses values outside that subset. | none: component parity only |
 
 - No crate ships: `scripts/rust-shipped-crates.txt` is empty. A crate whose
