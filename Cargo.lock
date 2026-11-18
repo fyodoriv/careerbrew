@@ -193,7 +193,10 @@ dependencies = [
 name = "careerbrew-purevec"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "chrono-tz",
  "serde_json",
+ "sha2",
 ]
 
 [[package]]

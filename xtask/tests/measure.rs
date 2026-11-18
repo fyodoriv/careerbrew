@@ -441,6 +441,9 @@ fn planted(body: &str, wide_floor: bool) -> (Value, Value) {
             .arg(&verify)
             .arg("--test-candidate")
             .arg(&candidate)
+            // The planted candidates run the Python oracle, and rust-03
+            // denies Python to its candidate by default.
+            .args(["--test-scope", "allow-python"])
             .env_remove("CAREERBREW_HOME")
             .output()
             .unwrap(),
