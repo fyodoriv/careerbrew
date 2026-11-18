@@ -15,7 +15,14 @@
 //! with a contract count; one that writes a data path again fails with a
 //! duplicate_writes count; one that runs a job-hunt command on a corporate
 //! machine fails the role case with a role count. Each test owns its temp
-//! folder.
+//! folder. Those controls run under the test-only `full` scope (HTTP, DATA
+//! and role on, Python allowed). Scope controls, under rust-03's own scope
+//! (CLI, side effects and the registry projection, Python denied): a
+//! candidate that prints the frozen catalog passes and lists the scoped-out
+//! contracts; a planted Python fallback fails under the denial and passes
+//! with `--test-scope allow-python`; a wrong catalog fails the projection;
+//! the step's COLUMNS and LINES reach both sides; a bad or misapplied
+//! `--test-scope` is refused.
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -33,7 +40,18 @@ fn python() -> PathBuf {
     root().join(".venv/bin/python")
 }
 
+/// Verify under the test-only `full` scope: HTTP, DATA and role run whatever
+/// the step scopes, Python is allowed, and the registry projection is off.
+/// The harness controls below use it, so each keeps its meaning while
+/// rust-03 itself scopes those contracts out.
 fn verify(step: &str, out: &Path) -> Command {
+    let mut command = scoped(step, out);
+    command.args(["--test-scope", "full"]);
+    command
+}
+
+/// Verify under the step's own declared scope.
+fn scoped(step: &str, out: &Path) -> Command {
     let mut command = Command::new(XTASK);
     command
         .args(["migration", "verify", "--step", step, "--python"])
@@ -184,6 +202,8 @@ fn a_candidate_identical_to_the_oracle_passes() {
     assert_eq!(value["source_revision"].as_str().unwrap().len(), 40);
     assert_eq!(value["sources_sha256"].as_str().unwrap().len(), 64);
     assert_eq!(value["test_candidate"], true);
+    assert_eq!(value["test_scope"], "full");
+    assert_eq!(value["python_denied"], serde_json::Value::Null);
     assert_eq!(value["candidate_sha256"].as_str().unwrap().len(), 64);
     // Content-free: no local path of this machine.
     let text = std::fs::read_to_string(&out).unwrap();
@@ -293,6 +313,7 @@ fn a_nonzero_oracle_is_refused() {
         .arg(&out)
         .arg("--test-candidate")
         .arg(&same)
+        .args(["--test-scope", "full"])
         .env_remove("CAREERBREW_HOME")
         .output()
         .unwrap();
@@ -448,6 +469,7 @@ fn a_planted_missing_write_fails_the_cli_case() {
         .arg(&out)
         .arg("--test-candidate")
         .arg(&same)
+        .args(["--test-scope", "full"])
         .env_remove("CAREERBREW_HOME")
         .output()
         .unwrap();
@@ -746,4 +768,184 @@ fn a_planted_canary_leak_counts_once_in_the_case_that_leaked() {
         .map(|case| case["case"].clone())
         .collect();
     assert_eq!(leaked, vec![serde_json::json!("data:2")]);
+}
+
+/// The frozen catalog the live `actions --json` oracle must print.
+fn reference() -> PathBuf {
+    root().join("xtask/tests/fixtures/capture/actions-reference-telemetry-v4.json")
+}
+
+#[test]
+fn rust_03_scope_checks_the_cli_and_the_registry_projection_only() {
+    // A candidate with no Python that prints the frozen catalog.
+    let scratch = tempfile::tempdir().unwrap();
+    let out = scratch.path().join("verify.json");
+    let native = candidate(
+        scratch.path(),
+        &format!("exec /bin/cat '{}'", reference().display()),
+    );
+    let result = scoped("rust-03", &out)
+        .arg("--test-candidate")
+        .arg(&native)
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let value = read(&out);
+    assert_eq!(value["passed"], true);
+    assert_eq!(value["case_count"], 2);
+    assert_eq!(value["cases"][0]["case"], "actions-json");
+    let projection = &value["cases"][1];
+    assert_eq!(projection["case"], "registry-projection");
+    assert_eq!(projection["kind"], "registry-projection");
+    assert_eq!(projection["body_matches"], true);
+    assert_eq!(
+        projection["http_cases"],
+        serde_json::json!(["http:actions", "http:localhost"])
+    );
+    assert_eq!(
+        projection["oracle_body_sha256"],
+        projection["candidate_body_sha256"]
+    );
+    assert_eq!(
+        value["contracts"],
+        serde_json::json!(["cli", "side-effect", "registry-projection"])
+    );
+    assert_eq!(
+        value["missing_contracts"],
+        serde_json::json!(["http", "data", "role"])
+    );
+    assert_eq!(value["http"], serde_json::Value::Null);
+    assert_eq!(value["python_denied"], "env");
+    assert_eq!(value["test_scope"], serde_json::Value::Null);
+}
+
+#[test]
+fn a_planted_python_fallback_fails_under_the_no_python_denial() {
+    // The candidate falls back to the Python CLI by absolute path. Under
+    // rust-03's denial it cannot start; with the denial lifted it passes,
+    // so the denial alone is what fails it.
+    let scratch = tempfile::tempdir().unwrap();
+    let fallback = candidate(
+        scratch.path(),
+        &format!("exec '{}' -B -m careerbrew \"$@\"", python().display()),
+    );
+    let denied = scratch.path().join("denied.json");
+    let result = scoped("rust-03", &denied)
+        .arg("--test-candidate")
+        .arg(&fallback)
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1));
+    let value = read(&denied);
+    assert_eq!(
+        value["failed_cases"],
+        serde_json::json!(["actions-json", "registry-projection"])
+    );
+    assert_eq!(value["cases"][0]["exit_matches"], false);
+    assert_eq!(value["violations"]["contract"], 2);
+    let allowed = scratch.path().join("allowed.json");
+    let result = scoped("rust-03", &allowed)
+        .arg("--test-candidate")
+        .arg(&fallback)
+        .args(["--test-scope", "allow-python"])
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let value = read(&allowed);
+    assert_eq!(value["passed"], true);
+    assert_eq!(value["python_denied"], serde_json::Value::Null);
+    assert_eq!(value["test_scope"], "allow-python");
+    // The scope itself is unchanged: decide still sees rust-03's list.
+    assert_eq!(
+        value["missing_contracts"],
+        serde_json::json!(["http", "data", "role"])
+    );
+}
+
+#[test]
+fn a_planted_wrong_catalog_fails_the_registry_projection() {
+    let scratch = tempfile::tempdir().unwrap();
+    let out = scratch.path().join("verify.json");
+    let wrong = candidate(scratch.path(), "printf '[]\\n'");
+    let result = scoped("rust-03", &out)
+        .arg("--test-candidate")
+        .arg(&wrong)
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&result.stderr).contains("registry-projection"));
+    let value = read(&out);
+    let projection = &value["cases"][1];
+    assert_eq!(projection["case"], "registry-projection");
+    assert_eq!(projection["candidate_ran"], true);
+    assert_eq!(projection["exit_zero"], true);
+    assert_eq!(projection["body_matches"], false);
+    assert_eq!(projection["passed"], false);
+    assert_eq!(value["violations"]["contract"], 2);
+}
+
+#[test]
+fn the_step_environment_reaches_both_sides() {
+    // One side prints COLUMNS and LINES from its environment; the other
+    // prints the pinned values. The CLI case matches only when the step's
+    // environment reached the side that reads it. The projection fails
+    // (neither prints the catalog), so verify exits 1 with a record.
+    let scratch = tempfile::tempdir().unwrap();
+    let reads = "printf '%s:%s\\n' \"$COLUMNS\" \"$LINES\"";
+    let pinned = "printf '80:24\\n'";
+    for (name, oracle_body, candidate_body) in [
+        ("oracle-reads", reads, pinned),
+        ("candidate-reads", pinned, reads),
+    ] {
+        let dir = scratch.path().join(name);
+        std::fs::create_dir(&dir).unwrap();
+        let oracle = script(&dir, "oracle", oracle_body);
+        let side = script(&dir, "candidate", candidate_body);
+        let out = dir.join("verify.json");
+        let result = scoped("rust-03", &out)
+            .arg("--test-oracle")
+            .arg(&oracle)
+            .arg("--test-candidate")
+            .arg(&side)
+            .output()
+            .unwrap();
+        assert_eq!(result.status.code(), Some(1), "{name}: {result:?}");
+        let value = read(&out);
+        assert_eq!(value["cases"][0]["passed"], true, "{name}");
+        assert_eq!(
+            value["failed_cases"],
+            serde_json::json!(["registry-projection"]),
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn a_bad_or_misapplied_test_scope_is_refused() {
+    let scratch = tempfile::tempdir().unwrap();
+    let out = scratch.path().join("verify.json");
+    let result = scoped("rust-03", &out)
+        .args(["--test-scope", "everything"])
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&result.stderr)
+        .contains("--test-scope must be full or allow-python"));
+    let result = scoped("rust-02", &out)
+        .args(["--test-scope", "full"])
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1));
+    assert!(
+        String::from_utf8_lossy(&result.stderr).contains("--test-scope applies only to a CLI step")
+    );
+    assert!(!out.exists());
 }
