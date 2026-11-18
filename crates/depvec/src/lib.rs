@@ -8,7 +8,11 @@
 //! `SETS`, and a fixture `xtask/tests/fixtures/depvec/<set>.json`.
 pub mod calendar;
 pub mod canon;
+pub mod code_parse;
+pub mod fernet;
+pub mod fsrs_schedule;
 pub mod json_yaml;
+pub mod runtime;
 
 use serde_json::{json, Value};
 
@@ -16,7 +20,14 @@ use serde_json::{json, Value};
 pub type Run = fn(&str, &Value) -> Result<Value, String>;
 
 /// The registry: one line per vector set.
-pub const SETS: &[(&str, Run)] = &[("calendar", calendar::run), ("json-yaml", json_yaml::run)];
+pub const SETS: &[(&str, Run)] = &[
+    ("calendar", calendar::run),
+    ("code-parse", code_parse::run),
+    ("fernet", fernet::run),
+    ("fsrs", fsrs_schedule::run),
+    ("json-yaml", json_yaml::run),
+    ("runtime", runtime::run),
+];
 
 /// Runs every vector of a fixture. A vector that fails gives `{"error":
 /// true}`; the reason stays out of the output, since only the outcome is

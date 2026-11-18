@@ -562,6 +562,71 @@ tags other than `!!str`; `.nan` (its sign bit differs by CPU in PyYAML); and
 writing YAML for a string that looks like a date or `1_000`, or a datetime
 (the `yaml-rust2` emitter does not quote these).
 
+**Set `code-parse` (33 vectors):** does a teaching example parse, as
+`scripts/check-card-code.py` decides it. `python-parse` (the oracle runs
+`compile(code, id, "exec")` on Python 3.12: types, `match`, walrus, async,
+PEP 701 f-strings, type parameters, `except*`; and rejects a missing colon,
+bad indent, an open bracket, `print "x"`, assignment to a literal, an open
+string, and the 3.14-only template strings and unparenthesized `except A,
+B`) and `js-parse` (the oracle runs the native esbuild binary from
+`web/node_modules/@esbuild/` with the card loader and `--format=esm`, the
+same engine the script calls through node: JS, JSX, TS and TSX that parse,
+and an open brace, a missing expression, a repeated `let`, JSX or types under
+the `js` loader, JSX under `ts`, and a wrong closing tag). The oracle stops
+when esbuild is missing, so verify is refused, never silently skipped. The
+Rust side pins the Python target to 3.12, the version in `.python-version`.
+
+Known gaps for `code-parse` (rejected meanings until a later PR covers them):
+`compile()`'s scope checks (`return`, `yield` or `await` outside a function,
+`break` outside a loop, a repeated argument name, `nonlocal` at module
+level). `ruff_python_parser` reports these only through its
+`SemanticSyntaxChecker`, which needs a scope model that ruff's own linter
+supplies; a hand-written one would be new semantics, so it waits for
+`rust-27`. Strict-mode-only JavaScript errors (`with`, legacy octal) also
+stay out: esbuild treats a file as strict only when it has `import` or
+`export`, while `oxc` parses every module as strict.
+
+**Set `fsrs` (18 vectors):** `parameters` pins the FSRS-6 parameter set
+`tutor/cards.py` uses (py-fsrs 6.3.2 `Scheduler()`: 21 weights with decay
+0.1542, retention 0.9, learning steps 1 and 10 minutes, relearning step 10
+minutes, maximum 36,500 days). `schedule` runs a card through a list of
+grades at fixed minutes after a synthetic start, with `cards.RATINGS` for
+the grade, and compares after each review: state, step, due time (seconds),
+stability and difficulty (2 decimals). Vectors cover each first grade,
+learning steps, same-day reviews, late and overdue reviews, lapses and
+relearning, and bad input. The Rust side takes stability, difficulty and the
+raw interval from the `fsrs` crate; a small adapter in
+`crates/depvec/src/fsrs_schedule.rs` adds the steps, the state, py-fsrs's
+stability floor (0.001; the crate's is 0.0001), the half-to-even whole-day
+interval from 1 to 36,500, and the due time.
+
+Known gaps for `fsrs` (rejected meanings until a later PR covers them):
+`cards.review` fuzzes review intervals with Python's `random()`, so the
+vectors pin fuzzing off on both sides, and the Rust port needs its own fuzz
+with the same ranges; the crate computes in `f32` and py-fsrs in `f64`, so
+values agree to 2 decimals here but long histories can drift; the crate caps
+stability at 36,500 days and py-fsrs does not.
+
+**Set `runtime` (38 vectors):** `http-fixture-path` (the
+`connectors._fixture_path` key: netloc as written, path runs outside
+`[A-Za-z0-9_.-]` made one `_`, `root` for no path, query and fragment
+dropped), `http-fixture-read` (the file `connectors.http_get` reads from
+synthetic fixtures: `.json`, then `.xml`, `.html`, `.csv`; no match is an
+error), `lock-probe` (flock exclusion across processes and languages: a Rust
+`File::lock` holder against a Python `fcntl.flock` peer process, and a
+Python holder against a Rust probe; exclusive and shared modes, and a
+released lock) and `run-limited` (the `exercises._limits` CPU and memory
+limits and the `exercises._child` wall timeout and outcome rules, on fixed
+`/bin/sh` programs: ok, exit 3, a CPU spin, a sleep). The lock peer on the
+Rust side is `.venv/bin/python` under the repo root (verify runs the
+candidate there), or `CAREERBREW_DEPVEC_PYTHON`.
+
+Known gaps for `runtime`: hosts with capitals and URLs with non-ASCII or
+space characters in the path (`http::Uri` refuses some that `urlsplit`
+accepts); `fcntl.lockf` and `fcntl.LOCK_UN` from another process; process
+groups (neither side kills grandchildren); no real network request, so no
+HTTP client crate is pinned yet.
+
 #### rust-01 dependency decisions
 
 | Need | Crate | Version | Licence | Decision | Evidence |
@@ -576,6 +641,39 @@ writing YAML for a string that looks like a date or `1_000`, or a datetime
 | RRULE expansion | `icalendar` `recurrence` feature | 0.17.17 | MIT OR Apache-2.0 | rejected | wraps the same `rrule` crate behind a model API; the plain parser plus `rrule` keeps each step visible and the feature set small |
 | Time zones | `chrono-tz` | 0.10.4 | MIT OR Apache-2.0 | kept | the IANA database compiled in (`phf`, MIT), so a zone reads the same on every machine; the zone type `rrule` uses |
 | Dates and times | `chrono` | 0.4.45 | MIT OR Apache-2.0 | kept | the date type `rrule` and `chrono-tz` share; `clock` pulls `iana-time-zone` (MIT OR Apache-2.0) |
+| Python example syntax | `ruff_python_parser` (with `ruff_python_ast`) | 0.0.22 | MIT | kept, with the scope-check gap above | Astral publishes it to crates.io from the ruff repo (release 2026-11); `parse_unchecked` with a 3.12 target reports both parse errors and syntax newer than 3.12; `python-parse` vectors. Pulls `ruff_text_size`, `ruff_python_trivia`, `ruff_unicode_names2` (MIT), `bitflags`, `bstr`, `memchr`, `rustc-hash`, `unicode-ident`, `unicode_names2` and others under MIT or Apache-2.0 (`Cargo.lock`) |
+| Python example syntax | `rustpython-parser` | 0.4.0 | MIT | rejected | last release 2024-08; the RustPython team moved to the ruff parser; no PEP 701 f-strings or 3.12 type parameters |
+| JS and TS example syntax | `oxc_parser`, `oxc_semantic` (with `oxc_allocator`, `oxc_span`) | 0.159.0 | MIT | kept | active (release 2026-11); one parser for JS, JSX, TS and TSX; `oxc_semantic`'s syntax checks add esbuild's repeated-declaration error; `js-parse` vectors |
+| JS and TS example syntax | `swc_ecma_parser` | 47.1.0 | Apache-2.0 | not chosen | maintained, but repeated declarations need extra swc crates and a resolver pass; `oxc` gives the same checks in fewer crates |
+| Fernet tokens (data at rest, backups) | `fernet` (feature `rustcrypto`) | 0.2.2 | MIT | kept | already pinned by `crates/vault`; the `fernet` vector set: Python-made tokens open in Rust and Rust-made tokens open in Python, old plaintext and a 2020 token still read, a wrong key, a tampered or a truncated token fail on both sides, and a token stamped in the future opens on both sides: Python checks no time without a TTL, so `careerbrew_vault::decrypt_like_python` passes the crate a clock no earlier than the token's stamp (feature `fernet_danger_timestamps`; the MAC and cipher checks stay the crate's). Its AES, CBC, HMAC and SHA-256 come from the RustCrypto crates (`aes`, `cbc`, `hmac`, `sha2`, MIT OR Apache-2.0); no crypto code is ours. It has no way to pass the IV, so a seal vector compares the envelope's shape and plaintext, not its bytes |
+| Fernet tokens | `fernet` (default feature `openssl`) | 0.2.2 | MIT | rejected | needs a system OpenSSL to build and link; `rustcrypto` gives the same tokens in pure Rust |
+| Base64 for tokens | `base64` | 0.22.1 | MIT OR Apache-2.0 | kept | already pinned by `crates/vault`; the strict check `backup.verify` makes (`open-strict` vectors) and the Python-compatible lenient read in `careerbrew-vault` |
+| FSRS card schedule | `fsrs` | 7.0.0 | BSD-3-Clause | kept | official Open Spaced Repetition crate (release 2026-11); `FSRS6_DEFAULT_PARAMETERS` equal py-fsrs 6.3.2 `DEFAULT_PARAMETERS` (`parameters` vector) and its FSRS-6 formulas match py-fsrs's (18 `fsrs` vectors). Version 7 no longer pulls `burn`. New dependencies: `ndarray`, `rayon`, `rand` 0.10, `rand_distr`, `itertools`, `snafu`, `num-*`, `crossbeam-*`, `either`, `matrixmultiply`, `rawpointer`, `portable-atomic*`, `chacha20`, `cpufeatures`, `getrandom`, `heck`, `autocfg`, `r-efi` (MIT OR Apache-2.0, `r-efi` also LGPL-2.1-or-later as an option), `bytemuck`, `wide`, `safe_arch` (Zlib OR Apache-2.0 OR MIT), `libm` (MIT) |
+| FSRS card schedule | `rs-fsrs` | 1.2.1 | non-standard (crates.io) | rejected | last release 2024-10; no SPDX licence on crates.io; it predates the 21-weight FSRS-6 set with a trainable decay that py-fsrs 6.3.2 uses |
+| FSRS learning steps, state and due time | (none) | | | adapter | the `fsrs` crate has the memory model only; py-fsrs's step and state rules are a small adapter in `crates/depvec/src/fsrs_schedule.rs`, checked by the `schedule` vectors |
+| HTTP fixture URL split | `http` (`http::Uri`) | 1.5.0 | MIT OR Apache-2.0 | kept | keeps the authority as written, like `urlsplit().netloc`, and drops the fragment; pulls only `bytes` (MIT OR Apache-2.0); `http-fixture-path` and `http-fixture-read` vectors |
+| HTTP fixture URL split | `url` | 2.5.8 | MIT OR Apache-2.0 | rejected | lowercases hosts, drops default ports and percent-encodes paths, so the fixture key differs from `urlsplit`; pulls about 40 ICU crates (Unicode-3.0) |
+| HTTP client | `ureq` | none | MIT OR Apache-2.0 | deferred | no vector makes a network request yet; picked and pinned in the step that first sends one |
+| File locks | `std::fs::File::lock` | Rust 1.100.0 | MIT OR Apache-2.0 | kept | standard library since Rust 1.89; flock on Unix, the same lock as Python `fcntl.flock`; `lock-probe` vectors cross both directions |
+| File locks | `fs4`, `fd-lock` | latest | MIT OR Apache-2.0 | rejected | the standard library now gives the same flock lock with no extra crate |
+| Subprocess CPU and memory limits | `rlimit` | 0.11.0 | MIT | kept | maintained `setrlimit` wrapper over `libc` (already in the lock file), called in `pre_exec` like `exercises._limits`; `run-limited` vectors |
+| Subprocess wall timeout | `wait-timeout` | 0.2.1 | MIT | kept | small, stable, widely used; kill and reap on timeout like `subprocess.run(timeout=)`; `run-limited` vectors |
+| Subprocess limits | `process_control` | latest | MIT OR Apache-2.0 | rejected | has wall and memory limits but no CPU-time limit |
+
+The two kept parser crates add 107 `Cargo.lock` entries. Most are MIT or
+Apache-2.0. The others: `icu_*`, `zerovec`, `yoke`, `zerofrom`, `zerotrie`,
+`tinystr`, `writeable`, `litemap` and `potential_utf` (Unicode-3.0), `ryu`
+(Apache-2.0 OR BSL-1.0), `self_cell` (Apache-2.0 OR GPL-2.0-only, taken as
+Apache-2.0) and `tinyvec` (Zlib OR Apache-2.0 OR MIT). None is copyleft-only.
+
+Appended bytes, decided: a vault read (`vault.open_bytes`) keeps Python's
+behavior. Python's base64 decoder stops at a token's completed padding, so
+bytes appended after it are ignored, and Rust does the same
+(`open-appended-after-padding` opens on both sides). This is safe: the HMAC
+still covers every byte of the token, and appended bytes without padding
+first change the token and fail (`open-appended-without-padding`). A backup
+read (`backup.verify`) stays strict, and appended bytes fail there on both
+sides (`strict-appended-after-padding`).
 
 ### rust-02: Port pure setting schemas, paths, clocks and hashes
 
@@ -1170,7 +1268,7 @@ is `rust-01`.
 | --- | --- | --- | --- |
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
 | `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
-| `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`json-yaml` and `calendar` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
+| `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`calendar`, `code-parse`, `fernet`, `fsrs`, `json-yaml` and `runtime` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
 | `experiments/hash/` | `careerbrew-hash-experiment` | the pure `changes._h` hash for a supported synthetic JSON subset. It refuses values outside that subset. | none: component parity only |
 
 - No crate ships: `scripts/rust-shipped-crates.txt` is empty. A crate whose

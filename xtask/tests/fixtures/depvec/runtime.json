@@ -1,0 +1,326 @@
+{
+ "set": "runtime",
+ "vectors": [
+  {
+   "id": "path-api-repo",
+   "op": "http-fixture-path",
+   "input": "https://api.example.com/repos/acme/tool/pulls"
+  },
+  {
+   "id": "path-root-slash",
+   "op": "http-fixture-path",
+   "input": "https://jobs.example.com/"
+  },
+  {
+   "id": "path-no-path",
+   "op": "http-fixture-path",
+   "input": "https://jobs.example.com"
+  },
+  {
+   "id": "path-trailing-slash",
+   "op": "http-fixture-path",
+   "input": "https://api.example.com/v1/items/"
+  },
+  {
+   "id": "path-query-ignored",
+   "op": "http-fixture-path",
+   "input": "https://api.example.com/search/issues?q=is%3Aopen&per_page=50"
+  },
+  {
+   "id": "path-fragment-ignored",
+   "op": "http-fixture-path",
+   "input": "https://boards.example.com/feed.rss#top"
+  },
+  {
+   "id": "path-keeps-dot-dash-underscore",
+   "op": "http-fixture-path",
+   "input": "https://api.example.com/a_b/c-d/e.f"
+  },
+  {
+   "id": "path-collapses-runs",
+   "op": "http-fixture-path",
+   "input": "https://api.example.com/a//b~c+d"
+  },
+  {
+   "id": "path-percent-escape",
+   "op": "http-fixture-path",
+   "input": "https://api.example.com/files/a%20b"
+  },
+  {
+   "id": "path-local-port",
+   "op": "http-fixture-path",
+   "input": "http://localhost:8080/api/v2/me"
+  },
+  {
+   "id": "path-rejects-non-text",
+   "op": "http-fixture-path",
+   "input": {
+    "url": "https://api.example.com/x"
+   }
+  },
+  {
+   "id": "read-json",
+   "op": "http-fixture-read",
+   "input": {
+    "url": "https://api.example.com/repos/acme/tool",
+    "files": {
+     "api.example.com/repos_acme_tool.json": "{\"id\": 1}"
+    }
+   }
+  },
+  {
+   "id": "read-json-before-xml",
+   "op": "http-fixture-read",
+   "input": {
+    "url": "https://feed.example.com/jobs",
+    "files": {
+     "feed.example.com/jobs.json": "json",
+     "feed.example.com/jobs.xml": "xml"
+    }
+   }
+  },
+  {
+   "id": "read-xml-fallback",
+   "op": "http-fixture-read",
+   "input": {
+    "url": "https://feed.example.com/jobs.rss",
+    "files": {
+     "feed.example.com/jobs.rss.xml": "<rss/>"
+    }
+   }
+  },
+  {
+   "id": "read-html-before-csv",
+   "op": "http-fixture-read",
+   "input": {
+    "url": "https://board.example.com/list",
+    "files": {
+     "board.example.com/list.html": "html",
+     "board.example.com/list.csv": "csv"
+    }
+   }
+  },
+  {
+   "id": "read-csv-fallback",
+   "op": "http-fixture-read",
+   "input": {
+    "url": "https://board.example.com/export",
+    "files": {
+     "board.example.com/export.csv": "a,b\n1,2\n"
+    }
+   }
+  },
+  {
+   "id": "read-root-key",
+   "op": "http-fixture-read",
+   "input": {
+    "url": "https://board.example.com/",
+    "files": {
+     "board.example.com/root.json": "[]"
+    }
+   }
+  },
+  {
+   "id": "read-missing-is-error",
+   "op": "http-fixture-read",
+   "input": {
+    "url": "https://board.example.com/none",
+    "files": {
+     "board.example.com/other.json": "[]"
+    }
+   }
+  },
+  {
+   "id": "read-txt-not-tried",
+   "op": "http-fixture-read",
+   "input": {
+    "url": "https://board.example.com/notes",
+    "files": {
+     "board.example.com/notes.txt": "x"
+    }
+   }
+  },
+  {
+   "id": "read-other-host-not-used",
+   "op": "http-fixture-read",
+   "input": {
+    "url": "https://a.example.com/x",
+    "files": {
+     "b.example.com/x.json": "{}"
+    }
+   }
+  },
+  {
+   "id": "lock-self-exclusive-vs-exclusive",
+   "op": "lock-probe",
+   "input": {
+    "holder": "self",
+    "hold": "exclusive",
+    "probe": "exclusive",
+    "released": false
+   }
+  },
+  {
+   "id": "lock-self-exclusive-vs-shared",
+   "op": "lock-probe",
+   "input": {
+    "holder": "self",
+    "hold": "exclusive",
+    "probe": "shared",
+    "released": false
+   }
+  },
+  {
+   "id": "lock-self-shared-vs-exclusive",
+   "op": "lock-probe",
+   "input": {
+    "holder": "self",
+    "hold": "shared",
+    "probe": "exclusive",
+    "released": false
+   }
+  },
+  {
+   "id": "lock-self-shared-vs-shared",
+   "op": "lock-probe",
+   "input": {
+    "holder": "self",
+    "hold": "shared",
+    "probe": "shared",
+    "released": false
+   }
+  },
+  {
+   "id": "lock-self-exclusive-released",
+   "op": "lock-probe",
+   "input": {
+    "holder": "self",
+    "hold": "exclusive",
+    "probe": "exclusive",
+    "released": true
+   }
+  },
+  {
+   "id": "lock-peer-exclusive-vs-exclusive",
+   "op": "lock-probe",
+   "input": {
+    "holder": "peer",
+    "hold": "exclusive",
+    "probe": "exclusive",
+    "released": false
+   }
+  },
+  {
+   "id": "lock-peer-exclusive-vs-shared",
+   "op": "lock-probe",
+   "input": {
+    "holder": "peer",
+    "hold": "exclusive",
+    "probe": "shared",
+    "released": false
+   }
+  },
+  {
+   "id": "lock-peer-shared-vs-exclusive",
+   "op": "lock-probe",
+   "input": {
+    "holder": "peer",
+    "hold": "shared",
+    "probe": "exclusive",
+    "released": false
+   }
+  },
+  {
+   "id": "lock-peer-shared-vs-shared",
+   "op": "lock-probe",
+   "input": {
+    "holder": "peer",
+    "hold": "shared",
+    "probe": "shared",
+    "released": false
+   }
+  },
+  {
+   "id": "lock-peer-exclusive-released",
+   "op": "lock-probe",
+   "input": {
+    "holder": "peer",
+    "hold": "exclusive",
+    "probe": "exclusive",
+    "released": true
+   }
+  },
+  {
+   "id": "lock-none-exclusive",
+   "op": "lock-probe",
+   "input": {
+    "holder": "none",
+    "probe": "exclusive",
+    "released": false
+   }
+  },
+  {
+   "id": "lock-rejects-bad-mode",
+   "op": "lock-probe",
+   "input": {
+    "holder": "none",
+    "probe": "write",
+    "released": false
+   }
+  },
+  {
+   "id": "run-ok",
+   "op": "run-limited",
+   "input": {
+    "program": "ok",
+    "cpu": 6,
+    "wall": 15
+   }
+  },
+  {
+   "id": "run-nonzero-exit",
+   "op": "run-limited",
+   "input": {
+    "program": "exit3",
+    "cpu": 6,
+    "wall": 15
+   }
+  },
+  {
+   "id": "run-cpu-limit",
+   "op": "run-limited",
+   "input": {
+    "program": "spin",
+    "cpu": 1,
+    "wall": 30
+   }
+  },
+  {
+   "id": "run-wall-timeout",
+   "op": "run-limited",
+   "input": {
+    "program": "sleep",
+    "cpu": 6,
+    "wall": 1
+   }
+  },
+  {
+   "id": "run-rejects-zero-cpu",
+   "op": "run-limited",
+   "input": {
+    "program": "ok",
+    "cpu": 0,
+    "wall": 15
+   }
+  },
+  {
+   "id": "run-rejects-unknown-program",
+   "op": "run-limited",
+   "input": {
+    "program": "rm",
+    "cpu": 6,
+    "wall": 15
+   }
+  }
+ ]
+}

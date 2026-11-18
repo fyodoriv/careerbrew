@@ -1,0 +1,218 @@
+{
+ "set": "code-parse",
+ "vectors": [
+  {
+   "id": "python-function-with-types",
+   "op": "python-parse",
+   "input": "def pair_sum(nums: list[int], target: int) -> list[int]:\n    seen = {}\n    for i, x in enumerate(nums):\n        if target - x in seen:\n            return [seen[target - x], i]\n        seen[x] = i\n    return []\n"
+  },
+  {
+   "id": "python-class-and-decorator",
+   "op": "python-parse",
+   "input": "from dataclasses import dataclass\n\n\n@dataclass\nclass Node:\n    val: int\n    next: \"Node | None\" = None\n"
+  },
+  {
+   "id": "python-match-statement",
+   "op": "python-parse",
+   "input": "def kind(x):\n    match x:\n        case [a, b]:\n            return a + b\n        case {\"k\": v}:\n            return v\n        case _:\n            return None\n"
+  },
+  {
+   "id": "python-walrus-and-comprehension",
+   "op": "python-parse",
+   "input": "rows = [y for x in range(5) if (y := x * x) > 3]\n"
+  },
+  {
+   "id": "python-async-function",
+   "op": "python-parse",
+   "input": "async def fetch(queue):\n    async with queue:\n        return await queue.get()\n"
+  },
+  {
+   "id": "python-fstring-nested-quotes-312",
+   "op": "python-parse",
+   "input": "item = {\"k\": 1}\ntext = f\"{item[\"k\"]} done\"\n"
+  },
+  {
+   "id": "python-type-parameters-312",
+   "op": "python-parse",
+   "input": "def first[T](items: list[T]) -> T:\n    return items[0]\n\ntype Pair = tuple[int, int]\n"
+  },
+  {
+   "id": "python-except-star",
+   "op": "python-parse",
+   "input": "try:\n    pass\nexcept* ValueError:\n    pass\n"
+  },
+  {
+   "id": "python-global-and-lambda",
+   "op": "python-parse",
+   "input": "count = 0\n\ndef bump():\n    global count\n    count += 1\n\nsquare = lambda n: n * n\n"
+  },
+  {
+   "id": "python-rejects-missing-colon",
+   "op": "python-parse",
+   "input": "def f(x)\n    return x\n"
+  },
+  {
+   "id": "python-rejects-bad-indent",
+   "op": "python-parse",
+   "input": "def f(x):\nreturn x\n"
+  },
+  {
+   "id": "python-rejects-unclosed-paren",
+   "op": "python-parse",
+   "input": "total = sum([1, 2, 3]\n"
+  },
+  {
+   "id": "python-rejects-print-statement",
+   "op": "python-parse",
+   "input": "print \"hello\"\n"
+  },
+  {
+   "id": "python-rejects-assign-to-literal",
+   "op": "python-parse",
+   "input": "1 = x\n"
+  },
+  {
+   "id": "python-rejects-unterminated-string",
+   "op": "python-parse",
+   "input": "name = 'open\n"
+  },
+  {
+   "id": "python-rejects-template-string-before-314",
+   "op": "python-parse",
+   "input": "name = 'x'\ntext = t\"{name}\"\n"
+  },
+  {
+   "id": "python-rejects-unparenthesized-except-before-314",
+   "op": "python-parse",
+   "input": "try:\n    pass\nexcept ValueError, TypeError:\n    pass\n"
+  },
+  {
+   "id": "js-arrow-and-template",
+   "op": "js-parse",
+   "input": {
+    "loader": "js",
+    "code": "const greet = (name) => `hi ${name}`;\nexport default greet;\n"
+   }
+  },
+  {
+   "id": "js-class-private-field",
+   "op": "js-parse",
+   "input": {
+    "loader": "js",
+    "code": "class Counter {\n  #n = 0;\n  inc() { return ++this.#n; }\n}\nexport { Counter };\n"
+   }
+  },
+  {
+   "id": "js-optional-chaining-and-destructuring",
+   "op": "js-parse",
+   "input": {
+    "loader": "js",
+    "code": "const { a, b: [c] = [] } = obj ?? {};\nconsole.log(a?.x ?? c);\n"
+   }
+  },
+  {
+   "id": "js-top-level-await",
+   "op": "js-parse",
+   "input": {
+    "loader": "js",
+    "code": "import { load } from \"./data.js\";\nconst rows = await load();\nexport { rows };\n"
+   }
+  },
+  {
+   "id": "js-regex-literal",
+   "op": "js-parse",
+   "input": {
+    "loader": "js",
+    "code": "const words = \"a bb ccc\".match(/\\w+/g);\n"
+   }
+  },
+  {
+   "id": "jsx-element",
+   "op": "js-parse",
+   "input": {
+    "loader": "jsx",
+    "code": "export const Item = ({ name }) => <li className=\"item\">{name}</li>;\n"
+   }
+  },
+  {
+   "id": "ts-interface-generic-enum",
+   "op": "js-parse",
+   "input": {
+    "loader": "ts",
+    "code": "interface Box<T> { value: T }\nenum Color { Red, Green }\nexport function unbox<T>(b: Box<T>): T { return b.value; }\nexport const c = Color.Red;\n"
+   }
+  },
+  {
+   "id": "ts-satisfies-and-type-import",
+   "op": "js-parse",
+   "input": {
+    "loader": "ts",
+    "code": "import type { Config } from \"./config\";\nexport const cfg = { port: 8080 } satisfies Partial<Config>;\n"
+   }
+  },
+  {
+   "id": "tsx-generic-component",
+   "op": "js-parse",
+   "input": {
+    "loader": "tsx",
+    "code": "export const Show = <T,>({ v }: { v: T }) => <span>{String(v)}</span>;\n"
+   }
+  },
+  {
+   "id": "js-rejects-unclosed-brace",
+   "op": "js-parse",
+   "input": {
+    "loader": "js",
+    "code": "function f() {\n  return 1;\n"
+   }
+  },
+  {
+   "id": "js-rejects-missing-expression",
+   "op": "js-parse",
+   "input": {
+    "loader": "js",
+    "code": "let x = ;\n"
+   }
+  },
+  {
+   "id": "js-rejects-redeclared-let",
+   "op": "js-parse",
+   "input": {
+    "loader": "js",
+    "code": "let a = 1;\nlet a = 2;\n"
+   }
+  },
+  {
+   "id": "js-rejects-jsx-without-jsx-loader",
+   "op": "js-parse",
+   "input": {
+    "loader": "js",
+    "code": "const el = <div />;\n"
+   }
+  },
+  {
+   "id": "js-rejects-type-annotation",
+   "op": "js-parse",
+   "input": {
+    "loader": "js",
+    "code": "const n: number = 1;\n"
+   }
+  },
+  {
+   "id": "ts-rejects-jsx-in-ts",
+   "op": "js-parse",
+   "input": {
+    "loader": "ts",
+    "code": "const el = <div>hi</div>;\n"
+   }
+  },
+  {
+   "id": "tsx-rejects-unclosed-tag",
+   "op": "js-parse",
+   "input": {
+    "loader": "tsx",
+    "code": "export const A = () => <div><span></div>;\n"
+   }
+  }
+ ]
+}

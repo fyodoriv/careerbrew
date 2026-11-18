@@ -82,6 +82,10 @@ __pycache__/
 !/crates/depvec/src/canon.rs
 !/crates/depvec/src/calendar.rs
 !/crates/depvec/src/json_yaml.rs
+!/crates/depvec/src/code_parse.rs
+!/crates/depvec/src/fernet.rs
+!/crates/depvec/src/fsrs_schedule.rs
+!/crates/depvec/src/runtime.rs
 !/crates/depvec/tests/
 /crates/depvec/tests/*
 !/crates/depvec/tests/cli.rs
@@ -132,6 +136,10 @@ __pycache__/
 !/xtask/tests/fixtures/depvec/driver.py
 !/xtask/tests/fixtures/depvec/json-yaml.json
 !/xtask/tests/fixtures/depvec/calendar.json
+!/xtask/tests/fixtures/depvec/code-parse.json
+!/xtask/tests/fixtures/depvec/fernet.json
+!/xtask/tests/fixtures/depvec/fsrs.json
+!/xtask/tests/fixtures/depvec/runtime.json
 !/xtask/tests/fixtures/i01/
 /xtask/tests/fixtures/i01/*
 !/xtask/tests/fixtures/i01/pending-identities-v1.tsv
