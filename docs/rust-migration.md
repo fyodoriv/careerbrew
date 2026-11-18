@@ -1415,10 +1415,8 @@ holds a slow path on its own, not only through the output compare.
 | big memory: a child holds 512 MiB, then the oracle | `verify` passes; `decide` `keep-python` with `rss-regressed` |
 | equal cost: `exec` of the oracle | `verify` passes; no `cpu-regressed` and no `rss-regressed` |
 
-The real `verify` record lists `cases`, but `decide` reads `checks` and
-`violations`. The test maps each real case to a check and sets the violation
-counts to 0, because `verify` has none yet. Making `decide` read the real
-`verify` record is left to the `verify` extension in "Next" item 3. A test
+`decide` reads the real `verify` record, with its `checks` and `violations`,
+so each run proves the whole baseline, verify, measure and decide chain. A test
 candidate gets no arguments from `measure`, so each candidate names
 `actions --json` itself.
 

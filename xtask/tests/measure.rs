@@ -423,34 +423,14 @@ fn planted(body: &str, wide_floor: bool) -> (Value, Value) {
     let read =
         |path: &Path| -> Value { serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap() };
     let verified = read(&verify);
-    // The verify record lists `cases`; decide reads `checks` and
-    // `violations`. Map each real case to a check; verify has no
-    // violation counts yet, so they are 0 (docs: "Planted slow-path
-    // controls").
-    let checks: Vec<Value> = verified["cases"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|case| json!({"id": case["case"], "passed": case["passed"]}))
-        .collect();
-    let decide_verify = scratch.path().join("decide-verify.json");
-    let shaped = json!({
-        "schema": "careerbrew-migration-verify-v1",
-        "step": "rust-03",
-        "checks": checks,
-        "violations": {
-            "contract": 0, "privacy": 0, "authorization": 0, "role": 0,
-            "side_effect": 0, "missing_writes": 0, "duplicate_writes": 0,
-        },
-    });
-    std::fs::write(&decide_verify, serde_json::to_vec(&shaped).unwrap()).unwrap();
+    // decide reads the real verify record: its `checks` and `violations`.
     let out = scratch.path().join("decide.json");
     let mut decide = Command::new(XTASK);
     decide
         .args(["migration", "decide", "--step", "rust-03", "--baseline"])
         .arg(&base)
         .arg("--verify")
-        .arg(&decide_verify)
+        .arg(&verify)
         .arg("--measure")
         .arg(&measured)
         .arg("--out")
