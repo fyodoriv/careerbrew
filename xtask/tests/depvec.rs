@@ -46,16 +46,26 @@ fn read(out: &Path) -> serde_json::Value {
     serde_json::from_str(&std::fs::read_to_string(out).unwrap()).unwrap()
 }
 
-fn vector_count() -> usize {
-    ["fernet", "json-yaml"]
-        .iter()
-        .map(|set| {
-            let path = format!("xtask/tests/fixtures/depvec/{set}.json");
-            let text = std::fs::read_to_string(root().join(path)).unwrap();
+/// Every vector set fixture, so a part that adds a set needs no test edit here.
+fn fixtures() -> Vec<(String, usize)> {
+    let dir = root().join("xtask/tests/fixtures/depvec");
+    let mut sets: Vec<(String, usize)> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| p.extension().is_some_and(|x| x == "json"))
+        .map(|p| {
+            let text = std::fs::read_to_string(&p).unwrap();
             let fixture: serde_json::Value = serde_json::from_str(&text).unwrap();
-            fixture["vectors"].as_array().unwrap().len()
+            let name = p.file_stem().unwrap().to_string_lossy().into_owned();
+            (name, fixture["vectors"].as_array().unwrap().len())
         })
-        .sum()
+        .collect();
+    sets.sort();
+    sets
+}
+
+fn vector_count() -> usize {
+    fixtures().iter().map(|(_, n)| n).sum()
 }
 
 #[test]
@@ -72,10 +82,15 @@ fn the_rust_candidate_agrees_with_python_on_every_vector() {
     assert_eq!(record["step"], "rust-01");
     assert_eq!(record["passed"], true);
     assert_eq!(record["case_count"], vector_count());
-    assert_eq!(
-        record["vector_sets"],
-        serde_json::json!(["fernet", "json-yaml"])
-    );
+    let mut sets: Vec<String> = record["vector_sets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_owned())
+        .collect();
+    sets.sort();
+    let names: Vec<String> = fixtures().into_iter().map(|(n, _)| n).collect();
+    assert_eq!(sets, names);
     assert_eq!(record["violations"]["contract"], 0);
 }
 
@@ -93,20 +108,6 @@ fn a_planted_wrong_vector_fails_its_case() {
         serde_json::json!(["json-yaml:json-read-object-order"])
     );
     assert_eq!(record["violations"]["contract"], 1);
-}
-
-#[test]
-fn a_planted_wrong_vector_fails_its_fernet_case() {
-    let scratch = tempfile::tempdir().unwrap();
-    let out = scratch.path().join("verify.json");
-    let run = verify(&depvec(), &out, &["--test-wrong-vector", "fernet"]);
-    assert_eq!(run.status.code(), Some(1));
-    let record = read(&out);
-    assert_eq!(record["planted_wrong_vector"], "fernet");
-    assert_eq!(
-        record["failed_cases"],
-        serde_json::json!(["fernet:open-python-token"])
-    );
 }
 
 #[test]
@@ -131,4 +132,18 @@ fn a_candidate_that_cannot_answer_fails_every_case() {
     let record = read(&out);
     assert_eq!(record["passed_count"], 0);
     assert_eq!(record["case_count"], vector_count());
+}
+
+#[test]
+fn a_planted_wrong_vector_fails_its_fernet_case() {
+    let scratch = tempfile::tempdir().unwrap();
+    let out = scratch.path().join("verify.json");
+    let run = verify(&depvec(), &out, &["--test-wrong-vector", "fernet"]);
+    assert_eq!(run.status.code(), Some(1));
+    let record = read(&out);
+    assert_eq!(record["planted_wrong_vector"], "fernet");
+    assert_eq!(
+        record["failed_cases"],
+        serde_json::json!(["fernet:open-python-token"])
+    );
 }
