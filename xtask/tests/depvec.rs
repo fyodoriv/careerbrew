@@ -174,4 +174,17 @@ fn a_planted_wrong_vector_fails_its_fernet_case() {
         record["failed_cases"],
         serde_json::json!(["fernet:open-python-token"])
     );
+fn a_planted_wrong_fsrs_vector_fails_its_case() {
+    let scratch = tempfile::tempdir().unwrap();
+    let out = scratch.path().join("verify.json");
+    let run = verify(&depvec(), &out, &["--test-wrong-vector", "fsrs"]);
+    assert_eq!(run.status.code(), Some(1));
+    let record = read(&out);
+    assert_eq!(record["passed"], false);
+    assert_eq!(record["planted_wrong_vector"], "fsrs");
+    assert_eq!(
+        record["failed_cases"],
+        serde_json::json!(["fsrs:parameters"])
+    );
+    assert_eq!(record["violations"]["contract"], 1);
 }
