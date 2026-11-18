@@ -319,3 +319,80 @@ pub fn run(
     capture_actions::write_receipt(&record, output)?;
     Ok(record)
 }
+
+/// In-crate controls for the input binding. They edit a scratch copy of the
+/// inputs, never the shared checkout.
+#[cfg(test)]
+mod controls {
+    use super::*;
+
+    fn copy(from: &Path, to: &Path) {
+        if from.is_dir() {
+            std::fs::create_dir_all(to).unwrap();
+            for entry in std::fs::read_dir(from).unwrap() {
+                let entry = entry.unwrap();
+                if entry.file_name() == "target" {
+                    continue;
+                }
+                copy(&entry.path(), &to.join(entry.file_name()));
+            }
+        } else if from.is_file() {
+            std::fs::copy(from, to).unwrap();
+        }
+    }
+
+    fn scratch_root() -> (tempfile::TempDir, PathBuf) {
+        let real = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let scratch = tempfile::tempdir().unwrap();
+        let root = scratch.path().to_path_buf();
+        for name in [
+            "src/careerbrew",
+            "xtask",
+            "tests/fixtures/http",
+            "docs/plans",
+            "pyproject.toml",
+            "uv.lock",
+            "Cargo.lock",
+        ] {
+            let to = root.join(name);
+            std::fs::create_dir_all(to.parent().unwrap()).unwrap();
+            copy(&real.join(name), &to);
+        }
+        let candidate = root.join("candidate");
+        std::fs::write(&candidate, b"#!/bin/sh\nexit 0\n").unwrap();
+        (scratch, candidate)
+    }
+
+    fn append(path: &Path) {
+        let mut bytes = std::fs::read(path).unwrap_or_default();
+        bytes.extend_from_slice(b"\n// changed\n");
+        std::fs::write(path, bytes).unwrap();
+    }
+
+    #[test]
+    fn a_hashed_source_change_breaks_the_input_binding() {
+        for name in ["xtask/src/measure.rs", "xtask/src/trial_plan.rs"] {
+            let (scratch, candidate) = scratch_root();
+            let before = inputs(scratch.path(), &candidate).unwrap();
+            assert!(inputs(scratch.path(), &candidate).unwrap() == before);
+            append(&scratch.path().join(name));
+            assert!(inputs(scratch.path(), &candidate).unwrap() != before, "{name}");
+        }
+    }
+
+    #[test]
+    fn a_fixture_change_breaks_the_input_binding() {
+        let (scratch, candidate) = scratch_root();
+        let before = inputs(scratch.path(), &candidate).unwrap();
+        append(&scratch.path().join("tests/fixtures/http/synthetic-added.json"));
+        assert!(inputs(scratch.path(), &candidate).unwrap() != before);
+    }
+
+    #[test]
+    fn a_candidate_change_breaks_the_input_binding() {
+        let (scratch, candidate) = scratch_root();
+        let before = inputs(scratch.path(), &candidate).unwrap();
+        append(&candidate);
+        assert!(inputs(scratch.path(), &candidate).unwrap() != before);
+    }
+}

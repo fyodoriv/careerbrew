@@ -5,7 +5,9 @@
 //! nonzero, a relative override or `--python`, too few pairs, zero pairs, a
 //! relative `--out`, an existing `--out`, an empty `CAREERBREW_HOME`, the
 //! test override without the test flag, the old `--runs` flag, and a
-//! candidate change during the runs). Each test owns its temp folder.
+//! candidate change during the runs). A source or fixture change during the
+//! runs has an in-crate control (`measure::controls`), because this binary
+//! must not edit the shared checkout. Each test owns its temp folder.
 use serde_json::{json, Value};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
@@ -70,7 +72,7 @@ fn test_candidate_writes_a_paired_cold_and_warm_record() {
     let scratch = tempfile::tempdir().unwrap();
     let candidate = script(scratch.path(), "exit 0");
     let out = scratch.path().join("measure.json");
-    let result = with_candidate("rust-03", &out, "2", &candidate)
+    let result = with_candidate("rust-03", &out, "3", &candidate)
         .output()
         .unwrap();
     passed(&result);
@@ -79,7 +81,7 @@ fn test_candidate_writes_a_paired_cold_and_warm_record() {
     assert_eq!(value["schema"], "careerbrew-migration-measure-v1");
     assert_eq!(value["step"], "rust-03");
     assert_eq!(value["test_override"], true);
-    assert_eq!(value["pairs"], 2);
+    assert_eq!(value["pairs"], 3);
     assert_eq!(value["meets_protocol_minimum"], false);
     assert_eq!(value["oracle_command"][0], "<python>");
     assert_eq!(value["candidate_command"][0], "<candidate>");
@@ -89,20 +91,24 @@ fn test_candidate_writes_a_paired_cold_and_warm_record() {
     assert_eq!(regimes.len(), 2);
     assert_eq!(regimes[0]["cache_state"], "cold");
     assert_eq!(regimes[1]["cache_state"], "warm");
-    // The trial planner's order: cold starts oracle-first, warm the reverse.
-    assert_eq!(regimes[0]["first"], json!(["oracle", "candidate"]));
-    assert_eq!(regimes[1]["first"], json!(["candidate", "oracle"]));
+    // `orders` logs the side order each pair actually ran in: cold odd and
+    // warm even pairs start with the oracle.
+    let (oc, co) = (json!(["oracle", "candidate"]), json!(["candidate", "oracle"]));
+    assert_eq!(regimes[0]["orders"], json!([oc, co, oc]));
+    assert_eq!(regimes[1]["orders"], json!([co, oc, co]));
+    assert_eq!(regimes[0]["first"], oc);
+    assert_eq!(regimes[1]["first"], co);
     for regime in regimes {
-        assert_eq!(regime["pair_ids"], json!([1, 2]));
+        assert_eq!(regime["pair_ids"], json!([1, 2, 3]));
         assert_eq!(regime["cached"], 0);
         for side in ["oracle", "candidate"] {
             let cpu = regime[format!("{side}_cpu_us")].as_array().unwrap();
-            assert_eq!(cpu.len(), 2);
+            assert_eq!(cpu.len(), 3);
             assert!(cpu.iter().all(|value| value.as_u64().is_some()));
             let rss = regime[format!("{side}_tree_max_rss_bytes")]
                 .as_array()
                 .unwrap();
-            assert_eq!(rss.len(), 2);
+            assert_eq!(rss.len(), 3);
             assert!(rss.iter().all(|value| value.as_u64().unwrap() > 0));
             assert_eq!(
                 regime[format!("{side}_wall_us")].as_array().unwrap().len(),
@@ -354,4 +360,20 @@ fn candidate_change_during_the_runs_is_refused() {
         .output()
         .unwrap();
     refused(result, "a relevant source changed during the measure", &out);
+}
+
+#[test]
+fn existing_out_is_refused_before_any_run() {
+    let scratch = tempfile::tempdir().unwrap();
+    let marker = scratch.path().join("ran");
+    let candidate = script(scratch.path(), &format!("touch '{}'", marker.display()));
+    let out = scratch.path().join("measure.json");
+    std::fs::write(&out, b"keep").unwrap();
+    let result = with_candidate("rust-03", &out, "1", &candidate)
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1), "{result:?}");
+    assert!(String::from_utf8_lossy(&result.stderr).contains("measure output already exists"));
+    assert_eq!(std::fs::read(&out).unwrap(), b"keep");
+    assert!(!marker.exists());
 }
