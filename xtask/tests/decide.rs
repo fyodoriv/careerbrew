@@ -14,6 +14,7 @@ fn baseline() -> Value {
     json!({
         "schema": "careerbrew-migration-baseline-v1",
         "step": "rust-03",
+        "os": "linux",
         "meets_protocol_minimum": true,
         "source_tree_dirty": false,
         "cache_state": "warm-imports-fresh-synthetic-home",
@@ -52,13 +53,25 @@ fn measure(cpu: u64) -> Value {
 }
 
 fn decide(dir: &Path, base: &Value, verify: &Value, measure: &Value) -> (Output, Option<Value>) {
+    decide_with(dir, base, verify, measure, None)
+}
+
+/// Runs decide; `floor` is the test-only noise floor override, if any.
+fn decide_with(
+    dir: &Path,
+    base: &Value,
+    verify: &Value,
+    measure: &Value,
+    floor: Option<&Value>,
+) -> (Output, Option<Value>) {
     let write = |name: &str, value: &Value| {
         let path = dir.join(name);
         std::fs::write(&path, serde_json::to_vec(value).unwrap()).unwrap();
         path
     };
     let out = dir.join("decide.json");
-    let output = std::process::Command::new(XTASK)
+    let mut command = std::process::Command::new(XTASK);
+    command
         .args(["migration", "decide", "--step", "rust-03", "--baseline"])
         .arg(write("baseline.json", base))
         .arg("--verify")
@@ -66,9 +79,13 @@ fn decide(dir: &Path, base: &Value, verify: &Value, measure: &Value) -> (Output,
         .arg("--measure")
         .arg(write("measure.json", measure))
         .arg("--out")
-        .arg(&out)
-        .output()
-        .unwrap();
+        .arg(&out);
+    if let Some(floor) = floor {
+        command
+            .arg("--test-noise-floor")
+            .arg(write("floor.json", floor));
+    }
+    let output = command.output().unwrap();
     let record = std::fs::read(&out)
         .ok()
         .map(|bytes| serde_json::from_slice(&bytes).unwrap());
@@ -297,4 +314,123 @@ fn an_unknown_step_is_refused() {
         .unwrap();
     assert_eq!(output.status.code(), Some(2), "{output:?}");
     assert!(!out.exists());
+}
+
+/// A test-only floor: CPU floor 2,000 us with a 1,600 us ceiling below it;
+/// RSS floor 1,000 bytes (the 50,000 byte baseline is above it).
+fn test_floor() -> Value {
+    json!({
+        "cpu_floor_us": 2000, "cpu_absolute_us": 1600,
+        "rss_floor_bytes": 1000, "rss_absolute_bytes": 1100,
+    })
+}
+
+#[test]
+fn an_unmeasured_floor_falls_back_to_the_ratio() {
+    // rust-03 has no measured floor on either OS: every case uses 1.10 x B.
+    let dir = tempfile::tempdir().unwrap();
+    let (output, record) = decide(dir.path(), &baseline(), &verify(), &measure(1150));
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let record = record.unwrap();
+    assert_eq!(record["noise_floor"], "unmeasured");
+    assert_eq!(record["noise_floor_os"], "linux");
+    assert_eq!(record["test_noise_floor"], false);
+    assert_eq!(record["reasons"], json!(["cpu-regressed"]));
+}
+
+#[test]
+fn a_baseline_below_the_floor_within_its_ceiling_activates() {
+    // B = 1,000 us is below the 2,000 us floor: 1,500 us is 150% of B but
+    // under the 1,600 us ceiling, so it keeps.
+    let dir = tempfile::tempdir().unwrap();
+    let floor = test_floor();
+    let (output, record) =
+        decide_with(dir.path(), &baseline(), &verify(), &measure(1500), Some(&floor));
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let record = record.unwrap();
+    assert_eq!(record["decision"], "activate");
+    assert_eq!(record["noise_floor"], "test-override");
+    assert_eq!(record["test_noise_floor"], true);
+}
+
+#[test]
+fn a_baseline_below_the_floor_beyond_its_ceiling_holds() {
+    let dir = tempfile::tempdir().unwrap();
+    let floor = test_floor();
+    let (output, record) =
+        decide_with(dir.path(), &baseline(), &verify(), &measure(1601), Some(&floor));
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    assert_eq!(record.unwrap()["reasons"], json!(["cpu-regressed"]));
+}
+
+#[test]
+fn a_baseline_at_or_above_the_floor_uses_the_ratio() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut floor = test_floor();
+    floor["cpu_floor_us"] = json!(1000);
+    let (output, record) =
+        decide_with(dir.path(), &baseline(), &verify(), &measure(1101), Some(&floor));
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    assert_eq!(record.unwrap()["reasons"], json!(["cpu-regressed"]));
+    let dir = tempfile::tempdir().unwrap();
+    let (output, _) =
+        decide_with(dir.path(), &baseline(), &verify(), &measure(1100), Some(&floor));
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+}
+
+#[test]
+fn a_malformed_floor_or_an_unknown_os_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut floor = test_floor();
+    floor.as_object_mut().unwrap().remove("rss_absolute_bytes");
+    let (output, record) =
+        decide_with(dir.path(), &baseline(), &verify(), &measure(1000), Some(&floor));
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert!(record.is_none());
+    let dir = tempfile::tempdir().unwrap();
+    let mut base = baseline();
+    base["os"] = json!("plan9");
+    let (output, record) = decide(dir.path(), &base, &verify(), &measure(1000));
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert!(record.is_none());
+}
+
+/// `migration noise-floor`: spread = nearest-rank p95 - p5 of the samples;
+/// floor = 10 x spread; ceiling below the floor = floor x 1.10.
+#[test]
+fn noise_floor_measures_a_baseline_record() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut base = baseline();
+    base["samples"] = json!((0..30u64)
+        .map(|i| json!({"run": i + 1, "tree_cpu_us": 1000 + i, "tree_max_rss_bytes": 50_000 + 10 * i}))
+        .collect::<Vec<_>>());
+    let path = dir.path().join("baseline.json");
+    std::fs::write(&path, serde_json::to_vec(&base).unwrap()).unwrap();
+    let output = std::process::Command::new(XTASK)
+        .args(["migration", "noise-floor", "--baseline"])
+        .arg(&path)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["step"], "rust-03");
+    assert_eq!(value["os"], "linux");
+    assert_eq!(value["cpu_floor_us"], 270);
+    assert_eq!(value["cpu_absolute_us"], 297);
+    assert_eq!(value["rss_floor_bytes"], 2700);
+    assert_eq!(value["rss_absolute_bytes"], 2970);
+    // A record below the protocol minimum, or a relative path, is refused.
+    base["meets_protocol_minimum"] = json!(false);
+    std::fs::write(&path, serde_json::to_vec(&base).unwrap()).unwrap();
+    let output = std::process::Command::new(XTASK)
+        .args(["migration", "noise-floor", "--baseline"])
+        .arg(&path)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let output = std::process::Command::new(XTASK)
+        .args(["migration", "noise-floor", "--baseline", "baseline.json"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
 }

@@ -1315,6 +1315,64 @@ Review gaps closed (PR 113 review):
   Control: `a_member_whose_parent_left_the_group_is_counted` (fixture mode
   `split 500 burn 300`).
 
+### Noise floors and normalization rules (pre-registered 2026-11-17)
+
+Registered before the code, with its controls, for "Next" item 4.
+
+**Hypothesis.** A registered floor per step and OS lets `decide` judge a tiny
+baseline by an absolute ceiling instead of a ratio that noise can break. A
+registered rule per case lets `verify` compare outputs that hold a fresh
+synthetic path, and refuses any other local path.
+
+**Noise floor registry** (`xtask/src/noise_floor.rs`). One entry per step and
+OS (`macos`, `linux`). Each entry is `unmeasured`, or `measured` with CPU floor
+and ceiling (us), RSS floor and ceiling (bytes), the method and the record it
+came from. The OS is the baseline record's `os`; another OS is refused.
+
+- Measured: below the floor, the candidate must be at or under the ceiling.
+  At or above it, the 1.10 ratio applies (`baseline_verdict::within_limit`).
+- Unmeasured: every case uses the 1.10 ratio. This is stricter, never looser,
+  so a missing floor can hold a step but never activate one.
+- The record says `noise_floor` (`measured`, `unmeasured` or
+  `test-override`), `noise_floor_os` and `test_noise_floor`.
+- Test-only: `--test-noise-floor <absolute-file>` gives the four numbers.
+- How a floor is measured: `cargo xtask migration noise-floor --baseline <file>`
+  reads one baseline record (30 or more samples, clean tree). Spread is the
+  nearest-rank p95 minus p5 of the samples. Floor = 10 x spread, so the 10%
+  margin is at least the spread. Ceiling = floor x 1.10, so the two rules
+  meet at the floor. CPU uses `tree_cpu_us`, RSS uses `tree_max_rss_bytes`.
+- `rust-03` is `unmeasured` on both OSes. No number is invented here: the
+  hosted baseline runs come first (task in `TASKS.md`).
+
+**Normalization registry** (`xtask/src/normalize.rs`). One list of rule ids
+per step and case. Rules apply to both sides before the compare. One rule
+today: `synthetic-home` replaces the side's `CAREERBREW_HOME` (raw and
+canonical) with `<home>`. Registered: `rust-03` `actions-json`:
+`synthetic-home`. After the rules, a stdout that still holds a local path (the
+repo root, the side's scratch folder, or the caller's `HOME`) refuses verify
+with no record. Test-only: `--test-oracle <absolute-path>` runs a script in
+place of the Python oracle; the record says `test_oracle`.
+
+**Controls** (registered before the code):
+
+| Control | Expected |
+| --- | --- |
+| unmeasured floor, candidate 1,150 us on B 1,000 us | `keep-python`, `cpu-regressed`, `noise_floor: unmeasured` |
+| B 1,000 us below a 2,000 us floor, candidate 1,500 us, ceiling 1,600 us | `activate` |
+| same floor, candidate 1,601 us | `keep-python`, `cpu-regressed` |
+| B at the floor, candidate 1,101 us / 1,100 us | hold / activate (ratio) |
+| floor file missing a field; baseline OS `plan9` | refused, exit 2, no record |
+| `noise-floor` on 30 samples 1,000..1,029 us | floor 270, ceiling 297 |
+| oracle and candidate print their own home | pass after `synthetic-home` |
+| oracle and candidate print the repo root | refused, no record |
+
+**Measurement:** `cargo test -p careerbrew-xtask --test decide --test verify`
+on the hosted gate. **Success:** 8 of 8 controls pass and the earlier decide
+and verify controls stay green. **Pivot:** if a real floor from two hosted
+baselines differs by more than 3x between runs on one OS, the p95-p5 method
+is too noisy; switch to a bootstrap interval before registering numbers.
+**Anchor:** Kalibera and Jones 2013 (variation and minimum effect size).
+
 ### Next, in order
 
 1. Recheck the gate: `gh pr checks` on a fresh pull request, and
