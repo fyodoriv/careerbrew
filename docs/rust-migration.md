@@ -551,6 +551,27 @@ tags other than `!!str`; `.nan` (its sign bit differs by CPU in PyYAML); and
 writing YAML for a string that looks like a date or `1_000`, or a datetime
 (the `yaml-rust2` emitter does not quote these).
 
+**Set `fsrs` (18 vectors):** `parameters` pins the FSRS-6 parameter set
+`tutor/cards.py` uses (py-fsrs 6.3.2 `Scheduler()`: 21 weights with decay
+0.1542, retention 0.9, learning steps 1 and 10 minutes, relearning step 10
+minutes, maximum 36,500 days). `schedule` runs a card through a list of
+grades at fixed minutes after a synthetic start, with `cards.RATINGS` for
+the grade, and compares after each review: state, step, due time (seconds),
+stability and difficulty (2 decimals). Vectors cover each first grade,
+learning steps, same-day reviews, late and overdue reviews, lapses and
+relearning, and bad input. The Rust side takes stability, difficulty and the
+raw interval from the `fsrs` crate; a small adapter in
+`crates/depvec/src/fsrs_schedule.rs` adds the steps, the state, py-fsrs's
+stability floor (0.001; the crate's is 0.0001), the half-to-even whole-day
+interval from 1 to 36,500, and the due time.
+
+Known gaps for `fsrs` (rejected meanings until a later PR covers them):
+`cards.review` fuzzes review intervals with Python's `random()`, so the
+vectors pin fuzzing off on both sides, and the Rust port needs its own fuzz
+with the same ranges; the crate computes in `f32` and py-fsrs in `f64`, so
+values agree to 2 decimals here but long histories can drift; the crate caps
+stability at 36,500 days and py-fsrs does not.
+
 #### rust-01 dependency decisions
 
 | Need | Crate | Version | Licence | Decision | Evidence |
@@ -560,6 +581,9 @@ writing YAML for a string that looks like a date or `1_000`, or a datetime
 | YAML read and write | `serde_yaml` | 0.9.34 | MIT OR Apache-2.0 | rejected | archived and unmaintained since 2024 |
 | YAML read and write | `serde_norway`, `serde_yaml_ng` | 0.9.42, 0.10.0 | MIT OR Apache-2.0 | rejected | serde forks of `serde_yaml`: their values do not keep the scalar style, so a quoted `'yes'` and a plain `yes` look the same and YAML 1.1 reads cannot match PyYAML |
 | YAML read and write | `serde-saphyr` | 2.2.0 | MIT OR Apache-2.0 | not chosen yet | active, but its newest release is days old; look again if `yaml-rust2` falls behind |
+| FSRS card schedule | `fsrs` | 7.0.0 | BSD-3-Clause | kept | official Open Spaced Repetition crate (release 2026-11); `FSRS6_DEFAULT_PARAMETERS` equal py-fsrs 6.3.2 `DEFAULT_PARAMETERS` (`parameters` vector) and its FSRS-6 formulas match py-fsrs's (18 `fsrs` vectors). Version 7 no longer pulls `burn`. New dependencies: `ndarray`, `rayon`, `rand` 0.10, `rand_distr`, `itertools`, `snafu`, `num-*`, `crossbeam-*`, `either`, `matrixmultiply`, `rawpointer`, `portable-atomic*`, `chacha20`, `cpufeatures`, `getrandom`, `heck`, `autocfg`, `r-efi` (MIT OR Apache-2.0, `r-efi` also LGPL-2.1-or-later as an option), `bytemuck`, `wide`, `safe_arch` (Zlib OR Apache-2.0 OR MIT), `libm` (MIT) |
+| FSRS card schedule | `rs-fsrs` | 1.2.1 | non-standard (crates.io) | rejected | last release 2024-10; no SPDX licence on crates.io; it predates the 21-weight FSRS-6 set with a trainable decay that py-fsrs 6.3.2 uses |
+| FSRS learning steps, state and due time | (none) | | | adapter | the `fsrs` crate has the memory model only; py-fsrs's step and state rules are a small adapter in `crates/depvec/src/fsrs_schedule.rs`, checked by the `schedule` vectors |
 
 ### rust-02: Port pure setting schemas, paths, clocks and hashes
 

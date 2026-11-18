@@ -12,9 +12,11 @@ import json
 import struct
 import sys
 
+import fsrs
 import yaml
 
 from careerbrew import store
+from careerbrew.tutor import cards
 
 
 def encode(value):
@@ -78,8 +80,50 @@ def json_yaml(op, data):
     raise ValueError("unknown op")
 
 
+# A fixed synthetic start; review times are minutes after it.
+FSRS_START = datetime.datetime(2026, 1, 5, 9, 0, tzinfo=datetime.UTC)
+
+
+def _scheduler():
+    # cards.review calls fsrs.Scheduler() with its defaults; fuzzing is pinned
+    # off, since py-fsrs draws it from random() and a vector must be fixed.
+    return fsrs.Scheduler(enable_fuzzing=False)
+
+
+def fsrs_schedule(op, data):
+    if op == "parameters":
+        if data is not None:
+            raise ValueError("parameters takes no input")
+        scheduler = _scheduler()
+        return {
+            "parameters": [f"{w:.4f}" for w in scheduler.parameters],
+            "desired_retention": f"{scheduler.desired_retention:.2f}",
+            "learning_steps_seconds": [int(s.total_seconds()) for s in scheduler.learning_steps],
+            "relearning_steps_seconds": [int(s.total_seconds()) for s in scheduler.relearning_steps],
+            "maximum_interval_days": scheduler.maximum_interval,
+        }
+    if op == "schedule":
+        scheduler = _scheduler()
+        card = fsrs.Card()
+        out = []
+        for review in data["reviews"]:
+            at = FSRS_START + datetime.timedelta(minutes=review["at_minutes"])
+            card, _log = scheduler.review_card(card, cards.RATINGS[review["rating"]], review_datetime=at)
+            out.append(
+                {
+                    "state": card.state.name.lower(),
+                    "step": card.step,
+                    "due_seconds": int((card.due - FSRS_START).total_seconds()),
+                    "stability": f"{card.stability:.2f}",
+                    "difficulty": f"{card.difficulty:.2f}",
+                }
+            )
+        return out
+    raise ValueError("unknown op")
+
+
 # The registry: one line per vector set.
-SETS = {"json-yaml": json_yaml}
+SETS = {"json-yaml": json_yaml, "fsrs": fsrs_schedule}
 
 
 def main():
