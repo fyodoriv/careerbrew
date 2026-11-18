@@ -72,7 +72,7 @@ pub(crate) fn cpu_p95(mut samples: Vec<u64>) -> u64 {
     *samples.select_nth_unstable(index).1
 }
 
-fn within_limit(baseline: u64, candidate: u64, limit: ResourceLimit) -> bool {
+pub(crate) fn within_limit(baseline: u64, candidate: u64, limit: ResourceLimit) -> bool {
     if baseline < limit.floor {
         return candidate <= limit.absolute;
     }
