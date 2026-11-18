@@ -15,6 +15,7 @@ fn baseline() -> Value {
         "schema": "careerbrew-migration-baseline-v1",
         "step": "rust-03",
         "os": "linux",
+        "runs": 30,
         "meets_protocol_minimum": true,
         "source_tree_dirty": false,
         "cache_state": "warm-imports-fresh-synthetic-home",
@@ -48,6 +49,7 @@ fn measure(cpu: u64) -> Value {
     json!({
         "schema": "careerbrew-migration-measure-v1",
         "step": "rust-03",
+        "os": "linux",
         "regimes": [regime("cold"), regime("warm")],
     })
 }
@@ -328,14 +330,55 @@ fn test_floor() -> Value {
 #[test]
 fn an_unmeasured_floor_falls_back_to_the_ratio() {
     // rust-03 has no measured floor on either OS: every case uses 1.10 x B.
+    // 1,500 us activates under the test floor below (ceiling 1,600 us), so
+    // only the ratio fallback holds it here.
     let dir = tempfile::tempdir().unwrap();
-    let (output, record) = decide(dir.path(), &baseline(), &verify(), &measure(1150));
+    let (output, record) = decide(dir.path(), &baseline(), &verify(), &measure(1500));
     assert_eq!(output.status.code(), Some(1), "{output:?}");
     let record = record.unwrap();
     assert_eq!(record["noise_floor"], "unmeasured");
     assert_eq!(record["noise_floor_os"], "linux");
     assert_eq!(record["test_noise_floor"], false);
     assert_eq!(record["reasons"], json!(["cpu-regressed"]));
+    // The record names the limits it used and hashes its sources.
+    let limits = &record["noise_floor_limits"];
+    for name in [
+        "cpu_floor_us",
+        "cpu_absolute_us",
+        "rss_floor_bytes",
+        "rss_absolute_bytes",
+    ] {
+        assert_eq!(limits[name], 0, "{name}");
+    }
+    assert_eq!(record["noise_floor_method"], Value::Null);
+    assert_eq!(record["noise_floor_record"], Value::Null);
+    assert_eq!(record["sources_sha256"].as_str().map(str::len), Some(64));
+}
+
+#[test]
+fn a_test_floor_record_names_its_limits() {
+    let dir = tempfile::tempdir().unwrap();
+    let floor = test_floor();
+    let (_, record) = decide_with(
+        dir.path(),
+        &baseline(),
+        &verify(),
+        &measure(1000),
+        Some(&floor),
+    );
+    assert_eq!(record.unwrap()["noise_floor_limits"], floor);
+}
+
+#[test]
+fn a_measure_record_from_another_os_is_refused() {
+    for os in [json!("macos"), Value::Null] {
+        let dir = tempfile::tempdir().unwrap();
+        let mut measured = measure(1000);
+        measured["os"] = os;
+        let (output, record) = decide(dir.path(), &baseline(), &verify(), &measured);
+        assert_eq!(output.status.code(), Some(2), "{output:?}");
+        assert!(record.is_none());
+    }
 }
 
 #[test]
@@ -453,6 +496,19 @@ fn noise_floor_measures_a_baseline_record() {
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(2), "{output:?}");
+    // A record decide would refuse is refused here too: another cache
+    // state, or a run count that differs from its samples.
+    for (key, value) in [("cache_state", json!("cold")), ("runs", json!(31))] {
+        let mut bad = baseline();
+        bad[key] = value;
+        std::fs::write(&path, serde_json::to_vec(&bad).unwrap()).unwrap();
+        let output = std::process::Command::new(XTASK)
+            .args(["migration", "noise-floor", "--baseline"])
+            .arg(&path)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2), "{key}: {output:?}");
+    }
     let output = std::process::Command::new(XTASK)
         .args(["migration", "noise-floor", "--baseline", "baseline.json"])
         .output()
