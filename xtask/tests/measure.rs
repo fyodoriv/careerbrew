@@ -405,7 +405,15 @@ fn existing_out_is_refused_before_any_run() {
 /// record and the decide record.
 fn planted(body: &str, wide_floor: bool) -> (Value, Value) {
     let scratch = tempfile::tempdir().unwrap();
-    let candidate = script(scratch.path(), body);
+    // `verify` also runs the HTTP contract: serve it with the oracle driver.
+    let http = format!(
+        "if [ \"$1\" = '--careerbrew-http-contract' ]; then exec '{}' -B '{}'; fi\n{body}",
+        python().display(),
+        root()
+            .join("xtask/tests/fixtures/capture/http_driver.py")
+            .display(),
+    );
+    let candidate = script(scratch.path(), &http);
     let base = scratch.path().join("baseline.json");
     passed(
         &Command::new(XTASK)
