@@ -43,7 +43,7 @@
 //! candidate is refused, never passed.
 use crate::{baseline, capture_actions, capture_http, decide, normalize};
 use serde_json::{json, Value};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::process::Command;
 
@@ -417,10 +417,15 @@ type Trace = BTreeMap<String, (String, u64, i64, i64)>;
 /// channel and is left out. A file's entry is its mode only: data records
 /// are encrypted with a fresh key in each home, so the ciphertext differs on
 /// every run (rule `data-ciphertext`); the reader phases prove the content.
-/// Returns true when a file holds the corpus canary.
-fn trace(owned: &Path, folder: &Path, canary: &str, out: &mut Trace) -> Result<bool, String> {
+/// Adds each file that holds the corpus canary to `leaks`.
+fn trace(
+    owned: &Path,
+    folder: &Path,
+    canary: &str,
+    out: &mut Trace,
+    leaks: &mut BTreeSet<String>,
+) -> Result<(), String> {
     use std::os::unix::fs::{MetadataExt, PermissionsExt};
-    let mut leaked = false;
     for entry in std::fs::read_dir(folder).map_err(|_| "cannot list data home")? {
         let path = entry.map_err(|_| "cannot list data entry")?.path();
         let relative = path
@@ -439,12 +444,15 @@ fn trace(owned: &Path, folder: &Path, canary: &str, out: &mut Trace) -> Result<b
                 relative,
                 (format!("directory:{mode:o}"), stamp.0, stamp.1, stamp.2),
             );
-            leaked |= trace(owned, &path, canary, out)?;
+            trace(owned, &path, canary, out, leaks)?;
         } else if meta.is_file() {
             let bytes = std::fs::read(&path).map_err(|_| "cannot read data entry")?;
-            leaked |= bytes
+            if bytes
                 .windows(canary.len())
-                .any(|window| window == canary.as_bytes());
+                .any(|window| window == canary.as_bytes())
+            {
+                leaks.insert(relative.clone());
+            }
             out.insert(
                 relative,
                 (format!("file:{mode:o}"), stamp.0, stamp.1, stamp.2),
@@ -453,7 +461,7 @@ fn trace(owned: &Path, folder: &Path, canary: &str, out: &mut Trace) -> Result<b
             out.insert(relative, ("other".to_owned(), stamp.0, stamp.1, stamp.2));
         }
     }
-    Ok(leaked)
+    Ok(())
 }
 
 fn entries(trace: &Trace) -> Writes {
@@ -532,13 +540,14 @@ fn data_side(
     let environment = data_home(root, &owned, fixture)?;
     let mut results = Vec::new();
     let mut state = Trace::new();
-    trace(&owned, &owned, canary, &mut state)?;
+    let mut leaks = BTreeSet::new();
+    trace(&owned, &owned, canary, &mut state, &mut leaks)?;
     for case in fixture["cases"].as_array().ok_or("data cases missing")? {
         let id = case["case"].as_str().ok_or("data case id missing")?;
         let start = state.clone();
+        let start_leaks = leaks.clone();
         let mut calls = Vec::new();
         let mut counts = BTreeMap::new();
-        let mut leaked = false;
         for spec in case["phases"].as_array().ok_or("data phases missing")? {
             let role = spec["role"].as_str().ok_or("data role missing")?;
             let report = owned.join(format!("protocol/{id:0>2}-{role}-api.json"));
@@ -562,7 +571,8 @@ fn data_side(
                 .and_then(|value| project(&value));
             calls.push(projected);
             let mut after = Trace::new();
-            leaked |= trace(&owned, &owned, canary, &mut after)?;
+            leaks.clear();
+            trace(&owned, &owned, canary, &mut after, &mut leaks)?;
             for (path, entry) in &after {
                 if state.get(path) != Some(entry) {
                     *counts.entry(path.clone()).or_insert(0) += 1;
@@ -577,7 +587,9 @@ fn data_side(
             calls,
             writes: effects(&entries(&start), &entries(&state)),
             counts,
-            leaked,
+            // Only paths that start to hold the canary in this case count, so
+            // a leak is charged once, to the case that made it.
+            leaked: !leaks.is_subset(&start_leaks),
         });
     }
     Ok(results)
