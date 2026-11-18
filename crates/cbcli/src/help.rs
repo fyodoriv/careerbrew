@@ -11,16 +11,17 @@ pub fn width_is_80(columns: Option<&str>, stdout_is_terminal: bool) -> bool {
 }
 
 /// A help request outside `actions`: the parser path before a lone trailing
-/// `-h` or `--help`, or None when the arguments are anything else.
+/// `-h` or `--help`, or None when the arguments are anything else. A token
+/// with whitespace is one argparse choice that no command has, so it goes to
+/// Python; joining it would alias a multi-token path.
 pub fn path_of(args: &[String]) -> Option<String> {
     let (last, path) = args.split_last()?;
     if last != "-h" && last != "--help" {
         return None;
     }
-    if path
-        .iter()
-        .any(|token| token.is_empty() || token.starts_with('-'))
-    {
+    if path.iter().any(|token| {
+        token.is_empty() || token.starts_with('-') || token.chars().any(char::is_whitespace)
+    }) {
         return None;
     }
     Some(path.join(" "))

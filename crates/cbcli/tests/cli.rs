@@ -142,6 +142,8 @@ fn argv_outside_the_pilot_exits_64() {
         &["actions", "--json=1"][..],
         &["actions", "-hx"][..],
         &["nosuch", "--help"][..],
+        &["approvals decide", "--help"][..],
+        &["config set", "-h"][..],
     ] {
         let result = native(home.path(), args);
         assert_eq!(result.status.code(), Some(64), "{args:?}");
@@ -312,4 +314,19 @@ fn the_json_writer_round_trips_random_values() {
 fn the_writer_reproduces_the_reference_bytes() {
     let rows = parse(REFERENCE).unwrap();
     assert_eq!(format!("{}\n", py_dumps(&rows)), REFERENCE);
+}
+
+#[test]
+fn an_unset_home_with_events_on_goes_to_python_and_writes_nothing() {
+    let cwd = tempfile::tempdir().unwrap();
+    let result = Command::new(BIN)
+        .args(["actions", "--json"])
+        .env_clear()
+        .env("COLUMNS", "80")
+        .current_dir(cwd.path())
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(64));
+    assert!(result.stdout.is_empty());
+    assert!(files(cwd.path()).is_empty());
 }

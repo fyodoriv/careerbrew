@@ -28,11 +28,10 @@ impl Caps {
         let home = match get("CAREERBREW_HOME") {
             Some(value) if value.trim().is_empty() || value.starts_with('~') => None,
             Some(value) => Some(PathBuf::from(value)),
-            // Python's default: `private/` in the repo the binary was built from.
-            None => Some(PathBuf::from(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../private"
-            ))),
+            // Python resolves `private/` from its package at run time; a
+            // folder fixed at build time could be another checkout, so an
+            // unset home is unresolved and such a run goes to Python.
+            None => None,
         };
         let agent = ["CLAUDECODE", "CODEX_SANDBOX"]
             .iter()
