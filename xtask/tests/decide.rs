@@ -151,6 +151,8 @@ fn each_keep_reason_has_a_control() {
     for regime in few["regimes"].as_array_mut().unwrap() {
         for key in [
             "pair_ids",
+            "oracle_cpu_us",
+            "oracle_tree_max_rss_bytes",
             "candidate_cpu_us",
             "candidate_tree_max_rss_bytes",
         ] {
