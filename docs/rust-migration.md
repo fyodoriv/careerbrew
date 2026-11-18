@@ -734,7 +734,7 @@ contracts do not apply: the vectors make no writes and use no roles.
   `work/feed/.lock`), so a run that overlaps one fails `real-home-writes`
   although neither side wrote. Stop the watcher before a verify run, and
   rerun once before you trust a failure of that case.
-- **Set `clock`** (89 vectors, `clock.json`): the clock helpers of
+- **Set `clock`** (95 vectors, `clock.json`): the clock helpers of
   `calendar.py` (`_day_bounds`, `_aware`, `now`, `now_utc`, `system_tz`)
   and `config._tz`, with the zone, the pinned `CAREERBREW_NOW` and the wall
   clock injected by each vector (`crates/purevec/src/clock.rs`). It covers
@@ -745,13 +745,16 @@ contracts do not apply: the vectors make no writes and use no roles.
   overlap; `timedelta` sums across transitions (the `parse_ics` +1 h default
   end, a day, hours, negative and carried values); the `fromisoformat` forms
   `Z`, `+05:30`, `+0530`, naive, date only, hour only, a space separator,
-  fractional seconds and invalid values; an empty `CAREERBREW_NOW` counts as
+  fractional seconds (`.` or `,`, after the hour, minute or second), an
+  hour-only offset `+05`, full-width digits (refused by both) and invalid
+  values; non-ASCII zone names for `config._tz` and `TZ`; an empty `CAREERBREW_NOW` counts as
   unset. Zone data: the oracle empties the tz path, so it reads the
   `tzdata` package from `uv.lock` (2026.5, IANA 2026e); the candidate uses
   `chrono-tz` 0.10.4 (IANA 2025b compiled in). Both are recorded in the
-  fixture's `zone_data`; all 89 vectors agree in spite of the skew. Known
+  fixture's `zone_data`; all 95 vectors agree in spite of the skew. Known
   gaps: `local_tz` (the `settings.yaml` read) and the `/etc/localtime`
-  lookup of `system_tz` stay Python (rust-05); `fromisoformat` forms the
+  lookup of `system_tz` stay Python (rust-05), and the candidate refuses an
+  empty `TZ` (or a bare `:`) instead of guessing; `fromisoformat` forms the
   candidate refuses (week dates, compact dates and times, offsets with
   seconds, more than 6 fraction digits); zone names that differ only by
   letter case (a case-insensitive disk lets Python load them). The four

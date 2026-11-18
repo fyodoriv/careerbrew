@@ -20,7 +20,7 @@ use serde_json::{json, Value};
 pub fn map(op: &str, input: &Value) -> Result<Value, String> {
     match op {
         "tz-valid" => tz_valid(text(input, "value")?).map(|v| typed("str", &v)),
-        "system-tz" => Ok(typed("str", &system_tz(text(input, "tz_env")?))),
+        "system-tz" => Ok(typed("str", &system_tz(text(input, "tz_env")?)?)),
         "day-bounds" => {
             let (start, end) = day_bounds(date(text(input, "day")?)?, zone(input)?);
             Ok(list(vec![iso(&start), iso(&end)]))
@@ -139,17 +139,22 @@ fn tz_valid(value: &str) -> Result<String, String> {
 
 /// `calendar.system_tz` with an injected, non-empty `TZ`: a leading `:` is
 /// stripped and an unknown zone falls back to `UTC`. An empty name (the
-/// `/etc/localtime` lookup) is not ported: it is a gap owned by rust-05.
-fn system_tz(tz_env: &str) -> String {
+/// `/etc/localtime` lookup) is not ported and is refused: a gap owned by
+/// rust-05.
+fn system_tz(tz_env: &str) -> Result<String, String> {
     let name = tz_env.trim_start_matches(':');
-    match name.parse::<Tz>() {
-        Ok(_) if !name.is_empty() => name.to_owned(),
-        _ => "UTC".to_owned(),
+    if name.is_empty() {
+        return Err("empty TZ: /etc/localtime lookup is owned by rust-05".into());
     }
+    Ok(match name.parse::<Tz>() {
+        Ok(_) => name.to_owned(),
+        Err(_) => "UTC".to_owned(),
+    })
 }
 
 /// `datetime.fromisoformat` for `YYYY-MM-DD`, then optionally `T` or a space,
-/// `HH[:MM[:SS[.f{1,6}]]]`, and an offset `Z`, `+HH:MM` or `+HHMM`. Other
+/// `HH[:MM[:SS]]` with an optional `.f{1,6}` or `,f{1,6}` seconds fraction
+/// after any of them, and an offset `Z`, `+HH`, `+HH:MM` or `+HHMM`. Other
 /// forms Python accepts (week dates, compact dates and times, offsets with
 /// seconds) are refused here: a known gap.
 fn parse(text: &str) -> Result<(NaiveDateTime, Option<FixedOffset>), String> {
@@ -167,15 +172,12 @@ fn parse(text: &str) -> Result<(NaiveDateTime, Option<FixedOffset>), String> {
     let rest = &text[11..];
     let split = rest.find(['Z', '+', '-']).unwrap_or(rest.len());
     let (clock, zone) = rest.split_at(split);
-    let (hms, fraction) = match clock.split_once('.') {
+    let (hms, fraction) = match clock.split_once(['.', ',']) {
         Some((hms, fraction)) => (hms, Some(fraction)),
         None => (clock, None),
     };
     let parts: Vec<&str> = hms.split(':').collect();
     if parts.is_empty() || parts.len() > 3 || parts.iter().any(|p| !two_digits(p)) {
-        return Err(bad());
-    }
-    if fraction.is_some() && parts.len() != 3 {
         return Err(bad());
     }
     let field = |i: usize| parts.get(i).map_or(0, |p| p.parse::<u32>().unwrap());
@@ -194,8 +196,13 @@ fn parse(text: &str) -> Result<(NaiveDateTime, Option<FixedOffset>), String> {
         _ => {
             let sign = if zone.starts_with('-') { -1 } else { 1 };
             let digits = zone[1..].replace(':', "");
-            let shape = matches!(zone.len(), 5 | 6)
-                && (zone.len() == 5 || &zone[3..4] == ":")
+            let digits = if zone.len() == 3 {
+                format!("{digits}00")
+            } else {
+                digits
+            };
+            let shape = matches!(zone.len(), 3 | 5 | 6)
+                && (zone.len() != 6 || &zone[3..4] == ":")
                 && digits.len() == 4
                 && digits.bytes().all(|b| b.is_ascii_digit());
             if !shape {

@@ -597,6 +597,49 @@
    }
   },
   {
+   "id": "aware-comma-fraction",
+   "op": "aware",
+   "input": {
+    "value": "2026-06-15T10:00:01,5",
+    "kind": "datetime",
+    "tz": "America/New_York"
+   }
+  },
+  {
+   "id": "aware-hour-offset",
+   "op": "aware",
+   "input": {
+    "value": "2026-06-15T10:00+05",
+    "kind": "datetime",
+    "tz": "America/New_York"
+   }
+  },
+  {
+   "id": "aware-fraction-after-minutes",
+   "op": "aware",
+   "input": {
+    "value": "2026-06-15T10:00.5",
+    "kind": "datetime",
+    "tz": "America/New_York"
+   }
+  },
+  {
+   "id": "aware-fullwidth-digits",
+   "op": "aware",
+   "input": {
+    "value": "２０２６-06-15T10:00",
+    "kind": "datetime",
+    "tz": "America/New_York"
+   }
+  },
+  {
+   "id": "tz-valid-non-ascii",
+   "op": "tz-valid",
+   "input": {
+    "value": "Europe/Berlín"
+   }
+  },
+  {
    "id": "system-tz-name",
    "op": "system-tz",
    "input": {
@@ -622,6 +665,13 @@
    "op": "system-tz",
    "input": {
     "tz_env": "UTC"
+   }
+  },
+  {
+   "id": "system-tz-non-ascii",
+   "op": "system-tz",
+   "input": {
+    "tz_env": "Europe/Berlín"
    }
   },
   {
