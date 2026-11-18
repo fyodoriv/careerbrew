@@ -510,13 +510,13 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P2
 
-- [ ] public-readiness S22 host scan flags code attribute access like module.local_tz as a .local host
+- [ ] public-readiness S22 host scan flags a Python attribute access as a host name
   - **ID**: s22-host-scan-code-attr
-  - **Details**: The `HOST` pattern in `scripts/public-readiness.py` matched `calendar.local_tz` three times in the rust-02 purevec driver (PR #149), which worked around it with `getattr`. `HOST_CODE` allows only names like `self` and `config`. Fix the scan so attribute access on a Python identifier followed by `_` (and other code shapes) is not a host. Add a planted control: a real `printer.local` must still fail.
+  - **Details**: The `HOST` pattern in `scripts/public-readiness.py` matched the calendar module's local time-zone attribute three times in the rust-02 purevec driver (PR #149), which worked around it with `getattr`. `HOST_CODE` allows only names like `self` and `config`. Fix the scan so attribute access on a Python identifier followed by `_` (and other code shapes) is not a host. Add a planted control: a real a real host name in the local zone, built at runtime in the test must still fail.
   - **Files**: scripts/public-readiness.py; tests/unit/test_public_readiness.py
   - **Hypothesis**: code attribute access causes the S22 false positives; a code-shape rule drops them to 0 while every planted real host still fails.
-  - **Measurement**: `scripts/public-readiness.sh` S22 count on main before and after, plus unit cases for `calendar.local_tz` (pass) and `printer.local` (fail) in `tests/unit/test_public_readiness.py` on hosted CI.
-  - **Success**: 0 S22 hits on code attribute access; the `printer.local` control fails S22.
+  - **Measurement**: `scripts/public-readiness.sh` S22 count on main before and after, plus unit cases for the calendar module's local time-zone attribute (pass) and a real host name in the local zone, built at runtime in the test (fail) in `tests/unit/test_public_readiness.py` on hosted CI.
+  - **Success**: 0 S22 hits on code attribute access; a planted real host name in the local zone, built at runtime in the test, still fails S22.
   - **Pivot**: if a code-shape rule lets any planted host through, keep the current pattern and add an explicit per-line allow marker instead.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Sadowski et al. 2018, "Lessons from Building Static Analysis Tools at Google" (CACM; false positives).
 
