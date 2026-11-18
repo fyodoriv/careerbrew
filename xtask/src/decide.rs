@@ -22,7 +22,9 @@
 //!   oracle_tree_max_rss_bytes, candidate_cpu_us,
 //!   candidate_tree_max_rss_bytes}`; one sample per pair. Each regime's
 //!   candidate p95 CPU and max RSS are judged against that regime's own
-//!   oracle p95 CPU and max RSS, with the noise floor limits. Both `cold` and
+//!   oracle p95 CPU and max RSS. The noise floor limits apply to the warm
+//!   regime only (the floor is measured on the warm baseline); cold uses
+//!   the 1.10 ratio. Both `cold` and
 //!   `warm` must be present, each with at least 30 unique pairs. Its `os`
 //!   must equal the baseline's.
 use crate::{baseline, baseline_verdict, noise_floor};
@@ -250,6 +252,18 @@ pub fn verdict(
         let rss_max = rss.into_iter().max().unwrap_or(0);
         let oracle_cpu_p95 = baseline_verdict::cpu_p95(oracle_cpu);
         let oracle_rss_max = oracle_rss.into_iter().max().unwrap_or(0);
+        // The floor is measured on the warm baseline only, so it covers only
+        // the warm regime; cold uses the 1.10 ratio until a cold floor exists.
+        let floor_applied = state == "warm";
+        let ratio = baseline_verdict::ResourceLimit {
+            floor: 0,
+            absolute: 0,
+        };
+        let (cpu_limit, rss_limit) = if floor_applied {
+            (cpu_limit, rss_limit)
+        } else {
+            (ratio, ratio)
+        };
         if !baseline_verdict::within_limit(oracle_cpu_p95, cpu_p95, cpu_limit) {
             reasons.insert("cpu-regressed");
         }
@@ -263,6 +277,7 @@ pub fn verdict(
             "oracle_tree_max_rss_bytes": oracle_rss_max,
             "candidate_cpu_us_p95": cpu_p95,
             "candidate_tree_max_rss_bytes": rss_max,
+            "noise_floor_applied": floor_applied,
         }));
     }
     if !(states.contains("cold") && states.contains("warm")) {
