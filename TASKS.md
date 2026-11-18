@@ -523,6 +523,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P2
 
+- [ ] Investigate RSS calibration below the success band on hosted Linux
+  - **ID**: flaky-rss-calibration-linux
+  - **Details**: On 2026-11-18, PR 129 (no change to resources code) failed `xtask/tests/resources.rs` `known_allocation_is_within_tolerance_on_this_os`: RSS delta 43,909,120 bytes, outside 50,331,648..=100,663,296 (0.65x of 64 MiB). Earlier hosted runs read 0.979x. 0.65x is inside the pre-registered pivot band (0.5x to 2x) but outside the success band (0.75x to 1.5x). Find why one Linux run touched fewer pages (allocator, transparent huge pages, page reclaim).
+  - **Files**: xtask/tests/resources.rs; xtask/src/resources.rs; xtask/src/bin/resource_fixture.rs
+  - **Hypothesis**: the low read comes from the fixture not touching every page or from reclaim on a busy runner; making the fixture touch and hold every page and read the peak after a short hold brings 20 of 20 hosted Linux runs inside 0.75x to 1.5x.
+  - **Measurement**: `gh run list --workflow CI` over the next 20 runs on main; count `native (ubuntu-24.04)` failures in `known_allocation_is_within_tolerance_on_this_os`.
+  - **Success**: 0 of 20 runs outside the success band.
+  - **Pivot**: 2 runs outside 0.5x to 2x means `wait4` `ru_maxrss` is not usable there; switch to `/proc/<pid>/status` as the plan says.
+  - **Anchor**: Kalibera & Jones 2013 (rigorous benchmarking).
+
 - [ ] Make migration decide judge each regime against its own paired oracle samples
   - **ID**: rust-00-decide-paired-regimes
   - **Details**: `xtask/src/decide.rs` compares the cold and the warm candidate p95 with the one warm baseline record (`cpu_us_p95`), and never reads the measure record's `oracle_cpu_us` and `oracle_tree_max_rss_bytes`. So interleaving has no effect on the verdict, and the rule "each decision covers one cache state" (`docs/rust-migration.md`) does not hold. Compare each regime's candidate samples with that regime's paired oracle samples, keep the baseline record for the protocol checks, and update the decide tests and docs.
