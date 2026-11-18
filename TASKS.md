@@ -379,6 +379,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P1
 
+- [ ] Measure and register the rust-03 noise floors on hosted macOS and Linux
+  - **ID**: rust-00-measure-noise-floors
+  - **Details**: `xtask/src/noise_floor.rs` registers `rust-03` as `unmeasured` on both OSes, so `decide` uses the 1.10 ratio for every case. On a clean tree on each hosted OS, run `heavy-run --exclusive cargo xtask migration baseline --step rust-03 --python "$PWD/.venv/bin/python" --out <new-file>` twice, then `cargo xtask migration noise-floor --baseline <file>` on each record. Register the result as `Floor::Measured` with its method and record (run id, source revision), per docs/rust-migration.md "Noise floors and normalization rules".
+  - **Files**: xtask/src/noise_floor.rs; docs/rust-migration.md; .github/workflows/
+  - **Hypothesis**: the two baselines per OS give CPU and RSS floors within 3x of each other, so one registered floor per OS is stable enough for `decide`.
+  - **Measurement**: `cargo xtask migration noise-floor --baseline <file>` on two hosted baseline records per OS; compare `cpu_floor_us` and `rss_floor_bytes`.
+  - **Success**: both pairs agree within 3x; the larger value of each pair is registered as `measured`, and `cargo test -p careerbrew-xtask --test decide` stays green.
+  - **Pivot**: a pair differs by more than 3x: drop the p95-p5 method and register a bootstrap interval instead.
+  - **Anchor**: Kalibera & Jones 2013, *Rigorous Benchmarking in Reasonable Time*.
+
 - [ ] README Proof numbers come from hosted CI, not a local gate
   - **ID**: proof-metrics-from-hosted-ci
   - **Details**: `scripts/metrics.sh proof` writes `docs/proof/metrics.json` and the README Proof section from a local green `scripts/check.sh` and `scripts/e2e.sh` (`docs/metrics.md` "README proof"). Local test runs are blocked now (`hooks/block-local-tests.sh`, PR #108), so every proof number is stuck at its 2026-10-26 date. Make the hosted gate upload the inputs `metrics.sh proof` reads (e2e results, gate step events, eval and leak counts) as an artifact. Then make `metrics.sh proof` read them from a named run (`gh run download`), or add a `workflow_dispatch` job that runs the proof step and opens a PR with the refreshed files. Label each number with the run id and runner OS, never a machine of the owner. Keep `tests/unit/test_proof.py` (README and JSON must match). Coordinate with the open PR that owns `docs/ci.md` and `.github/workflows/`.
@@ -532,6 +542,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Anchor**: Saltzer & Schroeder 1975 (complete mediation); Basili, Caldiera & Rombach 1994 (GQM).
 
 ## P2
+
+- [ ] Investigate RSS calibration below the success band on hosted Linux
+  - **ID**: flaky-rss-calibration-linux
+  - **Details**: On 2026-11-18, PR 129 (no change to resources code) failed `xtask/tests/resources.rs` `known_allocation_is_within_tolerance_on_this_os`: RSS delta 43,909,120 bytes, outside 50,331,648..=100,663,296 (0.65x of 64 MiB). Earlier hosted runs read 0.979x. 0.65x is inside the pre-registered pivot band (0.5x to 2x) but outside the success band (0.75x to 1.5x). Find why one Linux run touched fewer pages (allocator, transparent huge pages, page reclaim).
+  - **Files**: xtask/tests/resources.rs; xtask/src/resources.rs; xtask/src/bin/resource_fixture.rs
+  - **Hypothesis**: the low read comes from the fixture not touching every page or from reclaim on a busy runner; making the fixture touch and hold every page and read the peak after a short hold brings 20 of 20 hosted Linux runs inside 0.75x to 1.5x.
+  - **Measurement**: `gh run list --workflow CI` over the next 20 runs on main; count `native (ubuntu-24.04)` failures in `known_allocation_is_within_tolerance_on_this_os`.
+  - **Success**: 0 of 20 runs outside the success band.
+  - **Pivot**: 2 runs outside 0.5x to 2x means `wait4` `ru_maxrss` is not usable there; switch to `/proc/<pid>/status` as the plan says.
+  - **Anchor**: Kalibera & Jones 2013 (rigorous benchmarking).
 
 - [ ] Make migration decide judge each regime against its own paired oracle samples
   - **ID**: rust-00-decide-paired-regimes

@@ -1,13 +1,17 @@
 //! `migration verify --step <id>`: run a registered step's Python oracle and
 //! its Rust candidate on the same synthetic cases, each side in its own fresh
 //! synthetic home, and compare three contracts:
-//! - CLI: stdout and the exit code, byte for byte;
+//! - CLI: stdout and the exit code, byte for byte, after the case's
+//!   registered normalization rules (`normalize.rs`) apply to both stdouts;
+//!   the stdout hashes are of the normalized text. A local path no rule
+//!   covers refuses verify;
 //! - side effects: the entries each side adds, changes or removes in its
 //!   synthetic home against the setup snapshot taken before it runs (path,
 //!   mode and content hash), as extra, missing or changed entries. This is a
 //!   final-state comparison, not a write trace: a rewrite with the same
 //!   bytes, or a write that is later removed, is not seen (`duplicate_writes`
-//!   stays unobserved);
+//!   stays unobserved). Entries are keyed by their path inside each side's
+//!   own synthetic home, so the two homes need no path normalization;
 //! - HTTP (steps with `http_contract`): the `capture-http` fixture cases sent
 //!   over a real socket, compared on status, normalized headers and body.
 //!   The live oracle must still match the frozen `capture-http` reference.
@@ -18,14 +22,14 @@
 //!
 //! It writes a content-free JSON record: step, per-case pass or fail with
 //! hashes and counts, the sources hash, the source revision, whether the
-//! candidate came from the test-only flag, and the candidate binary's sha256
-//! (checked before and after the runs). The record is also `decide`'s verify
-//! input: a `checks` list of `{id, passed}`, a `violations` map of counts,
-//! and the `unobserved_violations` this verify cannot see yet. A candidate
-//! that cannot run, times out or prints output that is not UTF-8 or too
-//! large fails its case. A step with no Rust candidate is refused, never
-//! passed.
-use crate::{baseline, capture_actions, capture_http, decide};
+//! candidate or the oracle came from a test-only flag, and the candidate
+//! binary's sha256 (checked before and after the runs). The record is also
+//! `decide`'s verify input: a `checks` list of `{id, passed}`, a
+//! `violations` map of counts, and the `unobserved_violations` this verify
+//! cannot see yet. A candidate that cannot run, times out or prints output
+//! that is not UTF-8 or too large fails its case. A step with no Rust
+//! candidate is refused, never passed.
+use crate::{baseline, capture_actions, capture_http, decide, normalize};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -62,22 +66,27 @@ fn effects(before: &Writes, after: &Writes) -> Writes {
     effects
 }
 
-/// Runs one side in a fresh synthetic home; returns its exit code, stdout
-/// and its side effects in that home.
+/// A side's stdout held a local path that no registered rule covers.
+struct UnregisteredPath;
+
+/// Runs one side in a fresh synthetic home; returns its exit code, its
+/// stdout after the case's normalization rules, and its side effects in
+/// that home.
+#[allow(clippy::type_complexity)]
 fn side(
     root: &Path,
     program: &Path,
     args: &[&str],
-) -> Result<(Option<i32>, String, Writes), String> {
+    rules: &[&str],
+) -> Result<Result<(Option<i32>, String, Writes), UnregisteredPath>, String> {
     let scratch = tempfile::tempdir().map_err(|_| "cannot create verify home")?;
     let owned = scratch.path().join("owned");
     let environment = capture_actions::owned_environment(root, &owned)?;
-    if environment
+    let home = environment
         .get("CAREERBREW_HOME")
-        .is_none_or(|home| home.is_empty())
-    {
-        return Err("synthetic CAREERBREW_HOME is empty".into());
-    }
+        .filter(|home| !home.is_empty())
+        .ok_or("synthetic CAREERBREW_HOME is empty")?
+        .clone();
     let before = capture_actions::files(&owned, &owned, None)?;
     let mut command = Command::new(program);
     command
@@ -87,7 +96,17 @@ fn side(
         .envs(&environment);
     let (_, exit, stdout, _) = capture_actions::execute(command)?;
     let writes = effects(&before, &capture_actions::files(&owned, &owned, None)?);
-    Ok((exit, stdout, writes))
+    let side = normalize::Side {
+        home: Path::new(&home),
+        scratch: scratch.path(),
+    };
+    Ok(normalize::apply(rules, &side, root, &stdout)
+        .map(|stdout| (exit, stdout, writes))
+        .map_err(|()| UnregisteredPath))
+}
+
+fn unregistered(case: &str) -> String {
+    format!("case {case} prints a local path with no registered normalization rule; verify refused")
 }
 
 /// The counts of entries only the candidate left (extra), only the oracle
@@ -121,6 +140,7 @@ fn sources_sha256(root: &Path) -> Result<String, String> {
     for name in [
         "xtask/src/baseline.rs",
         "xtask/src/verify.rs",
+        "xtask/src/normalize.rs",
         "xtask/src/capture_http.rs",
         "xtask/tests/fixtures/capture/http-v1.json",
         "xtask/tests/fixtures/capture/http_driver.py",
@@ -180,17 +200,20 @@ fn cli_cases(
     violations: &mut Violations,
 ) -> Result<(), String> {
     for (case, args) in step.cases {
+        let rules = normalize::rules(step.id, case);
         let mut oracle_args = ORACLE_PREFIX.to_vec();
         oracle_args.extend_from_slice(args);
-        let (oracle_exit, oracle_stdout, oracle_writes) = side(root, python, &oracle_args)?;
+        let (oracle_exit, oracle_stdout, oracle_writes) = side(root, python, &oracle_args, rules)?
+            .map_err(|UnregisteredPath| unregistered(case))?;
         if oracle_exit != Some(0) {
             return Err(format!("oracle case {case} did not exit 0; verify refused"));
         }
         let oracle_stdout_sha256 = capture_actions::digest(oracle_stdout.as_bytes());
         // A spawn failure, timeout, non-UTF-8 or oversize output fails the
         // case; the reason text stays out of the record (it may hold paths).
-        let entry = match side(root, candidate, args) {
-            Ok((candidate_exit, candidate_stdout, candidate_writes)) => {
+        let entry = match side(root, candidate, args, rules) {
+            Ok(Err(UnregisteredPath)) => return Err(unregistered(case)),
+            Ok(Ok((candidate_exit, candidate_stdout, candidate_writes))) => {
                 let exit_matches = candidate_exit == oracle_exit;
                 let stdout_matches = candidate_stdout.as_bytes() == oracle_stdout.as_bytes();
                 let (extra, missing, changed) = diff(&oracle_writes, &candidate_writes);
@@ -205,6 +228,7 @@ fn cli_cases(
                     "candidate_ran": true,
                     "exit_matches": exit_matches,
                     "stdout_matches": stdout_matches,
+                    "normalization": rules,
                     "oracle_stdout_sha256": oracle_stdout_sha256,
                     "candidate_stdout_sha256": capture_actions::digest(candidate_stdout.as_bytes()),
                     "writes_match": writes_match,
@@ -226,6 +250,7 @@ fn cli_cases(
                     "candidate_ran": false,
                     "exit_matches": false,
                     "stdout_matches": false,
+                    "normalization": rules,
                     "oracle_stdout_sha256": oracle_stdout_sha256,
                     "candidate_stdout_sha256": Value::Null,
                     "writes_match": false,
@@ -347,17 +372,23 @@ fn http_cases(
 }
 
 /// Builds the record. `candidate` is the test-only override; without it the
-/// step's registered candidate is used.
+/// step's registered candidate is used. `test_oracle` is the test-only
+/// script run in place of `python` (it gets the same arguments).
 pub fn record(
     root: &Path,
     id: &str,
     python: &Path,
     candidate: Option<&Path>,
+    test_oracle: Option<&Path>,
 ) -> Result<Value, String> {
     let step = baseline::step(id)?;
     if !python.is_absolute() {
         return Err("--python must be an absolute path".into());
     }
+    if test_oracle.is_some_and(|oracle| !oracle.is_absolute()) {
+        return Err("--test-oracle must be an absolute path".into());
+    }
+    let oracle = test_oracle.unwrap_or(python);
     if std::env::var_os("CAREERBREW_HOME").is_some_and(|home| home.is_empty()) {
         return Err("CAREERBREW_HOME is set but empty".into());
     }
@@ -379,7 +410,7 @@ pub fn record(
     let candidate_sha256 = binary_sha256(&candidate)?;
     let mut cases = Vec::new();
     let mut violations = Violations::default();
-    cli_cases(root, python, &candidate, step, &mut cases, &mut violations)?;
+    cli_cases(root, oracle, &candidate, step, &mut cases, &mut violations)?;
     let http = if step.http_contract {
         http_cases(root, python, &candidate, &mut cases, &mut violations)?
     } else {
@@ -407,6 +438,7 @@ pub fn record(
         "source_tree_dirty": baseline::dirty(root)?,
         "sources_sha256": hash,
         "test_candidate": test_candidate,
+        "test_oracle": test_oracle.is_some(),
         "candidate_sha256": candidate_sha256,
         "contracts": if step.http_contract { json!(["cli", "side-effect", "http"]) } else { json!(["cli", "side-effect"]) },
         "case_count": cases.len(),
@@ -430,6 +462,7 @@ pub fn run(
     id: &str,
     python: &Path,
     candidate: Option<&Path>,
+    test_oracle: Option<&Path>,
     output: &Path,
 ) -> Result<Value, String> {
     if !output.is_absolute() {
@@ -438,7 +471,7 @@ pub fn run(
     if output.exists() {
         return Err("verify output already exists".into());
     }
-    let record = record(root, id, python, candidate)?;
+    let record = record(root, id, python, candidate, test_oracle)?;
     capture_actions::write_receipt(&record, output)?;
     Ok(record)
 }

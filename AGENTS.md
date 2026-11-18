@@ -64,6 +64,7 @@ Run every command from the repo root.
 | Decide one migration step from its baseline, verify and measure records (content-free verdict: `activate`, or `keep-python` with named reasons; exit 0, 1, or 2 for refused input) | `cargo xtask migration decide --step rust-03 --baseline <absolute-file> --verify <absolute-file> --measure <absolute-file> --out "$PWD/.metrics/decide-rust-03.json"`; record shapes in [`docs/rust-migration.md`](docs/rust-migration.md) "Current state" |
 | Measure one migration step: paired, interleaved runs of its Python oracle and Rust candidate in a cold and a warm regime (the record `decide` reads; a step with no Rust candidate fails) | `heavy-run --exclusive cargo xtask migration measure --step rust-NN --python "$PWD/.venv/bin/python" --pairs 30 --out "$PWD/.metrics/measure-rust-NN.json"`; no step has a candidate yet, so it fails clearly until `rust-03` registers one |
 | Verify one migration step's Rust candidate against its Python oracle (stdout and exit code per case, fresh synthetic home per side; writes a content-free JSON record with pass or fail per case) | `heavy-run cargo xtask migration verify --step rust-03 --python "$PWD/.venv/bin/python" --out "$PWD/.metrics/verify-rust-03.json"`; a step with no Rust candidate yet is refused (exit 1); a differing case names itself and exits 1 |
+| Propose a migration step's noise floor from one baseline record (prints JSON, writes nothing; register it in `xtask/src/noise_floor.rs`) | `cargo xtask migration noise-floor --baseline <absolute-file>` |
 | Fixed Linux observer preparation | `cargo xtask migration observer-probe --image <frozen-image-id>`; follow the fixed observer protocol, retain receipts locally, and obtain release before actual execution |
 | Speed report | `scripts/metrics.sh` |
 | README Proof numbers (after a green gate; writes `docs/proof/metrics.json`, then the README section) | `scripts/metrics.sh proof` |
@@ -195,6 +196,11 @@ Generated agent metadata uses one exclusive `.tmp` sibling per invocation; keep 
 Update-only checkout discovery shares a lookup only within that invocation and drops it before refresh. Never reuse discovery results across refreshes or later runs (`test_issue_426.py`).
 
 The Rust inventory gate checks source assignments against the staged Git index; stage new source paths and their assignments together.
+It also checks embedded code lines (an interpreter with `-c` or `-e`, in shell or
+argument-array form, and interpreter heredocs) and entry points (skills and workflow
+`run` lines too) against `docs/plans/2026-11-17-rust-embedded-sites.csv`. A changed
+line changes its key: copy its row from `cargo xtask migration inventory --sites-list`
+and fill an empty task.
 
 Rust capture tests read the staged Git tree, HEAD, and external runtime files.
 Stage intended source changes before the gate so its source-copy checks can

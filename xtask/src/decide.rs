@@ -6,7 +6,7 @@
 //!
 //! Input shapes (minimal, until `verify` and `measure` land):
 //! - baseline: `careerbrew-migration-baseline-v1` from `baseline.rs`; reads
-//!   `step`, `meets_protocol_minimum` (checked against the sample count),
+//!   `step`, `os` (picks the noise floor entry), `meets_protocol_minimum` (checked against the sample count),
 //!   `source_tree_dirty`, `cache_state` (must be the baseline regime),
 //!   `summary.cpu_us_p95` and the `tree_max_rss_bytes` of each sample.
 //! - verify: `careerbrew-migration-verify-v1` with `step`, a nonempty
@@ -18,8 +18,9 @@
 //! - measure: `careerbrew-migration-measure-v1` with `step` and a nonempty
 //!   `regimes` list of `{cache_state, pair_ids, cached, candidate_cpu_us,
 //!   candidate_tree_max_rss_bytes}`; one sample per pair. Both `cold` and
-//!   `warm` must be present, each with at least 30 unique pairs.
-use crate::{baseline, baseline_verdict};
+//!   `warm` must be present, each with at least 30 unique pairs. Its `os`
+//!   must equal the baseline's.
+use crate::{baseline, baseline_verdict, noise_floor};
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -37,11 +38,17 @@ pub const VIOLATIONS: &[&str] = &[
     "missing_writes",
     "duplicate_writes",
 ];
-/// No noise floor is registered yet, so every case uses the 110% ratio.
-const LIMIT: baseline_verdict::ResourceLimit = baseline_verdict::ResourceLimit {
-    floor: 0,
-    absolute: 0,
-};
+
+/// The decide, noise floor and limit sources built into this binary, as
+/// one hash, so a record shows which rules produced its verdict.
+fn sources_sha256() -> String {
+    let sources = json!({
+        "xtask/src/decide.rs": crate::capture_actions::digest(include_bytes!("decide.rs")),
+        "xtask/src/noise_floor.rs": crate::capture_actions::digest(include_bytes!("noise_floor.rs")),
+        "xtask/src/baseline_verdict.rs": crate::capture_actions::digest(include_bytes!("baseline_verdict.rs")),
+    });
+    crate::capture_actions::digest(sources.to_string().as_bytes())
+}
 
 fn read(path: &Path, name: &str) -> Result<Value, String> {
     if !path.is_absolute() {
@@ -75,11 +82,40 @@ fn numbers(value: &Value, what: &str) -> Result<Vec<u64>, String> {
 }
 
 /// Returns the verdict record, or a refusal reason for malformed input.
-pub fn verdict(step: &str, base: &Value, verify: &Value, measure: &Value) -> Result<Value, String> {
+/// `test_floor` is the test-only noise floor override; without it the
+/// registry entry for the step and the baseline's OS is used.
+pub fn verdict(
+    step: &str,
+    base: &Value,
+    verify: &Value,
+    measure: &Value,
+    test_floor: Option<&Value>,
+) -> Result<Value, String> {
     baseline::step(step)?;
     header(base, "baseline", baseline::SCHEMA, step)?;
+    let os = base["os"]
+        .as_str()
+        .filter(|os| matches!(*os, "macos" | "linux"))
+        .ok_or("the baseline record has an unknown OS")?;
+    let chosen = match test_floor {
+        Some(value) => {
+            let (cpu, rss) = noise_floor::from_test(value)?;
+            noise_floor::Chosen {
+                cpu,
+                rss,
+                state: "test-override",
+                method: None,
+                record: None,
+            }
+        }
+        None => noise_floor::limits(step, os)?,
+    };
+    let (cpu_limit, rss_limit) = (chosen.cpu, chosen.rss);
     header(verify, "verify", VERIFY_SCHEMA, step)?;
     header(measure, "measure", MEASURE_SCHEMA, step)?;
+    if measure["os"].as_str() != Some(os) {
+        return Err("the measure record is from another OS than the baseline".into());
+    }
 
     let base_cpu = number(&base["summary"]["cpu_us_p95"], "baseline cpu_us_p95")?;
     let samples = base["samples"]
@@ -197,10 +233,10 @@ pub fn verdict(step: &str, base: &Value, verify: &Value, measure: &Value) -> Res
         }
         let cpu_p95 = baseline_verdict::cpu_p95(cpu);
         let rss_max = rss.into_iter().max().unwrap_or(0);
-        if !baseline_verdict::within_limit(base_cpu, cpu_p95, LIMIT) {
+        if !baseline_verdict::within_limit(base_cpu, cpu_p95, cpu_limit) {
             reasons.insert("cpu-regressed");
         }
-        if !baseline_verdict::within_limit(base_rss, rss_max, LIMIT) {
+        if !baseline_verdict::within_limit(base_rss, rss_max, rss_limit) {
             reasons.insert("rss-regressed");
         }
         summary.push(json!({
@@ -224,7 +260,13 @@ pub fn verdict(step: &str, base: &Value, verify: &Value, measure: &Value) -> Res
         "decision": decision,
         "reasons": reasons.into_iter().collect::<Vec<_>>(),
         "limit_ratio": "1.10",
-        "noise_floor": "unregistered",
+        "noise_floor": chosen.state,
+        "noise_floor_os": os,
+        "noise_floor_limits": chosen.limits_json(),
+        "noise_floor_method": chosen.method,
+        "noise_floor_record": chosen.record,
+        "sources_sha256": sources_sha256(),
+        "test_noise_floor": test_floor.is_some(),
         "baseline_cache_state": baseline::CACHE_STATE,
         "baseline_cpu_us_p95": base_cpu,
         "baseline_tree_max_rss_bytes": base_rss,
@@ -242,6 +284,7 @@ pub fn run(
     base: &Path,
     verify: &Path,
     measure: &Path,
+    test_floor: Option<&Path>,
     output: &Path,
 ) -> Result<Value, String> {
     if !output.is_absolute() {
@@ -255,6 +298,10 @@ pub fn run(
         &read(base, "baseline")?,
         &read(verify, "verify")?,
         &read(measure, "measure")?,
+        test_floor
+            .map(|path| read(path, "test-noise-floor"))
+            .transpose()?
+            .as_ref(),
     )?;
     crate::capture_actions::write_receipt(&record, output)?;
     Ok(record)

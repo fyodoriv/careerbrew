@@ -509,3 +509,72 @@ fn a_dead_http_candidate_fails_every_case_and_counts_denied_ones() {
     // A dead server stops the requests at once, not one timeout per case.
     assert!(started.elapsed() < std::time::Duration::from_secs(120));
 }
+
+/// A candidate body that serves the Python HTTP driver for the HTTP flag and
+/// runs `body` otherwise.
+fn http_then(body: &str) -> String {
+    format!(
+        "if [ \"$1\" = '{HTTP_FLAG}' ]; then exec '{}' -B '{}'; fi\n{body}",
+        python().display(),
+        root()
+            .join("xtask/tests/fixtures/capture/http_driver.py")
+            .display(),
+    )
+}
+
+/// Writes an executable shell script named `name` with the given body.
+fn script(dir: &Path, name: &str, body: &str) -> PathBuf {
+    let path = dir.join(name);
+    std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).unwrap();
+    path
+}
+
+#[test]
+fn a_registered_rule_normalizes_the_synthetic_home() {
+    // rust-03 actions-json registers `synthetic-home`: each side prints its
+    // own fresh home, and both read `<home>` after the rule.
+    let scratch = tempfile::tempdir().unwrap();
+    let out = scratch.path().join("verify.json");
+    let body = "printf 'home=%s\\n' \"$CAREERBREW_HOME\"";
+    let oracle = script(scratch.path(), "oracle", body);
+    // The candidate serves the real HTTP oracle: --test-oracle replaces
+    // only the CLI oracle, and rust-03 also has the HTTP contract.
+    let same = script(scratch.path(), "candidate", &http_then(body));
+    let result = verify("rust-03", &out)
+        .arg("--test-oracle")
+        .arg(&oracle)
+        .arg("--test-candidate")
+        .arg(&same)
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(0), "{result:?}");
+    let value = read(&out);
+    assert_eq!(value["passed"], true);
+    assert_eq!(value["test_oracle"], true);
+    assert_eq!(
+        value["cases"][0]["normalization"],
+        serde_json::json!(["synthetic-home"])
+    );
+}
+
+#[test]
+fn an_unregistered_local_path_is_refused() {
+    // The repo root has no rule for actions-json: verify refuses, no record.
+    let scratch = tempfile::tempdir().unwrap();
+    let out = scratch.path().join("verify.json");
+    let body = "printf 'root=%s\\n' \"$PWD\"";
+    let oracle = script(scratch.path(), "oracle", body);
+    let same = script(scratch.path(), "candidate", body);
+    let result = verify("rust-03", &out)
+        .arg("--test-oracle")
+        .arg(&oracle)
+        .arg("--test-candidate")
+        .arg(&same)
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1), "{result:?}");
+    assert!(String::from_utf8_lossy(&result.stderr)
+        .contains("case actions-json prints a local path with no registered normalization rule"));
+    assert!(!out.exists());
+}

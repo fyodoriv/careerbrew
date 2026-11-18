@@ -791,6 +791,8 @@ xtask/Cargo.toml,keep-native,rust-00,Native migration workspace source or build 
 xtask/src/baseline_verdict.rs,keep-native,rust-00,Native migration workspace source or build configuration
 xtask/src/capture_actions.rs,keep-native,rust-00,Native observed action catalog capture
 xtask/src/inventory.rs,keep-native,rust-00,Native tracked inventory verifier
+xtask/src/sites.rs,keep-native,rust-00,Native embedded-site and entry-point discovery
+xtask/src/sites_tests.rs,keep-native,rust-00,Controls for embedded-site and entry-point discovery
 xtask/src/main.rs,keep-native,rust-00,Native migration workspace source or build configuration
 xtask/src/toolchain_identity.rs,keep-native,rust-00,Native read-only toolchain identity probe
 xtask/src/trial_plan.rs,keep-native,rust-00,Native paired trial ordering for the migration harness
@@ -926,3 +928,5 @@ xtask/src/measure.rs,keep-native,rust-00,Rust candidate registry and paired cold
 xtask/tests/measure.rs,keep-native,rust-00,Paired measure positive control decide end to end and refusals
 xtask/src/verify.rs,keep-native,rust-00,Differential verify of a step Rust candidate against its Python oracle with a content-free record
 xtask/tests/verify.rs,keep-native,rust-00,Verify refusals and CLI HTTP and side-effect contract controls with planted defects
+xtask/src/noise_floor.rs,keep-native,rust-00,Noise floor registry per step and OS and the noise-floor measurement from a baseline record
+xtask/src/normalize.rs,keep-native,rust-00,Per-case verify normalization rules and the unregistered local path refusal
