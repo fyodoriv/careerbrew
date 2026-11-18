@@ -155,6 +155,12 @@ fn unlisted_real_interpreter_forms_are_found() {
 }
 
 #[test]
+fn tool_flags_that_take_no_code_are_skipped() {
+    let line = "run([\"git\", \"-c\", \"core.x=y\", \"status\"])\n";
+    assert_eq!(found(&with("scripts/g.py", line)), found(&files()));
+}
+
+#[test]
 fn a_repeated_identical_line_is_a_second_site() {
     let mut twice = files();
     twice[0].1.extend_from_slice(b"python3 -c 'print(1)'\n");
@@ -167,7 +173,8 @@ fn a_repeated_identical_line_is_a_second_site() {
 
 #[test]
 fn yaml_run_blocks_and_lefthook_bodies_are_found() {
-    let workflow = "jobs:\n  a:\n    steps:\n      - run: |\n          echo hi\n      - run: make\n";
+    let workflow =
+        "jobs:\n  a:\n    steps:\n      - run: |\n          echo hi\n      - run: make\n";
     let sites = found(&with(".github/workflows/x.yml", workflow));
     assert_eq!(sites.iter().filter(|s| s.kind == "workflow-run").count(), 2);
     let hook = "pre-push:\n  commands:\n    a:\n      run: |\n        python3 -c 'x'\n";
@@ -175,7 +182,9 @@ fn yaml_run_blocks_and_lefthook_bodies_are_found() {
     all.retain(|(p, _)| p != "lefthook.yml");
     all.push(("lefthook.yml".to_owned(), hook.as_bytes().to_vec()));
     let sites = found(&all);
-    assert!(sites.iter().any(|s| s.kind == "embedded" && s.path == "lefthook.yml"));
+    assert!(sites
+        .iter()
+        .any(|s| s.kind == "embedded" && s.path == "lefthook.yml"));
 }
 
 #[test]
@@ -188,10 +197,17 @@ fn skill_directories_and_flow_lists_are_entry_points() {
     ));
     all.push(("skills/s1/SKILL.md".to_owned(), b"x\n".to_vec()));
     let sites = found(&all);
-    assert!(sites.iter().any(|s| s.kind == "agent-command" && s.path == "commands/go.md"));
-    assert!(sites.iter().any(|s| s.kind == "agent-skill" && s.path == "skills/s1/SKILL.md"));
+    assert!(sites
+        .iter()
+        .any(|s| s.kind == "agent-command" && s.path == "commands/go.md"));
+    assert!(sites
+        .iter()
+        .any(|s| s.kind == "agent-skill" && s.path == "skills/s1/SKILL.md"));
     all.retain(|(p, _)| p != "Agentfile.yaml");
-    all.push(("Agentfile.yaml".to_owned(), b"commands: ./commands\n".to_vec()));
+    all.push((
+        "Agentfile.yaml".to_owned(),
+        b"commands: ./commands\n".to_vec(),
+    ));
     assert_eq!(discover(&all), Err("unreadable Agentfile entry list"));
 }
 
@@ -222,6 +238,7 @@ fn non_utf8_executed_file_fails_closed() {
     assert_eq!(discover(&all), Err("non-UTF-8 file in an executed path"));
     let mut all = files();
     all.push(("docs/bad.bin".to_owned(), vec![0xff]));
+    all.push(("web/visual/a.png".to_owned(), vec![0x89, 0xff, 0]));
     assert!(discover(&all).is_ok());
 }
 
@@ -229,5 +246,8 @@ fn non_utf8_executed_file_fails_closed() {
 fn list_rows_are_valid_manifest_rows() {
     let rows = list_rows(&found(&files()), &manifest());
     assert!(rows.starts_with(HEADER_LINE));
-    assert_eq!(verify_sites(&found(&files()), &rows), Ok(found(&files()).len()));
+    assert_eq!(
+        verify_sites(&found(&files()), &rows),
+        Ok(found(&files()).len())
+    );
 }

@@ -1042,7 +1042,7 @@ refresh the map in the **same** pull request:
 | a Python source file that the activation tables name | refresh the pinned line cells (definition and call lines, and duplicated expected-line data) in the three [activation tables](#the-activation-manifest-today) | `cargo test -p careerbrew-xtask --test activation_manifest` |
 | a tracked source file is added (any executable mode, or a Python, shell, JavaScript, TypeScript or Rust extension) | add its row to the [code inventory](plans/2026-11-01-rust-code-inventory.csv): path, disposition (`port`, `keep-ui` or `keep-native`), task, reason; then add it to the [owner map](#every-module-has-an-owner-step) | `cargo xtask migration inventory --check` |
 | a reviewed interpreter call site in source moves | update its row in the [embedded anchors](plans/2026-11-04-rust-embedded-anchors.csv) | `cargo xtask migration inventory --embedded-check` |
-| an embedded code site (an inline `python3 -c`, `node -e`, `bash -c`, a `<<'PY'` heredoc, an inline `<script>`) or a generated entry point (a pyproject console script, a `package.json` script or bin, an Agentfile command or hook, a git hook, a lefthook `run`) is added, changed or removed | add, change or remove its row in the [embedded sites](plans/2026-11-17-rust-embedded-sites.csv): kind, path, key (the trimmed line or the name), owner task. `--sites-list` prints what discovery finds | `cargo xtask migration inventory --check` |
+| an embedded code site (an interpreter with `-c` or `-e` in shell or argument-array form, an interpreter heredoc, an inline `<script>`) or a generated entry point (a pyproject script or entry point, a `package.json` script or bin, an Agentfile command, skill or hook, a git hook, a lefthook or workflow `run`) is added, changed or removed | add, change or remove its row in the [embedded sites](plans/2026-11-17-rust-embedded-sites.csv): kind, path, key (the trimmed line or the name; a repeated identical line in one file gets ` #2`, ` #3`), owner task. `--sites-list` prints every discovered site as a manifest row, with its current task or an empty task for a new site | `cargo xtask migration inventory --check` |
 | `src/careerbrew/vault.py` | update the pinned `SOURCE_SHA` in `tests/unit/test_rust_vault_interop.py` and `tests/unit/test_rust_vault_base64_parity.py` | `uv run pytest -q tests/unit/test_rust_vault_interop.py tests/unit/test_rust_vault_base64_parity.py` |
 
 Rules of the refresh:
@@ -1057,9 +1057,15 @@ Rules of the refresh:
 - The direct-path scan covers direct paths. The embedded-site scan covers
   inline code on one line of an executed file (under `scripts/`, `hooks/`,
   `commands/`, `skills/`, `src/`, `tests/e2e/`, `.github/`, `evals/`,
-  `web/src/`, `web/e2e/`, `web/visual/`) and the generated entry points. It
-  matches fixed markers, so a new interpreter form needs a marker in
-  `xtask/src/sites.rs`. Prose in `docs/` is out of scope. Process
+  `web/src/`, `web/e2e/`, `web/visual/`, and `lefthook.yml`) and the
+  generated entry points. It finds an interpreter word (`sh`, `bash`,
+  `python3`, `node` and others in `xtask/src/sites.rs`) with `-c`, `-e` or a
+  heredoc, a quoted `"-c"` or `"-e"` in an argument array (not after `git` or
+  `grep`), and fixed markers. A site key is its marker line, not the heredoc
+  body: a body edit keeps its owner. A non-UTF-8 text file in a scanned path,
+  an unreadable `package.json` or an Agentfile list it cannot read fails the
+  check; a file with a NUL byte is binary and skipped. Prose in `docs/` is out
+  of scope. Process
   observation is still open `rust-00` work.
 
 Anchor: Basili, Caldiera and Rombach 1994 (Goal Question Metric).
@@ -1102,7 +1108,7 @@ The tool has no `--help`. A wrong argument prints the usage and exits 2.
 | `cargo xtask migration self-test` | runs the 8 paired-verdict controls and the 6 trial-planner controls, all on synthetic data |
 | `cargo xtask migration inventory --check` | checks that every tracked direct code path in the staged Git index has exactly one row in the [code inventory](plans/2026-11-01-rust-code-inventory.csv), then runs the `--sites-check` below |
 | `cargo xtask migration inventory --sites-check` | discovers embedded code and generated entry points in the staged Git index and checks each against the [embedded sites](plans/2026-11-17-rust-embedded-sites.csv); an unassigned site, a row whose site is gone, a repeated row or a bad task is refused |
-| `cargo xtask migration inventory --sites-list` | prints every discovered site as `kind,path,key` CSV, to review a new row |
+| `cargo xtask migration inventory --sites-list` | prints every discovered site as a `kind,path,key,task` manifest row; a new site has an empty task to fill in |
 | `cargo xtask migration inventory --embedded-check` | checks the reviewed interpreter call sites in the [embedded anchors](plans/2026-11-04-rust-embedded-anchors.csv) against staged source |
 | `cargo xtask migration toolchain-identity --rustc <absolute-path>` | checks the pinned compiler release, its full commit hash in the Clippy driver and the shared compiler library. Read-only, no network. It supports the thin macOS Mach-O layout only; other layouts are refused. |
 | `cargo xtask migration capture-actions --python <absolute-path> --out <new-file>` | runs `python -B -m careerbrew actions --json` twice in fresh synthetic homes and compares stdout, stderr, exit, schema and writes |
@@ -1161,7 +1167,7 @@ draft pull request are not on the public repository.
 | Trial planner (`trial_plan.rs`) | 6 of 6 controls pass | `cargo xtask migration self-test` |
 | Direct-path inventory | 0 unassigned tracked direct paths; 4 negative controls (removed, duplicated, untracked row, broken CSV field) refused; runs in the normal gate | `cargo xtask migration inventory --check` |
 | Embedded anchors | the reviewed sites match staged source; a missing or repeated anchor is refused | `cargo xtask migration inventory --embedded-check` |
-| Embedded sites and entry points | 95 discovered sites assigned (72 embedded lines, 8 npm scripts, 6 agent commands, 4 lefthook runs, 3 git hooks, 1 agent hook, 1 console script); 5 controls (each kind found and prose skipped, full pass, unassigned planted site, removed site, duplicate row and bad task) in `xtask/src/sites_tests.rs`; runs in the normal gate inside `inventory --check` | `cargo xtask migration inventory --sites-check` |
+| Embedded sites and entry points | 188 discovered sites assigned (123 embedded lines, 25 agent skills, 17 workflow runs, 8 npm scripts, 6 agent commands, 4 lefthook runs, 3 git hooks, 1 agent hook, 1 console script); 13 controls (each kind found and prose skipped, full pass, unassigned planted site, removed site, duplicate row and bad task, unlisted real interpreter forms, tool flags skipped, a repeated identical line, YAML run blocks, skill directories and flow lists, malformed entry-point files, non-UTF-8 files, list rows as manifest rows) in `xtask/src/sites_tests.rs`; runs in the normal gate inside `inventory --check` | `cargo xtask migration inventory --sites-check` |
 | Toolchain identity probe | 7 cases (valid, release mismatch, malformed identity, missing driver, outside symlink, exact token, bounded scan) | `cargo test -p careerbrew-xtask toolchain_identity` |
 | Action contract capture | 7 integration controls | `cargo test -p careerbrew-xtask --test capture_actions` |
 | HTTP contract capture | 13 control groups; 21 request cases in each of two fresh processes | `cargo test -p careerbrew-xtask --test capture_http` |
