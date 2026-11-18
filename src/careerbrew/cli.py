@@ -4824,6 +4824,8 @@ REPO_CHECKS = {"cards.public-check"}
 
 
 def main(argv: list[str] | None = None) -> int:
+    if argv is None and (native_rc := _native_route(sys.argv[1:])) is not None:  # only the console script; actions.run passes argv
+        return native_rc
     parser = build_parser()
     args, unknown = parser.parse_known_args(argv)
     if unknown:
@@ -4866,3 +4868,69 @@ def ran_via() -> str:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# rust-03 per-action native route (docs/rust-migration.md, rust-03). The console script passes no argv, so only it
+# reaches `_native_route`; `actions.run` (the web app) passes argv and always stays in this process.
+NATIVE_ROUTES = Path(__file__).resolve().parents[2] / "config" / "native-routes.txt"
+NATIVE_BIN = Path(__file__).resolve().parents[2] / "target" / "release" / "careerbrew-native"
+NATIVE_UNSUPPORTED = 64  # careerbrew-native's exit code for argv outside its pilot surface
+
+
+def _native_routes() -> dict[str, str]:
+    """`<action> <python|native>` lines of config/native-routes.txt; a missing file (an installed wheel) routes nothing."""
+    try:
+        text = NATIVE_ROUTES.read_text(encoding="utf-8")
+    except OSError:
+        return {}
+    routes: dict[str, str] = {}
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) == 2 and not line.startswith("#"):
+            routes[parts[0]] = parts[1]
+    return routes
+
+
+def _native_action(rest: list[str], routes: dict[str, str]) -> str | None:
+    """The action an argv names, as a route-table key (`config.show`, `actions`), or None for no known action."""
+    if len(rest) > 1 and f"{rest[0]}.{rest[1]}" in routes:
+        return f"{rest[0]}.{rest[1]}"
+    return rest[0] if rest[0] in routes else None
+
+
+def _native_route(argv: list[str]) -> int | None:
+    """Run a natively routed action in careerbrew-native and return its exit code; None means run it in Python.
+
+    Order: the kill switch `CAREERBREW_NATIVE=off`, then the action (no leading flag: the binary refuses root flags), then
+    `CAREERBREW_ROUTE_<ACTION>=native|python` (wins, for rollback) or the route file, then the binary
+    (`CAREERBREW_NATIVE_BIN` or `target/release/careerbrew-native`). A missing binary logs `cli.native_fallback`;
+    exit 64 (outside the pilot) logs `cli.native_unsupported`; both then run in Python. Reads env and one plaintext
+    repo file only: no settings, no vault.
+    """
+    if os.environ.get("CAREERBREW_NATIVE", "").strip().lower() == "off":
+        return None
+    rest = list(argv)
+    if not rest or rest[0].startswith("-"):
+        return None  # a bare run or a root flag (careerbrew-native serves neither)
+    if ("-h" in rest or "--help" in rest) and os.environ.get("COLUMNS") != "80":
+        return None  # the native help is stored at 80 columns only
+    routes = _native_routes()
+    if (name := _native_action(rest, routes)) is None:
+        return None
+    override = os.environ.get("CAREERBREW_ROUTE_" + re.sub(r"[^A-Z0-9]", "_", name.upper()), "").strip().lower()
+    if (override if override in ("native", "python") else routes[name]) != "native":
+        return None
+    binary = Path(os.environ.get("CAREERBREW_NATIVE_BIN") or NATIVE_BIN)
+    if not (binary.is_file() and os.access(binary, os.X_OK)):
+        events.emit("cli.native_fallback", command=name, via=ran_via())
+        return None
+    import subprocess
+
+    sys.stdout.flush()
+    done = subprocess.run([str(binary), *argv], stderr=subprocess.PIPE, check=False)
+    if done.returncode == NATIVE_UNSUPPORTED:
+        events.emit("cli.native_unsupported", command=name, via=ran_via())
+        return None
+    sys.stderr.buffer.write(done.stderr)
+    sys.stderr.flush()
+    return done.returncode

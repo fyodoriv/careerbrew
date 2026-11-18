@@ -899,9 +899,25 @@ vector touches a home. Known gaps:
     an input of Python's `privacy.redact` (`sensitive-terms.txt`,
     `profile.yaml`, `plugins.lock.json`). With events on it appends Python's
     content-free `cli.run` row after a successful `actions`; it never sends
-    telemetry ([decision 0010](decisions/0010-native-pilot-hooks.md)). No
-    route sends a command to it yet (`config/native-routes.txt` is all
-    `python`); the route prelude and activation are later PRs.
+    telemetry ([decision 0010](decisions/0010-native-pilot-hooks.md)).
+  - The route prelude exists, default Python. `cli.main()` with no argv (the
+    console script only; `actions.run()` and tests pass argv) calls
+    `_native_route` before it builds the parser. In order: `CAREERBREW_NATIVE=off`
+    keeps Python (the kill switch); a bare run or any leading flag keeps
+    Python; `-h/--help` routes only with `COLUMNS=80`; the action is the
+    two-word `<cmd>.<sub>` route key when the table has it, else `<cmd>`;
+    `CAREERBREW_ROUTE_<ACTION>=native|python` (upper case, other characters
+    `_`) wins over the table, for rollback; the binary is
+    `CAREERBREW_NATIVE_BIN` or `target/release/careerbrew-native`. A missing
+    or non-executable binary logs `cli.native_fallback`, and exit 64 logs
+    `cli.native_unsupported`; both then run Python. The binary runs as a child
+    (not `exec`), so exit 64 can fall back; its stderr is held and shown only
+    when it did not refuse. The prelude reads env and the plaintext route file
+    only. All routes are still `python`, so nothing changes until the
+    activation PR flips `actions`. Tests: `tests/unit/test_native_route.py`;
+    story US-111 (`tests/e2e/us-111-native-actions.sh`: python, native and
+    rollback print byte-identical `actions --json`). Measured cost on a
+    Python-routed command: about 0.07 ms per call in process.
 - **Verify scope:** the pilot binary serves no HTTP, no data and no
   role-checked command; `server.py` stays Python. So `rust-03` declares
   `http_contract`, `data_contract` and `role_contract` false, and verify lists
