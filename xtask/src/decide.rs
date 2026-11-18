@@ -10,7 +10,11 @@
 //!   `source_tree_dirty`, `cache_state` (must be the baseline regime),
 //!   `summary.cpu_us_p95` and the `tree_max_rss_bytes` of each sample.
 //! - verify: `careerbrew-migration-verify-v1` with `step`, a nonempty
-//!   `checks` list of `{id, passed}` and a `violations` map of counts.
+//!   `checks` list of `{id, passed}`, a `violations` map of counts and an
+//!   `unobserved_violations` list of violation names verify cannot see yet
+//!   (each one keeps Python: an unobserved count is never a zero), and a
+//!   `missing_contracts` list of contracts verify did not check (each one
+//!   keeps Python too).
 //! - measure: `careerbrew-migration-measure-v1` with `step` and a nonempty
 //!   `regimes` list of `{cache_state, pair_ids, cached, candidate_cpu_us,
 //!   candidate_tree_max_rss_bytes}`; one sample per pair. Both `cold` and
@@ -159,6 +163,23 @@ pub fn verdict(
     for name in VIOLATIONS {
         violations += number(&verify["violations"][*name], "verify violation count")?;
     }
+    let unobserved = verify["unobserved_violations"]
+        .as_array()
+        .ok_or("malformed verify unobserved_violations")?;
+    for name in unobserved {
+        if !name.as_str().is_some_and(|name| VIOLATIONS.contains(&name)) {
+            return Err("malformed verify unobserved_violations".into());
+        }
+    }
+
+    let missing_contracts = verify["missing_contracts"]
+        .as_array()
+        .filter(|names| {
+            names
+                .iter()
+                .all(|name| name.as_str().is_some_and(|n| !n.is_empty()))
+        })
+        .ok_or("malformed verify missing_contracts")?;
 
     let regimes = measure["regimes"]
         .as_array()
@@ -176,6 +197,12 @@ pub fn verdict(
     }
     if violations > 0 {
         reasons.insert("verify-violation");
+    }
+    if !unobserved.is_empty() {
+        reasons.insert("verify-violation-unobserved");
+    }
+    if !missing_contracts.is_empty() {
+        reasons.insert("verify-contract-missing");
     }
     let mut states = BTreeSet::new();
     let mut summary = Vec::new();
@@ -246,6 +273,8 @@ pub fn verdict(
         "verify_checks": checks.len(),
         "verify_failed_checks": failed_checks,
         "verify_violations": violations,
+        "verify_unobserved_violations": unobserved.len(),
+        "verify_missing_contracts": missing_contracts.len(),
         "regimes": summary,
     }))
 }

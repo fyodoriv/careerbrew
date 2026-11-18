@@ -498,6 +498,166 @@ fn observe(
     )
 }
 
+/// The flag `migration verify` passes to a candidate to start its HTTP
+/// contract server. The server reads the capture control file, publishes
+/// `ready.json` (pid, host, port) in its protocol folder, and stops when the
+/// `stop` file appears.
+// Used by verify; unused in the HTTP control test binaries that include this file.
+#[cfg_attr(test, allow(dead_code))]
+pub(crate) const CONTRACT_FLAG: &str = "--careerbrew-http-contract";
+
+/// One `migration verify` run of the HTTP fixture cases against a server.
+// Used by verify; unused in the HTTP control test binaries that include this file.
+#[cfg_attr(test, allow(dead_code))]
+pub(crate) struct Served {
+    /// The case names, in fixture order.
+    pub names: Vec<String>,
+    /// One normalized response per case; None when the case got no
+    /// well-formed answer.
+    pub responses: Vec<Option<Value>>,
+    /// The number of channels (stdout, stderr, each response) that hold the
+    /// synthetic canary.
+    pub canary_leaks: u64,
+    /// The owned synthetic home before the server started (setup entries).
+    pub before: BTreeMap<String, String>,
+    /// The owned synthetic home after the run.
+    pub after: BTreeMap<String, String>,
+}
+
+/// The frozen projection that `capture-http` proves the Python oracle serves.
+// Used by verify; unused in the HTTP control test binaries that include this file.
+#[cfg_attr(test, allow(dead_code))]
+pub(crate) fn reference() -> Result<Value, String> {
+    if shared::digest(REFERENCE.as_bytes()) != REFERENCE_SHA256 {
+        return Err("HTTP reference changed".into());
+    }
+    serde_json::from_str(REFERENCE).map_err(|_| "HTTP reference invalid".into())
+}
+
+/// The semantic projection of one response, as in the frozen reference.
+// Used by verify; unused in the HTTP control test binaries that include this file.
+#[cfg_attr(test, allow(dead_code))]
+pub(crate) fn project(response: &Value) -> Value {
+    json!({"name":response["name"],"method":response["method"],"path":response["path"],"status":response["status"],"status_line":response["status_line"],"headers":response["headers"],"body":response["body"]})
+}
+
+/// Starts `program args` in a fresh synthetic home with the capture control
+/// environment, sends every fixture case over a real socket, then stops it.
+/// A server that never publishes readiness, exits early or answers badly
+/// leaves its cases None; only a setup failure is an error.
+// Used by verify; unused in the HTTP control test binaries that include this file.
+#[cfg_attr(test, allow(dead_code))]
+pub(crate) fn serve(root: &Path, program: &Path, args: &[String]) -> Result<Served, String> {
+    let fixture: Value = serde_json::from_str(CASE).map_err(|_| "HTTP fixture invalid")?;
+    let token = fixture["token"]
+        .as_str()
+        .ok_or("HTTP token fixture missing")?;
+    let canary = fixture["canary"]
+        .as_str()
+        .ok_or("HTTP canary fixture missing")?;
+    let cases = fixture["cases"].as_array().ok_or("HTTP cases missing")?;
+    let scratch = tempfile::tempdir().map_err(|_| "cannot create HTTP invocation")?;
+    let owned = scratch.path().join("owned");
+    let mut environment = shared::owned_environment(root, &owned)?;
+    let helpers = root.join("xtask/tests/fixtures/capture");
+    let control = scratch.path().join("control.json");
+    let protocol = scratch.path().join("protocol");
+    fs::create_dir(&protocol).map_err(|_| "cannot prepare HTTP protocol")?;
+    fs::write(
+        &control,
+        serde_json::to_vec(
+            &json!({"fault":"none","canary":canary,"token":token,"protocol":protocol}),
+        )
+        .unwrap(),
+    )
+    .map_err(|_| "cannot write HTTP control")?;
+    for (key, value) in [
+        ("CAREERBREW_CAPTURE_ROOT", root.to_owned()),
+        ("CAREERBREW_CAPTURE_INPUT", control),
+        (
+            "CAREERBREW_CAPTURE_OBSERVER",
+            scratch.path().join("observer.json"),
+        ),
+        (
+            "CAREERBREW_CAPTURE_DESCENDANT",
+            scratch.path().join("descendant"),
+        ),
+    ] {
+        environment.insert(key.into(), value.to_string_lossy().into_owned());
+    }
+    environment.insert(
+        "PYTHONPATH".into(),
+        format!(
+            "{}:{}",
+            helpers.join("observer").display(),
+            root.join("src").display()
+        ),
+    );
+    let before = shared::files(&owned, &owned, None)?;
+    let mut command = Command::new(program);
+    command
+        .args(args)
+        .current_dir(root)
+        .env_clear()
+        .envs(&environment);
+    let mut responses: Vec<Option<Value>> = vec![None; cases.len()];
+    let outcome = shared::execute_during(command, |pid, check| {
+        let path = protocol.join("ready.json");
+        loop {
+            live(check)?;
+            if path.is_file() {
+                break;
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+        let ready: Value = serde_json::from_str(&shared::bounded(&path)?)
+            .map_err(|_| "HTTP readiness malformed")?;
+        if ready["pid"] != pid || ready["host"] != "127.0.0.1" {
+            return Err("HTTP server identity differs".into());
+        }
+        let port = ready["port"]
+            .as_u64()
+            .filter(|p| *p > 0 && *p <= 65535)
+            .ok_or("HTTP port invalid")? as u16;
+        let mut cookie = String::new();
+        for (slot, case) in responses.iter_mut().zip(cases) {
+            let Ok(response) = request(port, case, token, &cookie, check) else {
+                // A server that exited leaves every remaining case None at
+                // once, never one request timeout per case.
+                if !matches!(check(), Ok(false)) {
+                    break;
+                }
+                continue;
+            };
+            if case["name"] == "set-cookie" {
+                if let Some(value) = response["raw_headers"]["set-cookie"].as_str() {
+                    cookie = value.split(';').next().unwrap_or("").to_owned();
+                }
+            }
+            *slot = Some(response);
+        }
+        fs::write(protocol.join("stop"), b"stop").map_err(|_| "cannot stop HTTP server")?;
+        Ok(())
+    });
+    let mut canary_leaks = 0;
+    if let Ok((_, _, stdout, stderr)) = &outcome {
+        canary_leaks += u64::from(stdout.contains(canary)) + u64::from(stderr.contains(canary));
+    }
+    for response in responses.iter().flatten() {
+        canary_leaks += u64::from(response.to_string().contains(canary));
+    }
+    Ok(Served {
+        names: cases
+            .iter()
+            .map(|case| case["name"].as_str().unwrap_or("").to_owned())
+            .collect(),
+        responses,
+        canary_leaks,
+        before,
+        after: shared::files(&owned, &owned, None)?,
+    })
+}
+
 fn projection(execution: &Value) -> Value {
     json!(execution["responses"].as_array().unwrap().iter().map(|r|json!({"name":r["name"],"method":r["method"],"path":r["path"],"status":r["status"],"status_line":r["status_line"],"headers":r["headers"],"body":r["body"]})).collect::<Vec<_>>())
 }
