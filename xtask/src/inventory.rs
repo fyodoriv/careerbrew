@@ -77,13 +77,13 @@ fn verify_embedded(
     Ok(seen.len())
 }
 
-fn migration_task(task: &str) -> bool {
+pub(crate) fn migration_task(task: &str) -> bool {
     task.strip_prefix("rust-").is_some_and(|number| {
         number.len() == 2 && number.bytes().all(|digit| digit.is_ascii_digit())
     })
 }
 
-fn fields(line: &str) -> Option<Vec<String>> {
+pub(crate) fn fields(line: &str) -> Option<Vec<String>> {
     let mut rest = line.chars().peekable();
     let mut fields = Vec::new();
     loop {

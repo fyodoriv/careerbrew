@@ -791,6 +791,8 @@ xtask/Cargo.toml,keep-native,rust-00,Native migration workspace source or build 
 xtask/src/baseline_verdict.rs,keep-native,rust-00,Native migration workspace source or build configuration
 xtask/src/capture_actions.rs,keep-native,rust-00,Native observed action catalog capture
 xtask/src/inventory.rs,keep-native,rust-00,Native tracked inventory verifier
+xtask/src/sites.rs,keep-native,rust-00,Native embedded-site and entry-point discovery
+xtask/src/sites_tests.rs,keep-native,rust-00,Controls for embedded-site and entry-point discovery
 xtask/src/main.rs,keep-native,rust-00,Native migration workspace source or build configuration
 xtask/src/toolchain_identity.rs,keep-native,rust-00,Native read-only toolchain identity probe
 xtask/src/trial_plan.rs,keep-native,rust-00,Native paired trial ordering for the migration harness

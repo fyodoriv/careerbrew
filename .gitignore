@@ -86,6 +86,8 @@ __pycache__/
 !/xtask/src/bin/store_supervisor_fixture.rs
 !/xtask/src/bin/resource_fixture.rs
 !/xtask/src/resources.rs
+!/xtask/src/sites.rs
+!/xtask/src/sites_tests.rs
 !/xtask/src/baseline.rs
 !/xtask/src/verify.rs
 !/xtask/src/baseline_verdict.rs
@@ -157,6 +159,7 @@ __pycache__/
 !/xtask/tests/support/store_supervisor.rs
 
 !/docs/plans/2026-11-05-rust-data-fault-schema.json
+!/docs/plans/2026-11-17-rust-embedded-sites.csv
 
 !/xtask/src/observer_probe.rs
 !/xtask/src/observer_probe/

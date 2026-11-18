@@ -1045,6 +1045,7 @@ refresh the map in the **same** pull request:
 | a Python source file that the activation tables name | refresh the pinned line cells (definition and call lines, and duplicated expected-line data) in the three [activation tables](#the-activation-manifest-today) | `cargo test -p careerbrew-xtask --test activation_manifest` |
 | a tracked source file is added (any executable mode, or a Python, shell, JavaScript, TypeScript or Rust extension) | add its row to the [code inventory](plans/2026-11-01-rust-code-inventory.csv): path, disposition (`port`, `keep-ui` or `keep-native`), task, reason; then add it to the [owner map](#every-module-has-an-owner-step) | `cargo xtask migration inventory --check` |
 | a reviewed interpreter call site in source moves | update its row in the [embedded anchors](plans/2026-11-04-rust-embedded-anchors.csv) | `cargo xtask migration inventory --embedded-check` |
+| an embedded code site (an interpreter with `-c` or `-e` in shell or argument-array form, an interpreter heredoc, an inline `<script>`) or a generated entry point (a pyproject script or entry point, a `package.json` script or bin, an Agentfile command, skill or hook, a git hook, a lefthook or workflow `run`) is added, changed or removed | add, change or remove its row in the [embedded sites](plans/2026-11-17-rust-embedded-sites.csv): kind, path, key (the trimmed line or the name; a repeated identical line in one file gets ` #2`, ` #3`), owner task. `--sites-list` prints every discovered site as a manifest row, with its current task or an empty task for a new site | `cargo xtask migration inventory --check` |
 | `src/careerbrew/vault.py` | update the pinned `SOURCE_SHA` in `tests/unit/test_rust_vault_interop.py` and `tests/unit/test_rust_vault_base64_parity.py` | `uv run pytest -q tests/unit/test_rust_vault_interop.py tests/unit/test_rust_vault_base64_parity.py` |
 
 Rules of the refresh:
@@ -1056,9 +1057,19 @@ Rules of the refresh:
   its inventory row together.
 - Refresh only the recorded cells. Keep the partial graph scope, the owners,
   the edges and the checker logic.
-- The direct-path scan covers direct paths. The embedded-anchor list covers
-  the reviewed sites only. Discovery of other embedded code and process
-  observation are still open `rust-00` work.
+- The direct-path scan covers direct paths. The embedded-site scan covers
+  inline code on one line of an executed file (under `scripts/`, `hooks/`,
+  `commands/`, `skills/`, `src/`, `tests/e2e/`, `.github/`, `evals/`,
+  `web/src/`, `web/e2e/`, `web/visual/`, and `lefthook.yml`) and the
+  generated entry points. It finds an interpreter word (`sh`, `bash`,
+  `python3`, `node` and others in `xtask/src/sites.rs`) with `-c`, `-e` or a
+  heredoc, a quoted `"-c"` or `"-e"` in an argument array (not after `git` or
+  `grep`), and fixed markers. A site key is its marker line, not the heredoc
+  body: a body edit keeps its owner. A non-UTF-8 text file in a scanned path,
+  an unreadable `package.json` or an Agentfile list it cannot read fails the
+  check; a file with a NUL byte is binary and skipped. Prose in `docs/` is out
+  of scope. Process
+  observation is still open `rust-00` work.
 
 Anchor: Basili, Caldiera and Rombach 1994 (Goal Question Metric).
 
@@ -1098,7 +1109,9 @@ The tool has no `--help`. A wrong argument prints the usage and exits 2.
 | Command | What it does |
 | --- | --- |
 | `cargo xtask migration self-test` | runs the 8 paired-verdict controls and the 6 trial-planner controls, all on synthetic data |
-| `cargo xtask migration inventory --check` | checks that every tracked direct code path in the staged Git index has exactly one row in the [code inventory](plans/2026-11-01-rust-code-inventory.csv) |
+| `cargo xtask migration inventory --check` | checks that every tracked direct code path in the staged Git index has exactly one row in the [code inventory](plans/2026-11-01-rust-code-inventory.csv), then runs the `--sites-check` below |
+| `cargo xtask migration inventory --sites-check` | discovers embedded code and generated entry points in the staged Git index and checks each against the [embedded sites](plans/2026-11-17-rust-embedded-sites.csv); an unassigned site, a row whose site is gone, a repeated row or a bad task is refused |
+| `cargo xtask migration inventory --sites-list` | prints every discovered site as a `kind,path,key,task` manifest row; a new site has an empty task to fill in |
 | `cargo xtask migration inventory --embedded-check` | checks the reviewed interpreter call sites in the [embedded anchors](plans/2026-11-04-rust-embedded-anchors.csv) against staged source |
 | `cargo xtask migration toolchain-identity --rustc <absolute-path>` | checks the pinned compiler release, its full commit hash in the Clippy driver and the shared compiler library. Read-only, no network. It supports the thin macOS Mach-O layout only; other layouts are refused. |
 | `cargo xtask migration capture-actions --python <absolute-path> --out <new-file>` | runs `python -B -m careerbrew actions --json` twice in fresh synthetic homes and compares stdout, stderr, exit, schema and writes |
@@ -1157,6 +1170,7 @@ draft pull request are not on the public repository.
 | Trial planner (`trial_plan.rs`) | 6 of 6 controls pass | `cargo xtask migration self-test` |
 | Direct-path inventory | 0 unassigned tracked direct paths; 4 negative controls (removed, duplicated, untracked row, broken CSV field) refused; runs in the normal gate | `cargo xtask migration inventory --check` |
 | Embedded anchors | the reviewed sites match staged source; a missing or repeated anchor is refused | `cargo xtask migration inventory --embedded-check` |
+| Embedded sites and entry points | 188 discovered sites assigned (123 embedded lines, 25 agent skills, 17 workflow runs, 8 npm scripts, 6 agent commands, 4 lefthook runs, 3 git hooks, 1 agent hook, 1 console script); 13 controls (each kind found and prose skipped, full pass, unassigned planted site, removed site, duplicate row and bad task, unlisted real interpreter forms, tool flags skipped, a repeated identical line, YAML run blocks, skill directories and flow lists, malformed entry-point files, non-UTF-8 files, list rows as manifest rows) in `xtask/src/sites_tests.rs`; runs in the normal gate inside `inventory --check` | `cargo xtask migration inventory --sites-check` |
 | Toolchain identity probe | 7 cases (valid, release mismatch, malformed identity, missing driver, outside symlink, exact token, bounded scan) | `cargo test -p careerbrew-xtask toolchain_identity` |
 | Action contract capture | 7 integration controls | `cargo test -p careerbrew-xtask --test capture_actions` |
 | HTTP contract capture | 13 control groups; 21 request cases in each of two fresh processes | `cargo test -p careerbrew-xtask --test capture_http` |
@@ -1338,7 +1352,9 @@ Review gaps closed (PR 113 review):
    `rust-03` registers its candidate.
 4. Register the noise floors and the per-contract normalization rules.
 5. Add the planted slow-path control and prove the decide step holds it.
-6. Extend the inventory to embedded code and generated entry points.
+6. The inventory covers embedded code and generated entry points
+   (`inventory --sites-check`, run by `inventory --check`). Next: process
+   observation of what a run really starts.
 7. Then mark `rust-00` done, remove its task block, and unblock `rust-01`.
 
 ## Every module has an owner step
@@ -1425,6 +1441,7 @@ changes the code they describe updates them in the same pull request.
 | [activation providers](plans/2026-11-04-rust-activation-providers.tsv) | `xtask/tests/activation_manifest.rs` | changes, strategy, tutor and teacher call graph rows |
 | [activation workday](plans/2026-11-04-rust-activation-workday.tsv) | `xtask/tests/activation_manifest.rs` | work-day start, end, clock and watcher call graph rows |
 | [embedded anchors](plans/2026-11-04-rust-embedded-anchors.csv) | `xtask/src/inventory.rs` | each embedded script, with its owner task and source anchor |
+| [embedded sites](plans/2026-11-17-rust-embedded-sites.csv) | `xtask/src/sites.rs` | each discovered embedded code line and generated entry point, with its kind, key and owner task |
 | [DATA bootstrap schema](plans/2026-11-05-rust-data-bootstrap-schema.json) | `xtask/src/capture_data.rs` | the DATA capture start-up contract |
 | [DATA fault schema](plans/2026-11-05-rust-data-fault-schema.json) | `xtask/src/capture_data.rs` | the reached-stage record of the synthetic fault protocol |
 | [DATA fixture v1](plans/2026-11-05-rust-data-fixture-v1.json) | `xtask/src/capture_data.rs`, `xtask/tests/capture_data.rs` | the synthetic DATA fixture |
@@ -1511,11 +1528,11 @@ row stays, but it means the **dispatcher**, not the handlers:
 - `./` (3): `Cargo.lock`, `Cargo.toml`, `rust-toolchain.toml`
 - `crates/vault/` (1): `Cargo.toml`
 - `crates/vault/src/` (2): `lib.rs`, `main.rs`
-- `docs/plans/` (12): `2026-11-01-rust-code-inventory.csv`, `2026-11-04-rust-activation-manifest.tsv`, `2026-11-04-rust-activation-providers.tsv`, `2026-11-04-rust-activation-workday.tsv`, `2026-11-04-rust-embedded-anchors.csv`, `2026-11-05-rust-data-bootstrap-schema.json`, `2026-11-05-rust-data-fault-schema.json`, `2026-11-05-rust-data-fixture-v1.json`, `2026-11-05-rust-data-phase-schema.json`, `2026-11-05-rust-data-value-schema.json`, `2026-11-08-promise-action-delta.json`, `2026-11-08-rules-action-delta.json`
+- `docs/plans/` (13): `2026-11-01-rust-code-inventory.csv`, `2026-11-04-rust-activation-manifest.tsv`, `2026-11-04-rust-activation-providers.tsv`, `2026-11-04-rust-activation-workday.tsv`, `2026-11-04-rust-embedded-anchors.csv`, `2026-11-05-rust-data-bootstrap-schema.json`, `2026-11-05-rust-data-fault-schema.json`, `2026-11-05-rust-data-fixture-v1.json`, `2026-11-05-rust-data-phase-schema.json`, `2026-11-05-rust-data-value-schema.json`, `2026-11-08-promise-action-delta.json`, `2026-11-08-rules-action-delta.json`, `2026-11-17-rust-embedded-sites.csv`
 - `experiments/hash/` (1): `Cargo.toml`
 - `experiments/hash/src/` (1): `main.rs`
 - `xtask/` (1): `Cargo.toml`
-- `xtask/src/` (10): `baseline_verdict.rs`, `capture_actions.rs`, `capture_data.rs`, `capture_http.rs`, `inventory.rs`, `main.rs`, `observer_probe.rs`, `resources.rs`, `toolchain_identity.rs`, `trial_plan.rs`
+- `xtask/src/` (10): `baseline_verdict.rs`, `capture_actions.rs`, `capture_data.rs`, `capture_http.rs`, `inventory.rs`, `main.rs`, `observer_probe.rs`, `resources.rs`, `sites.rs`, `sites_tests.rs`, `toolchain_identity.rs`, `trial_plan.rs`
 - `xtask/src/bin/` (2): `resource_fixture.rs`, `store_supervisor_fixture.rs`
 - `xtask/src/observer_probe/` (3): `ownership.rs`, `parser.rs`, `transport.rs`
 - `xtask/tests/` (12): `activation_manifest.rs`, `capture_actions.rs`, `capture_data.rs`, `capture_data_cli.rs`, `capture_http.rs`, `i01_fixture.rs`, `observer_deadline.rs`, `observer_owner.rs`, `observer_parser.rs`, `observer_transport.rs`, `resources.rs`, `store_supervisor.rs`

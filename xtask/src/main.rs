@@ -9,6 +9,7 @@ mod inventory;
 mod measure;
 mod observer_probe;
 mod resources;
+mod sites;
 mod toolchain_identity;
 mod trial_plan;
 mod verify;
@@ -23,11 +24,33 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
     if args == ["migration", "inventory", "--check"] {
-        return match inventory::check() {
-            Ok(count) => {
+        return match inventory::check().and_then(|count| Ok((count, sites::check()?))) {
+            Ok((count, sites)) => {
                 println!("migration inventory: {count} assigned paths, 0 unassigned direct paths");
+                println!("migration inventory: {sites} assigned embedded sites and entry points, 0 unassigned");
                 ExitCode::SUCCESS
             }
+            Err(reason) => {
+                eprintln!("migration inventory: {reason}");
+                ExitCode::FAILURE
+            }
+        };
+    }
+    if args == ["migration", "inventory", "--sites-check"] {
+        return match sites::check() {
+            Ok(count) => {
+                println!("migration inventory: {count} assigned embedded sites and entry points, 0 unassigned");
+                ExitCode::SUCCESS
+            }
+            Err(reason) => {
+                eprintln!("migration inventory: {reason}");
+                ExitCode::FAILURE
+            }
+        };
+    }
+    if args == ["migration", "inventory", "--sites-list"] {
+        return match sites::list() {
+            Ok(_) => ExitCode::SUCCESS,
             Err(reason) => {
                 eprintln!("migration inventory: {reason}");
                 ExitCode::FAILURE
@@ -244,6 +267,8 @@ fn main() -> ExitCode {
     eprintln!("usage: cargo xtask migration self-test");
     eprintln!("       cargo xtask migration inventory --check");
     eprintln!("       cargo xtask migration inventory --embedded-check");
+    eprintln!("       cargo xtask migration inventory --sites-check");
+    eprintln!("       cargo xtask migration inventory --sites-list");
     eprintln!("       cargo xtask migration baseline --step <id> --python <absolute-path> --out <new-file> [--runs <n>] [--test-allow-few-runs]");
     eprintln!("       cargo xtask migration measure --step <id> --python <absolute-path> --out <new-file> [--pairs <n>] [--test-allow-few-pairs] [--test-candidate <absolute-path>]");
     eprintln!("       cargo xtask migration decide --step <id> --baseline <file> --verify <file> --measure <file> --out <new-file>");
