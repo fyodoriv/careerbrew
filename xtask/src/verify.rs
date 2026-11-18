@@ -15,10 +15,22 @@
 //! - HTTP (steps with `http_contract`): the `capture-http` fixture cases sent
 //!   over a real socket, compared on status, normalized headers and body.
 //!   The live oracle must still match the frozen `capture-http` reference.
-//!   The HTTP side effects are one more case, `http:side-effects`.
-//!
-//! The DATA contract is not verified yet; the record lists it under
-//! `missing_contracts`, and `decide` keeps Python while any is listed.
+//!   The HTTP side effects are one more case, `http:side-effects`;
+//! - DATA: the `capture-data` corpus (10 cases, 19 phases) run in order in
+//!   one fresh synthetic home per side: the oracle is the Python data driver
+//!   (run twice, in two homes, and it must agree with itself), the candidate
+//!   gets `--careerbrew-data-contract <trial> <case> <role>`. Each phase's
+//!   API calls (function, purpose, target, argument hash, returned value)
+//!   must match. A write trace snapshots the home after each phase (mode,
+//!   inode and mtime): a path the candidate writes in more phases than the
+//!   oracle counts as `duplicate_writes`. The trace has phase granularity: a
+//!   path written twice inside one phase is one write. File contents are
+//!   left out of the DATA side effects (rule `data-ciphertext`: each home has
+//!   its own key); the reader phases prove the content;
+//! - role: the Python oracle makes a fresh home a corporate machine, then
+//!   each side runs a job-hunt command (`jobs list`); the oracle refuses it,
+//!   and a candidate with another exit code, stdout or writes is a `role`
+//!   violation.
 //!
 //! It writes a content-free JSON record: step, per-case pass or fail with
 //! hashes and counts, the sources hash, the source revision, whether the
@@ -31,7 +43,7 @@
 //! candidate is refused, never passed.
 use crate::{baseline, capture_actions, capture_http, decide, normalize};
 use serde_json::{json, Value};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::process::Command;
 
@@ -40,9 +52,9 @@ pub const SCHEMA: &str = "careerbrew-migration-verify-v1";
 pub const ORACLE_PREFIX: &[&str] = &["-B", "-m", "careerbrew"];
 /// Violation kinds this verify has no observation for yet. `decide` keeps
 /// Python while any is listed: an unobserved count is never a zero.
-pub const UNOBSERVED: &[&str] = &["duplicate_writes", "role"];
+pub const UNOBSERVED: &[&str] = &[];
 /// Contracts a step needs that this verify does not check yet.
-pub const MISSING_CONTRACTS: &[&str] = &["data"];
+pub const MISSING_CONTRACTS: &[&str] = &[];
 /// The marker an entry the run removed gets in its side-effect map.
 const REMOVED: &str = "removed";
 /// HTTP statuses that refuse access; a candidate that answers another status
@@ -145,6 +157,8 @@ fn sources_sha256(root: &Path) -> Result<String, String> {
         "xtask/tests/fixtures/capture/http-v1.json",
         "xtask/tests/fixtures/capture/http_driver.py",
         "xtask/tests/fixtures/capture/http-reference-telemetry-v4.json",
+        DATA_DRIVER,
+        DATA_FIXTURE,
     ] {
         let bytes = std::fs::read(root.join(name)).map_err(|_| "verify source missing")?;
         map.insert(name.to_owned(), json!(capture_actions::digest(&bytes)));
@@ -164,13 +178,21 @@ struct Violations {
     contract: u64,
     privacy: u64,
     authorization: u64,
+    role: u64,
     side_effect: u64,
     missing_writes: u64,
+    duplicate_writes: u64,
 }
 
 impl Violations {
     fn total(&self) -> u64 {
-        self.contract + self.privacy + self.authorization + self.side_effect + self.missing_writes
+        self.contract
+            + self.privacy
+            + self.authorization
+            + self.role
+            + self.side_effect
+            + self.missing_writes
+            + self.duplicate_writes
     }
 
     fn to_json(&self) -> Value {
@@ -180,8 +202,10 @@ impl Violations {
                 "contract" => self.contract,
                 "privacy" => self.privacy,
                 "authorization" => self.authorization,
+                "role" => self.role,
                 "side_effect" => self.side_effect,
                 "missing_writes" => self.missing_writes,
+                "duplicate_writes" => self.duplicate_writes,
                 _ => 0,
             };
             map.insert((*name).to_owned(), json!(count));
@@ -371,6 +395,370 @@ fn http_cases(
     }))
 }
 
+/// The flag verify passes when it runs one DATA contract phase on the
+/// candidate; the arguments after it are the trial, the case id and the role.
+pub const DATA_FLAG: &str = "--careerbrew-data-contract";
+/// The Python data driver: the DATA oracle, one phase per process.
+const DATA_DRIVER: &str = "xtask/tests/fixtures/capture/data_driver.py";
+/// The bounded data corpus (`capture-data`), with its own sha256 check.
+const DATA_FIXTURE: &str = "docs/plans/2026-11-05-rust-data-fixture-v1.json";
+/// The trial name the driver records; verify runs one trial per side.
+const DATA_TRIAL: &str = "first";
+/// The setup that makes a synthetic home a corporate machine (run with the
+/// Python oracle on both sides), and the job-hunt case it must refuse.
+const ROLE_SETUP: &[&str] = &["machine", "set", "corporate"];
+const ROLE_CASE: (&str, &[&str]) = ("role:jobs-list", &["jobs", "list"]);
+
+/// One write-trace entry: the final-state entry plus inode and mtime, so a
+/// rewrite with the same bytes still counts as a write.
+type Trace = BTreeMap<String, (String, u64, i64, i64)>;
+
+/// Walks the owned root for the DATA contract. `protocol/` is the report
+/// channel and is left out. A file's entry is its mode only: data records
+/// are encrypted with a fresh key in each home, so the ciphertext differs on
+/// every run (rule `data-ciphertext`); the reader phases prove the content.
+/// Adds each file that holds the corpus canary to `leaks`.
+fn trace(
+    owned: &Path,
+    folder: &Path,
+    canary: &str,
+    out: &mut Trace,
+    leaks: &mut BTreeSet<String>,
+) -> Result<(), String> {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    for entry in std::fs::read_dir(folder).map_err(|_| "cannot list data home")? {
+        let path = entry.map_err(|_| "cannot list data entry")?.path();
+        let relative = path
+            .strip_prefix(owned)
+            .map_err(|_| "data entry escaped its home")?
+            .to_string_lossy()
+            .into_owned();
+        if relative == "protocol" {
+            continue;
+        }
+        let meta = std::fs::symlink_metadata(&path).map_err(|_| "cannot inspect data entry")?;
+        let mode = meta.permissions().mode() & 0o777;
+        let stamp = (meta.ino(), meta.mtime(), meta.mtime_nsec());
+        if meta.is_dir() {
+            out.insert(
+                relative,
+                (format!("directory:{mode:o}"), stamp.0, stamp.1, stamp.2),
+            );
+            trace(owned, &path, canary, out, leaks)?;
+        } else if meta.is_file() {
+            let bytes = std::fs::read(&path).map_err(|_| "cannot read data entry")?;
+            if bytes
+                .windows(canary.len())
+                .any(|window| window == canary.as_bytes())
+            {
+                leaks.insert(relative.clone());
+            }
+            out.insert(
+                relative,
+                (format!("file:{mode:o}"), stamp.0, stamp.1, stamp.2),
+            );
+        } else {
+            out.insert(relative, ("other".to_owned(), stamp.0, stamp.1, stamp.2));
+        }
+    }
+    Ok(())
+}
+
+fn entries(trace: &Trace) -> Writes {
+    trace
+        .iter()
+        .map(|(k, v)| (k.clone(), v.0.clone()))
+        .collect()
+}
+
+/// Makes a fresh synthetic home with the corpus baseline folders, as
+/// `capture-data` does, and returns its environment.
+fn data_home(
+    root: &Path,
+    owned: &Path,
+    fixture: &Value,
+) -> Result<BTreeMap<String, String>, String> {
+    use std::os::unix::fs::PermissionsExt;
+    let environment = capture_actions::owned_environment(root, owned)?;
+    for entry in fixture["baseline"]
+        .as_array()
+        .ok_or("data baseline missing")?
+    {
+        let path = owned.join(entry["path"].as_str().ok_or("data baseline path missing")?);
+        let mode = u32::from_str_radix(entry["mode"].as_str().ok_or("data mode missing")?, 8)
+            .map_err(|_| "data mode invalid")?;
+        std::fs::create_dir_all(&path).map_err(|_| "cannot prepare data baseline")?;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))
+            .map_err(|_| "cannot set data baseline mode")?;
+    }
+    Ok(environment)
+}
+
+/// One side's result for one corpus case.
+#[derive(PartialEq)]
+struct DataCase {
+    /// Per phase, the projected API calls, or None when the phase failed.
+    calls: Vec<Option<Value>>,
+    /// The case's side effects against the state before it.
+    writes: Writes,
+    /// How many phases wrote each path.
+    counts: BTreeMap<String, u64>,
+    leaked: bool,
+}
+
+/// The fields of a phase report that both sides must match.
+fn project(report: &Value) -> Option<Value> {
+    let calls = report["api_calls"].as_array()?;
+    Some(json!(calls
+        .iter()
+        .map(|call| json!({
+            "function": call["function"],
+            "purpose": call["purpose"],
+            "target": call["target"],
+            "arguments_sha256": call["arguments_sha256"],
+            "returned": call["returned"],
+        }))
+        .collect::<Vec<_>>()))
+}
+
+/// Runs the whole corpus on one side, in one fresh synthetic home (the cases
+/// build on each other, as in `capture-data`). `prefix` comes before the
+/// trial, case and role arguments.
+fn data_side(
+    root: &Path,
+    program: &Path,
+    prefix: &[&str],
+    fixture: &Value,
+) -> Result<Vec<DataCase>, String> {
+    let canary = fixture["canary"].as_str().ok_or("data canary missing")?;
+    let scratch = tempfile::tempdir().map_err(|_| "cannot create data home")?;
+    let owned = scratch
+        .path()
+        .canonicalize()
+        .map_err(|_| "cannot canonicalize data home")?
+        .join("owned");
+    let environment = data_home(root, &owned, fixture)?;
+    let mut results = Vec::new();
+    let mut state = Trace::new();
+    let mut leaks = BTreeSet::new();
+    trace(&owned, &owned, canary, &mut state, &mut leaks)?;
+    for case in fixture["cases"].as_array().ok_or("data cases missing")? {
+        let id = case["case"].as_str().ok_or("data case id missing")?;
+        let start = state.clone();
+        let start_leaks = leaks.clone();
+        let mut calls = Vec::new();
+        let mut counts = BTreeMap::new();
+        for spec in case["phases"].as_array().ok_or("data phases missing")? {
+            let role = spec["role"].as_str().ok_or("data role missing")?;
+            let report = owned.join(format!("protocol/{id:0>2}-{role}-api.json"));
+            let mut command = Command::new(program);
+            command
+                .args(prefix)
+                .args([DATA_TRIAL, id, role])
+                .current_dir(root)
+                .env_clear()
+                .envs(&environment)
+                .env("CAREERBREW_DATA_FIXTURE", root.join(DATA_FIXTURE))
+                .env("CAREERBREW_CAPTURE_ROOT", root)
+                .env("CAREERBREW_DATA_OWNED", &owned)
+                .env("CAREERBREW_DATA_REPORT", &report);
+            let ran = matches!(capture_actions::execute(command), Ok((_, Some(0), _, _)));
+            let projected = ran
+                .then(|| std::fs::read(&report).ok())
+                .flatten()
+                .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+                .filter(|value| value["case"] == id && value["role"] == role)
+                .and_then(|value| project(&value));
+            calls.push(projected);
+            let mut after = Trace::new();
+            leaks.clear();
+            trace(&owned, &owned, canary, &mut after, &mut leaks)?;
+            for (path, entry) in &after {
+                if state.get(path) != Some(entry) {
+                    *counts.entry(path.clone()).or_insert(0) += 1;
+                }
+            }
+            for path in state.keys().filter(|path| !after.contains_key(*path)) {
+                *counts.entry(path.clone()).or_insert(0) += 1;
+            }
+            state = after;
+        }
+        results.push(DataCase {
+            calls,
+            writes: effects(&entries(&start), &entries(&state)),
+            counts,
+            // Only paths that start to hold the canary in this case count, so
+            // a leak is charged once, to the case that made it.
+            leaked: !leaks.is_subset(&start_leaks),
+        });
+    }
+    Ok(results)
+}
+
+/// Runs the DATA corpus on the oracle twice (it must agree with itself
+/// across two fresh homes) and once on the candidate; pushes one entry per
+/// corpus case.
+fn data_cases(
+    root: &Path,
+    python: &Path,
+    candidate: &Path,
+    cases: &mut Vec<Value>,
+    violations: &mut Violations,
+) -> Result<(), String> {
+    let bytes = std::fs::read(root.join(DATA_FIXTURE)).map_err(|_| "data fixture missing")?;
+    let fixture: Value = serde_json::from_slice(&bytes).map_err(|_| "data fixture invalid")?;
+    let driver = root.join(DATA_DRIVER);
+    let driver = driver.to_str().ok_or("data driver path is not UTF-8")?;
+    let oracle_prefix = ["-B", "-S", driver];
+    let oracle = data_side(root, python, &oracle_prefix, &fixture)?;
+    if oracle
+        .iter()
+        .any(|case| case.leaked || case.calls.iter().any(Option::is_none))
+    {
+        return Err("the DATA oracle failed a phase; verify refused".into());
+    }
+    if data_side(root, python, &oracle_prefix, &fixture)? != oracle {
+        return Err("the DATA oracle differs across two fresh homes; verify refused".into());
+    }
+    let served = data_side(root, candidate, &[DATA_FLAG], &fixture)?;
+    let ids = fixture["cases"].as_array().ok_or("data cases missing")?;
+    for ((spec, expected), answer) in ids.iter().zip(&oracle).zip(&served) {
+        let calls_match = answer.calls == expected.calls;
+        let (extra, missing, changed) = diff(&expected.writes, &answer.writes);
+        let duplicates: u64 = answer
+            .counts
+            .iter()
+            .map(|(path, count)| {
+                count.saturating_sub(expected.counts.get(path).copied().unwrap_or(0))
+            })
+            .sum();
+        let passed = calls_match && extra + missing + changed + duplicates == 0 && !answer.leaked;
+        violations.contract += u64::from(!calls_match);
+        violations.side_effect += extra + changed;
+        violations.missing_writes += missing;
+        violations.duplicate_writes += duplicates;
+        violations.privacy += u64::from(answer.leaked);
+        let digest =
+            |calls: &[Option<Value>]| capture_actions::digest(json!(calls).to_string().as_bytes());
+        cases.push(json!({
+            "case": format!("data:{}", spec["case"].as_str().unwrap_or("?")),
+            "kind": "data",
+            "passed": passed,
+            "phases": expected.calls.len(),
+            "candidate_phases_ran": answer.calls.iter().filter(|c| c.is_some()).count(),
+            "calls_match": calls_match,
+            "normalization": ["data-ciphertext"],
+            "oracle_calls_sha256": digest(&expected.calls),
+            "candidate_calls_sha256": digest(&answer.calls),
+            "writes_match": extra + missing + changed == 0,
+            "extra_writes": extra,
+            "missing_writes": missing,
+            "changed_writes": changed,
+            "duplicate_writes": duplicates,
+            "canary_leaked": answer.leaked,
+            "oracle_writes_sha256": writes_sha256(&expected.writes),
+            "candidate_writes_sha256": writes_sha256(&answer.writes),
+        }));
+    }
+    Ok(())
+}
+
+/// Runs the role case on one side: the Python oracle makes a fresh synthetic
+/// home a corporate machine, then `program` runs the job-hunt command.
+#[allow(clippy::type_complexity)]
+fn role_side(
+    root: &Path,
+    python: &Path,
+    program: &Path,
+    prefix: &[&str],
+) -> Result<Result<(Option<i32>, String, Writes), ()>, String> {
+    let scratch = tempfile::tempdir().map_err(|_| "cannot create role home")?;
+    let owned = scratch.path().join("owned");
+    let environment = capture_actions::owned_environment(root, &owned)?;
+    let mut setup = Command::new(python);
+    setup
+        .args(ORACLE_PREFIX)
+        .args(ROLE_SETUP)
+        .current_dir(root)
+        .env_clear()
+        .envs(&environment);
+    if capture_actions::execute(setup)?.1 != Some(0) {
+        return Err("the corporate role setup failed; verify refused".into());
+    }
+    let before = capture_actions::files(&owned, &owned, None)?;
+    let mut command = Command::new(program);
+    command
+        .args(prefix)
+        .args(ROLE_CASE.1)
+        .current_dir(root)
+        .env_clear()
+        .envs(&environment);
+    let Ok((_, exit, stdout, _)) = capture_actions::execute(command) else {
+        return Ok(Err(()));
+    };
+    let writes = effects(&before, &capture_actions::files(&owned, &owned, None)?);
+    let home = environment
+        .get("CAREERBREW_HOME")
+        .ok_or("synthetic CAREERBREW_HOME is empty")?;
+    let side = normalize::Side {
+        home: Path::new(home),
+        scratch: scratch.path(),
+    };
+    Ok(normalize::apply(&[], &side, root, &stdout).map(|stdout| (exit, stdout, writes)))
+}
+
+/// The corporate-role case: the oracle refuses a job-hunt command on a
+/// corporate machine; a candidate that answers another way, prints another
+/// text or writes another entry is a role violation.
+fn role_case(
+    root: &Path,
+    python: &Path,
+    candidate: &Path,
+    cases: &mut Vec<Value>,
+    violations: &mut Violations,
+) -> Result<(), String> {
+    let (case, _) = ROLE_CASE;
+    let (oracle_exit, oracle_stdout, oracle_writes) =
+        role_side(root, python, python, ORACLE_PREFIX)?.map_err(|()| unregistered(case))?;
+    if oracle_exit.is_none_or(|code| code == 0) {
+        return Err(
+            "the oracle did not refuse the job-hunt command on a corporate machine; verify refused"
+                .into(),
+        );
+    }
+    let answer = role_side(root, python, candidate, &[])?.ok();
+    let (exit_matches, stdout_matches, extra, missing, changed) = match &answer {
+        Some((exit, stdout, writes)) => {
+            let (extra, missing, changed) = diff(&oracle_writes, writes);
+            (
+                *exit == oracle_exit,
+                *stdout == oracle_stdout,
+                extra,
+                missing,
+                changed,
+            )
+        }
+        None => (false, false, 0, 0, 0),
+    };
+    let passed = exit_matches && stdout_matches && extra + missing + changed == 0;
+    violations.role += u64::from(!passed);
+    cases.push(json!({
+        "case": case,
+        "kind": "role",
+        "passed": passed,
+        "candidate_ran": answer.is_some(),
+        "oracle_refused": true,
+        "exit_matches": exit_matches,
+        "stdout_matches": stdout_matches,
+        "writes_match": answer.is_some() && extra + missing + changed == 0,
+        "extra_writes": extra,
+        "missing_writes": missing,
+        "changed_writes": changed,
+        "oracle_stdout_sha256": capture_actions::digest(oracle_stdout.as_bytes()),
+    }));
+    Ok(())
+}
+
 /// Builds the record. `candidate` is the test-only override; without it the
 /// step's registered candidate is used. `test_oracle` is the test-only
 /// script run in place of `python` (it gets the same arguments).
@@ -416,6 +804,8 @@ pub fn record(
     } else {
         Value::Null
     };
+    data_cases(root, python, &candidate, &mut cases, &mut violations)?;
+    role_case(root, python, &candidate, &mut cases, &mut violations)?;
     if sources_sha256(root)? != hash {
         return Err("a relevant source changed during verify".into());
     }
@@ -440,7 +830,7 @@ pub fn record(
         "test_candidate": test_candidate,
         "test_oracle": test_oracle.is_some(),
         "candidate_sha256": candidate_sha256,
-        "contracts": if step.http_contract { json!(["cli", "side-effect", "http"]) } else { json!(["cli", "side-effect"]) },
+        "contracts": if step.http_contract { json!(["cli", "side-effect", "http", "data", "role"]) } else { json!(["cli", "side-effect", "data", "role"]) },
         "case_count": cases.len(),
         "passed_count": cases.len() - failed.len(),
         "failed_cases": failed,
@@ -450,6 +840,7 @@ pub fn record(
         "unobserved_violations": UNOBSERVED,
         "missing_contracts": MISSING_CONTRACTS,
         "side_effects_observed": "final-state",
+        "writes_traced": "per-phase",
         "http": http,
         "cases": cases,
     }))

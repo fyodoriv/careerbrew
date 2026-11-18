@@ -10,8 +10,12 @@
 //! and privacy counts; an extra or a missing entry in the synthetic home
 //! fails the CLI case with side_effect or missing_writes counts; an HTTP
 //! candidate that writes fails the `http:side-effects` case; a dead HTTP
-//! candidate fails every HTTP case and counts the denied ones. Each test
-//! owns its temp folder.
+//! candidate fails every HTTP case and counts the denied ones. DATA and role
+//! controls: a candidate that writes a wrong data value fails its data case
+//! with a contract count; one that writes a data path again fails with a
+//! duplicate_writes count; one that runs a job-hunt command on a corporate
+//! machine fails the role case with a role count. Each test owns its temp
+//! folder.
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -51,7 +55,23 @@ fn candidate(dir: &Path, body: &str) -> PathBuf {
 /// The flag verify passes when it starts a candidate's HTTP contract server.
 const HTTP_FLAG: &str = "--careerbrew-http-contract";
 
-/// A candidate that runs the Python oracle for both contracts, then the
+/// The flag verify passes when it runs one phase of the DATA contract.
+const DATA_FLAG: &str = "--careerbrew-data-contract";
+
+/// Shell lines that run a DATA contract phase with the Python data driver.
+/// `before` runs first (it may export a control); `after` runs after the
+/// driver, with `$2` the case id and `$3` the role.
+fn data_dispatch(before: &str, after: &str) -> String {
+    format!(
+        "if [ \"$1\" = '{DATA_FLAG}' ]; then shift\n{before}\n'{}' -B -S '{}' \"$@\"\nstatus=$?\n{after}\nexit $status\nfi",
+        python().display(),
+        root()
+            .join("xtask/tests/fixtures/capture/data_driver.py")
+            .display(),
+    )
+}
+
+/// A candidate that runs the Python oracle for every contract, then the
 /// given extra shell lines after a CLI run.
 fn oracle_candidate(dir: &Path, extra: &str) -> PathBuf {
     let python = python();
@@ -59,7 +79,8 @@ fn oracle_candidate(dir: &Path, extra: &str) -> PathBuf {
     candidate(
         dir,
         &format!(
-            "if [ \"$1\" = '{HTTP_FLAG}' ]; then exec '{}' -B '{}'; fi\n'{}' -B -m careerbrew \"$@\"\nstatus=$?\n{extra}\nexit $status",
+            "{}\nif [ \"$1\" = '{HTTP_FLAG}' ]; then exec '{}' -B '{}'; fi\n'{}' -B -m careerbrew \"$@\"\nstatus=$?\n{extra}\nexit $status",
+            data_dispatch("", ""),
             python.display(),
             driver.display(),
             python.display(),
@@ -98,11 +119,11 @@ fn a_candidate_identical_to_the_oracle_passes() {
         String::from_utf8_lossy(&result.stderr)
     );
     assert!(String::from_utf8_lossy(&result.stdout)
-        .contains("step=rust-03 cases=23 passed=23 failed=none"));
+        .contains("step=rust-03 cases=34 passed=34 failed=none"));
     let value = read(&out);
     assert_eq!(value["schema"], "careerbrew-migration-verify-v1");
     assert_eq!(value["step"], "rust-03");
-    assert_eq!(value["case_count"], 23);
+    assert_eq!(value["case_count"], 34);
     assert_eq!(value["passed"], true);
     assert_eq!(value["cases"][0]["case"], "actions-json");
     assert_eq!(value["cases"][0]["kind"], "cli");
@@ -112,13 +133,38 @@ fn a_candidate_identical_to_the_oracle_passes() {
     assert_eq!(value["cases"][1]["kind"], "http");
     assert_eq!(value["cases"][1]["body_matches"], true);
     // The record is decide's verify input: checks and every violation count.
-    assert_eq!(value["checks"].as_array().unwrap().len(), 23);
+    assert_eq!(value["checks"].as_array().unwrap().len(), 34);
+    let find = |id: &str| {
+        value["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|case| case["case"] == id)
+            .unwrap_or_else(|| panic!("{id}"))
+            .clone()
+    };
     // The HTTP side effects are a case of their own.
-    let last = value["cases"].as_array().unwrap().last().unwrap().clone();
-    assert_eq!(last["case"], "http:side-effects");
-    assert_eq!(last["passed"], true);
-    // The DATA contract is not verified yet: decide must see it is missing.
-    assert_eq!(value["missing_contracts"], serde_json::json!(["data"]));
+    assert_eq!(find("http:side-effects")["passed"], true);
+    // The DATA contract: one case per corpus case, every phase compared.
+    for id in 1..=10 {
+        let case = find(&format!("data:{id}"));
+        assert_eq!(case["kind"], "data");
+        assert_eq!(case["passed"], true, "data:{id}");
+        assert_eq!(case["calls_match"], true);
+        assert_eq!(case["duplicate_writes"], 0);
+    }
+    assert_eq!(find("data:3")["phases"], 2);
+    // The corporate-role case: the job-hunt command is refused on both sides.
+    let role = find("role:jobs-list");
+    assert_eq!(role["kind"], "role");
+    assert_eq!(role["passed"], true);
+    assert_eq!(role["oracle_refused"], true);
+    // Every contract is checked and every violation kind is observed.
+    assert_eq!(value["missing_contracts"], serde_json::json!([]));
+    assert_eq!(
+        value["contracts"],
+        serde_json::json!(["cli", "side-effect", "http", "data", "role"])
+    );
     assert_eq!(
         value["checks"][0],
         serde_json::json!({"id": "actions-json", "passed": true})
@@ -134,10 +180,7 @@ fn a_candidate_identical_to_the_oracle_passes() {
     ] {
         assert_eq!(value["violations"][name], 0, "{name}");
     }
-    assert_eq!(
-        value["unobserved_violations"],
-        serde_json::json!(["duplicate_writes", "role"])
-    );
+    assert_eq!(value["unobserved_violations"], serde_json::json!([]));
     assert_eq!(value["source_revision"].as_str().unwrap().len(), 40);
     assert_eq!(value["sources_sha256"].as_str().unwrap().len(), 64);
     assert_eq!(value["test_candidate"], true);
@@ -356,7 +399,10 @@ fn a_planted_wrong_http_body_fails_its_http_cases() {
 fn a_planted_extra_write_fails_the_cli_case() {
     let scratch = tempfile::tempdir().unwrap();
     let out = scratch.path().join("verify.json");
-    let extra = oracle_candidate(scratch.path(), ": > \"$CAREERBREW_HOME/planted-extra\"");
+    let extra = oracle_candidate(
+        scratch.path(),
+        "if [ \"$1\" = actions ]; then : > \"$CAREERBREW_HOME/planted-extra\"; fi",
+    );
     let result = verify("rust-03", &out)
         .arg("--test-candidate")
         .arg(&extra)
@@ -387,7 +433,7 @@ fn a_planted_missing_write_fails_the_cli_case() {
     std::fs::write(
         &wrapper,
         format!(
-            "#!/bin/sh\nif [ \"$2\" != '-m' ]; then exec '{}' \"$@\"; fi\n'{}' \"$@\"\nstatus=$?\n: > \"$CAREERBREW_HOME/oracle-made\"\nexit $status\n",
+            "#!/bin/sh\nif [ \"$2\" != '-m' ] || [ \"$4\" != actions ]; then exec '{}' \"$@\"; fi\n'{}' \"$@\"\nstatus=$?\n: > \"$CAREERBREW_HOME/oracle-made\"\nexit $status\n",
             python().display(),
             python().display()
         ),
@@ -431,7 +477,8 @@ fn a_planted_http_write_fails_the_http_side_effect_case() {
     let writer = candidate(
         scratch.path(),
         &format!(
-            "if [ \"$1\" = '{HTTP_FLAG}' ]; then : > \"$CAREERBREW_HOME/planted-http\"; exec '{}' -B '{}'; fi\nexec '{}' -B -m careerbrew \"$@\"",
+            "{}\nif [ \"$1\" = '{HTTP_FLAG}' ]; then : > \"$CAREERBREW_HOME/planted-http\"; exec '{}' -B '{}'; fi\nexec '{}' -B -m careerbrew \"$@\"",
+            data_dispatch("", ""),
             python().display(),
             root().join("xtask/tests/fixtures/capture/http_driver.py").display(),
             python().display(),
@@ -510,11 +557,13 @@ fn a_dead_http_candidate_fails_every_case_and_counts_denied_ones() {
     assert!(started.elapsed() < std::time::Duration::from_secs(120));
 }
 
-/// A candidate body that serves the Python HTTP driver for the HTTP flag and
-/// runs `body` otherwise.
+/// A candidate body that serves the Python HTTP and DATA drivers for their
+/// flags, runs the Python CLI for the role case, and runs `body` otherwise.
 fn http_then(body: &str) -> String {
     format!(
-        "if [ \"$1\" = '{HTTP_FLAG}' ]; then exec '{}' -B '{}'; fi\n{body}",
+        "{}\nif [ \"$1\" = jobs ]; then exec '{}' -B -m careerbrew \"$@\"; fi\nif [ \"$1\" = '{HTTP_FLAG}' ]; then exec '{}' -B '{}'; fi\n{body}",
+        data_dispatch("", ""),
+        python().display(),
         python().display(),
         root()
             .join("xtask/tests/fixtures/capture/http_driver.py")
@@ -577,4 +626,124 @@ fn an_unregistered_local_path_is_refused() {
     assert!(String::from_utf8_lossy(&result.stderr)
         .contains("case actions-json prints a local path with no registered normalization rule"));
     assert!(!out.exists());
+}
+
+/// Runs verify with the given candidate and returns its exit code and record.
+fn verify_with(dir: &Path, path: &Path) -> (Option<i32>, serde_json::Value) {
+    let out = dir.join("verify.json");
+    let result = verify("rust-03", &out)
+        .arg("--test-candidate")
+        .arg(path)
+        .output()
+        .unwrap();
+    assert!(out.exists(), "{}", String::from_utf8_lossy(&result.stderr));
+    (result.status.code(), read(&out))
+}
+
+/// A candidate with the given DATA dispatch first; HTTP and CLI go to Python.
+fn data_candidate(dir: &Path, dispatch: &str) -> PathBuf {
+    candidate(
+        dir,
+        &format!(
+            "{dispatch}\nif [ \"$1\" = '{HTTP_FLAG}' ]; then exec '{}' -B '{}'; fi\nexec '{}' -B -m careerbrew \"$@\"",
+            python().display(),
+            root()
+                .join("xtask/tests/fixtures/capture/http_driver.py")
+                .display(),
+            python().display(),
+        ),
+    )
+}
+
+#[test]
+fn a_planted_wrong_data_value_fails_its_data_case() {
+    // The writer of case 3 serializes a changed record; its reader then
+    // returns another value than the oracle's.
+    let scratch = tempfile::tempdir().unwrap();
+    let wrong = data_candidate(
+        scratch.path(),
+        &data_dispatch(
+            "if [ \"$2\" = 3 ] && [ \"$3\" = writer ]; then CAREERBREW_DATA_CONTRACT_CONTROL=json-one; export CAREERBREW_DATA_CONTRACT_CONTROL; fi",
+            "",
+        ),
+    );
+    let (code, value) = verify_with(scratch.path(), &wrong);
+    assert_eq!(code, Some(1));
+    // Case 9 rewrites the same record "if changed", so the wrong record also
+    // fails it: the defect shows first in case 3 and carries on.
+    assert_eq!(value["failed_cases"][0], "data:3");
+    assert!(value["violations"]["contract"].as_u64().unwrap() > 0);
+    let case = value["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["case"] == "data:3")
+        .unwrap()
+        .clone();
+    assert_eq!(case["calls_match"], false);
+}
+
+#[test]
+fn a_planted_duplicate_write_fails_its_data_case() {
+    // The reader of case 2 writes its target again (same bytes, new mtime):
+    // the final state matches, only the write trace sees it.
+    let scratch = tempfile::tempdir().unwrap();
+    let twice = data_candidate(
+        scratch.path(),
+        &data_dispatch(
+            "",
+            "if [ \"$2\" = 2 ] && [ \"$3\" = reader ]; then /usr/bin/touch \"$CAREERBREW_DATA_OWNED/data/contract/text.txt\"; fi",
+        ),
+    );
+    let (code, value) = verify_with(scratch.path(), &twice);
+    assert_eq!(code, Some(1));
+    assert_eq!(value["failed_cases"], serde_json::json!(["data:2"]));
+    assert!(value["violations"]["duplicate_writes"].as_u64().unwrap() > 0);
+    assert_eq!(value["violations"]["contract"], 0);
+    assert_eq!(value["violations"]["side_effect"], 0);
+}
+
+#[test]
+fn a_planted_role_bypass_fails_the_role_case() {
+    // On a corporate machine the candidate runs a job-hunt command and
+    // exits 0 where the oracle refuses.
+    let scratch = tempfile::tempdir().unwrap();
+    let bypass = data_candidate(
+        scratch.path(),
+        &format!(
+            "{}\nif [ \"$1\" = jobs ]; then exit 0; fi",
+            data_dispatch("", "")
+        ),
+    );
+    let (code, value) = verify_with(scratch.path(), &bypass);
+    assert_eq!(code, Some(1));
+    assert_eq!(value["failed_cases"], serde_json::json!(["role:jobs-list"]));
+    assert_eq!(value["violations"]["role"], 1);
+    assert_eq!(value["violations"]["contract"], 0);
+}
+
+#[test]
+fn a_planted_canary_leak_counts_once_in_the_case_that_leaked() {
+    // The reader of case 2 copies the synthetic canary into a new file. The
+    // file stays for cases 3 to 10, but only case 2 leaked it.
+    let scratch = tempfile::tempdir().unwrap();
+    let leak = data_candidate(
+        scratch.path(),
+        &data_dispatch(
+            "",
+            "if [ \"$2\" = 2 ] && [ \"$3\" = reader ]; then printf 'SYNTHETIC-DATA-CANARY-8H3' > \"$CAREERBREW_DATA_OWNED/leak.txt\"; fi",
+        ),
+    );
+    let (code, value) = verify_with(scratch.path(), &leak);
+    assert_eq!(code, Some(1));
+    assert_eq!(value["failed_cases"], serde_json::json!(["data:2"]));
+    assert_eq!(value["violations"]["privacy"], 1);
+    let leaked: Vec<_> = value["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|case| case["canary_leaked"] == true)
+        .map(|case| case["case"].clone())
+        .collect();
+    assert_eq!(leaked, vec![serde_json::json!("data:2")]);
 }
