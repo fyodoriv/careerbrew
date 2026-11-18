@@ -76,7 +76,7 @@ fn verify_with_registered_sets_passes_with_zero_home_writes() {
     assert_eq!(record["contracts"], serde_json::json!(["pure-vectors"]));
     assert_eq!(
         record["vector_sets"],
-        serde_json::json!(["paths", "settings"])
+        serde_json::json!(["clock", "paths", "settings"])
     );
     assert_eq!(record["failed_cases"], serde_json::json!([]));
     assert_eq!(record["passed"], true);
@@ -107,6 +107,27 @@ fn a_planted_home_write_is_counted_and_fails_the_record() {
     assert!(
         !home.path().join("planted.txt").exists(),
         "verify must remove its planted file"
+    );
+}
+
+#[test]
+fn a_planted_wrong_clock_vector_fails_its_case() {
+    let scratch = tempfile::tempdir().unwrap();
+    let home = tempfile::tempdir().unwrap();
+    let out = scratch.path().join("verify.json");
+    let run = verify(
+        "rust-02",
+        home.path(),
+        &out,
+        &["--test-wrong-vector", "clock"],
+    );
+    assert_eq!(run.status.code(), Some(1), "{run:?}");
+    let record = read(&out);
+    assert_eq!(record["passed"], false);
+    assert_eq!(record["planted_wrong_vector"], "clock");
+    assert_eq!(
+        record["failed_cases"],
+        serde_json::json!(["clock:day-bounds-ny-spring"])
     );
 }
 

@@ -94,6 +94,7 @@ __pycache__/
 !/crates/purevec/Cargo.toml
 !/crates/purevec/src/
 /crates/purevec/src/*
+!/crates/purevec/src/clock.rs
 !/crates/purevec/src/lib.rs
 !/crates/purevec/src/main.rs
 !/crates/purevec/src/paths.rs
@@ -155,6 +156,7 @@ __pycache__/
 !/xtask/tests/fixtures/depvec/runtime.json
 !/xtask/tests/fixtures/purevec/
 /xtask/tests/fixtures/purevec/*
+!/xtask/tests/fixtures/purevec/clock.json
 !/xtask/tests/fixtures/purevec/driver.py
 !/xtask/tests/fixtures/purevec/paths.json
 !/xtask/tests/fixtures/purevec/settings.json

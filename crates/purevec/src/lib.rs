@@ -1,9 +1,10 @@
 //! The rust-02 pure value vector candidate: maps each synthetic vector of a
 //! set to an output, in the typed value form of `crates/depvec/src/canon.rs`.
-//! Sets: `paths` and `settings`. A set is one module and one
+//! Sets: `clock`, `paths` and `settings`. A set is one module and one
 //! line in [`SETS`].
 use serde_json::{json, Value};
 
+mod clock;
 mod paths;
 mod settings;
 
@@ -15,6 +16,7 @@ type Set = (&'static str, fn(&str, &Value) -> Result<Value, String>);
 /// pull requests merge cleanly.
 #[rustfmt::skip]
 pub const SETS: &[Set] = &[
+    ("clock", clock::map),
     ("paths", paths::map),
     ("settings", settings::run),
 ];
