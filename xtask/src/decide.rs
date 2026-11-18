@@ -392,6 +392,7 @@ pub mod controls {
             "schema": VERIFY_SCHEMA, "step": "rust-03",
             "checks": [{"id": "actions-json", "passed": true}],
             "violations": violations,
+            "unobserved_violations": [], "missing_contracts": [],
         })
     }
 
@@ -399,6 +400,8 @@ pub mod controls {
         let regime = |state: &str| {
             json!({
                 "cache_state": state, "pair_ids": (1..=30).collect::<Vec<u64>>(), "cached": 0,
+                "oracle_cpu_us": vec![100_000u64; 30],
+                "oracle_tree_max_rss_bytes": vec![50_000_000u64; 30],
                 "candidate_cpu_us": vec![cpu; 30], "candidate_tree_max_rss_bytes": vec![rss; 30],
             })
         };
