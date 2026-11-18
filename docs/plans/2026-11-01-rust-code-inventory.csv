@@ -944,7 +944,7 @@ xtask/src/depvec.rs,keep-native,rust-00,rust-01 dependency vector verify with pl
 xtask/tests/depvec.rs,keep-native,rust-00,rust-01 verify controls against the Python vector oracle with a planted wrong vector
 xtask/tests/fixtures/depvec/driver.py,port,rust-27,Retire the rust-01 Python dependency vector oracle with the Python migration oracle
 crates/purevec/src/hash.rs,keep-native,rust-00,rust-02 hash vector set: the changes._h input hash primitive that rust-24 reuses
-crates/purevec/src/lib.rs,keep-native,rust-00,rust-02 pure value vector registry and runner (no sets yet)
+crates/purevec/src/lib.rs,keep-native,rust-00,rust-02 pure value vector registry and runner
 crates/purevec/src/main.rs,keep-native,rust-00,rust-02 pure value vector candidate binary for migration verify and measure
 crates/purevec/tests/cli.rs,keep-native,rust-00,rust-02 pure value vector binary controls
 xtask/tests/purevec.rs,keep-native,rust-00,rust-02 vector step controls: four commands accept it and a planted home write is counted
