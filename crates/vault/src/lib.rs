@@ -89,8 +89,11 @@ pub fn decrypt_like_python(cipher: &fernet::Fernet, token: &str) -> Result<Vec<u
         .get(1..9)
         .and_then(|b| <[u8; 8]>::try_from(b).ok())
         .map_or(0, u64::from_be_bytes);
+    // The crate adds 60 s to this clock without an overflow check. Keep the
+    // sum in range, so a stamp near u64::MAX cannot panic a debug build.
+    let clock = now.max(stamp).min(u64::MAX - 60);
     cipher
-        .decrypt_at_time(token, None, now.max(stamp))
+        .decrypt_at_time(token, None, clock)
         .map_err(|_| VaultError)
 }
 
@@ -114,5 +117,17 @@ mod tests {
     #[test]
     fn malformed_envelope_refuses_without_a_value() {
         assert!(open(Some(KEY), b"CBV1\n!").is_err());
+    }
+
+    #[test]
+    fn a_stamp_near_the_u64_limit_opens_or_fails_without_overflow() {
+        let cipher = fernet::Fernet::new(KEY).unwrap();
+        let token = cipher.encrypt_at_time(b"synthetic", u64::MAX);
+        assert!(matches!(decrypt_like_python(&cipher, &token), Ok(b) if b == b"synthetic"));
+        let mut raw = general_purpose::URL_SAFE.decode(&token).unwrap();
+        let last = raw.len() - 1;
+        raw[last] ^= 1;
+        let tampered = general_purpose::URL_SAFE.encode(raw);
+        assert!(decrypt_like_python(&cipher, &tampered).is_err());
     }
 }
