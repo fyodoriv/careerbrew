@@ -96,6 +96,7 @@ __pycache__/
 /crates/purevec/src/*
 !/crates/purevec/src/lib.rs
 !/crates/purevec/src/main.rs
+!/crates/purevec/src/paths.rs
 !/crates/purevec/tests/
 /crates/purevec/tests/*
 !/crates/purevec/tests/cli.rs
@@ -154,6 +155,7 @@ __pycache__/
 !/xtask/tests/fixtures/purevec/
 /xtask/tests/fixtures/purevec/*
 !/xtask/tests/fixtures/purevec/driver.py
+!/xtask/tests/fixtures/purevec/paths.json
 !/xtask/tests/fixtures/i01/
 /xtask/tests/fixtures/i01/*
 !/xtask/tests/fixtures/i01/pending-identities-v1.tsv

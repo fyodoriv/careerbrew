@@ -1,15 +1,17 @@
 //! The rust-02 pure value vector candidate: maps each synthetic vector of a
 //! set to an output, in the typed value form of `crates/depvec/src/canon.rs`.
-//! It has no sets yet; the setting, path, clock and hash sets come one per
-//! pull request. A set is one line in [`SETS`].
+//! Sets: `paths`; the setting, clock and hash sets come one per pull
+//! request. A set is one line in [`SETS`].
 use serde_json::{json, Value};
+
+mod paths;
 
 /// One vector set: its name and the function that maps one vector's `op`
 /// and `input` to an output value.
 type Set = (&'static str, fn(&str, &Value) -> Result<Value, String>);
 
 /// The registry: one line per vector set.
-pub const SETS: &[Set] = &[];
+pub const SETS: &[Set] = &[("paths", paths::map)];
 
 /// Runs every vector of `fixture` through the named set and returns
 /// `{"set", "results": [{"id", "output"}]}`. An unknown set is refused.

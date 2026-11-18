@@ -705,8 +705,8 @@ like `rust-01` (row `RUST_02` in `xtask/src/depvec.rs`). The DATA and role
 contracts do not apply: the vectors make no writes and use no roles.
 
 - **Vector set:** a fixture `xtask/tests/fixtures/purevec/<set>.json`, in the
-  rust-01 shape. There are no sets yet; the setting, path, clock and hash
-  sets come one per pull request.
+  rust-01 shape. Sets: `paths`; the setting, clock and hash sets come one
+  per pull request.
 - **Oracle:** `xtask/tests/fixtures/purevec/driver.py <set> <file>`, or
   `--all` (prints the set names) for `baseline` and `measure`.
 - **Candidate:** `careerbrew-purevec <set> <file>` or `--all`
@@ -715,7 +715,7 @@ contracts do not apply: the vectors make no writes and use no roles.
   also covers the driver and the five Python inputs), a `measure` candidate
   (`target/debug/careerbrew-purevec --all`) and `unmeasured` noise floors
   for macOS and Linux. All four commands accept `--step rust-02`.
-- **No sets yet:** verify records one failed case, `no-vector-sets`, so a
+- **With no sets:** verify records one failed case, `no-vector-sets`, so a
   record with 0 vectors never passes.
 - **Real-home writes:** verify snapshots the caller's real homes
   (the repo's `private/` folder, careerbrew's default data folder, and a
@@ -734,6 +734,24 @@ contracts do not apply: the vectors make no writes and use no roles.
   `work/feed/.lock`), so a run that overlaps one fails `real-home-writes`
   although neither side wrote. Stop the watcher before a verify run, and
   rerun once before you trust a failure of that case.
+- **Set `paths` (69 vectors):** `careerbrew.paths` with `os.environ`
+  replaced by the vector's `env` map, through `mock.patch.dict` on the
+  oracle side and an injected map in `crates/purevec/src/paths.rs`. No side
+  creates or changes a folder (`data_root(create=False)`; `mkdir` and
+  `chmod` are rust-05). Ops: `data-root` (the folder pathlib prints: unset
+  reads `<repo>/private`, a value is used unstripped, `~` expands with the
+  map's `HOME`, the path is never resolved, and a relative value stays
+  relative), `data-root-refusal` (the exact refusal text when the value
+  holds only Python `str.isspace` characters, including U+001C to U+001F,
+  U+0085, U+00A0 and U+3000; null otherwise), `extra-knowledge` (false only
+  for exactly `0`) and `config-dir` (`<repo>/config`). The repo root prints
+  as `<repo>`, so no output holds a machine path. Python anchor:
+  `test_empty_careerbrew_home_is_an_error_not_the_real_data`
+  (`tests/unit/test_regrade_notion.py`). Known gaps: `~user` reads the
+  account database in Python, so the candidate refuses it (the vectors use
+  only a missing user, which both sides refuse); a `~` value with no `HOME`
+  in the map also reads the account database and is refused; `sub` and
+  `require_outside_data_root` touch the file system and stay for rust-05.
 - **Measure is per process:** both sides run every set with `--all`, so a
   ratio covers the whole step, not one slice. Each slice PR re-runs
   `baseline` (its source hash changes). The verdict is component parity
@@ -1314,7 +1332,7 @@ is `rust-01`.
 | --- | --- | --- | --- |
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
 | `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
-| `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: no vector sets yet; `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only |
+| `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: set `paths` (std only); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only |
 | `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`calendar`, `code-parse`, `fernet`, `fsrs`, `json-yaml` and `runtime` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
 | `experiments/hash/` | `careerbrew-hash-experiment` | the pure `changes._h` hash for a supported synthetic JSON subset. It refuses values outside that subset. | none: component parity only |
 
