@@ -30,17 +30,41 @@ pub struct Step {
     /// `verify` also compares the HTTP handler contract (the capture-http
     /// fixture cases) when true.
     pub http_contract: bool,
+    /// Extra files, relative to the repo root, hashed into the baseline and
+    /// measure source hash (a vector step's driver and the Python it reads).
+    pub sources: &'static [&'static str],
 }
 
-pub const STEPS: &[Step] = &[Step {
-    // rust-03 ports the native CLI with one read-only pilot: the action catalog.
-    id: "rust-03",
-    oracle: &["-B", "-m", "careerbrew", "actions", "--json"],
-    cases: &[("actions-json", &["actions", "--json"])],
-    candidate: None,
-    // The action catalog is also served at /api/actions.
-    http_contract: true,
-}];
+pub const STEPS: &[Step] = &[
+    Step {
+        // rust-02 is a vector step (`depvec::RUST_02`): verify compares pure
+        // value vectors, so it has no CLI cases. Its oracle and candidate run
+        // every vector set in one process with `--all`.
+        id: "rust-02",
+        oracle: &["-B", "xtask/tests/fixtures/purevec/driver.py", "--all"],
+        cases: &[],
+        candidate: Some("target/debug/careerbrew-purevec"),
+        http_contract: false,
+        sources: &[
+            "xtask/tests/fixtures/purevec/driver.py",
+            "src/careerbrew/__init__.py",
+            "src/careerbrew/config.py",
+            "src/careerbrew/paths.py",
+            "src/careerbrew/changes.py",
+            "src/careerbrew/calendar.py",
+        ],
+    },
+    Step {
+        // rust-03 ports the native CLI with one read-only pilot: the action catalog.
+        id: "rust-03",
+        oracle: &["-B", "-m", "careerbrew", "actions", "--json"],
+        cases: &[("actions-json", &["actions", "--json"])],
+        candidate: None,
+        // The action catalog is also served at /api/actions.
+        http_contract: true,
+        sources: &[],
+    },
+];
 
 pub fn step(id: &str) -> Result<&'static Step, String> {
     STEPS
@@ -92,9 +116,10 @@ pub(crate) fn dirty(root: &Path) -> Result<bool, String> {
     Ok(!stdout.trim().is_empty())
 }
 
-/// The capture sources plus the baseline and collector sources.
-fn hashed_sources(root: &Path) -> Result<Value, String> {
-    hashed_sources_with(root, &[])
+/// The capture sources, the baseline and collector sources, and the step's
+/// own sources (none for a CLI step, so its hash is unchanged).
+fn hashed_sources(root: &Path, step: &Step) -> Result<Value, String> {
+    hashed_sources_with(root, step.sources)
 }
 
 /// The capture sources, the baseline and collector sources, and `extra`.
@@ -140,12 +165,12 @@ pub fn record(
         return Err("CAREERBREW_HOME is set but empty".into());
     }
     let python_version = capture_actions::version(python)?;
-    let sources = hashed_sources(root)?;
+    let sources = hashed_sources(root, step)?;
     let fixtures = fixtures_sha256(root)?;
     let sources_sha256 = capture_actions::digest(sources.to_string().as_bytes());
     let args = step.oracle.iter().map(OsString::from).collect::<Vec<_>>();
     let (samples, summary, method) = sample(root, python, &args, runs, "oracle", "baseline")?;
-    if hashed_sources(root)? != sources || fixtures_sha256(root)? != fixtures {
+    if hashed_sources(root, step)? != sources || fixtures_sha256(root)? != fixtures {
         return Err("a relevant source changed during the baseline".into());
     }
     let (os, _) = resources::host_unit()?;

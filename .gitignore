@@ -89,6 +89,16 @@ __pycache__/
 !/crates/depvec/tests/
 /crates/depvec/tests/*
 !/crates/depvec/tests/cli.rs
+!/crates/purevec/
+/crates/purevec/*
+!/crates/purevec/Cargo.toml
+!/crates/purevec/src/
+/crates/purevec/src/*
+!/crates/purevec/src/lib.rs
+!/crates/purevec/src/main.rs
+!/crates/purevec/tests/
+/crates/purevec/tests/*
+!/crates/purevec/tests/cli.rs
 !/rust-toolchain.toml
 !/.cargo/
 /.cargo/*
@@ -129,6 +139,7 @@ __pycache__/
 !/xtask/tests/measure.rs
 !/xtask/tests/verify.rs
 !/xtask/tests/depvec.rs
+!/xtask/tests/purevec.rs
 !/xtask/tests/fixtures/
 /xtask/tests/fixtures/*
 !/xtask/tests/fixtures/depvec/
@@ -140,6 +151,9 @@ __pycache__/
 !/xtask/tests/fixtures/depvec/fernet.json
 !/xtask/tests/fixtures/depvec/fsrs.json
 !/xtask/tests/fixtures/depvec/runtime.json
+!/xtask/tests/fixtures/purevec/
+/xtask/tests/fixtures/purevec/*
+!/xtask/tests/fixtures/purevec/driver.py
 !/xtask/tests/fixtures/i01/
 /xtask/tests/fixtures/i01/*
 !/xtask/tests/fixtures/i01/pending-identities-v1.tsv

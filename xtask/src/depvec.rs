@@ -1,35 +1,90 @@
-//! `migration verify --step rust-01`: dependency vectors. Each vector set is
-//! a fixture `xtask/tests/fixtures/depvec/<set>.json` of `{id, op, input}`
-//! vectors. The Python driver (`driver.py`, careerbrew's own code) and the
-//! Rust candidate (`careerbrew-depvec`, maintained crates) each map every
-//! vector to an output; verify compares them per vector, as case
-//! `<set>:<id>`. The oracle must answer every vector; a candidate that
-//! fails, prints no valid answer, misses a vector or adds one fails cases.
+//! `migration verify --step <id>` for a vector step (`rust-01` dependency
+//! vectors, `rust-02` pure value vectors). Each vector set is a fixture
+//! `<fixtures>/<set>.json` of `{id, op, input}` vectors. The Python driver
+//! (careerbrew's own code) and the Rust candidate each map every vector to an
+//! output; verify compares them per vector, as case `<set>:<id>`. The oracle
+//! must answer every vector; a candidate that fails, prints no valid answer,
+//! misses a vector or adds one fails cases.
 //!
-//! Sets are found by their fixture files, so this file never changes for a
-//! new set. `--test-wrong-vector <set>` plants a wrong vector: the
-//! candidate gets the set's first input wrapped in another value, and that
-//! case must fail.
+//! Steps are rows of [`STEPS`]; they share the compare and record code. Sets
+//! are found by their fixture files, so this file never changes for a new
+//! set. `--test-wrong-vector <set>` plants a wrong vector: the candidate gets
+//! the set's first input wrapped in another value, and that case must fail.
+//! A step with `count_home_writes` also snapshots the caller's real homes
+//! (the repo's `private/` and a set `CAREERBREW_HOME`) before and after both sides and
+//! records the count of changed files; any change fails the record.
 use crate::{baseline, capture_actions, decide, verify};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::SystemTime;
 
-pub const STEP: &str = "rust-01";
-/// The candidate binary, relative to the repo root
-/// (`cargo build -p careerbrew-depvec`).
-pub const CANDIDATE: &str = "target/debug/careerbrew-depvec";
-pub const DRIVER: &str = "xtask/tests/fixtures/depvec/driver.py";
-pub const FIXTURES: &str = "xtask/tests/fixtures/depvec";
+/// One registered vector step.
+pub struct VectorStep {
+    pub id: &'static str,
+    /// The cargo package that builds the candidate.
+    pub package: &'static str,
+    /// The candidate binary, relative to the repo root.
+    pub candidate: &'static str,
+    pub driver: &'static str,
+    pub fixtures: &'static str,
+    /// The record's `contracts` entry.
+    pub contract: &'static str,
+    /// Python sources the oracle reads, hashed into `sources_sha256`.
+    pub sources: &'static [&'static str],
+    /// True while the step has no vector sets yet: verify then records one
+    /// failed `no-vector-sets` case instead of refusing.
+    pub allow_no_sets: bool,
+    /// Count writes to the caller's real homes during verify.
+    pub count_home_writes: bool,
+}
+
+pub const RUST_01: VectorStep = VectorStep {
+    id: "rust-01",
+    package: "careerbrew-depvec",
+    candidate: "target/debug/careerbrew-depvec",
+    driver: "xtask/tests/fixtures/depvec/driver.py",
+    fixtures: "xtask/tests/fixtures/depvec",
+    contract: "dependency-vectors",
+    sources: &["src/careerbrew/store.py"],
+    allow_no_sets: false,
+    count_home_writes: false,
+};
+
+pub const RUST_02: VectorStep = VectorStep {
+    id: "rust-02",
+    package: "careerbrew-purevec",
+    candidate: "target/debug/careerbrew-purevec",
+    driver: "xtask/tests/fixtures/purevec/driver.py",
+    fixtures: "xtask/tests/fixtures/purevec",
+    contract: "pure-vectors",
+    sources: &[
+        "src/careerbrew/__init__.py",
+        "src/careerbrew/config.py",
+        "src/careerbrew/paths.py",
+        "src/careerbrew/changes.py",
+        "src/careerbrew/calendar.py",
+    ],
+    allow_no_sets: true,
+    count_home_writes: true,
+};
+
+pub const STEPS: &[VectorStep] = &[RUST_01, RUST_02];
+
+/// The vector step with this id, if it is one.
+pub fn step(id: &str) -> Option<&'static VectorStep> {
+    STEPS.iter().find(|step| step.id == id)
+}
+
 /// The key a planted input is wrapped in.
 pub const PLANTED: &str = "planted-wrong-vector";
 
 /// Every vector set: its name (the fixture's file stem) and its vectors,
 /// sorted by name. A fixture whose `set` differs from its name, with no
 /// vectors, or with an empty or repeated id is refused.
-pub fn sets(root: &Path) -> Result<Vec<(String, Vec<Value>)>, String> {
-    let dir = root.join(FIXTURES);
+pub fn sets(root: &Path, step: &VectorStep) -> Result<Vec<(String, Vec<Value>)>, String> {
+    let dir = root.join(step.fixtures);
     let mut names = BTreeSet::new();
     for entry in std::fs::read_dir(&dir).map_err(|_| "cannot list the vector sets")? {
         let path = entry.map_err(|_| "cannot list the vector sets")?.path();
@@ -38,7 +93,7 @@ pub fn sets(root: &Path) -> Result<Vec<(String, Vec<Value>)>, String> {
             names.insert(stem.ok_or("vector set name is not UTF-8")?.to_owned());
         }
     }
-    if names.is_empty() {
+    if names.is_empty() && !step.allow_no_sets {
         return Err("no vector sets".into());
     }
     names
@@ -157,17 +212,21 @@ fn run_side(
     Ok((exit, stdout))
 }
 
-fn sources_sha256(root: &Path, sets: &[(String, Vec<Value>)]) -> Result<String, String> {
+fn sources_sha256(
+    root: &Path,
+    step: &VectorStep,
+    sets: &[(String, Vec<Value>)],
+) -> Result<String, String> {
     let mut map = serde_json::Map::new();
     let mut names = vec![
         "xtask/src/depvec.rs".to_owned(),
         "xtask/src/verify.rs".to_owned(),
-        DRIVER.to_owned(),
-        "src/careerbrew/store.py".to_owned(),
+        step.driver.to_owned(),
     ];
+    names.extend(step.sources.iter().map(|name| (*name).to_owned()));
     names.extend(
         sets.iter()
-            .map(|(name, _)| format!("{FIXTURES}/{name}.json")),
+            .map(|(name, _)| format!("{}/{name}.json", step.fixtures)),
     );
     for name in names {
         let bytes = std::fs::read(root.join(&name)).map_err(|_| "verify source missing")?;
@@ -178,15 +237,84 @@ fn sources_sha256(root: &Path, sets: &[(String, Vec<Value>)]) -> Result<String, 
     ))
 }
 
-/// The rust-01 verify record. `candidate` and `test_oracle` are the
-/// test-only overrides `verify` takes; `wrong` plants a wrong vector in
-/// that set.
+/// One file's state in a home snapshot: its size and modification time.
+/// Directories are listed but carry no state, so a new file counts once.
+type FileState = Option<(u64, Option<SystemTime>)>;
+
+/// The caller's real homes: careerbrew's default data folder (`private/`
+/// in the repo root, as `paths.data_root` uses when `CAREERBREW_HOME` is
+/// unset) and a set `CAREERBREW_HOME`. A home inside another one is left
+/// out, so one write counts once.
+pub(crate) fn real_homes(root: &Path) -> Vec<PathBuf> {
+    let mut homes = vec![root.join("private")];
+    if let Some(home) = std::env::var_os("CAREERBREW_HOME").filter(|home| !home.is_empty()) {
+        homes.push(PathBuf::from(home));
+    }
+    let homes: Vec<PathBuf> = homes
+        .into_iter()
+        .map(|home| home.canonicalize().unwrap_or(home))
+        .collect();
+    let mut kept: Vec<PathBuf> = Vec::new();
+    for home in &homes {
+        let inside_other = homes
+            .iter()
+            .any(|other| other != home && home.starts_with(other));
+        if !inside_other && !kept.contains(home) {
+            kept.push(home.clone());
+        }
+    }
+    kept
+}
+
+/// Every path under `homes` with its state. It never follows a symbolic
+/// link; a folder it cannot list stays one entry. A missing home is empty.
+pub(crate) fn snapshot(homes: &[PathBuf]) -> BTreeMap<PathBuf, FileState> {
+    let mut seen = BTreeMap::new();
+    let mut stack: Vec<PathBuf> = homes.to_vec();
+    while let Some(path) = stack.pop() {
+        let Ok(meta) = std::fs::symlink_metadata(&path) else {
+            continue;
+        };
+        if meta.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&path) {
+                stack.extend(entries.filter_map(|entry| entry.ok().map(|e| e.path())));
+            }
+            seen.insert(path, None);
+        } else {
+            seen.insert(path, Some((meta.len(), meta.modified().ok())));
+        }
+    }
+    seen
+}
+
+/// The count of paths added, removed or changed between two snapshots.
+pub(crate) fn changed(
+    before: &BTreeMap<PathBuf, FileState>,
+    after: &BTreeMap<PathBuf, FileState>,
+) -> usize {
+    let added_or_changed = after
+        .iter()
+        .filter(|(path, state)| before.get(*path) != Some(*state))
+        .count();
+    let removed = before
+        .keys()
+        .filter(|path| !after.contains_key(*path))
+        .count();
+    added_or_changed + removed
+}
+
+/// The verify record of a vector step. `candidate` and `test_oracle` are the
+/// test-only overrides `verify` takes; `wrong` plants a wrong vector in that
+/// set; `plant_write` (test-only) writes one file of that name into the
+/// caller's `CAREERBREW_HOME` between the snapshots, which must be counted.
 pub fn record(
     root: &Path,
+    step: &VectorStep,
     python: &Path,
     candidate: Option<&Path>,
     test_oracle: Option<&Path>,
     wrong: Option<&str>,
+    plant_write: Option<&str>,
 ) -> Result<Value, String> {
     if !python.is_absolute() {
         return Err("--python must be an absolute path".into());
@@ -198,28 +326,53 @@ pub fn record(
     if std::env::var_os("CAREERBREW_HOME").is_some_and(|home| home.is_empty()) {
         return Err("CAREERBREW_HOME is set but empty".into());
     }
+    let planted_home = match plant_write {
+        None => None,
+        Some(_) if !step.count_home_writes => {
+            return Err(
+                "--test-plant-home-write applies only to a step that counts home writes".into(),
+            )
+        }
+        Some(name) => {
+            if name.is_empty() || name.contains('/') || name == "." || name == ".." {
+                return Err("--test-plant-home-write must be a plain file name".into());
+            }
+            let home = std::env::var_os("CAREERBREW_HOME")
+                .map(PathBuf::from)
+                .filter(|home| home.is_absolute() && home.is_dir())
+                .ok_or("--test-plant-home-write needs an absolute CAREERBREW_HOME folder")?;
+            let path = home.join(name);
+            if std::fs::symlink_metadata(&path).is_ok() {
+                return Err("--test-plant-home-write names an existing file".into());
+            }
+            Some(path)
+        }
+    };
     let test_candidate = candidate.is_some();
-    let candidate = candidate.map_or_else(|| root.join(CANDIDATE), Path::to_path_buf);
+    let candidate = candidate.map_or_else(|| root.join(step.candidate), Path::to_path_buf);
     if !candidate.is_absolute() {
         return Err("the candidate must be an absolute path".into());
     }
     if !candidate.is_file() {
-        return Err(
-            "the candidate binary does not exist; run cargo build -p careerbrew-depvec".into(),
-        );
+        return Err(format!(
+            "the candidate binary does not exist; run cargo build -p {}",
+            step.package
+        ));
     }
-    let sets = sets(root)?;
+    let sets = sets(root, step)?;
     if wrong.is_some_and(|name| !sets.iter().any(|(set, _)| set == name)) {
         return Err("--test-wrong-vector names no vector set".into());
     }
-    let hash = sources_sha256(root, &sets)?;
+    let hash = sources_sha256(root, step, &sets)?;
     let candidate_sha256 = capture_actions::digest(
         &std::fs::read(&candidate).map_err(|_| "cannot read the candidate binary")?,
     );
+    let homes = real_homes(root);
+    let before = step.count_home_writes.then(|| snapshot(&homes));
     let mut cases = Vec::new();
     for (set, vectors) in &sets {
         let scratch = tempfile::tempdir().map_err(|_| "cannot create verify home")?;
-        let write = |file: &str, vectors: &[Value]| -> Result<std::path::PathBuf, String> {
+        let write = |file: &str, vectors: &[Value]| -> Result<PathBuf, String> {
             let path = scratch.path().join(file);
             std::fs::write(&path, json!({"set": set, "vectors": vectors}).to_string())
                 .map_err(|_| "cannot write the vectors file".to_owned())?;
@@ -231,7 +384,7 @@ pub fn record(
         } else {
             oracle_file.clone()
         };
-        let driver = root.join(DRIVER);
+        let driver = root.join(step.driver);
         let (exit, stdout) = run_side(
             root,
             scratch.path(),
@@ -266,7 +419,30 @@ pub fn record(
         };
         cases.extend(compare(set, vectors, &expected, actual.as_ref())?);
     }
-    if sources_sha256(root, &sets)? != hash {
+    if sets.is_empty() {
+        // Only a step with `allow_no_sets` gets here: zero vectors prove
+        // nothing, so the record fails rather than passing trivially.
+        cases.push(json!({"case": "no-vector-sets", "passed": false}));
+    }
+    if let Some(path) = &planted_home {
+        use std::io::Write as _;
+        // create_new: never truncate a file this run did not create.
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path)
+            .map_err(|_| "--test-plant-home-write names an existing file")?;
+        file.write_all(b"planted home write\n")
+            .map_err(|_| "cannot plant the home write")?;
+    }
+    let home_writes = before.map(|before| changed(&before, &snapshot(&homes)));
+    if let Some(path) = &planted_home {
+        std::fs::remove_file(path).map_err(|_| "cannot remove the planted home write")?;
+    }
+    if home_writes.is_some_and(|count| count > 0) {
+        cases.push(json!({"case": "real-home-writes", "passed": false}));
+    }
+    if sources_sha256(root, step, &sets)? != hash {
         return Err("a relevant source changed during verify".into());
     }
     let failed: Vec<String> = cases
@@ -281,9 +457,9 @@ pub fn record(
             ((*name).to_owned(), json!(count))
         })
         .collect();
-    Ok(json!({
+    let mut record = json!({
         "schema": verify::SCHEMA,
-        "step": STEP,
+        "step": step.id,
         "source_revision": baseline::revision(root)?,
         "source_tree_dirty": baseline::dirty(root)?,
         "sources_sha256": hash,
@@ -291,7 +467,7 @@ pub fn record(
         "test_oracle": test_oracle.is_some(),
         "planted_wrong_vector": wrong,
         "candidate_sha256": candidate_sha256,
-        "contracts": ["dependency-vectors"],
+        "contracts": [step.contract],
         "vector_sets": sets.iter().map(|(name, _)| name.clone()).collect::<Vec<_>>(),
         "case_count": cases.len(),
         "passed_count": cases.len() - failed.len(),
@@ -302,22 +478,31 @@ pub fn record(
         "unobserved_violations": verify::UNOBSERVED,
         "missing_contracts": verify::MISSING_CONTRACTS,
         "cases": cases,
-    }))
+    });
+    if let Some(count) = home_writes {
+        record["real_home_writes"] = json!(count);
+        record["real_homes_checked"] = json!(homes.len());
+        record["planted_home_write"] = json!(plant_write.is_some());
+    }
+    Ok(record)
 }
 
 /// Self-test controls on synthetic answers: equal answers pass, a planted
 /// wrong output fails only its case, a missing answer fails, an extra answer
-/// fails, and a planted input changes only the first vector.
+/// fails, a planted input changes only the first vector, a planted home
+/// write is counted, and every vector step is registered once.
 pub mod controls {
     use super::*;
 
     pub fn run() -> usize {
-        let cases: [fn(); 5] = [
+        let cases: [fn(); 7] = [
             equal_answers_pass,
             a_wrong_output_fails_its_case,
             a_missing_answer_fails,
             an_extra_answer_fails,
             a_planted_input_changes_only_the_first_vector,
+            a_planted_home_write_is_counted,
+            each_vector_step_is_registered_once,
         ];
         for case in cases {
             case();
@@ -405,5 +590,39 @@ pub mod controls {
             .is_err(),
             "a repeated id must be refused"
         );
+    }
+
+    fn a_planted_home_write_is_counted() {
+        let home = tempfile::tempdir().expect("control home");
+        std::fs::create_dir(home.path().join("work")).expect("control folder");
+        std::fs::write(home.path().join("work/kept.txt"), b"x").expect("control file");
+        let homes = [home.path().to_path_buf()];
+        let before = snapshot(&homes);
+        assert_eq!(changed(&before, &snapshot(&homes)), 0, "no write counts 0");
+        std::fs::write(home.path().join("work/planted.txt"), b"y").expect("planted");
+        let after = snapshot(&homes);
+        assert_eq!(changed(&before, &after), 1, "a planted write must count 1");
+        std::fs::remove_file(home.path().join("work/kept.txt")).expect("remove");
+        assert_eq!(
+            changed(&before, &snapshot(&homes)),
+            2,
+            "a removed file must count too"
+        );
+        let missing = [home.path().join("absent")];
+        assert!(snapshot(&missing).is_empty(), "a missing home is empty");
+    }
+
+    fn each_vector_step_is_registered_once() {
+        let ids: BTreeSet<&str> = STEPS.iter().map(|step| step.id).collect();
+        assert_eq!(ids.len(), STEPS.len(), "a vector step is registered twice");
+        for id in ["rust-01", "rust-02"] {
+            let found = step(id).expect("a vector step is missing");
+            // rust-01 has no product path to time, so no baseline step.
+            if id != "rust-01" {
+                assert!(baseline::step(id).is_ok(), "{id} needs a baseline step");
+            }
+            assert!(found.candidate.ends_with(found.package));
+        }
+        assert!(step("rust-03").is_none(), "rust-03 is a CLI step");
     }
 }

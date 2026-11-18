@@ -769,13 +769,25 @@ pub fn record(
     candidate: Option<&Path>,
     test_oracle: Option<&Path>,
     wrong: Option<&str>,
+    plant_write: Option<&str>,
 ) -> Result<Value, String> {
-    // rust-01 has no CLI contract: it compares dependency vectors.
-    if id == depvec::STEP {
-        return depvec::record(root, python, candidate, test_oracle, wrong);
+    // A vector step (rust-01, rust-02) has no CLI contract: it compares vectors.
+    if let Some(step) = depvec::step(id) {
+        return depvec::record(
+            root,
+            step,
+            python,
+            candidate,
+            test_oracle,
+            wrong,
+            plant_write,
+        );
     }
     if wrong.is_some() {
         return Err("--test-wrong-vector applies only to a vector step".into());
+    }
+    if plant_write.is_some() {
+        return Err("--test-plant-home-write applies only to a vector step".into());
     }
     let step = baseline::step(id)?;
     if !python.is_absolute() {
@@ -854,6 +866,13 @@ pub fn record(
     }))
 }
 
+/// The test-only plants of a vector step: a wrong vector in one set, and a
+/// file written into the caller's `CAREERBREW_HOME` during verify.
+pub struct Plants<'a> {
+    pub wrong: Option<&'a str>,
+    pub home_write: Option<&'a str>,
+}
+
 /// Writes the record to a new absolute file. The record is written even when
 /// a case fails, so the caller can read which one.
 pub fn run(
@@ -862,16 +881,17 @@ pub fn run(
     python: &Path,
     candidate: Option<&Path>,
     test_oracle: Option<&Path>,
-    wrong: Option<&str>,
+    plants: Plants,
     output: &Path,
 ) -> Result<Value, String> {
+    let Plants { wrong, home_write } = plants;
     if !output.is_absolute() {
         return Err("--out must be an absolute path".into());
     }
     if output.exists() {
         return Err("verify output already exists".into());
     }
-    let record = record(root, id, python, candidate, test_oracle, wrong)?;
+    let record = record(root, id, python, candidate, test_oracle, wrong, home_write)?;
     capture_actions::write_receipt(&record, output)?;
     Ok(record)
 }
