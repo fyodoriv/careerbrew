@@ -1,7 +1,8 @@
 //! Controls for the rust-02 vector step (pure value vectors): all four
 //! migration commands (baseline, verify, measure, decide) accept
 //! `--step rust-02`; verify with the registered vector sets passes with
-//! zero real-home writes; a planted wrong vector fails its case; a planted write into
+//! zero real-home writes; a planted wrong vector in each set fails its case;
+//! a planted write into
 //! the caller's `CAREERBREW_HOME` is counted and fails the record; and the
 //! refusals (a wrong vector naming no set, a planted write without an
 //! absolute home or on a step that does not count writes, an empty
@@ -63,7 +64,7 @@ fn refused(result: &std::process::Output, text: &str, out: &Path) {
 }
 
 #[test]
-fn verify_with_the_registered_sets_passes_with_zero_home_writes() {
+fn verify_with_registered_sets_passes_with_zero_home_writes() {
     let scratch = tempfile::tempdir().unwrap();
     let home = tempfile::tempdir().unwrap();
     std::fs::write(home.path().join("kept.txt"), b"synthetic").unwrap();
@@ -73,10 +74,10 @@ fn verify_with_the_registered_sets_passes_with_zero_home_writes() {
     let record = read(&out);
     assert_eq!(record["step"], "rust-02");
     assert_eq!(record["contracts"], serde_json::json!(["pure-vectors"]));
-    assert!(record["vector_sets"]
-        .as_array()
-        .unwrap()
-        .contains(&serde_json::json!("settings")));
+    assert_eq!(
+        record["vector_sets"],
+        serde_json::json!(["paths", "settings"])
+    );
     assert_eq!(record["failed_cases"], serde_json::json!([]));
     assert_eq!(record["passed"], true);
     assert_eq!(record["real_home_writes"], 0);
@@ -146,6 +147,28 @@ fn a_planted_write_is_refused_where_writes_are_not_counted() {
         &["--test-plant-home-write", "planted.txt"],
     );
     refused(&run, "only to a vector step", &out);
+}
+
+#[test]
+fn a_planted_wrong_paths_vector_fails_its_case() {
+    let scratch = tempfile::tempdir().unwrap();
+    let home = tempfile::tempdir().unwrap();
+    let out = scratch.path().join("verify.json");
+    let run = verify(
+        "rust-02",
+        home.path(),
+        &out,
+        &["--test-wrong-vector", "paths"],
+    );
+    assert_eq!(run.status.code(), Some(1), "{run:?}");
+    let record = read(&out);
+    assert_eq!(record["passed"], false);
+    assert_eq!(record["planted_wrong_vector"], "paths");
+    assert_eq!(
+        record["failed_cases"],
+        serde_json::json!(["paths:root-unset"])
+    );
+    assert_eq!(record["violations"]["contract"], 1);
 }
 
 #[test]
