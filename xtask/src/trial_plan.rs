@@ -29,15 +29,21 @@ pub(crate) fn plan(
     if pairs < MIN_PAIRS {
         return Err("a trial plan needs at least 30 pairs per cache regime");
     }
-    Ok((1..=pairs).map(move |id| {
-        let baseline_first = (id % 2 == 1) == (cache == CacheRegime::Cold);
-        let order = if baseline_first {
-            [Arm::Baseline, Arm::Candidate]
-        } else {
-            [Arm::Candidate, Arm::Baseline]
-        };
-        PlannedPair { id, cache, order }
+    Ok((1..=pairs).map(move |id| PlannedPair {
+        id,
+        cache,
+        order: order(id, cache),
     }))
+}
+
+/// Which side runs first for one pair: cold odd IDs and warm even IDs start
+/// with the baseline. `measure` uses it directly for test-flag runs below 30.
+pub(crate) fn order(id: u64, cache: CacheRegime) -> [Arm; 2] {
+    if (id % 2 == 1) == (cache == CacheRegime::Cold) {
+        [Arm::Baseline, Arm::Candidate]
+    } else {
+        [Arm::Candidate, Arm::Baseline]
+    }
 }
 
 pub(crate) mod controls {

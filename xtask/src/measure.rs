@@ -1,16 +1,31 @@
-//! `migration measure --step <id>`: run a registered step's Rust candidate
-//! N times through the process-tree collector, the same way `baseline` runs
-//! the Python oracle, and write a content-free JSON record with the same
-//! shape (raw samples, p50 and p95). A step with no Rust candidate fails.
-//! Interim: the candidate runs alone in one warm regime. The protocol's
-//! paired oracle and candidate runs (`--pairs`) and the cold regime are not
-//! built yet.
-use crate::{baseline, capture_actions, resources};
+//! `migration measure --step <id> --python <path> --pairs <n>`: step 4 of the
+//! measurement protocol. For each cache regime (cold, then warm) it runs N
+//! pairs of the step's Python oracle and its Rust candidate through the
+//! process-tree collector. The trial planner fixes which side runs first in
+//! each pair. It writes one content-free `careerbrew-migration-measure-v1`
+//! record with a `regimes` list that `decide` reads.
+//!
+//! The two regimes (each side of each pair always gets a fresh synthetic
+//! home, so the data folder is never warm):
+//! - cold: no warm-up run, and each oracle run gets its own empty
+//!   `PYTHONPYCACHEPREFIX`, so Python compiles every module from source.
+//! - warm: one discarded warm-up run per side first. The oracle warm-up may
+//!   write bytecode into one regime-owned `PYTHONPYCACHEPREFIX`; the samples
+//!   then read it (with `-B`, so they write nothing).
+//!
+//! Every sample is a real execution: `cached` is always 0.
+use crate::trial_plan::{self, Arm, CacheRegime};
+use crate::{baseline, baseline_verdict, capture_actions, resources};
 use serde_json::{json, Value};
+use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 pub const SCHEMA: &str = "careerbrew-migration-measure-v1";
+pub const DEFAULT_PAIRS: usize = 30;
+/// The protocol's minimum pair count per regime; fewer need the test flag.
+pub const MIN_PAIRS: usize = 30;
+const HASHED: &[&str] = &["xtask/src/measure.rs", "xtask/src/trial_plan.rs"];
 
 /// A registered Rust candidate: the step id, the executable path relative to
 /// the repo root, and its arguments. The candidate must be read-only and must
@@ -55,41 +70,201 @@ fn candidate(root: &Path, id: &str, source: &Source) -> Result<(PathBuf, Vec<Str
     }
 }
 
+/// One side's command: program, arguments, and its warm-up arguments.
+struct Side {
+    name: &'static str,
+    program: PathBuf,
+    args: Vec<OsString>,
+    warmup_args: Vec<OsString>,
+    python: bool,
+}
+
+/// One real execution in a fresh synthetic home. `pycache` sets the bytecode
+/// folder for the oracle; `write_bytecode` lets the warm-up fill it.
+fn execute(
+    root: &Path,
+    side: &Side,
+    args: &[OsString],
+    pycache: Option<&Path>,
+    write_bytecode: bool,
+) -> Result<resources::Usage, String> {
+    let scratch = tempfile::tempdir().map_err(|_| "cannot create measure home")?;
+    let mut environment: BTreeMap<String, String> =
+        capture_actions::owned_environment(root, &scratch.path().join("owned"))?;
+    if environment
+        .get("CAREERBREW_HOME")
+        .is_none_or(|home| home.is_empty())
+    {
+        return Err("synthetic CAREERBREW_HOME is empty".into());
+    }
+    if side.python {
+        let fresh = scratch.path().join("pycache");
+        let folder = pycache.unwrap_or(&fresh);
+        if !folder.exists() {
+            std::fs::create_dir(folder).map_err(|_| "cannot prepare bytecode folder")?;
+        }
+        environment.insert(
+            "PYTHONPYCACHEPREFIX".into(),
+            folder.to_string_lossy().into_owned(),
+        );
+        if write_bytecode {
+            environment.remove("PYTHONDONTWRITEBYTECODE");
+        }
+    }
+    let usage = resources::measure_in(&side.program, args, Some(&environment), Some(root))?;
+    if !usage.passed() {
+        return Err(format!("{} run did not exit 0; measure refused", side.name));
+    }
+    Ok(usage)
+}
+
+#[derive(Default)]
+struct Series {
+    cpu: Vec<u64>,
+    rss: Vec<u64>,
+    wall: Vec<u64>,
+}
+
+impl Series {
+    fn push(&mut self, usage: &resources::Usage) {
+        self.cpu.push(
+            usage
+                .tree_user_cpu_us
+                .saturating_add(usage.tree_system_cpu_us),
+        );
+        self.rss.push(usage.tree_max_rss_bytes);
+        self.wall.push(usage.wall_us);
+    }
+
+    fn summary(&self) -> Value {
+        json!({
+            "cpu_us_p50": baseline::p50(&self.cpu),
+            "cpu_us_p95": baseline_verdict::cpu_p95(self.cpu.clone()),
+            "tree_max_rss_bytes_p50": baseline::p50(&self.rss),
+            "tree_max_rss_bytes_p95": baseline_verdict::cpu_p95(self.rss.clone()),
+            "wall_us_p50": baseline::p50(&self.wall),
+            "wall_us_p95": baseline_verdict::cpu_p95(self.wall.clone()),
+        })
+    }
+}
+
+fn regime(
+    root: &Path,
+    sides: &[Side; 2],
+    cache: CacheRegime,
+    pairs: usize,
+    method: &mut &'static str,
+) -> Result<Value, String> {
+    let warm = cache == CacheRegime::Warm;
+    // Regime-owned bytecode folder; it lives for this regime only.
+    let shared = tempfile::tempdir().map_err(|_| "cannot create bytecode folder")?;
+    let pycache = warm.then(|| shared.path().to_path_buf());
+    if warm {
+        for side in sides {
+            execute(root, side, &side.warmup_args, pycache.as_deref(), true)?;
+        }
+    }
+    let (mut oracle, mut candidate) = (Series::default(), Series::default());
+    let mut ids = Vec::with_capacity(pairs);
+    let mut first = None;
+    for id in 1..=pairs as u64 {
+        let order = trial_plan::order(id, cache);
+        if id == 1 {
+            first = Some(order);
+        }
+        for arm in order {
+            let (side, series) = match arm {
+                Arm::Baseline => (&sides[0], &mut oracle),
+                Arm::Candidate => (&sides[1], &mut candidate),
+            };
+            let usage = execute(root, side, &side.args, pycache.as_deref(), false)?;
+            *method = usage.tree_method;
+            series.push(&usage);
+        }
+        ids.push(id);
+    }
+    let name = |arm: &Arm| match arm {
+        Arm::Baseline => "oracle",
+        Arm::Candidate => "candidate",
+    };
+    Ok(json!({
+        "cache_state": if warm { "warm" } else { "cold" },
+        "pair_ids": ids,
+        "cached": 0,
+        "first": first.unwrap_or(trial_plan::order(1, cache)).iter().map(name).collect::<Vec<_>>(),
+        "oracle_cpu_us": oracle.cpu,
+        "oracle_tree_max_rss_bytes": oracle.rss,
+        "oracle_wall_us": oracle.wall,
+        "candidate_cpu_us": candidate.cpu,
+        "candidate_tree_max_rss_bytes": candidate.rss,
+        "candidate_wall_us": candidate.wall,
+        "summary": {"oracle": oracle.summary(), "candidate": candidate.summary()},
+    }))
+}
+
 pub fn record(
     root: &Path,
     id: &str,
+    python: &Path,
     source: &Source,
-    runs: usize,
-    allow_few_runs: bool,
+    pairs: usize,
+    allow_few_pairs: bool,
 ) -> Result<Value, String> {
-    if runs == 0 {
-        return Err("--runs must be at least 1".into());
+    if pairs == 0 {
+        return Err("--pairs must be at least 1".into());
     }
-    if runs < baseline::MIN_RUNS && !allow_few_runs {
+    if pairs < MIN_PAIRS && !allow_few_pairs {
         return Err(format!(
-            "--runs {runs} is below the protocol minimum of {}",
-            baseline::MIN_RUNS
+            "--pairs {pairs} is below the protocol minimum of {MIN_PAIRS}"
         ));
     }
     // A test override never makes a protocol record: it needs the test flag.
     let test_override = matches!(source, Source::TestOverride(_));
-    if test_override && !allow_few_runs {
-        return Err("--test-candidate needs --test-allow-few-runs".into());
+    if test_override && !allow_few_pairs {
+        return Err("--test-candidate needs --test-allow-few-pairs".into());
     }
+    let step = baseline::step(id)?;
     let (program, args) = candidate(root, id, source)?;
+    if !python.is_absolute() {
+        return Err("--python must be an absolute path".into());
+    }
     if std::env::var_os("CAREERBREW_HOME").is_some_and(|home| home.is_empty()) {
         return Err("CAREERBREW_HOME is set but empty".into());
     }
+    let python_version = capture_actions::version(python)?;
     // Binds only the candidate executable file, not files it may load.
     let binary = std::fs::read(&program).map_err(|_| "cannot read the Rust candidate")?;
     let candidate_sha256 = capture_actions::digest(&binary);
-    let sources = baseline::hashed_sources_with(root, &["xtask/src/measure.rs"])?;
+    let sources = baseline::hashed_sources_with(root, HASHED)?;
     let fixtures = baseline::fixtures_sha256(root)?;
     let sources_sha256 = capture_actions::digest(sources.to_string().as_bytes());
-    let os_args = args.iter().map(OsString::from).collect::<Vec<_>>();
-    let (samples, summary, method) =
-        baseline::sample(root, &program, &os_args, runs, "candidate", "measure")?;
-    if baseline::hashed_sources_with(root, &["xtask/src/measure.rs"])? != sources
+    let oracle_args = step.oracle.iter().map(OsString::from).collect::<Vec<_>>();
+    let sides = [
+        Side {
+            name: "oracle",
+            program: python.to_path_buf(),
+            warmup_args: oracle_args
+                .iter()
+                .filter(|arg| *arg != "-B")
+                .cloned()
+                .collect(),
+            args: oracle_args,
+            python: true,
+        },
+        Side {
+            name: "candidate",
+            program: program.clone(),
+            args: args.iter().map(OsString::from).collect(),
+            warmup_args: args.iter().map(OsString::from).collect(),
+            python: false,
+        },
+    ];
+    let mut method = "unknown";
+    let regimes = [CacheRegime::Cold, CacheRegime::Warm]
+        .into_iter()
+        .map(|cache| regime(root, &sides, cache, pairs, &mut method))
+        .collect::<Result<Vec<_>, _>>()?;
+    if baseline::hashed_sources_with(root, HASHED)? != sources
         || baseline::fixtures_sha256(root)? != fixtures
         || std::fs::read(&program)
             .map(|bytes| capture_actions::digest(&bytes))
@@ -99,37 +274,39 @@ pub fn record(
         return Err("a relevant source changed during the measure".into());
     }
     let (os, _) = resources::host_unit()?;
-    let mut command = vec!["<candidate>".to_owned()];
-    command.extend(args);
+    let mut oracle_command = vec!["<python>".to_owned()];
+    oracle_command.extend(step.oracle.iter().map(|arg| (*arg).to_owned()));
+    let mut candidate_command = vec!["<candidate>".to_owned()];
+    candidate_command.extend(args);
     Ok(json!({
         "schema": SCHEMA,
         "step": id,
-        "side": "rust-candidate",
         "test_override": test_override,
-        "command": command,
+        "oracle_command": oracle_command,
+        "candidate_command": candidate_command,
         "candidate_sha256": candidate_sha256,
         "os": os,
         "arch": std::env::consts::ARCH,
         "rust_toolchain": baseline::toolchain(root)?,
+        "python_version": python_version.trim(),
         "source_revision": baseline::revision(root)?,
         "source_tree_dirty": baseline::dirty(root)?,
         "sources_sha256": sources_sha256,
         "fixtures_sha256": fixtures,
-        "cache_state": baseline::CACHE_STATE,
-        "meets_protocol_minimum": runs >= baseline::MIN_RUNS && !test_override,
+        "meets_protocol_minimum": pairs >= MIN_PAIRS && !test_override,
         "tree_method": method,
-        "runs": runs,
-        "samples": samples,
-        "summary": summary,
+        "pairs": pairs,
+        "regimes": regimes,
     }))
 }
 
 pub fn run(
     root: &Path,
     id: &str,
+    python: &Path,
     source: &Source,
-    runs: usize,
-    allow_few_runs: bool,
+    pairs: usize,
+    allow_few_pairs: bool,
     output: &Path,
 ) -> Result<Value, String> {
     if !output.is_absolute() {
@@ -138,7 +315,7 @@ pub fn run(
     if output.exists() {
         return Err("measure output already exists".into());
     }
-    let record = record(root, id, source, runs, allow_few_runs)?;
+    let record = record(root, id, python, source, pairs, allow_few_pairs)?;
     capture_actions::write_receipt(&record, output)?;
     Ok(record)
 }
