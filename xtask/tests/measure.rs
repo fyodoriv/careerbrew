@@ -115,7 +115,7 @@ fn test_candidate_writes_a_paired_cold_and_warm_record() {
             assert!(rss.iter().all(|value| value.as_u64().unwrap() > 0));
             assert_eq!(
                 regime[format!("{side}_wall_us")].as_array().unwrap().len(),
-                2
+                3
             );
             let summary = &regime["summary"][side];
             assert!(
