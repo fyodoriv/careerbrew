@@ -8,7 +8,9 @@
 //! - baseline: `careerbrew-migration-baseline-v1` from `baseline.rs`; reads
 //!   `step`, `os` (picks the noise floor entry), `meets_protocol_minimum` (checked against the sample count),
 //!   `source_tree_dirty`, `cache_state` (must be the baseline regime),
-//!   `summary.cpu_us_p95` and the `tree_max_rss_bytes` of each sample.
+//!   `summary.cpu_us_p95` and the `tree_max_rss_bytes` of each sample. These
+//!   feed the protocol checks and the record; the limits use the measure
+//!   record's paired oracle samples.
 //! - verify: `careerbrew-migration-verify-v1` with `step`, a nonempty
 //!   `checks` list of `{id, passed}`, a `violations` map of counts and an
 //!   `unobserved_violations` list of violation names verify cannot see yet
@@ -16,8 +18,11 @@
 //!   `missing_contracts` list of contracts verify did not check (each one
 //!   keeps Python too).
 //! - measure: `careerbrew-migration-measure-v1` with `step` and a nonempty
-//!   `regimes` list of `{cache_state, pair_ids, cached, candidate_cpu_us,
-//!   candidate_tree_max_rss_bytes}`; one sample per pair. Both `cold` and
+//!   `regimes` list of `{cache_state, pair_ids, cached, oracle_cpu_us,
+//!   oracle_tree_max_rss_bytes, candidate_cpu_us,
+//!   candidate_tree_max_rss_bytes}`; one sample per pair. Each regime's
+//!   candidate p95 CPU and max RSS are judged against that regime's own
+//!   oracle p95 CPU and max RSS, with the noise floor limits. Both `cold` and
 //!   `warm` must be present, each with at least 30 unique pairs. Its `os`
 //!   must equal the baseline's.
 use crate::{baseline, baseline_verdict, noise_floor};
@@ -216,12 +221,22 @@ pub fn verdict(
         }
         let pairs = numbers(&regime["pair_ids"], "measure pair_ids")?;
         let cached = number(&regime["cached"], "measure cached count")?;
+        let oracle_cpu = numbers(&regime["oracle_cpu_us"], "measure oracle_cpu_us")?;
+        let oracle_rss = numbers(
+            &regime["oracle_tree_max_rss_bytes"],
+            "measure oracle_tree_max_rss_bytes",
+        )?;
         let cpu = numbers(&regime["candidate_cpu_us"], "measure candidate_cpu_us")?;
         let rss = numbers(
             &regime["candidate_tree_max_rss_bytes"],
             "measure candidate_tree_max_rss_bytes",
         )?;
-        if pairs.is_empty() || cpu.len() != pairs.len() || rss.len() != pairs.len() {
+        if pairs.is_empty()
+            || cpu.len() != pairs.len()
+            || rss.len() != pairs.len()
+            || oracle_cpu.len() != pairs.len()
+            || oracle_rss.len() != pairs.len()
+        {
             return Err("measure samples do not match its pairs".into());
         }
         let unique: BTreeSet<_> = pairs.iter().collect();
@@ -233,15 +248,19 @@ pub fn verdict(
         }
         let cpu_p95 = baseline_verdict::cpu_p95(cpu);
         let rss_max = rss.into_iter().max().unwrap_or(0);
-        if !baseline_verdict::within_limit(base_cpu, cpu_p95, cpu_limit) {
+        let oracle_cpu_p95 = baseline_verdict::cpu_p95(oracle_cpu);
+        let oracle_rss_max = oracle_rss.into_iter().max().unwrap_or(0);
+        if !baseline_verdict::within_limit(oracle_cpu_p95, cpu_p95, cpu_limit) {
             reasons.insert("cpu-regressed");
         }
-        if !baseline_verdict::within_limit(base_rss, rss_max, rss_limit) {
+        if !baseline_verdict::within_limit(oracle_rss_max, rss_max, rss_limit) {
             reasons.insert("rss-regressed");
         }
         summary.push(json!({
             "cache_state": state,
             "pairs": pairs.len(),
+            "oracle_cpu_us_p95": oracle_cpu_p95,
+            "oracle_tree_max_rss_bytes": oracle_rss_max,
             "candidate_cpu_us_p95": cpu_p95,
             "candidate_tree_max_rss_bytes": rss_max,
         }));
