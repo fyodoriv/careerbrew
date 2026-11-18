@@ -8,8 +8,8 @@ repository can do any step from this page and the task block.
 - **Status:** a plan. No Rust code runs in production today. No speed or memory
   gain is claimed. See [Current state](#current-state) and
   [State of rust-00](#state-of-rust-00).
-- **Next task:** `rust-01` (dependency proof). `rust-00` is done (2026-11-18); its
-  follow-ups are tasks in `TASKS.md`.
+- **Next task:** `rust-02` (pure settings, paths, clocks and hashes). `rust-00`
+  and `rust-01` are done (2026-11-18); their follow-ups are tasks in `TASKS.md`.
 - **How to read it:** the [goal](#goal-and-vision) and [decision](#decision-and-rejected-alternatives),
   then the [measurement protocol](#measurement-protocol-for-every-step), then
   [build order versus production activation](#build-order-versus-production-activation),
@@ -373,7 +373,7 @@ Anchor: Tarjan 1972, *Depth-First Search and Linear Graph Algorithms*
 
 ### Lanes and order
 
-- `rust-00` is done; `rust-01` is ready now. Each task's **Blocked** line is a hard gate.
+- `rust-00` and `rust-01` are done; `rust-02` is ready now. Each task's **Blocked** line is a hard gate.
 - After the shared storage and policy steps, independent domain lanes may run
   in parallel. They must not share mutable fixture homes.
 - Each domain step ports its own CLI handlers and test assertions, and routes
@@ -1406,8 +1406,10 @@ the commands in each row before you rely on it.
 
 **Summary:** the Rust code is measurement preparation and two disconnected
 component experiments. No CLI command, HTTP route or watcher calls Rust. The
-app runs on Python. No step has a merged decide result. `rust-00` is done (2026-11-18); the next task
-is `rust-01`.
+app runs on Python. No step has a merged decide result. `rust-00` and `rust-01` are done (2026-11-18): six
+dependency vector sets (`calendar`, `code-parse`, `fernet`, `fsrs`,
+`json-yaml`, `runtime`) agree with the Python oracle on every vector, and
+each set's planted wrong vector fails. The next task is `rust-02`.
 
 ### Crates (`ls crates xtask experiments`, `Cargo.toml`)
 
