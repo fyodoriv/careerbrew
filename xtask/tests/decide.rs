@@ -429,13 +429,11 @@ fn a_baseline_below_the_floor_within_its_ceiling_activates() {
     // under the 1,600 us ceiling, so it keeps.
     let dir = tempfile::tempdir().unwrap();
     let floor = test_floor();
-    let (output, record) = decide_with(
-        dir.path(),
-        &baseline(),
-        &verify(),
-        &measure(1500),
-        Some(&floor),
-    );
+    // The floor comes from the warm baseline, so it covers only the warm
+    // regime: the cold candidate stays within the 1.10 ratio here.
+    let mut measured = measure(1500);
+    measured["regimes"][0]["candidate_cpu_us"] = json!(vec![1000u64; 30]);
+    let (output, record) = decide_with(dir.path(), &baseline(), &verify(), &measured, Some(&floor));
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     let record = record.unwrap();
     assert_eq!(record["decision"], "activate");
@@ -610,4 +608,72 @@ fn a_regime_without_matching_oracle_samples_is_refused() {
         assert_eq!(output.status.code(), Some(2), "{output:?}");
         assert!(record.is_none());
     }
+}
+
+/// Sets one regime's paired oracle RSS samples and its candidate RSS.
+fn paired_rss(state: usize, oracle: u64, candidate: u64) -> Value {
+    let mut record = measure(1000);
+    record["regimes"][state]["oracle_tree_max_rss_bytes"] = json!(vec![oracle; 30]);
+    record["regimes"][state]["candidate_tree_max_rss_bytes"] = json!(vec![candidate; 30]);
+    record
+}
+
+#[test]
+fn a_cold_candidate_over_its_cold_oracle_rss_holds_under_the_baseline() {
+    // Cold candidate 45,000 bytes is under the 50,000 byte baseline maximum,
+    // but 1.125x its own paired cold oracle (40,000 bytes).
+    keeps_with(
+        baseline(),
+        verify(),
+        paired_rss(0, 40_000, 45_000),
+        "rss-regressed",
+    );
+}
+
+#[test]
+fn a_warm_candidate_over_its_warm_oracle_rss_holds_under_the_baseline() {
+    keeps_with(
+        baseline(),
+        verify(),
+        paired_rss(1, 40_000, 45_000),
+        "rss-regressed",
+    );
+}
+
+#[test]
+fn each_regime_reports_its_own_oracle_rss() {
+    // A cold oracle at 60,000 bytes lets a 62,000 byte cold candidate pass,
+    // though it is over the baseline maximum.
+    let dir = tempfile::tempdir().unwrap();
+    let (output, record) = decide(
+        dir.path(),
+        &baseline(),
+        &verify(),
+        &paired_rss(0, 60_000, 62_000),
+    );
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let record = record.unwrap();
+    assert_eq!(record["regimes"][0]["oracle_tree_max_rss_bytes"], 60_000);
+    assert_eq!(record["regimes"][1]["oracle_tree_max_rss_bytes"], 50_000);
+}
+
+#[test]
+fn the_warm_noise_floor_does_not_cover_the_cold_regime() {
+    // The floor is measured on the warm baseline. Under it a 1,500 us warm
+    // candidate passes (ceiling 1,600 us), but the same cold candidate is
+    // judged by the 1.10 ratio against its 1,000 us cold oracle and holds.
+    let dir = tempfile::tempdir().unwrap();
+    let floor = test_floor();
+    let (output, record) = decide_with(
+        dir.path(),
+        &baseline(),
+        &verify(),
+        &measure(1500),
+        Some(&floor),
+    );
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let record = record.unwrap();
+    assert_eq!(record["reasons"], json!(["cpu-regressed"]));
+    assert_eq!(record["regimes"][0]["noise_floor_applied"], false);
+    assert_eq!(record["regimes"][1]["noise_floor_applied"], true);
 }
