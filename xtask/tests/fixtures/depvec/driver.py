@@ -362,46 +362,6 @@ SETS = {
 }
 
 
-SETS = {
-    "calendar": calendar_set,
-    "code-parse": code_parse,
-    "fernet": fernet,
-    "fsrs": fsrs_schedule,
-    "json-yaml": json_yaml,
-    "runtime": runtime,
-}
-
-
-SETS = {
-    "calendar": calendar_set,
-    "code-parse": code_parse,
-    "fernet": fernet,
-    "fsrs": fsrs_schedule,
-    "json-yaml": json_yaml,
-    "runtime": runtime,
-}
-
-
-SETS = {
-    "calendar": calendar_set,
-    "code-parse": code_parse,
-    "fernet": fernet,
-    "fsrs": fsrs_schedule,
-    "json-yaml": json_yaml,
-    "runtime": runtime,
-}
-
-
-SETS = {
-    "calendar": calendar_set,
-    "code-parse": code_parse,
-    "fernet": fernet,
-    "fsrs": fsrs_schedule,
-    "json-yaml": json_yaml,
-    "runtime": runtime,
-}
-
-
 def main():
     name, path = sys.argv[1:]
     run = SETS[name]
