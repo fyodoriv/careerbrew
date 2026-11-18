@@ -29,15 +29,19 @@ fn text(bytes: &[u8]) -> &str {
 }
 
 fn files(dir: &Path) -> Vec<String> {
-    let mut out = Vec::new();
-    for entry in std::fs::read_dir(dir).unwrap() {
-        let path = entry.unwrap().path();
-        if path.is_dir() {
-            out.extend(files(&path));
-        } else {
-            out.push(path.strip_prefix(dir).unwrap().display().to_string());
+    fn walk(root: &Path, dir: &Path, out: &mut Vec<String>) {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                walk(root, &path, out);
+            } else {
+                out.push(path.strip_prefix(root).unwrap().display().to_string());
+            }
         }
     }
+    let mut out = Vec::new();
+    walk(dir, dir, &mut out);
+    out.sort();
     out
 }
 
@@ -236,9 +240,9 @@ fn the_string_writer_matches_python_samples() {
         ("q\"b\\s/", r#""q\"b\\s/""#),
         ("\n\r\t\u{8}\u{c}", r#""\n\r\t\b\f""#),
         ("\u{0}\u{1f}\u{7f}", r#""\u0000\u001f\u007f""#),
-        ("caf\u{e9} \u{2014}", r#""café —""#),
-        ("\u{1f600}", r#""😀""#),
-        ("\u{ffff}\u{10000}", r#""￿𐀀""#),
+        ("caf\u{e9} \u{2014}", r#""caf\u00e9 \u2014""#),
+        ("\u{1f600}", r#""\ud83d\ude00""#),
+        ("\u{ffff}\u{10000}", r#""\uffff\ud800\udc00""#),
     ] {
         let mut out = String::new();
         py_string(value, &mut out);
