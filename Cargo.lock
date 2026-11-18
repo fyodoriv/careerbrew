@@ -196,6 +196,7 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "serde_json",
+ "sha2",
 ]
 
 [[package]]

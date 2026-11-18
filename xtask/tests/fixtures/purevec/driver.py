@@ -6,7 +6,7 @@ A set run prints one JSON line,
 in the typed value form `crates/depvec/src/canon.rs` describes. `--all`
 prints {"sets": [...]}, the registered set names, for baseline and measure.
 
-Sets: clock, paths and settings. To add a set: a function below and
+Sets: clock, hash, paths and settings. To add a set: a function below and
 one line in SETS. A set must not write outside the synthetic home verify
 gives it.
 """
@@ -105,6 +105,43 @@ def clock(op, data):
             calendar.local_tz, calendar.datetime = saved
             _clock_env("CAREERBREW_NOW", old)
     raise ValueError("unknown op")
+
+
+def _typed(value):
+    """One typed input value: the canon.rs form, plus `tuple` and `path`."""
+    t, v = value["t"], value.get("v")
+    if t == "null":
+        return None
+    if t in ("bool", "str"):
+        return v
+    if t == "int":
+        return int(v)
+    if t == "float":
+        return struct.unpack(">d", bytes.fromhex(v))[0]
+    if t == "date":
+        return datetime.date.fromisoformat(v)
+    if t == "datetime":
+        return datetime.datetime.fromisoformat(v)
+    if t == "path":
+        return PurePosixPath(v)
+    if t == "list":
+        return [_typed(item) for item in v]
+    if t == "tuple":
+        return tuple(_typed(item) for item in v)
+    if t == "map":
+        return {_typed(k): _typed(item) for k, item in v}
+    raise ValueError("unknown type")
+
+
+def hash_set(op, value):
+    """`changes._h` on one typed value: the serialized text and the digest."""
+    from careerbrew import changes
+
+    if op != "input-hash":
+        raise ValueError("unknown op")
+    obj = _typed(value)
+    text = json.dumps(obj, sort_keys=True, default=str)
+    return {"t": "list", "v": [{"t": "str", "v": text}, {"t": "str", "v": changes._h(obj)}]}
 
 
 def _str(value):
@@ -212,6 +249,7 @@ def settings(op, data):
 # The registry: one line per vector set, sorted by name.
 SETS = {
     "clock": clock,
+    "hash": hash_set,
     "paths": paths_set,
     "settings": settings,
 }

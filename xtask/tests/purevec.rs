@@ -76,7 +76,7 @@ fn verify_with_registered_sets_passes_with_zero_home_writes() {
     assert_eq!(record["contracts"], serde_json::json!(["pure-vectors"]));
     assert_eq!(
         record["vector_sets"],
-        serde_json::json!(["clock", "paths", "settings"])
+        serde_json::json!(["clock", "hash", "paths", "settings"])
     );
     assert_eq!(record["failed_cases"], serde_json::json!([]));
     assert_eq!(record["passed"], true);
@@ -295,4 +295,32 @@ fn baseline_measure_and_decide_accept_rust_02() {
     let verdict = read(&out);
     assert_eq!(verdict["step"], "rust-02");
     assert_eq!(verdict["decision"], "keep-python");
+}
+
+#[test]
+fn a_planted_wrong_hash_vector_fails_its_case() {
+    let scratch = tempfile::tempdir().unwrap();
+    let home = tempfile::tempdir().unwrap();
+    let out = scratch.path().join("verify.json");
+    let run = verify(
+        "rust-02",
+        home.path(),
+        &out,
+        &["--test-wrong-vector", "hash"],
+    );
+    assert_eq!(run.status.code(), Some(1), "{run:?}");
+    let record = read(&out);
+    assert_eq!(record["passed"], false);
+    assert_eq!(record["planted_wrong_vector"], "hash");
+    let failed = record["failed_cases"].as_array().unwrap();
+    assert!(
+        failed.contains(&serde_json::json!("hash:empty-map")),
+        "{failed:?}"
+    );
+    assert!(
+        !failed.iter().any(|case| case
+            .as_str()
+            .is_some_and(|id| id.starts_with("hash:") && id != "hash:empty-map")),
+        "{failed:?}"
+    );
 }
