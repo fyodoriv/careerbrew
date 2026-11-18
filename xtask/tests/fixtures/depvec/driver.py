@@ -10,8 +10,10 @@ To add a set: a function below and one line in SETS.
 import datetime
 import json
 import struct
+import subprocess
 import sys
 from zoneinfo import ZoneInfo
+from pathlib import Path
 
 import yaml
 
@@ -89,11 +91,39 @@ def calendar_set(op, data):
         ]
     if op == "local-day":
         return datetime.datetime.fromisoformat(data["at"]).astimezone(tz).date().isoformat()
+ROOT = Path(__file__).resolve().parents[4]
+
+
+def _esbuild():
+    # The native esbuild binary `npm ci` puts in web/node_modules: the same engine
+    # scripts/check-card-code.py calls through node. A missing binary stops the run
+    # (verify is refused), never a silent skip.
+    found = sorted(ROOT.glob("web/node_modules/@esbuild/*/bin/esbuild"))
+    if not found:
+        raise SystemExit("esbuild is missing: run scripts/setup.sh")
+    return found[0]
+
+
+def code_parse(op, data):
+    # The checks of scripts/check-card-code.py: compile() for Python, esbuild's
+    # transform (format esm) for the JS and TS loaders.
+    if op == "python-parse":
+        compile(data, "example", "exec")
+        return "parsed"
+    if op == "js-parse":
+        if data["loader"] not in ("js", "jsx", "ts", "tsx"):
+            raise ValueError("unknown loader")
+        args = [str(_esbuild()), f"--loader={data['loader']}", "--format=esm", "--log-level=silent"]
+        done = subprocess.run(args, input=data["code"].encode(), capture_output=True, check=False)  # noqa: S603
+        if done.returncode != 0:
+            raise ValueError("does not parse")
+        return "parsed"
     raise ValueError("unknown op")
 
 
 # The registry: one line per vector set.
 SETS = {"calendar": calendar_set, "json-yaml": json_yaml}
+SETS = {"json-yaml": json_yaml, "code-parse": code_parse}
 
 
 def main():

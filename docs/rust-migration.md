@@ -562,6 +562,30 @@ tags other than `!!str`; `.nan` (its sign bit differs by CPU in PyYAML); and
 writing YAML for a string that looks like a date or `1_000`, or a datetime
 (the `yaml-rust2` emitter does not quote these).
 
+**Set `code-parse` (33 vectors):** does a teaching example parse, as
+`scripts/check-card-code.py` decides it. `python-parse` (the oracle runs
+`compile(code, id, "exec")` on Python 3.12: types, `match`, walrus, async,
+PEP 701 f-strings, type parameters, `except*`; and rejects a missing colon,
+bad indent, an open bracket, `print "x"`, assignment to a literal, an open
+string, and the 3.14-only template strings and unparenthesized `except A,
+B`) and `js-parse` (the oracle runs the native esbuild binary from
+`web/node_modules/@esbuild/` with the card loader and `--format=esm`, the
+same engine the script calls through node: JS, JSX, TS and TSX that parse,
+and an open brace, a missing expression, a repeated `let`, JSX or types under
+the `js` loader, JSX under `ts`, and a wrong closing tag). The oracle stops
+when esbuild is missing, so verify is refused, never silently skipped. The
+Rust side pins the Python target to 3.12, the version in `.python-version`.
+
+Known gaps for `code-parse` (rejected meanings until a later PR covers them):
+`compile()`'s scope checks (`return`, `yield` or `await` outside a function,
+`break` outside a loop, a repeated argument name, `nonlocal` at module
+level). `ruff_python_parser` reports these only through its
+`SemanticSyntaxChecker`, which needs a scope model that ruff's own linter
+supplies; a hand-written one would be new semantics, so it waits for
+`rust-27`. Strict-mode-only JavaScript errors (`with`, legacy octal) also
+stay out: esbuild treats a file as strict only when it has `import` or
+`export`, while `oxc` parses every module as strict.
+
 #### rust-01 dependency decisions
 
 | Need | Crate | Version | Licence | Decision | Evidence |
@@ -576,6 +600,16 @@ writing YAML for a string that looks like a date or `1_000`, or a datetime
 | RRULE expansion | `icalendar` `recurrence` feature | 0.17.17 | MIT OR Apache-2.0 | rejected | wraps the same `rrule` crate behind a model API; the plain parser plus `rrule` keeps each step visible and the feature set small |
 | Time zones | `chrono-tz` | 0.10.4 | MIT OR Apache-2.0 | kept | the IANA database compiled in (`phf`, MIT), so a zone reads the same on every machine; the zone type `rrule` uses |
 | Dates and times | `chrono` | 0.4.45 | MIT OR Apache-2.0 | kept | the date type `rrule` and `chrono-tz` share; `clock` pulls `iana-time-zone` (MIT OR Apache-2.0) |
+| Python example syntax | `ruff_python_parser` (with `ruff_python_ast`) | 0.0.22 | MIT | kept, with the scope-check gap above | Astral publishes it to crates.io from the ruff repo (release 2026-11); `parse_unchecked` with a 3.12 target reports both parse errors and syntax newer than 3.12; `python-parse` vectors. Pulls `ruff_text_size`, `ruff_python_trivia`, `ruff_unicode_names2` (MIT), `bitflags`, `bstr`, `memchr`, `rustc-hash`, `unicode-ident`, `unicode_names2` and others under MIT or Apache-2.0 (`Cargo.lock`) |
+| Python example syntax | `rustpython-parser` | 0.4.0 | MIT | rejected | last release 2024-08; the RustPython team moved to the ruff parser; no PEP 701 f-strings or 3.12 type parameters |
+| JS and TS example syntax | `oxc_parser`, `oxc_semantic` (with `oxc_allocator`, `oxc_span`) | 0.159.0 | MIT | kept | active (release 2026-11); one parser for JS, JSX, TS and TSX; `oxc_semantic`'s syntax checks add esbuild's repeated-declaration error; `js-parse` vectors |
+| JS and TS example syntax | `swc_ecma_parser` | 47.1.0 | Apache-2.0 | not chosen | maintained, but repeated declarations need extra swc crates and a resolver pass; `oxc` gives the same checks in fewer crates |
+
+The two kept parser crates add 107 `Cargo.lock` entries. Most are MIT or
+Apache-2.0. The others: `icu_*`, `zerovec`, `yoke`, `zerofrom`, `zerotrie`,
+`tinystr`, `writeable`, `litemap` and `potential_utf` (Unicode-3.0), `ryu`
+(Apache-2.0 OR BSL-1.0), `self_cell` (Apache-2.0 OR GPL-2.0-only, taken as
+Apache-2.0) and `tinyvec` (Zlib OR Apache-2.0 OR MIT). None is copyleft-only.
 
 ### rust-02: Port pure setting schemas, paths, clocks and hashes
 
@@ -1171,6 +1205,7 @@ is `rust-01`.
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
 | `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
 | `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`json-yaml` and `calendar` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
+| `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`json-yaml` and `code-parse` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
 | `experiments/hash/` | `careerbrew-hash-experiment` | the pure `changes._h` hash for a supported synthetic JSON subset. It refuses values outside that subset. | none: component parity only |
 
 - No crate ships: `scripts/rust-shipped-crates.txt` is empty. A crate whose

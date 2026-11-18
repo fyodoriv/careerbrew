@@ -13,3 +13,9 @@ chrono = { version = "=0.4.45", default-features = false, features = ["std", "cl
 chrono-tz = "=0.10.4"
 icalendar = { version = "=0.17.17", default-features = false, features = ["parser"] }
 rrule = "=0.14.0"
+oxc_allocator = "=0.159.0"
+oxc_parser = "=0.159.0"
+oxc_semantic = "=0.159.0"
+oxc_span = "=0.159.0"
+ruff_python_ast = "=0.0.22"
+ruff_python_parser = "=0.0.22"
