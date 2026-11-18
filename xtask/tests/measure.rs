@@ -171,7 +171,8 @@ fn decide_consumes_the_measure_record_with_a_baseline_record() {
             "side_effect": 0, "missing_writes": 0, "duplicate_writes": 0,
         },
         "unobserved_violations": [],
-        "missing_contracts": [],
+        // rust-03's declared scope: verify lists these, decide requires it.
+        "missing_contracts": ["http", "data", "role"],
     });
     std::fs::write(&verify, serde_json::to_vec(&record).unwrap()).unwrap();
     let out = scratch.path().join("decide.json");

@@ -293,7 +293,7 @@ fn main() -> ExitCode {
     eprintln!("       cargo xtask migration measure --step <id> --python <absolute-path> --out <new-file> [--pairs <n>] [--test-allow-few-pairs] [--test-candidate <absolute-path>]");
     eprintln!("       cargo xtask migration decide --step <id> --baseline <file> --verify <file> --measure <file> --out <new-file> [--test-noise-floor <absolute-file>]");
     eprintln!("       cargo xtask migration noise-floor --baseline <absolute-file>");
-    eprintln!("       cargo xtask migration verify --step <id> --python <absolute-path> --out <new-file> [--test-candidate <absolute-path>] [--test-oracle <absolute-path>] [--test-wrong-vector <set>] [--test-plant-home-write <file-name>]");
+    eprintln!("       cargo xtask migration verify --step <id> --python <absolute-path> --out <new-file> [--test-candidate <absolute-path>] [--test-oracle <absolute-path>] [--test-wrong-vector <set>] [--test-plant-home-write <file-name>] [--test-scope <full|allow-python>]");
     eprintln!("       cargo xtask migration toolchain-identity --rustc <absolute-path>");
     eprintln!(
         "       cargo xtask migration capture-actions --python <absolute-path> --out <new-file>"
@@ -552,6 +552,7 @@ fn measure_command(rest: &[std::ffi::OsString]) -> ExitCode {
 fn verify_command(rest: &[std::ffi::OsString]) -> ExitCode {
     let (mut step, mut python, mut output, mut candidate, mut oracle, mut wrong, mut plant) =
         (None, None, None, None, None, None, None);
+    let mut scope = None;
     for pair in rest.chunks(2) {
         let [flag, value] = pair else {
             eprintln!("migration verify: every flag needs a value");
@@ -570,6 +571,8 @@ fn verify_command(rest: &[std::ffi::OsString]) -> ExitCode {
             // Test-only: write this file into CAREERBREW_HOME during verify
             // (a step that counts home writes must count it).
             Some("--test-plant-home-write") => &mut plant,
+            // Test-only: `full` or `allow-python` (see `verify::Plants`).
+            Some("--test-scope") => &mut scope,
             _ => {
                 eprintln!("migration verify: unknown flag");
                 return ExitCode::from(2);
@@ -596,6 +599,7 @@ fn verify_command(rest: &[std::ffi::OsString]) -> ExitCode {
         verify::Plants {
             wrong: wrong.as_deref().and_then(std::ffi::OsStr::to_str),
             home_write: plant.as_deref().and_then(std::ffi::OsStr::to_str),
+            scope: scope.as_deref().and_then(std::ffi::OsStr::to_str),
         },
         std::path::Path::new(&output),
     ) {

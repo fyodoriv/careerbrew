@@ -1,6 +1,7 @@
 //! Controls for `migration baseline`: one positive run on the registered
 //! step, and three refusals (unknown step, a planted oracle that exits
-//! nonzero, an empty CAREERBREW_HOME). Each test owns its temp folder.
+//! nonzero, an empty CAREERBREW_HOME), and the step's extra environment
+//! reaching a planted oracle. Each test owns its temp folder.
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -168,4 +169,27 @@ fn empty_careerbrew_home_is_refused() {
     assert_eq!(result.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&result.stderr).contains("CAREERBREW_HOME is set but empty"));
     assert!(!out.exists());
+}
+
+#[test]
+fn the_step_environment_reaches_the_oracle() {
+    // rust-03 pins COLUMNS=80 and LINES=24 (help wraps at the terminal
+    // width). A planted oracle exits 0 only when both arrive.
+    use std::os::unix::fs::PermissionsExt;
+    let scratch = tempfile::tempdir().unwrap();
+    let python = scratch.path().join("python");
+    std::fs::write(
+        &python,
+        "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'Python 3.0.0'; exit 0; fi\n[ \"$COLUMNS:$LINES\" = 80:24 ] || exit 9\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&python, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let out = scratch.path().join("baseline.json");
+    let result = baseline(&python, "rust-03", &out, "1").output().unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(out.exists());
 }
