@@ -90,16 +90,41 @@ def _package_names() -> dict[str, str]:
     return names
 
 
+def _shipped_bins(shipped: set[str]) -> set[str]:
+    """Binary names of the listed crates: each `[[bin]]` name, else the package name."""
+    bins = set()
+    for m in shipped:
+        data = tomllib.loads((ROOT / m / "Cargo.toml").read_text())
+        bins |= {b["name"] for b in data.get("bin", [])} or {data["package"]["name"]}
+    return bins
+
+
+def reaches_off_list(line: str, unlisted: set[str], shipped_bins: set[str]) -> bool:
+    """True when a line names an unlisted crate, or a target/ path that is not a listed crate's binary."""
+    if unlisted and re.search(r"\b(" + "|".join(map(re.escape, unlisted)) + r")\b", line):
+        return True
+    paths = re.findall(r"target/(?:debug|release)(?:/[\w.-]+)?", line)
+    return any(p.rsplit("/", 1)[-1] not in shipped_bins for p in paths)
+
+
+def test_a_target_path_is_allowed_only_for_a_listed_binary():
+    assert not reaches_off_list("x = 'target/release/careerbrew-native'", set(), {"careerbrew-native"})
+    assert reaches_off_list("x = 'target/release/careerbrew-native'", set(), set())
+    assert reaches_off_list("x = 'target/release/other-tool'", set(), {"careerbrew-native"})
+    assert reaches_off_list("x = 'target/debug'", set(), {"careerbrew-native"})
+    assert reaches_off_list("run purevec here", {"purevec"}, set())
+
+
 def test_app_code_reaches_no_rust_binary_off_the_list():
     shipped = _shipped()
-    names = {n: m for n, m in _package_names().items() if m not in shipped}
-    words = re.compile(r"target/(debug|release)|\b(" + "|".join(map(re.escape, names)) + r")\b")
+    unlisted = {n for n, m in _package_names().items() if m not in shipped}
+    shipped_bins = _shipped_bins(shipped)
     hits = []
     for top in ("src", "web/src", "commands", "scripts"):
         for path in sorted((ROOT / top).rglob("*")):
             rel = path.relative_to(ROOT).as_posix()
-            if not path.is_file() or rel in SCAN_SKIP or path.suffix in {".png", ".txt"}:
+            if not path.is_file() or rel in SCAN_SKIP or path.suffix in {".png", ".txt", ".pyc"}:
                 continue
             text = path.read_text(errors="ignore")
-            hits += [f"{rel}:{n}" for n, ln in enumerate(text.splitlines(), 1) if words.search(ln)]
+            hits += [f"{rel}:{n}" for n, ln in enumerate(text.splitlines(), 1) if reaches_off_list(ln, unlisted, shipped_bins)]
     assert hits == [], f"app code reaches a Rust binary that setup never rebuilds: {hits}"
