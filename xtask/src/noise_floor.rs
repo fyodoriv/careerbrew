@@ -41,11 +41,29 @@ pub const REGISTRY: &[Entry] = &[
     },
 ];
 
-/// The CPU and RSS limits for one step and OS, and the state label.
-pub fn limits(
-    step: &str,
-    os: &str,
-) -> Result<(ResourceLimit, ResourceLimit, &'static str), String> {
+/// The limits decide used, with their state label and provenance.
+pub struct Chosen {
+    pub cpu: ResourceLimit,
+    pub rss: ResourceLimit,
+    pub state: &'static str,
+    pub method: Option<&'static str>,
+    pub record: Option<&'static str>,
+}
+
+impl Chosen {
+    /// The four limits as content-free JSON, in the test-floor shape.
+    pub fn limits_json(&self) -> Value {
+        json!({
+            "cpu_floor_us": self.cpu.floor,
+            "cpu_absolute_us": self.cpu.absolute,
+            "rss_floor_bytes": self.rss.floor,
+            "rss_absolute_bytes": self.rss.absolute,
+        })
+    }
+}
+
+/// The CPU and RSS limits for one step and OS, with their provenance.
+pub fn limits(step: &str, os: &str) -> Result<Chosen, String> {
     let entry = REGISTRY
         .iter()
         .find(|entry| entry.step == step && entry.os == os)
@@ -55,8 +73,25 @@ pub fn limits(
         absolute: 0,
     };
     Ok(match &entry.floor {
-        Floor::Unmeasured => (ratio, ratio, "unmeasured"),
-        Floor::Measured { cpu, rss, .. } => (*cpu, *rss, "measured"),
+        Floor::Unmeasured => Chosen {
+            cpu: ratio,
+            rss: ratio,
+            state: "unmeasured",
+            method: None,
+            record: None,
+        },
+        Floor::Measured {
+            cpu,
+            rss,
+            method,
+            record,
+        } => Chosen {
+            cpu: *cpu,
+            rss: *rss,
+            state: "measured",
+            method: Some(method),
+            record: Some(record),
+        },
     })
 }
 
@@ -116,10 +151,16 @@ pub fn measure(path: &Path) -> Result<Value, String> {
     if base["source_tree_dirty"].as_bool() != Some(false) {
         return Err("the baseline record is from a dirty tree".into());
     }
+    if base["cache_state"].as_str() != Some(crate::baseline::CACHE_STATE) {
+        return Err("the baseline record has another cache state".into());
+    }
     let samples = base["samples"]
         .as_array()
         .filter(|samples| samples.len() >= crate::baseline::MIN_RUNS)
         .ok_or("the baseline record has too few samples")?;
+    if base["runs"].as_u64() != Some(samples.len() as u64) {
+        return Err("the baseline run count differs from its samples".into());
+    }
     let column = |name: &str| {
         samples
             .iter()

@@ -14,7 +14,8 @@
 //! - measure: `careerbrew-migration-measure-v1` with `step` and a nonempty
 //!   `regimes` list of `{cache_state, pair_ids, cached, candidate_cpu_us,
 //!   candidate_tree_max_rss_bytes}`; one sample per pair. Both `cold` and
-//!   `warm` must be present, each with at least 30 unique pairs.
+//!   `warm` must be present, each with at least 30 unique pairs. Its `os`
+//!   must equal the baseline's.
 use crate::{baseline, baseline_verdict, noise_floor};
 use serde_json::{json, Value};
 use std::collections::BTreeSet;
@@ -33,6 +34,17 @@ pub const VIOLATIONS: &[&str] = &[
     "missing_writes",
     "duplicate_writes",
 ];
+
+/// The decide, noise floor and limit sources built into this binary, as
+/// one hash, so a record shows which rules produced its verdict.
+fn sources_sha256() -> String {
+    let sources = json!({
+        "xtask/src/decide.rs": crate::capture_actions::digest(include_bytes!("decide.rs")),
+        "xtask/src/noise_floor.rs": crate::capture_actions::digest(include_bytes!("noise_floor.rs")),
+        "xtask/src/baseline_verdict.rs": crate::capture_actions::digest(include_bytes!("baseline_verdict.rs")),
+    });
+    crate::capture_actions::digest(sources.to_string().as_bytes())
+}
 
 fn read(path: &Path, name: &str) -> Result<Value, String> {
     if !path.is_absolute() {
@@ -81,15 +93,25 @@ pub fn verdict(
         .as_str()
         .filter(|os| matches!(*os, "macos" | "linux"))
         .ok_or("the baseline record has an unknown OS")?;
-    let (cpu_limit, rss_limit, floor_state) = match test_floor {
+    let chosen = match test_floor {
         Some(value) => {
             let (cpu, rss) = noise_floor::from_test(value)?;
-            (cpu, rss, "test-override")
+            noise_floor::Chosen {
+                cpu,
+                rss,
+                state: "test-override",
+                method: None,
+                record: None,
+            }
         }
         None => noise_floor::limits(step, os)?,
     };
+    let (cpu_limit, rss_limit) = (chosen.cpu, chosen.rss);
     header(verify, "verify", VERIFY_SCHEMA, step)?;
     header(measure, "measure", MEASURE_SCHEMA, step)?;
+    if measure["os"].as_str() != Some(os) {
+        return Err("the measure record is from another OS than the baseline".into());
+    }
 
     let base_cpu = number(&base["summary"]["cpu_us_p95"], "baseline cpu_us_p95")?;
     let samples = base["samples"]
@@ -211,8 +233,12 @@ pub fn verdict(
         "decision": decision,
         "reasons": reasons.into_iter().collect::<Vec<_>>(),
         "limit_ratio": "1.10",
-        "noise_floor": floor_state,
+        "noise_floor": chosen.state,
         "noise_floor_os": os,
+        "noise_floor_limits": chosen.limits_json(),
+        "noise_floor_method": chosen.method,
+        "noise_floor_record": chosen.record,
+        "sources_sha256": sources_sha256(),
         "test_noise_floor": test_floor.is_some(),
         "baseline_cache_state": baseline::CACHE_STATE,
         "baseline_cpu_us_p95": base_cpu,
