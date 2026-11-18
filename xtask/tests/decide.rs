@@ -279,7 +279,10 @@ fn malformed_input_is_refused_without_a_verdict() {
         },
         {
             let mut wrong = verify();
-            wrong.as_object_mut().unwrap().remove("unobserved_violations");
+            wrong
+                .as_object_mut()
+                .unwrap()
+                .remove("unobserved_violations");
             (baseline(), wrong, measure(1000))
         },
         {

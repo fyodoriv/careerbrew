@@ -59,6 +59,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: any contract disagreement, privacy violation or missing/duplicate write, or CPU/RSS ratio >1.10 B, blocks rollout. Rework the adapter or dependency, register the new approach and remeasure; keep the last verified handler. Preparation fails on any accepted planted defect or unsupported required contract.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
 
+- [ ] Rust migration: Extend migration verify to the data contract and the unobserved violation kinds
+  - **ID**: rust-00-verify-data
+  - **Details**: `cargo xtask migration verify` now compares the CLI, HTTP and side-effect contracts and lists `duplicate_writes` and `role` in `unobserved_violations`, so `decide` keeps Python for every step. Add the DATA contract by reusing `capture_data.rs` and its fixtures (the data corpus cases on the oracle and the candidate, each in a fresh synthetic home), a write trace that counts each path written more than once (`duplicate_writes`), and a corporate-role case (`role`). Remove each kind from `unobserved_violations` only when its planted-defect control exists. Part of `rust-00`; see "State of rust-00" in `docs/rust-migration.md`.
+  - **Files**: xtask/src/verify.rs; xtask/src/capture_data.rs; xtask/tests/verify.rs; docs/rust-migration.md
+  - **Hypothesis**: verify detects 100% of planted wrong data outputs, duplicate writes and role bypasses, and accepts 100% of unchanged-oracle candidates, with `unobserved_violations` empty.
+  - **Measurement**: `cargo test -p careerbrew-xtask --test verify` on the hosted gate (each kind has a planted-defect control and the positive control asserts `unobserved_violations == []`).
+  - **Success**: every planted defect fails its case with its violation count above 0; the unchanged-oracle control passes with all seven counts 0.
+  - **Pivot**: if a planted defect passes or the oracle side is not deterministic across two fresh homes, stop and add a normalization rule before more cases.
+  - **Anchor**: Munafò et al. 2017 (pre-registration); McKeeman 1998 (differential testing).
+
 - [ ] Rust migration: Prove maintained dependency and data interoperability
   - **ID**: rust-01
   - **Blocked**: prerequisite: rust-00 must land and pass its acceptance gates first

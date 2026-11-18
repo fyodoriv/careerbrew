@@ -317,7 +317,10 @@ fn a_planted_wrong_http_body_fails_its_http_cases() {
     assert_eq!(result.status.code(), Some(1));
     let value = read(&out);
     assert_eq!(value["passed"], false);
-    assert_eq!(value["cases"][0]["passed"], true, "the CLI case still passes");
+    assert_eq!(
+        value["cases"][0]["passed"], true,
+        "the CLI case still passes"
+    );
     let ping = value["cases"]
         .as_array()
         .unwrap()

@@ -27,6 +27,9 @@ pub struct Step {
     /// The step's built Rust candidate, relative to the repo root. None until
     /// the port lands; `verify` refuses the step until then.
     pub candidate: Option<&'static str>,
+    /// `verify` also compares the HTTP handler contract (the capture-http
+    /// fixture cases) when true.
+    pub http_contract: bool,
 }
 
 pub const STEPS: &[Step] = &[Step {
@@ -35,6 +38,8 @@ pub const STEPS: &[Step] = &[Step {
     oracle: &["-B", "-m", "careerbrew", "actions", "--json"],
     cases: &[("actions-json", &["actions", "--json"])],
     candidate: None,
+    // The action catalog is also served at /api/actions.
+    http_contract: true,
 }];
 
 pub fn step(id: &str) -> Result<&'static Step, String> {
