@@ -525,11 +525,17 @@ fn planted_big_memory_candidate_passes_verify_and_decide_holds_it() {
 fn equal_cost_candidate_has_no_resource_reason() {
     let (verify, verdict) = planted(&format!("exec {}", oracle_line()), true);
     assert_eq!(verify["passed"], true, "{verify}");
-    // Only the test-flag sample-size reasons hold it; the self-test proves
-    // that an equal-cost candidate activates on 30 samples.
+    // No resource reason holds it: only the test-flag sample sizes and the
+    // contracts a test candidate's verify cannot cover. The self-test
+    // proves that an equal-cost candidate activates on 30 samples.
     assert_eq!(
         verdict["reasons"],
-        json!(["baseline-below-protocol-minimum", "too-few-unique-pairs"]),
+        json!([
+            "baseline-below-protocol-minimum",
+            "too-few-unique-pairs",
+            "verify-contract-missing",
+            "verify-violation-unobserved"
+        ]),
         "{verdict}"
     );
 }
