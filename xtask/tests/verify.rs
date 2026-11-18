@@ -721,3 +721,29 @@ fn a_planted_role_bypass_fails_the_role_case() {
     assert_eq!(value["violations"]["role"], 1);
     assert_eq!(value["violations"]["contract"], 0);
 }
+
+#[test]
+fn a_planted_canary_leak_counts_once_in_the_case_that_leaked() {
+    // The reader of case 2 copies the synthetic canary into a new file. The
+    // file stays for cases 3 to 10, but only case 2 leaked it.
+    let scratch = tempfile::tempdir().unwrap();
+    let leak = data_candidate(
+        scratch.path(),
+        &data_dispatch(
+            "",
+            "if [ \"$2\" = 2 ] && [ \"$3\" = reader ]; then printf 'SYNTHETIC-DATA-CANARY-8H3' > \"$CAREERBREW_DATA_OWNED/leak.txt\"; fi",
+        ),
+    );
+    let (code, value) = verify_with(scratch.path(), &leak);
+    assert_eq!(code, Some(1));
+    assert_eq!(value["failed_cases"], serde_json::json!(["data:2"]));
+    assert_eq!(value["violations"]["privacy"], 1);
+    let leaked: Vec<_> = value["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|case| case["canary_leaked"] == true)
+        .map(|case| case["case"].clone())
+        .collect();
+    assert_eq!(leaked, vec![serde_json::json!("data:2")]);
+}
