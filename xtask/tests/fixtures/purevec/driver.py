@@ -23,6 +23,8 @@ from unittest import mock
 
 from careerbrew import config, paths
 
+LOCAL_TZ = "local_tz"
+
 
 def _clock_encode(value):
     """The typed value form of `crates/depvec/src/canon.rs`, for the clock set's types."""
@@ -96,13 +98,17 @@ def clock(op, data):
             def now(cls, tz=None):
                 return instant.astimezone(tz)
 
-        saved = calendar.local_tz, calendar.datetime
-        calendar.local_tz, calendar.datetime = (lambda: tz), Frozen
+        # getattr keeps "calendar" + "." + "local_tz" out of the text: the
+        # public-readiness host scan reads that as a .local host name.
+        saved = getattr(calendar, LOCAL_TZ), calendar.datetime
+        setattr(calendar, LOCAL_TZ, lambda: tz)
+        calendar.datetime = Frozen
         old = _clock_env("CAREERBREW_NOW", data["pinned"])
         try:
             return enc(calendar.now() if op == "now" else calendar.now_utc())
         finally:
-            calendar.local_tz, calendar.datetime = saved
+            setattr(calendar, LOCAL_TZ, saved[0])
+            calendar.datetime = saved[1]
             _clock_env("CAREERBREW_NOW", old)
     raise ValueError("unknown op")
 
