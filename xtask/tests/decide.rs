@@ -44,6 +44,8 @@ fn measure(cpu: u64) -> Value {
             "cache_state": state,
             "pair_ids": (1..=30).collect::<Vec<u64>>(),
             "cached": 0,
+            "oracle_cpu_us": vec![1000u64; 30],
+            "oracle_tree_max_rss_bytes": vec![50_000u64; 30],
             "candidate_cpu_us": vec![cpu; 30],
             "candidate_tree_max_rss_bytes": vec![55_000u64; 30],
         })
@@ -149,6 +151,8 @@ fn each_keep_reason_has_a_control() {
     for regime in few["regimes"].as_array_mut().unwrap() {
         for key in [
             "pair_ids",
+            "oracle_cpu_us",
+            "oracle_tree_max_rss_bytes",
             "candidate_cpu_us",
             "candidate_tree_max_rss_bytes",
         ] {
@@ -427,13 +431,11 @@ fn a_baseline_below_the_floor_within_its_ceiling_activates() {
     // under the 1,600 us ceiling, so it keeps.
     let dir = tempfile::tempdir().unwrap();
     let floor = test_floor();
-    let (output, record) = decide_with(
-        dir.path(),
-        &baseline(),
-        &verify(),
-        &measure(1500),
-        Some(&floor),
-    );
+    // The floor comes from the warm baseline, so it covers only the warm
+    // regime: the cold candidate stays within the 1.10 ratio here.
+    let mut measured = measure(1500);
+    measured["regimes"][0]["candidate_cpu_us"] = json!(vec![1000u64; 30]);
+    let (output, record) = decide_with(dir.path(), &baseline(), &verify(), &measured, Some(&floor));
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     let record = record.unwrap();
     assert_eq!(record["decision"], "activate");
@@ -567,4 +569,126 @@ fn self_test_runs_the_decide_slow_path_controls() {
         String::from_utf8_lossy(&output.stdout),
         "migration self-test: 17 controls passed\n"
     );
+}
+
+/// Sets one regime's paired oracle CPU samples and its candidate CPU.
+fn paired(state: usize, oracle: u64, candidate: u64) -> Value {
+    let mut record = measure(1000);
+    record["regimes"][state]["oracle_cpu_us"] = json!(vec![oracle; 30]);
+    record["regimes"][state]["candidate_cpu_us"] = json!(vec![candidate; 30]);
+    record
+}
+
+#[test]
+fn a_cold_candidate_over_its_cold_oracle_holds_under_the_baseline() {
+    // Cold candidate 600 us is under the 1,000 us warm baseline, but 1.2x
+    // its own paired cold oracle (500 us): the cold regime holds the step.
+    keeps_with(baseline(), verify(), paired(0, 500, 600), "cpu-regressed");
+}
+
+#[test]
+fn a_warm_candidate_over_its_warm_oracle_holds_under_the_baseline() {
+    keeps_with(baseline(), verify(), paired(1, 500, 600), "cpu-regressed");
+}
+
+#[test]
+fn each_regime_reports_its_own_oracle_p95() {
+    let dir = tempfile::tempdir().unwrap();
+    // A cold oracle at 2,000 us lets a 2,100 us cold candidate pass, though
+    // it is over the warm baseline: the regime is judged by its own pairs.
+    let (output, record) = decide(dir.path(), &baseline(), &verify(), &paired(0, 2000, 2100));
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let record = record.unwrap();
+    assert_eq!(record["decision"], "activate");
+    assert_eq!(record["regimes"][0]["oracle_cpu_us_p95"], 2000);
+    assert_eq!(record["regimes"][1]["oracle_cpu_us_p95"], 1000);
+    assert_eq!(record["regimes"][0]["oracle_tree_max_rss_bytes"], 50_000);
+}
+
+#[test]
+fn a_regime_without_matching_oracle_samples_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut missing = measure(1000);
+    missing["regimes"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("oracle_cpu_us");
+    let mut short = measure(1000);
+    short["regimes"][1]["oracle_tree_max_rss_bytes"]
+        .as_array_mut()
+        .unwrap()
+        .pop();
+    for wrong in [missing, short] {
+        let (output, record) = decide(dir.path(), &baseline(), &verify(), &wrong);
+        assert_eq!(output.status.code(), Some(2), "{output:?}");
+        assert!(record.is_none());
+    }
+}
+
+/// Sets one regime's paired oracle RSS samples and its candidate RSS.
+fn paired_rss(state: usize, oracle: u64, candidate: u64) -> Value {
+    let mut record = measure(1000);
+    record["regimes"][state]["oracle_tree_max_rss_bytes"] = json!(vec![oracle; 30]);
+    record["regimes"][state]["candidate_tree_max_rss_bytes"] = json!(vec![candidate; 30]);
+    record
+}
+
+#[test]
+fn a_cold_candidate_over_its_cold_oracle_rss_holds_under_the_baseline() {
+    // Cold candidate 45,000 bytes is under the 50,000 byte baseline maximum,
+    // but 1.125x its own paired cold oracle (40,000 bytes).
+    keeps_with(
+        baseline(),
+        verify(),
+        paired_rss(0, 40_000, 45_000),
+        "rss-regressed",
+    );
+}
+
+#[test]
+fn a_warm_candidate_over_its_warm_oracle_rss_holds_under_the_baseline() {
+    keeps_with(
+        baseline(),
+        verify(),
+        paired_rss(1, 40_000, 45_000),
+        "rss-regressed",
+    );
+}
+
+#[test]
+fn each_regime_reports_its_own_oracle_rss() {
+    // A cold oracle at 60,000 bytes lets a 62,000 byte cold candidate pass,
+    // though it is over the baseline maximum.
+    let dir = tempfile::tempdir().unwrap();
+    let (output, record) = decide(
+        dir.path(),
+        &baseline(),
+        &verify(),
+        &paired_rss(0, 60_000, 62_000),
+    );
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let record = record.unwrap();
+    assert_eq!(record["regimes"][0]["oracle_tree_max_rss_bytes"], 60_000);
+    assert_eq!(record["regimes"][1]["oracle_tree_max_rss_bytes"], 50_000);
+}
+
+#[test]
+fn the_warm_noise_floor_does_not_cover_the_cold_regime() {
+    // The floor is measured on the warm baseline. Under it a 1,500 us warm
+    // candidate passes (ceiling 1,600 us), but the same cold candidate is
+    // judged by the 1.10 ratio against its 1,000 us cold oracle and holds.
+    let dir = tempfile::tempdir().unwrap();
+    let floor = test_floor();
+    let (output, record) = decide_with(
+        dir.path(),
+        &baseline(),
+        &verify(),
+        &measure(1500),
+        Some(&floor),
+    );
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let record = record.unwrap();
+    assert_eq!(record["reasons"], json!(["cpu-regressed"]));
+    assert_eq!(record["regimes"][0]["noise_floor_applied"], false);
+    assert_eq!(record["regimes"][1]["noise_floor_applied"], true);
 }

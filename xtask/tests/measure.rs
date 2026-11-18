@@ -200,6 +200,23 @@ fn decide_consumes_the_measure_record_with_a_baseline_record() {
     assert_eq!(summary[0]["cache_state"], "cold");
     assert_eq!(summary[1]["cache_state"], "warm");
     assert_eq!(summary[0]["pairs"], 1);
+    // The real measure fields reach decide's per-regime oracle fields.
+    let record: Value = serde_json::from_slice(&std::fs::read(&measured).unwrap()).unwrap();
+    for (index, regime) in record["regimes"].as_array().unwrap().iter().enumerate() {
+        assert_eq!(summary[index]["cache_state"], regime["cache_state"]);
+        assert_eq!(
+            summary[index]["oracle_cpu_us_p95"],
+            regime["oracle_cpu_us"][0]
+        );
+        assert_eq!(
+            summary[index]["oracle_tree_max_rss_bytes"],
+            regime["oracle_tree_max_rss_bytes"][0]
+        );
+        assert_eq!(
+            summary[index]["candidate_cpu_us_p95"],
+            regime["candidate_cpu_us"][0]
+        );
+    }
 }
 
 #[test]
