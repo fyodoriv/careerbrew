@@ -4866,10 +4866,6 @@ def ran_via() -> str:
     return "agent" if any(os.environ.get(k) for k in AGENT_ENV) else "cli"
 
 
-if __name__ == "__main__":
-    sys.exit(main())
-
-
 # rust-03 per-action native route (docs/rust-migration.md, rust-03). The console script passes no argv, so only it
 # reaches `_native_route`; `actions.run` (the web app) passes argv and always stays in this process.
 NATIVE_ROUTES = Path(__file__).resolve().parents[2] / "config" / "native-routes.txt"
@@ -4927,10 +4923,22 @@ def _native_route(argv: list[str]) -> int | None:
     import subprocess
 
     sys.stdout.flush()
-    done = subprocess.run([str(binary), *argv], stderr=subprocess.PIPE, check=False)
-    if done.returncode == NATIVE_UNSUPPORTED:
+    try:  # careerbrew-native buffers its whole output until exit, so capturing both streams delays nothing
+        done = subprocess.run([str(binary), *argv], capture_output=True, check=False)
+    except KeyboardInterrupt:
+        return 130  # Ctrl-C reached the child too; exit as a shell would, with no traceback
+    except OSError:  # present and executable, but it cannot start (wrong architecture, bad interpreter)
+        events.emit("cli.native_fallback", command=name, via=ran_via())
+        return None
+    if done.returncode == NATIVE_UNSUPPORTED:  # nothing it printed is shown, so Python never runs after native output
         events.emit("cli.native_unsupported", command=name, via=ran_via())
         return None
+    sys.stdout.buffer.write(done.stdout)
+    sys.stdout.flush()
     sys.stderr.buffer.write(done.stderr)
     sys.stderr.flush()
-    return done.returncode
+    return 128 - done.returncode if done.returncode < 0 else done.returncode  # a signal: 128 + N, as a shell reports it
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -909,10 +909,13 @@ vector touches a home. Known gaps:
     `CAREERBREW_ROUTE_<ACTION>=native|python` (upper case, other characters
     `_`) wins over the table, for rollback; the binary is
     `CAREERBREW_NATIVE_BIN` or `target/release/careerbrew-native`. A missing
-    or non-executable binary logs `cli.native_fallback`, and exit 64 logs
-    `cli.native_unsupported`; both then run Python. The binary runs as a child
-    (not `exec`), so exit 64 can fall back; its stderr is held and shown only
-    when it did not refuse. The prelude reads env and the plaintext route file
+    or non-executable binary, or one that cannot start, logs
+    `cli.native_fallback`, and exit 64 logs `cli.native_unsupported`; both
+    then run Python. The binary runs as a child (not `exec`), so exit 64 can
+    fall back; its stdout and stderr are held (the binary buffers both until
+    exit anyway) and shown only when it did not refuse, so a refusal never
+    duplicates output. A signal exits 128 + N, Ctrl-C exits 130. The binary
+    writes its own `cli.run` row, so the prelude adds none. The prelude reads env and the plaintext route file
     only. All routes are still `python`, so nothing changes until the
     activation PR flips `actions`. Tests: `tests/unit/test_native_route.py`;
     story US-111 (`tests/e2e/us-111-native-actions.sh`: python, native and

@@ -7,6 +7,8 @@ binary (the e2e story US-111 does). rust-26 deletes this file with the shim.
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -21,14 +23,14 @@ ROOT = Path(__file__).resolve().parents[2]
 def route(home, tmp_path, monkeypatch):
     """A scratch route file and a fake native binary that records its argv and exits with $FAKE_RC."""
     monkeypatch.setenv("CAREERBREW_EVENTS", "on")
-    for key in ("CAREERBREW_NATIVE", "CAREERBREW_NATIVE_BIN", "CAREERBREW_ROUTE_ACTIONS", "CAREERBREW_ROUTE_CONFIG_SHOW", "COLUMNS"):
+    for key in ("FAKE_OUT", "FAKE_SIGNAL", "FAKE_RC", "CAREERBREW_NATIVE", "CAREERBREW_NATIVE_BIN", "CAREERBREW_ROUTE_ACTIONS", "CAREERBREW_ROUTE_CONFIG_SHOW", "COLUMNS"):
         monkeypatch.delenv(key, raising=False)
     routes = tmp_path / "native-routes.txt"
     routes.write_text("# header\nactions python\nconfig.show python\n", encoding="utf-8")
     monkeypatch.setattr(cli, "NATIVE_ROUTES", routes)
     marker = tmp_path / "native-ran.txt"
     fake = tmp_path / "careerbrew-native"
-    fake.write_text(f'#!/bin/sh\nprintf "%s\\n" "$@" > "{marker}"\necho "fake stderr" >&2\nexit "${{FAKE_RC:-0}}"\n', encoding="utf-8")
+    fake.write_text(f'#!/bin/sh\nprintf "%s\\n" "$@" > "{marker}"\necho "fake stderr" >&2\n[ -n "$FAKE_OUT" ] && echo "$FAKE_OUT"\n[ -n "$FAKE_SIGNAL" ] && kill -"$FAKE_SIGNAL" $$\nexit "${{FAKE_RC:-0}}"\n', encoding="utf-8")
     fake.chmod(0o755)
     monkeypatch.setattr(cli, "NATIVE_BIN", fake)
 
@@ -157,3 +159,50 @@ def test_the_web_path_never_runs_the_native_binary(route, monkeypatch):
     monkeypatch.setattr(sys, "argv", ["careerbrew", "actions", "--json"])
     actions.run("actions", {})
     assert route.ran() is None
+
+
+def test_exit_64_after_stdout_shows_none_of_it(route, monkeypatch, capsys):
+    """Review: a refusal that printed first would duplicate output once Python runs; native output is held until exit."""
+    route.set("actions native\n")
+    monkeypatch.setenv("FAKE_RC", "64")
+    monkeypatch.setenv("FAKE_OUT", "partial native line")
+    assert cli._native_route(["actions", "--json"]) is None
+    assert "partial native line" not in capsys.readouterr().out
+
+
+def test_native_stdout_and_stderr_reach_the_caller(route, monkeypatch, capsys):
+    route.set("actions native\n")
+    monkeypatch.setenv("FAKE_OUT", "native out")
+    assert cli._native_route(["actions", "--json"]) == 0
+    seen = capsys.readouterr()
+    assert seen.out == "native out\n" and seen.err == "fake stderr\n"
+
+
+def test_a_signal_killed_child_exits_128_plus_the_signal(route, monkeypatch):
+    route.set("actions native\n")
+    monkeypatch.setenv("FAKE_SIGNAL", "9")
+    assert cli._native_route(["actions", "--json"]) == 137
+
+
+def test_a_binary_that_cannot_start_falls_back_to_python(route, monkeypatch):
+    route.set("actions native\n")
+    route.fake.write_text("#!/nonexistent/interpreter\n", encoding="utf-8")
+    assert cli._native_route(["actions", "--json"]) is None
+    assert [e["event"] for e in route.events()] == ["cli.native_fallback"]
+
+
+def test_ctrl_c_during_a_native_run_exits_130_with_no_traceback(route, monkeypatch):
+    route.set("actions native\n")
+
+    def interrupted(*_a, **_k):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(subprocess, "run", interrupted)
+    assert cli._native_route(["actions", "--json"]) == 130
+
+
+def test_python_dash_m_careerbrew_cli_runs(home):
+    """Review: the route helpers sat after the `__main__` guard, so `python -m careerbrew.cli` hit NameError."""
+    done = subprocess.run([sys.executable, "-m", "careerbrew.cli", "--help"], capture_output=True, text=True, env={**os.environ, "CAREERBREW_HOME": str(home)}, check=False, timeout=120)
+    assert done.returncode == 0, done.stderr
+    assert "NameError" not in done.stderr
