@@ -49,19 +49,8 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if the collector cannot be reached from the machine or the token cannot be approved within two weeks, switch the plugin to `kind: file` and let the company's own log forwarder read the file.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Splunk Docs, "Format events for HTTP Event Collector".
 
-- [ ] Rust migration: Prove maintained dependency and data interoperability
-  - **ID**: rust-01
-  - **Details**: Evaluate maintained Rust libraries for JSON/YAML, Fernet, FSRS, ICS recurrence/time zones, HTTP, file locks, subprocess limits and native parsers for retained Python/JavaScript teaching examples. Pin accepted crates and licenses in Cargo.lock. Run two-way Fernet vectors, old-data reads, FSRS schedule vectors and recurrence/DST fixtures against Python. Reject unsupported semantics before domain ports. Follow the measured Rust migration plan in `docs/rust-migration.md`: step `rust-01` in "Work breakdown" (its inputs, outputs and gate), "Scope", and "Measurement protocol for every step". Split large capabilities into independently measured PRs; do not defer their tests to the final harness task. A component-only result does not enable production dispatch: the plan's full native activation closure must be measured before switching.
-  - **Files**: pyproject.toml; src/careerbrew/vault.py; store.py; tutor/cards.py; calendar.py
-  - **Hypothesis**: this is a preparation step: harness and dependency controls replace speed claims. Maintained dependency adapters match 100% of the required data and algorithm vectors (two-way Fernet, old-data reads, FSRS schedules, recurrence and daylight-saving fixtures), with 0 unsupported required features and 0 custom cryptographic primitives. No product handler switches and no CPU or RSS result is claimed.
-  - **Measurement**: `heavy-run cargo run -q --locked --offline -p careerbrew-xtask -- migration self-test` (the harness controls stay green) and `heavy-run cargo xtask migration verify --step rust-01` (each dependency vector set against the Python oracle, with a planted wrong-vector control that must fail). No `measure` or `decide` resource run: there is no product path to time.
-  - **Success**: 100% dependency contract vectors agree; 0 unsupported required features and 0 custom cryptographic primitives; every planted wrong-vector control fails; the harness self-test stays green; whole-repo fast/full checks remain green.
-  - **Pivot**: a vector disagreement or an unsupported required feature rejects that library. Register the next maintained candidate and rerun the vectors. If no maintained crate passes for a required meaning, stop the dependent domain steps and record a plan change in `docs/rust-migration.md`; never write a custom cryptographic primitive.
-  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
-
 - [ ] Rust migration: Port pure setting schemas, paths, clocks and hashes
   - **ID**: rust-02
-  - **Blocked**: prerequisite: rust-01 must land and pass its acceptance gates first
   - **Details**: Port pure setting validators/defaults and precedence over supplied values, empty CAREERBREW_HOME refusal, local/UTC date values, durations and input hashes. No encrypted settings IO or live changes.check orchestration in this step: settings IO and minimal event emission belong to rust-05; full changes orchestration belongs to rust-24. Freeze clock and environment per test. Follow the measured Rust migration plan in `docs/rust-migration.md`: step `rust-02` in "Work breakdown" (its inputs, outputs and gate), "Scope", and "Measurement protocol for every step". Split large capabilities into independently measured PRs. Port this capability's CLI handlers and the assertions of its test files in this step, and route its own commands to native code when its activation closure is native; do not defer them to rust-26 or rust-27 ("Every module has an owner step" lists them). A component-only result does not enable production dispatch: the plan's full native activation closure must be measured before switching.
   - **Files**: src/careerbrew/config.py (pure schema); paths.py; changes.py (_h only); __init__.py
   - **Hypothesis**: replacing this slice preserves 100% of its registered behavior with 0 privacy/policy/side-effect violations; native CPU-time p95 and peak RSS stay at or below 1.10 times measured baseline B. Preparation steps instead prove their harness/dependency controls before any product switch. No current speed result is claimed.
@@ -94,7 +83,7 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 - [ ] Rust migration: Port encrypted storage and transaction locks
   - **ID**: rust-05
-  - **Blocked**: prerequisite: rust-01, rust-02, rust-04 must land and pass its acceptance gates first
+  - **Blocked**: prerequisite: rust-02, rust-04 must land and pass its acceptance gates first
   - **Details**: Preserve encryption envelope, key location/mode, missing-key refusal, JSON/YAML/JSONL semantics, atomic replacement, unique temporary names, lock paths and write-if-changed. Extract the key-path/load functions currently in backup.py, settings IO and minimal content-free event emission here, so native storage never depends on later backup/config/event orchestration. Include approval-receipt storage, with one implementation per provider. Prove mixed Python/Rust writers under the same advisory lock and crash/interruption boundaries. Port whole transactions together; never hold a parent lock while a child reacquires it. Follow the measured Rust migration plan in `docs/rust-migration.md`: step `rust-05` in "Work breakdown" (its inputs, outputs and gate), "Scope", and "Measurement protocol for every step". Split large capabilities into independently measured PRs. Port this capability's CLI handlers and the assertions of its test files in this step, and route its own commands to native code when its activation closure is native; do not defer them to rust-26 or rust-27 ("Every module has an owner step" lists them). A component-only result does not enable production dispatch: the plan's full native activation closure must be measured before switching.
   - **Files**: src/careerbrew/store.py; vault.py; secrets.py; backup.py (key provider); config.py (IO); events.py (emit primitive); approvals.py (receipt IO)
   - **Hypothesis**: replacing this slice preserves 100% of its registered behavior with 0 privacy/policy/side-effect violations; native CPU-time p95 and peak RSS stay at or below 1.10 times measured baseline B. Preparation steps instead prove their harness/dependency controls before any product switch. No current speed result is claimed.
@@ -259,7 +248,7 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 - [ ] Rust migration: Port flashcards, FSRS and Notion import
   - **ID**: rust-20
-  - **Blocked**: prerequisite: rust-01, rust-05, rust-08 must land and pass its acceptance gates first
+  - **Blocked**: prerequisite: rust-05, rust-08 must land and pass its acceptance gates first
   - **Details**: Port scheduling using a maintained FSRS implementation validated against current vectors, card grading, public deck checks and Notion import. Also port the shared tutor.engine gap-queue/provider primitives and mistake-record helpers needed by jobs.strategy and exercise submission before their consumers; leave teacher orchestration for rust-21. Preserve private/public card separation, learning timestamps and import idempotence. Follow the measured Rust migration plan in `docs/rust-migration.md`: step `rust-20` in "Work breakdown" (its inputs, outputs and gate), "Scope", and "Measurement protocol for every step". This step also owns `tests/fixtures/notion-bundle/` and `tests/fixtures/public-cards/` ("Every module has an owner step" in the same page). Split large capabilities into independently measured PRs. Port this capability's CLI handlers and the assertions of its test files in this step, and route its own commands to native code when its activation closure is native; do not defer them to rust-26 or rust-27 ("Every module has an owner step" lists them). A component-only result does not enable production dispatch: the plan's full native activation closure must be measured before switching.
   - **Files**: src/careerbrew/tutor/cards.py; public.py; notion_import.py; tutor/engine.py (shared providers); tutor/mistakes.py (record helpers)
   - **Hypothesis**: replacing this slice preserves 100% of its registered behavior with 0 privacy/policy/side-effect violations; native CPU-time p95 and peak RSS stay at or below 1.10 times measured baseline B. Preparation steps instead prove their harness/dependency controls before any product switch. No current speed result is claimed.
@@ -531,6 +520,26 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Anchor**: Saltzer & Schroeder 1975 (complete mediation); Basili, Caldiera & Rombach 1994 (GQM).
 
 ## P2
+
+- [ ] CI: stop macOS gate parts from being cancelled while they wait for a runner
+  - **ID**: ci-macos-runner-wait
+  - **Details**: On 2026-11-18 macOS `part` jobs of the CI workflow sat queued for over 2 hours with 0 steps, then ended `cancelled`, so `gate (macos-15)` failed on PRs #136 to #140 and #146 with no code fault; each needed `gh run rerun <id> --failed`, some twice. Find what cancels a queued job (workflow `concurrency`, a `timeout-minutes` that counts queue time, or GitHub's own queue limit), then make a queued-too-long part rerun once by itself or report "no runner" instead of a failed gate.
+  - **Files**: .github/workflows/ci.yml; docs/ci.md
+  - **Hypothesis**: most failed `gate (macos-15)` results in a week come from parts cancelled with 0 steps, so making the gate tell "no runner" apart from a test failure cuts manual reruns to 0 for that cause.
+  - **Measurement**: `gh run list --workflow CI --limit 100 --json databaseId` then, per run, `gh api repos/{owner}/{repo}/actions/runs/<id>/jobs --jq '[.jobs[]|select(.conclusion=="cancelled" and (.steps|length)==0)]|length'`; count over 7 days before and after.
+  - **Success**: 0 manual reruns needed for 0-step cancelled macOS parts over 7 days.
+  - **Pivot**: if the cancel comes from GitHub's queue limit and cannot be changed, move the macOS parts to a scheduled run on `main` and keep Linux as the pull request gate; record it in `docs/ci.md`.
+  - **Anchor**: Forsgren, Humble & Kim 2018 (DORA: lead time and change failure rate).
+
+- [ ] Web test flake: control inventory misses the sign-in heading on macOS
+  - **ID**: flake-controls-signin-heading
+  - **Details**: `web/e2e/controls.spec.ts:287` ("inventory on a personal machine") failed once on the hosted macOS `e2e-1` part of PR #146 (run 44396901477): `getByRole('heading', { name: 'Sign in to careerbrew' })` was not visible in 15 s, while the server log showed many `BrokenPipeError` lines; 195 of 196 tests passed and a rerun passed. The PR changed no web code. Reproduce with repeated runs of that spec, then wait for the sign-in page's own ready signal instead of the heading alone.
+  - **Files**: web/e2e/controls.spec.ts; tests/e2e/us-72-every-control.sh
+  - **Hypothesis**: the heading wait races a page that is still loading behind earlier aborted requests; waiting for the page's own ready state removes the failure.
+  - **Measurement**: `cd web && npx playwright test e2e/controls.spec.ts --repeat-each 20` on a hosted macOS runner (a `workflow_dispatch` job), failures counted before and after.
+  - **Success**: 0 failures in 20 repeats after the change.
+  - **Pivot**: if it still fails, capture the trace on failure and look for a server error instead of a timing race.
+  - **Anchor**: Luo et al. 2014, "An Empirical Analysis of Flaky Tests" (FSE).
 
 - [ ] Investigate RSS calibration below the success band on hosted Linux
   - **ID**: flaky-rss-calibration-linux
