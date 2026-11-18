@@ -11,10 +11,11 @@ import datetime
 import json
 import struct
 import sys
+from zoneinfo import ZoneInfo
 
 import yaml
 
-from careerbrew import store
+from careerbrew import calendar, store
 
 
 def encode(value):
@@ -78,8 +79,21 @@ def json_yaml(op, data):
     raise ValueError("unknown op")
 
 
+def calendar_set(op, data):
+    tz = ZoneInfo(data["tz"])
+    if op == "day":
+        events = calendar.parse_ics(data["ics"], datetime.date.fromisoformat(data["day"]), tz)
+        return [
+            {"start": e.start.astimezone(tz).isoformat(), "end": e.end.astimezone(tz).isoformat(), "title": e.title, "busy": e.busy, "personal": e.personal, "recurring": e.recurring}
+            for e in sorted(events, key=lambda e: (e.start, e.end, e.title))
+        ]
+    if op == "local-day":
+        return datetime.datetime.fromisoformat(data["at"]).astimezone(tz).date().isoformat()
+    raise ValueError("unknown op")
+
+
 # The registry: one line per vector set.
-SETS = {"json-yaml": json_yaml}
+SETS = {"calendar": calendar_set, "json-yaml": json_yaml}
 
 
 def main():

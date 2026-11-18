@@ -544,6 +544,17 @@ base-60 ints, `1_000`, `.inf`, dates and timestamps with offsets, anchors,
 repeated keys, block scalars, one document) and `yaml-roundtrip` (each side
 writes and reads its own text).
 
+**Set `calendar` (22 vectors):** `day` runs `calendar.parse_ics` for one
+local day: weekly `BYDAY` workday series, `UNTIL` and `COUNT` ends, EXDATE,
+a daily series, the US daylight-saving end (2026-11-01) and the EU one
+(2026-10-25) seen from New York, Berlin and UTC, a UTC event that falls on
+the previous Los Angeles day, an all-day event, a transparent private
+event, and an unknown zone (an error). `local-day` puts an instant in its
+local day bucket. The Python side sorts events by start, end and title,
+like the Rust side. Known gaps: RECURRENCE-ID overrides, DURATION, events
+with no DTEND, zone-less (floating) times, and local times that a
+daylight-saving jump skips or repeats.
+
 Known gaps, not in the vectors yet (each is a rejected meaning until a later
 PR covers it): JSON floats that Python writes with an exponent (`1e+16`);
 ints past 64 bits; `NaN` and `Infinity` in JSON; YAML merge keys (`<<`) and
@@ -560,6 +571,11 @@ writing YAML for a string that looks like a date or `1_000`, or a datetime
 | YAML read and write | `serde_yaml` | 0.9.34 | MIT OR Apache-2.0 | rejected | archived and unmaintained since 2024 |
 | YAML read and write | `serde_norway`, `serde_yaml_ng` | 0.9.42, 0.10.0 | MIT OR Apache-2.0 | rejected | serde forks of `serde_yaml`: their values do not keep the scalar style, so a quoted `'yes'` and a plain `yes` look the same and YAML 1.1 reads cannot match PyYAML |
 | YAML read and write | `serde-saphyr` | 2.2.0 | MIT OR Apache-2.0 | not chosen yet | active, but its newest release is days old; look again if `yaml-rust2` falls behind |
+| ICS parsing | `icalendar` | 0.17.17 | MIT OR Apache-2.0 | kept | active (release 2026-10); only its `parser` feature (`nom` 8 and `nom-language`, MIT; `iso8601`, MIT; `uuid`, MIT OR Apache-2.0); its properties keep their TZID and VALUE parameters; `calendar` vectors |
+| RRULE expansion | `rrule` | 0.14.0 | MIT OR Apache-2.0 | kept | the Rust port of the `rrule.js` and `dateutil` rules; `BYDAY`, `UNTIL`, `COUNT` and EXDATE on zoned starts; pulls `regex` (MIT OR Apache-2.0) and `thiserror` (MIT OR Apache-2.0). Last release 2025-04: look again if it stays quiet past 2027 |
+| RRULE expansion | `icalendar` `recurrence` feature | 0.17.17 | MIT OR Apache-2.0 | rejected | wraps the same `rrule` crate behind a model API; the plain parser plus `rrule` keeps each step visible and the feature set small |
+| Time zones | `chrono-tz` | 0.10.4 | MIT OR Apache-2.0 | kept | the IANA database compiled in (`phf`, MIT), so a zone reads the same on every machine; the zone type `rrule` uses |
+| Dates and times | `chrono` | 0.4.45 | MIT OR Apache-2.0 | kept | the date type `rrule` and `chrono-tz` share; `clock` pulls `iana-time-zone` (MIT OR Apache-2.0) |
 
 ### rust-02: Port pure setting schemas, paths, clocks and hashes
 
