@@ -11,7 +11,7 @@
 //! set. `--test-wrong-vector <set>` plants a wrong vector: the candidate gets
 //! the set's first input wrapped in another value, and that case must fail.
 //! A step with `count_home_writes` also snapshots the caller's real homes
-//! (`$HOME/private` and `CAREERBREW_HOME`) before and after both sides and
+//! (the repo's `private/` and a set `CAREERBREW_HOME`) before and after both sides and
 //! records the count of changed files; any change fails the record.
 use crate::{baseline, capture_actions, decide, verify};
 use serde_json::{json, Value};
@@ -241,16 +241,29 @@ fn sources_sha256(
 /// Directories are listed but carry no state, so a new file counts once.
 type FileState = Option<(u64, Option<SystemTime>)>;
 
-/// The caller's real homes: `$HOME/private` and a set `CAREERBREW_HOME`.
-pub(crate) fn real_homes() -> Vec<PathBuf> {
-    let mut homes = Vec::new();
-    if let Some(home) = std::env::var_os("HOME").filter(|home| !home.is_empty()) {
-        homes.push(Path::new(&home).join("private"));
-    }
+/// The caller's real homes: careerbrew's default data folder (`private/`
+/// in the repo root, as `paths.data_root` uses when `CAREERBREW_HOME` is
+/// unset) and a set `CAREERBREW_HOME`. A home inside another one is left
+/// out, so one write counts once.
+pub(crate) fn real_homes(root: &Path) -> Vec<PathBuf> {
+    let mut homes = vec![root.join("private")];
     if let Some(home) = std::env::var_os("CAREERBREW_HOME").filter(|home| !home.is_empty()) {
         homes.push(PathBuf::from(home));
     }
-    homes
+    let homes: Vec<PathBuf> = homes
+        .into_iter()
+        .map(|home| home.canonicalize().unwrap_or(home))
+        .collect();
+    let mut kept: Vec<PathBuf> = Vec::new();
+    for home in &homes {
+        let inside_other = homes
+            .iter()
+            .any(|other| other != home && home.starts_with(other));
+        if !inside_other && !kept.contains(home) {
+            kept.push(home.clone());
+        }
+    }
+    kept
 }
 
 /// Every path under `homes` with its state. It never follows a symbolic
@@ -328,7 +341,11 @@ pub fn record(
                 .map(PathBuf::from)
                 .filter(|home| home.is_absolute() && home.is_dir())
                 .ok_or("--test-plant-home-write needs an absolute CAREERBREW_HOME folder")?;
-            Some(home.join(name))
+            let path = home.join(name);
+            if std::fs::symlink_metadata(&path).is_ok() {
+                return Err("--test-plant-home-write names an existing file".into());
+            }
+            Some(path)
         }
     };
     let test_candidate = candidate.is_some();
@@ -350,7 +367,7 @@ pub fn record(
     let candidate_sha256 = capture_actions::digest(
         &std::fs::read(&candidate).map_err(|_| "cannot read the candidate binary")?,
     );
-    let homes = real_homes();
+    let homes = real_homes(root);
     let before = step.count_home_writes.then(|| snapshot(&homes));
     let mut cases = Vec::new();
     for (set, vectors) in &sets {
@@ -408,7 +425,15 @@ pub fn record(
         cases.push(json!({"case": "no-vector-sets", "passed": false}));
     }
     if let Some(path) = &planted_home {
-        std::fs::write(path, b"planted home write\n").map_err(|_| "cannot plant the home write")?;
+        use std::io::Write as _;
+        // create_new: never truncate a file this run did not create.
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path)
+            .map_err(|_| "--test-plant-home-write names an existing file")?;
+        file.write_all(b"planted home write\n")
+            .map_err(|_| "cannot plant the home write")?;
     }
     let home_writes = before.map(|before| changed(&before, &snapshot(&homes)));
     if let Some(path) = &planted_home {

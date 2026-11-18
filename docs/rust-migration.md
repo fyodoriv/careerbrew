@@ -718,13 +718,22 @@ contracts do not apply: the vectors make no writes and use no roles.
 - **No sets yet:** verify records one failed case, `no-vector-sets`, so a
   record with 0 vectors never passes.
 - **Real-home writes:** verify snapshots the caller's real homes
-  (`$HOME/private` and a set `CAREERBREW_HOME`: each file's size and
-  modification time) before and after both sides. The record holds
+  (the repo's `private/` folder, careerbrew's default data folder, and a
+  set `CAREERBREW_HOME`; a home inside the other counts once; each file's
+  size and modification time) before and after both sides. The record holds
   `real_home_writes` (paths added, removed or changed), `real_homes_checked`
   and `planted_home_write`. A count above 0 fails the case
   `real-home-writes`. Test-only: `--test-plant-home-write <file-name>` writes
-  one file into the caller's absolute `CAREERBREW_HOME` between the snapshots
-  and removes it after; that case must fail (`xtask/tests/purevec.rs`).
+  one new file into the caller's absolute `CAREERBREW_HOME` between the
+  snapshots and removes only that file after; a name that already exists
+  is refused (`--test-plant-home-write names an existing file`). That case
+  must fail (`xtask/tests/purevec.rs`).
+- **Known limit, noisy guard:** the snapshot spans the whole verify run. A
+  running careerbrew watcher or web app writes bookkeeping files in the real
+  home on its own schedule (`day/watch.json`, `day/cursors.json`,
+  `work/feed/.lock`), so a run that overlaps one fails `real-home-writes`
+  although neither side wrote. Stop the watcher before a verify run, and
+  rerun once before you trust a failure of that case.
 - **Measure is per process:** both sides run every set with `--all`, so a
   ratio covers the whole step, not one slice. Each slice PR re-runs
   `baseline` (its source hash changes). The verdict is component parity
