@@ -8,7 +8,8 @@ repository can do any step from this page and the task block.
 - **Status:** a plan. No Rust code runs in production today. No speed or memory
   gain is claimed. See [Current state](#current-state) and
   [State of rust-00](#state-of-rust-00).
-- **Next task:** `rust-00` (the measurement harness). Every other step waits for it.
+- **Next task:** `rust-01` (dependency proof). `rust-00` is done (2026-11-18); its
+  follow-ups are tasks in `TASKS.md`.
 - **How to read it:** the [goal](#goal-and-vision) and [decision](#decision-and-rejected-alternatives),
   then the [measurement protocol](#measurement-protocol-for-every-step), then
   [build order versus production activation](#build-order-versus-production-activation),
@@ -372,7 +373,7 @@ Anchor: Tarjan 1972, *Depth-First Search and Linear Graph Algorithms*
 
 ### Lanes and order
 
-- Only `rust-00` is ready now. Each task's **Blocked** line is a hard gate.
+- `rust-00` is done; `rust-01` is ready now. Each task's **Blocked** line is a hard gate.
 - After the shared storage and policy steps, independent domain lanes may run
   in parallel. They must not share mutable fixture homes.
 - Each domain step ports its own CLI handlers and test assertions, and routes
@@ -1068,7 +1069,7 @@ Rules of the refresh:
   an unreadable `package.json` or an Agentfile list it cannot read fails the
   check; a file with a NUL byte is binary and skipped. Prose in `docs/` is out
   of scope. Process
-  observation is still open `rust-00` work.
+  observation is task `rust-00-inventory-process-observation`.
 
 Anchor: Basili, Caldiera and Rombach 1994 (Goal Question Metric).
 
@@ -1079,8 +1080,8 @@ the commands in each row before you rely on it.
 
 **Summary:** the Rust code is measurement preparation and two disconnected
 component experiments. No CLI command, HTTP route or watcher calls Rust. The
-app runs on Python. No step has a merged decide result. The next task is
-`rust-00`.
+app runs on Python. No step has a merged decide result. `rust-00` is done (2026-11-18); the next task
+is `rust-01`.
 
 ### Crates (`ls crates xtask experiments`, `Cargo.toml`)
 
@@ -1116,7 +1117,7 @@ The tool has no `--help`. A wrong argument prints the usage and exits 2.
 | `cargo xtask migration capture-actions --python <absolute-path> --out <new-file>` | runs `python -B -m careerbrew actions --json` twice in fresh synthetic homes and compares stdout, stderr, exit, schema and writes |
 | `cargo xtask migration capture-http --python <absolute-path> --out <new-file>` | runs two fresh synthetic server processes over a frozen HTTP corpus (21 request cases) |
 | `cargo xtask migration capture-data --python <absolute-path> --out <new-file>` | runs a ten-case write and read corpus twice and compares typed values, encrypted boundaries and declared writes |
-| `cargo xtask migration resources --cmd <absolute-path> [args]` | runs one owned child, reaps it with `wait4`, and prints JSON: outcome (exit code or signal), user and system CPU time, peak RSS raw and in bytes. The process exit code is not the child's exit code: 0 means the child exited cleanly with 0; 1 means it was killed by a signal or exited nonzero; 2 is a usage error (a relative path); 3 is a measurement error (spawn, `wait4` or `getrusage` failed), printed as a JSON `error` object. On Linux, `rss_may_include_parent` marks a child peak at or below the measuring process's own peak. macOS and Linux only; another OS is refused. Grandchildren are not qualified. |
+| `cargo xtask migration resources --cmd <absolute-path> [args]` | runs one owned child, reaps it with `wait4`, and prints JSON: outcome (exit code or signal), user and system CPU time, peak RSS raw and in bytes. The process exit code is not the child's exit code: 0 means the child exited cleanly with 0; 1 means it was killed by a signal or exited nonzero; 2 is a usage error (a relative path); 3 is a measurement error (spawn, `wait4` or `getrusage` failed), printed as a JSON `error` object. On Linux, `rss_may_include_parent` marks a child peak at or below the measuring process's own peak. macOS and Linux only; another OS is refused. Process-group descendants are counted in the `tree_*` fields; descendants that leave the group are not (task `rust-00-process-tree-escapees`). |
 | `cargo xtask migration observer-probe --image <immutable-id> [--out <new-directory> [--freeze-only\|--fault-controls-only]]` | the fixed Linux process-observer probe in an owned, network-disabled container |
 
 | `cargo xtask migration baseline --step <id> --python <absolute-path> --out <absolute-new-file> [--runs <n>]` | runs the step's registered Python oracle N times (default 30) through the process-tree collector. Each run gets a fresh synthetic home. The oracle starts in the repo root. It writes a content-free JSON record: step, command, OS, arch, Rust and Python versions, source revision, `source_tree_dirty` (from `git status --porcelain`), a hash of the relevant sources (the capture sources plus `baseline.rs` and `resources.rs`), `fixtures_sha256` (`tests/fixtures/http`), `cache_state` (`warm-imports-fresh-synthetic-home`: imports and OS caches are warm, only the data folder is fresh), `meets_protocol_minimum`, raw samples (tree CPU user and system time, tree peak RSS, wall time, `parent_max_rss_bytes`, `rss_may_include_parent`) and p50 and p95. It refuses an unknown step, fewer than 30 runs (the test-only flag `--test-allow-few-runs` allows them and records `meets_protocol_minimum: false`), a relative `--python` or `--out`, an oracle run that does not exit 0, a set but empty `CAREERBREW_HOME`, an existing output, and a source or fixture change during the runs. Registered steps: `rust-03` (`careerbrew actions --json`). |
@@ -1158,7 +1159,18 @@ step has a registered Rust candidate yet, so no real record exists.
 
 ## State of rust-00
 
-This section replaces the old continuation notes. Those notes and the old
+**rust-00 is done (signed off 2026-11-18).** Its gate holds: the harness
+rejects every planted defect (wrong output, leaked canary, skipped test, slow
+path), accepts the unchanged oracle, and the inventory has 0 unassigned
+paths, and `migration self-test` (17 controls) and `inventory --check` pass in
+the hosted gate on `main` (run 44284505238, after #131). The real noise-floor
+values and descendants that leave the process group are deferred follow-ups,
+not part of the gate. The open items below either have their own tasks in
+`TASKS.md` (`rust-00-measure-noise-floors`, `rust-00-process-tree-escapees`,
+`rust-00-inventory-process-observation`) or say why they block nothing; none
+blocks `rust-01`.
+
+This section is the record of the step. It replaces the old continuation notes. Those notes and the old
 draft pull request are not on the public repository.
 
 ### Done (in the public tree)
@@ -1203,18 +1215,23 @@ are **component parity only** and switch nothing:
   full harness. A first offline image build failed (the pinned `strace`
   package was not in the cache); a separate network-enabled preparation then
   built the image. Raw receipts stay local and are not in the repository.
-- Whole-process-tree resource collection is **built, not yet qualified**
-  (see "Process-tree resource accounting" below). It counts descendants that
-  stay in the child's process group; a descendant that calls `setsid` or
-  `setpgid` is not counted. Hosted numbers are still to be recorded.
+- Whole-process-tree resource collection is calibrated on one hosted run
+  (44099007218: macOS 0.996x, Linux 0.972x; a second run is pending; see "Process-tree resource accounting"
+  below). It counts descendants that stay in the child's process group; a
+  descendant that calls `setsid` or `setpgid` is not counted (task
+  `rust-00-process-tree-escapees`).
 - One full local gate on the old draft failed one owned-process cleanup test
   (all others passed). Its cause was never found. A later fast gate passed
   without explaining it. The hosted gate on `main` is green today; treat any
-  repeat as a real failure and read its log.
+  repeat as a real failure and read its log. Not a gate item: no task until it
+  repeats.
 - A nonempty check label does not prove that a test ran. The future collector
-  must bind that evidence.
-- Embedded-code discovery (beyond the reviewed anchors) and process
-  observation for the inventory are open.
+  must bind that evidence. Not a rust-00 gate item: each port step's `verify`
+  record names its checks, and binding them to executed tests is work for the
+  collector those steps use.
+- Embedded-code discovery is done (`inventory --sites-check`). Process
+  observation of what a run really starts is open (task
+  `rust-00-inventory-process-observation`).
 
 ### Owned-child resource accounting (pre-registered 2026-11-16)
 
@@ -1448,41 +1465,21 @@ and `cargo test -p careerbrew-xtask --bin careerbrew-xtask decide::controls`
 on the hosted gate. **Success:** 3 of 3 end-to-end controls and 3 of 3
 self-test controls pass, and the always-accept and always-hold runs fail. **Pivot:** if the
 equal-cost end-to-end run shows `cpu-regressed` in 2 or more hosted runs, a
-3-sample p95 is too noisy for this check; compare against the paired oracle
-samples (task `rust-00-decide-paired-regimes`) before trusting the ratio.
+3-sample p95 is too noisy for this check; `decide` now compares each
+regime against its own paired oracle samples, so judge it by those.
 **Anchor:** Kalibera and Jones 2013 (variation and minimum effect size);
 Jia and Harman 2011 (planted faults prove a check can fail).
 
 ### Next, in order
 
-1. Recheck the gate: `gh pr checks` on a fresh pull request, and
-   `cargo xtask migration self-test` and `inventory --check` locally.
-2. Done for the owned child: calibrated units on macOS (1.000x) and Linux
-   (0.979x) with `cargo xtask migration resources`, measured from a small
-   parent. Process-tree accounting is done: macOS 0.996x, Linux 0.972x.
-3. `cargo xtask migration baseline` is built (6 controls in
-   `cargo test -p careerbrew-xtask --test baseline`; the hosted gate prints its
-   `baseline` line with the resource calibration lines).
-   `cargo xtask migration verify` compares the CLI, HTTP, side-effect, DATA
-   and role contracts, traces data writes per phase, and writes the record
-   `decide` reads with empty `unobserved_violations` and `missing_contracts`
-   (`cargo test -p careerbrew-xtask --test verify`).
-   `measure --pairs` (paired cold and warm runs) and `decide` are built, and
-   `decide` reads the measure record end to end and judges each regime
-   against its own paired oracle samples. Next: record real numbers once
-   `rust-03` registers its candidate.
-4. Registries built: noise floors per step and OS, and per-case
-   normalization rules ("Noise floors and normalization rules"). Left: the
-   real `rust-03` floors from hosted baselines (task
-   `rust-00-measure-noise-floors`), and rules for the HTTP and data
-   contracts when `verify` covers them.
-5. Done: the planted slow-path controls ("Planted slow-path controls").
-   `decide` holds a 3x CPU and a 512 MiB candidate that pass `verify`; the
-   self-test runs 17 controls.
-6. The inventory covers embedded code and generated entry points
-   (`inventory --sites-check`, run by `inventory --check`). Next: process
-   observation of what a run really starts.
-7. Then mark `rust-00` done, remove its task block, and unblock `rust-01`.
+`rust-00` is done. Its follow-ups run beside the next steps:
+
+1. `rust-01`: prove maintained dependency and data interoperability.
+2. `rust-03` registers its Rust candidate. Then record real `measure` and
+   `decide` numbers, and the real `rust-03` noise floors from hosted
+   baselines (task `rust-00-measure-noise-floors`).
+3. Follow-ups that do not block a step: `rust-00-process-tree-escapees` and
+   `rust-00-inventory-process-observation`.
 
 ## Every module has an owner step
 
