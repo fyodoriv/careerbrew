@@ -418,12 +418,36 @@ fn planted(body: &str) -> (Value, Value) {
             .output()
             .unwrap(),
     );
+    let read =
+        |path: &Path| -> Value { serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap() };
+    let verified = read(&verify);
+    // The verify record lists `cases`; decide reads `checks` and
+    // `violations`. Map each real case to a check; verify has no
+    // violation counts yet, so they are 0 (docs: "Planted slow-path
+    // controls").
+    let checks: Vec<Value> = verified["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|case| json!({"id": case["case"], "passed": case["passed"]}))
+        .collect();
+    let decide_verify = scratch.path().join("decide-verify.json");
+    let shaped = json!({
+        "schema": "careerbrew-migration-verify-v1",
+        "step": "rust-03",
+        "checks": checks,
+        "violations": {
+            "contract": 0, "privacy": 0, "authorization": 0, "role": 0,
+            "side_effect": 0, "missing_writes": 0, "duplicate_writes": 0,
+        },
+    });
+    std::fs::write(&decide_verify, serde_json::to_vec(&shaped).unwrap()).unwrap();
     let out = scratch.path().join("decide.json");
     let result = Command::new(XTASK)
         .args(["migration", "decide", "--step", "rust-03", "--baseline"])
         .arg(&base)
         .arg("--verify")
-        .arg(&verify)
+        .arg(&decide_verify)
         .arg("--measure")
         .arg(&measured)
         .arg("--out")
@@ -432,13 +456,13 @@ fn planted(body: &str) -> (Value, Value) {
         .unwrap();
     // Keep-python is exit 1; a refusal (exit 2) would mean no verdict.
     assert_eq!(result.status.code(), Some(1), "{result:?}");
-    let read =
-        |path: &Path| -> Value { serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap() };
-    (read(&verify), read(&out))
+    (verified, read(&out))
 }
 
+/// The oracle command with its own arguments: `measure` runs a test
+/// candidate with no arguments, `verify` passes the case arguments.
 fn oracle_line() -> String {
-    format!("\"{}\" -B -m careerbrew \"$@\"", python().display())
+    format!("\"{}\" -B -m careerbrew actions --json", python().display())
 }
 
 fn holds_for(verdict: &Value, reason: &str) {

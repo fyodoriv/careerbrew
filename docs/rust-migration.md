@@ -1415,6 +1415,13 @@ holds a slow path on its own, not only through the output compare.
 | big memory: a child holds 512 MiB, then the oracle | `verify` passes; `decide` `keep-python` with `rss-regressed` |
 | equal cost: `exec` of the oracle | `verify` passes; no `cpu-regressed` and no `rss-regressed` |
 
+The real `verify` record lists `cases`, but `decide` reads `checks` and
+`violations`. The test maps each real case to a check and sets the violation
+counts to 0, because `verify` has none yet. Making `decide` read the real
+`verify` record is left to the `verify` extension in "Next" item 3. A test
+candidate gets no arguments from `measure`, so each candidate names
+`actions --json` itself.
+
 With test flags, every verdict also holds `too-few-unique-pairs` and
 `baseline-below-protocol-minimum`, so the equal-cost run cannot activate end
 to end. Activation of an equal-cost candidate is proved in the self-test on
