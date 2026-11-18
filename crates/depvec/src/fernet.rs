@@ -35,7 +35,8 @@ pub fn run(op: &str, input: &Value) -> Result<Value, String> {
                 return Err("not strict base64".into());
             }
             let cipher = fernet::Fernet::new(key).ok_or("bad key")?;
-            let plain = cipher.decrypt(token).map_err(|_| "cannot open")?;
+            let plain =
+                careerbrew_vault::decrypt_like_python(&cipher, token).map_err(|_| "cannot open")?;
             Ok(Value::String(hex(&plain)))
         }
         "seal" => {

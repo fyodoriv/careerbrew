@@ -68,7 +68,30 @@ pub fn open(key: Option<&str>, data: &[u8]) -> Result<Vec<u8>, VaultError> {
     };
     let decoded = python_token_bytes(token)?;
     let canonical = general_purpose::URL_SAFE.encode(decoded);
-    cipher(key)?.decrypt(&canonical).map_err(|_| VaultError)
+    decrypt_like_python(&cipher(key)?, &canonical)
+}
+
+/// Decrypts the way Python's `Fernet.decrypt(token)` does with no TTL.
+///
+/// Python then skips every time check. The crate's `decrypt` rejects a token
+/// stamped more than 60 s ahead of the clock, so this passes the crate a
+/// "current time" no earlier than the token's own stamp. The MAC, IV and
+/// cipher checks stay the crate's own.
+pub fn decrypt_like_python(cipher: &fernet::Fernet, token: &str) -> Result<Vec<u8>, VaultError> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|_| VaultError)?
+        .as_secs();
+    let raw = general_purpose::URL_SAFE
+        .decode(token)
+        .map_err(|_| VaultError)?;
+    let stamp = raw
+        .get(1..9)
+        .and_then(|b| <[u8; 8]>::try_from(b).ok())
+        .map_or(0, u64::from_be_bytes);
+    cipher
+        .decrypt_at_time(token, None, now.max(stamp))
+        .map_err(|_| VaultError)
 }
 
 #[cfg(test)]
