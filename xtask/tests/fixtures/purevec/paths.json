@@ -1,0 +1,644 @@
+{
+ "set": "paths",
+ "vectors": [
+  {
+   "id": "root-unset",
+   "op": "data-root",
+   "input": {
+    "env": {}
+   }
+  },
+  {
+   "id": "root-unset-home-set",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "refuse-empty",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": ""
+    }
+   }
+  },
+  {
+   "id": "refusal-text-empty",
+   "op": "data-root-refusal",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": ""
+    }
+   }
+  },
+  {
+   "id": "refuse-space",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": " "
+    }
+   }
+  },
+  {
+   "id": "refusal-text-space",
+   "op": "data-root-refusal",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": " "
+    }
+   }
+  },
+  {
+   "id": "refuse-tab",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "\t"
+    }
+   }
+  },
+  {
+   "id": "refusal-text-tab",
+   "op": "data-root-refusal",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "\t"
+    }
+   }
+  },
+  {
+   "id": "refuse-newline",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "\n"
+    }
+   }
+  },
+  {
+   "id": "refusal-text-newline",
+   "op": "data-root-refusal",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "\n"
+    }
+   }
+  },
+  {
+   "id": "refuse-mixed-ascii",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": " \t\r\n\u000b\f"
+    }
+   }
+  },
+  {
+   "id": "refusal-text-mixed-ascii",
+   "op": "data-root-refusal",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": " \t\r\n\u000b\f"
+    }
+   }
+  },
+  {
+   "id": "refuse-nbsp",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": " "
+    }
+   }
+  },
+  {
+   "id": "refusal-text-nbsp",
+   "op": "data-root-refusal",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": " "
+    }
+   }
+  },
+  {
+   "id": "refuse-nel",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": ""
+    }
+   }
+  },
+  {
+   "id": "refusal-text-nel",
+   "op": "data-root-refusal",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": ""
+    }
+   }
+  },
+  {
+   "id": "refuse-ideographic",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "　"
+    }
+   }
+  },
+  {
+   "id": "refusal-text-ideographic",
+   "op": "data-root-refusal",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "　"
+    }
+   }
+  },
+  {
+   "id": "refuse-line-sep",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": " "
+    }
+   }
+  },
+  {
+   "id": "refusal-text-line-sep",
+   "op": "data-root-refusal",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": " "
+    }
+   }
+  },
+  {
+   "id": "refuse-file-sep",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "\u001c"
+    }
+   }
+  },
+  {
+   "id": "refusal-text-file-sep",
+   "op": "data-root-refusal",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "\u001c"
+    }
+   }
+  },
+  {
+   "id": "refuse-unit-sep",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "\u001f"
+    }
+   }
+  },
+  {
+   "id": "refusal-text-unit-sep",
+   "op": "data-root-refusal",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "\u001f"
+    }
+   }
+  },
+  {
+   "id": "not-space-zwsp",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "​"
+    }
+   }
+  },
+  {
+   "id": "not-space-nul-like-ctrl",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "\u0001"
+    }
+   }
+  },
+  {
+   "id": "refusal-text-none-when-unset",
+   "op": "data-root-refusal",
+   "input": {
+    "env": {}
+   }
+  },
+  {
+   "id": "refusal-text-none-when-set",
+   "op": "data-root-refusal",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "/synthetic/data"
+    }
+   }
+  },
+  {
+   "id": "root-absolute",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "/synthetic/data",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "root-leading-space",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": " x",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "root-trailing-space",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "x ",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "root-relative",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "rel/data",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "root-dot-relative",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "./rel",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "root-dot",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": ".",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "root-dotdot",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "../up",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "root-inner-dotdot",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "/a/../b",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "root-double-slash-inner",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "/a//b/",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "root-trailing-slash",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "/a/b/",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "root-two-leading-slashes",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "//net/x",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "root-three-leading-slashes",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "///a",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "root-inner-dot",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "a/./b/.",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "root-only-slash",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "/",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "root-unicode",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "/synthetic/données",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "root-tilde-not-first",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "a/~",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "root-tilde-in-name",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "x~/y",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "expand-tilde",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "~",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "expand-tilde-slash",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "~/",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "expand-tilde-sub",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "~/x/y",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "expand-tilde-home-trailing",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "~/x",
+     "HOME": "/synthetic/home/"
+    }
+   }
+  },
+  {
+   "id": "expand-tilde-home-root",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "~/x",
+     "HOME": "/"
+    }
+   }
+  },
+  {
+   "id": "expand-tilde-home-empty",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "~/x",
+     "HOME": ""
+    }
+   }
+  },
+  {
+   "id": "expand-tilde-home-relative",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "~/x",
+     "HOME": "rel/home"
+    }
+   }
+  },
+  {
+   "id": "expand-tilde-home-double",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "~/x",
+     "HOME": "//net"
+    }
+   }
+  },
+  {
+   "id": "expand-tilde-dot",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "~/./x/",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "expand-tilde-user-missing",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "~no-such-user-synthetic/x",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "expand-tilde-home-tilde",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "~/x",
+     "HOME": "~odd"
+    }
+   }
+  },
+  {
+   "id": "expand-tilde-user-refusal-op",
+   "op": "data-root-refusal",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "~no-such-user-synthetic",
+     "HOME": "/synthetic/home"
+    }
+   }
+  },
+  {
+   "id": "extra-knowledge-unset",
+   "op": "extra-knowledge",
+   "input": {
+    "env": {}
+   }
+  },
+  {
+   "id": "extra-knowledge-zero",
+   "op": "extra-knowledge",
+   "input": {
+    "env": {
+     "CAREERBREW_EXTRA_KNOWLEDGE": "0"
+    }
+   }
+  },
+  {
+   "id": "extra-knowledge-one",
+   "op": "extra-knowledge",
+   "input": {
+    "env": {
+     "CAREERBREW_EXTRA_KNOWLEDGE": "1"
+    }
+   }
+  },
+  {
+   "id": "extra-knowledge-empty",
+   "op": "extra-knowledge",
+   "input": {
+    "env": {
+     "CAREERBREW_EXTRA_KNOWLEDGE": ""
+    }
+   }
+  },
+  {
+   "id": "extra-knowledge-zero-space",
+   "op": "extra-knowledge",
+   "input": {
+    "env": {
+     "CAREERBREW_EXTRA_KNOWLEDGE": " 0"
+    }
+   }
+  },
+  {
+   "id": "extra-knowledge-false",
+   "op": "extra-knowledge",
+   "input": {
+    "env": {
+     "CAREERBREW_EXTRA_KNOWLEDGE": "false"
+    }
+   }
+  },
+  {
+   "id": "extra-knowledge-double-zero",
+   "op": "extra-knowledge",
+   "input": {
+    "env": {
+     "CAREERBREW_EXTRA_KNOWLEDGE": "00"
+    }
+   }
+  },
+  {
+   "id": "config-dir",
+   "op": "config-dir",
+   "input": {
+    "env": {}
+   }
+  },
+  {
+   "id": "config-dir-home-set",
+   "op": "config-dir",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": "/synthetic/data"
+    }
+   }
+  },
+  {
+   "id": "refuse-non-text-env",
+   "op": "data-root",
+   "input": {
+    "env": {
+     "CAREERBREW_HOME": 1
+    }
+   }
+  },
+  {
+   "id": "refuse-extra-input-key",
+   "op": "data-root",
+   "input": {
+    "env": {},
+    "other": 1
+   }
+  },
+  {
+   "id": "unknown-op",
+   "op": "no-such-op",
+   "input": {
+    "env": {}
+   }
+  }
+ ]
+}
