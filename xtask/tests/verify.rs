@@ -245,7 +245,10 @@ fn a_registered_rule_normalizes_the_synthetic_home() {
     let value = read(&out);
     assert_eq!(value["passed"], true);
     assert_eq!(value["test_oracle"], true);
-    assert_eq!(value["cases"][0]["normalization"], serde_json::json!(["synthetic-home"]));
+    assert_eq!(
+        value["cases"][0]["normalization"],
+        serde_json::json!(["synthetic-home"])
+    );
 }
 
 #[test]

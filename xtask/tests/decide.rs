@@ -344,8 +344,13 @@ fn a_baseline_below_the_floor_within_its_ceiling_activates() {
     // under the 1,600 us ceiling, so it keeps.
     let dir = tempfile::tempdir().unwrap();
     let floor = test_floor();
-    let (output, record) =
-        decide_with(dir.path(), &baseline(), &verify(), &measure(1500), Some(&floor));
+    let (output, record) = decide_with(
+        dir.path(),
+        &baseline(),
+        &verify(),
+        &measure(1500),
+        Some(&floor),
+    );
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     let record = record.unwrap();
     assert_eq!(record["decision"], "activate");
@@ -357,8 +362,13 @@ fn a_baseline_below_the_floor_within_its_ceiling_activates() {
 fn a_baseline_below_the_floor_beyond_its_ceiling_holds() {
     let dir = tempfile::tempdir().unwrap();
     let floor = test_floor();
-    let (output, record) =
-        decide_with(dir.path(), &baseline(), &verify(), &measure(1601), Some(&floor));
+    let (output, record) = decide_with(
+        dir.path(),
+        &baseline(),
+        &verify(),
+        &measure(1601),
+        Some(&floor),
+    );
     assert_eq!(output.status.code(), Some(1), "{output:?}");
     assert_eq!(record.unwrap()["reasons"], json!(["cpu-regressed"]));
 }
@@ -368,13 +378,23 @@ fn a_baseline_at_or_above_the_floor_uses_the_ratio() {
     let dir = tempfile::tempdir().unwrap();
     let mut floor = test_floor();
     floor["cpu_floor_us"] = json!(1000);
-    let (output, record) =
-        decide_with(dir.path(), &baseline(), &verify(), &measure(1101), Some(&floor));
+    let (output, record) = decide_with(
+        dir.path(),
+        &baseline(),
+        &verify(),
+        &measure(1101),
+        Some(&floor),
+    );
     assert_eq!(output.status.code(), Some(1), "{output:?}");
     assert_eq!(record.unwrap()["reasons"], json!(["cpu-regressed"]));
     let dir = tempfile::tempdir().unwrap();
-    let (output, _) =
-        decide_with(dir.path(), &baseline(), &verify(), &measure(1100), Some(&floor));
+    let (output, _) = decide_with(
+        dir.path(),
+        &baseline(),
+        &verify(),
+        &measure(1100),
+        Some(&floor),
+    );
     assert_eq!(output.status.code(), Some(0), "{output:?}");
 }
 
@@ -383,8 +403,13 @@ fn a_malformed_floor_or_an_unknown_os_is_refused() {
     let dir = tempfile::tempdir().unwrap();
     let mut floor = test_floor();
     floor.as_object_mut().unwrap().remove("rss_absolute_bytes");
-    let (output, record) =
-        decide_with(dir.path(), &baseline(), &verify(), &measure(1000), Some(&floor));
+    let (output, record) = decide_with(
+        dir.path(),
+        &baseline(),
+        &verify(),
+        &measure(1000),
+        Some(&floor),
+    );
     assert_eq!(output.status.code(), Some(2), "{output:?}");
     assert!(record.is_none());
     let dir = tempfile::tempdir().unwrap();
