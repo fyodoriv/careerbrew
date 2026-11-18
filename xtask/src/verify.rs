@@ -285,8 +285,12 @@ fn cli_cases(
         let (oracle_exit, oracle_stdout, oracle_writes) =
             side(root, python, &oracle_args, rules, &oracle_run)?
                 .map_err(|UnregisteredPath| unregistered(case))?;
-        if oracle_exit != Some(0) {
-            return Err(format!("oracle case {case} did not exit 0; verify refused"));
+        // 0, or 2 for an argparse usage error (`actions --bogus`): the
+        // candidate must then match that exit and its empty stdout.
+        if !matches!(oracle_exit, Some(0 | 2)) {
+            return Err(format!(
+                "oracle case {case} did not exit 0 (or 2 for a usage error); verify refused"
+            ));
         }
         let oracle_stdout_sha256 = capture_actions::digest(oracle_stdout.as_bytes());
         // A spawn failure, timeout, non-UTF-8 or oversize output fails the
@@ -1112,4 +1116,42 @@ pub fn run(
     )?;
     capture_actions::write_receipt(&record, output)?;
     Ok(record)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rust_03_uses_its_registered_release_binary_and_refuses_it_unbuilt() {
+        let step = baseline::step("rust-03").unwrap();
+        assert_eq!(step.candidate, Some("target/release/careerbrew-native"));
+        assert_eq!(step.cases[0].0, "actions-json");
+        // A root with no build: the registered candidate is refused, never skipped.
+        let scratch = tempfile::tempdir().unwrap();
+        let error = record(
+            scratch.path(),
+            "rust-03",
+            Path::new("/usr/bin/true"),
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(error, "the candidate binary does not exist");
+    }
+
+    #[test]
+    fn every_rust_03_case_has_a_normalization_entry() {
+        let step = baseline::step("rust-03").unwrap();
+        for (case, _) in step.cases {
+            assert_eq!(
+                normalize::rules("rust-03", case),
+                [normalize::SYNTHETIC_HOME],
+                "{case}"
+            );
+        }
+    }
 }

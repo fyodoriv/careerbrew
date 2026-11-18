@@ -42,11 +42,31 @@ pub struct Candidate {
 
 /// The registered Rust candidates. rust-02's stub runs every vector set in
 /// one process, like its oracle (`--all`).
-pub const CANDIDATES: &[Candidate] = &[Candidate {
-    step: "rust-02",
-    program: "target/debug/careerbrew-purevec",
-    args: &["--all"],
-}];
+pub const CANDIDATES: &[Candidate] = &[
+    Candidate {
+        step: "rust-02",
+        program: "target/debug/careerbrew-purevec",
+        args: &["--all"],
+    },
+    // rust-03's pilot binary is measured as a release build (`cargo build
+    // --release -p careerbrew-cli` first); the record names the profile.
+    Candidate {
+        step: "rust-03",
+        program: "target/release/careerbrew-native",
+        args: &["actions", "--json"],
+    },
+];
+
+/// The cargo profile a registered candidate was built with, read from its
+/// `target/<profile>/` folder (rust-02 measures debug, rust-03 release).
+pub fn profile(program: &Path) -> &'static str {
+    let parent = program.parent().and_then(Path::file_name);
+    match parent.and_then(|name| name.to_str()) {
+        Some("release") => "release",
+        Some("debug") => "debug",
+        _ => "unknown",
+    }
+}
 
 /// Where the candidate comes from: the registry, or the test-only override.
 pub enum Source<'a> {
@@ -313,6 +333,11 @@ pub fn record(
     let (os, _) = resources::host_unit()?;
     let mut oracle_command = vec!["<python>".to_owned()];
     oracle_command.extend(step.oracle.iter().map(|arg| (*arg).to_owned()));
+    let profile = if test_override {
+        "test-override"
+    } else {
+        profile(&program)
+    };
     let mut candidate_command = vec!["<candidate>".to_owned()];
     candidate_command.extend(args);
     Ok(json!({
@@ -322,6 +347,7 @@ pub fn record(
         "oracle_command": oracle_command,
         "candidate_command": candidate_command,
         "candidate_sha256": bound.candidate_sha256,
+        "candidate_profile": profile,
         "os": os,
         "arch": std::env::consts::ARCH,
         "rust_toolchain": baseline::toolchain(root)?,
@@ -390,6 +416,9 @@ mod controls {
             "pyproject.toml",
             "uv.lock",
             "Cargo.lock",
+            "crates/cbcli",
+            "scripts/gen-registry.py",
+            "config/native-routes.txt",
         ] {
             let to = root.join(name);
             std::fs::create_dir_all(to.parent().unwrap()).unwrap();
@@ -400,8 +429,8 @@ mod controls {
         (scratch, candidate)
     }
 
-    /// A CLI step with no extra sources, so these controls hash only the
-    /// shared inputs.
+    /// The CLI step: these controls hash the shared inputs plus rust-03's
+    /// pilot crate sources, which `scratch_root` copies.
     fn cli_step() -> &'static baseline::Step {
         baseline::step("rust-03").unwrap()
     }
@@ -436,6 +465,17 @@ mod controls {
                 .join("tests/fixtures/http/synthetic-added.json"),
         );
         assert!(inputs(scratch.path(), cli_step(), &candidate).unwrap() != before);
+    }
+
+    #[test]
+    fn rust_03_measures_the_release_pilot_binary() {
+        let (path, args) = candidate(Path::new("/r"), "rust-03", &Source::Registered).unwrap();
+        assert_eq!(path, Path::new("/r/target/release/careerbrew-native"));
+        assert_eq!(args, ["actions", "--json"]);
+        assert_eq!(profile(&path), "release");
+        let (path, _) = candidate(Path::new("/r"), "rust-02", &Source::Registered).unwrap();
+        assert_eq!(profile(&path), "debug");
+        assert_eq!(profile(Path::new("/x/candidate")), "unknown");
     }
 
     #[test]

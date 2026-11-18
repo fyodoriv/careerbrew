@@ -81,8 +81,8 @@ pub const STEPS: &[Step] = &[
         // rust-03 ports the native CLI with one read-only pilot: the action catalog.
         id: "rust-03",
         oracle: &["-B", "-m", "careerbrew", "actions", "--json"],
-        cases: &[("actions-json", &["actions", "--json"])],
-        candidate: None,
+        cases: RUST_03_CASES,
+        candidate: Some("target/release/careerbrew-native"),
         // The pilot binary serves no HTTP, no data and no role-checked
         // command: `server.py` stays Python. The catalog it shares with
         // /api/actions is checked offline by `registry_projection` instead.
@@ -93,8 +93,41 @@ pub const STEPS: &[Step] = &[
         no_python: true,
         // Help text wraps at the terminal width: pin it on both sides.
         env: &[("COLUMNS", "80"), ("LINES", "24")],
-        sources: &[],
+        // The pilot crate and the registry it compiles in.
+        sources: &[
+            "crates/cbcli/Cargo.toml",
+            "crates/cbcli/src/lib.rs",
+            "crates/cbcli/src/main.rs",
+            "crates/cbcli/src/registry.rs",
+            "crates/cbcli/src/render.rs",
+            "crates/cbcli/src/help.rs",
+            "crates/cbcli/src/events.rs",
+            "crates/cbcli/registry/registry.json",
+            "scripts/gen-registry.py",
+            "config/native-routes.txt",
+        ],
     },
+];
+
+/// rust-03's CLI cases: the `actions` listing in both forms and its filters,
+/// two argparse usage errors (exit 2; their stderr is pinned in
+/// `crates/cbcli/tests/cli.rs`), and static help at the root, a group, a
+/// leaf and `actions` itself. `actions-json` stays first.
+pub const RUST_03_CASES: &[(&str, &[&str])] = &[
+    ("actions-json", &["actions", "--json"]),
+    ("actions-text", &["actions"]),
+    ("actions-name-json", &["actions", "config.set", "--json"]),
+    ("actions-prefix-json", &["actions", "day", "--json"]),
+    ("actions-prefix-text", &["actions", "work"]),
+    ("actions-none-json", &["actions", "nosuch", "--json"]),
+    ("actions-none-text", &["actions", "nosuch"]),
+    ("actions-bad-flag", &["actions", "--bogus"]),
+    ("actions-extra-pos", &["actions", "a", "b"]),
+    ("help-root", &["--help"]),
+    ("help-short", &["-h"]),
+    ("help-group", &["day", "--help"]),
+    ("help-leaf", &["config", "set", "--help"]),
+    ("help-actions", &["actions", "--help"]),
 ];
 
 /// The contracts a CLI step can scope out, in record order.
@@ -164,7 +197,7 @@ pub(crate) fn dirty(root: &Path) -> Result<bool, String> {
 }
 
 /// The capture sources, the baseline and collector sources, and the step's
-/// own sources (none for a CLI step, so its hash is unchanged).
+/// own sources.
 fn hashed_sources(root: &Path, step: &Step) -> Result<Value, String> {
     let mut sources = hashed_sources_with(root, step.sources)?;
     bind_env(&mut sources, step)?;
