@@ -111,6 +111,21 @@ fn a_planted_wrong_vector_fails_its_case() {
 }
 
 #[test]
+fn a_planted_wrong_calendar_vector_fails_its_case() {
+    let scratch = tempfile::tempdir().unwrap();
+    let out = scratch.path().join("verify.json");
+    let run = verify(&depvec(), &out, &["--test-wrong-vector", "calendar"]);
+    assert_eq!(run.status.code(), Some(1));
+    let record = read(&out);
+    assert_eq!(record["passed"], false);
+    assert_eq!(record["planted_wrong_vector"], "calendar");
+    assert_eq!(
+        record["failed_cases"],
+        serde_json::json!(["calendar:weekly-workday-edt"])
+    );
+}
+
+#[test]
 fn a_wrong_vector_in_no_set_is_refused() {
     let scratch = tempfile::tempdir().unwrap();
     let out = scratch.path().join("verify.json");

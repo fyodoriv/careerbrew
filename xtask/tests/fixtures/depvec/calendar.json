@@ -1,0 +1,199 @@
+{
+  "set": "calendar",
+  "vectors": [
+    {
+      "id": "weekly-workday-edt",
+      "op": "day",
+      "input": {
+        "ics": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//synthetic//vectors//EN\r\nBEGIN:VEVENT\r\nUID:standup-1\r\nSUMMARY:Synthetic standup\r\nDTSTART;TZID=America/New_York:20261026T090000\r\nDTEND;TZID=America/New_York:20261026T091500\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        "day": "2026-10-30",
+        "tz": "America/New_York"
+      }
+    },
+    {
+      "id": "weekly-workday-after-us-dst-end",
+      "op": "day",
+      "input": {
+        "ics": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//synthetic//vectors//EN\r\nBEGIN:VEVENT\r\nUID:standup-1\r\nSUMMARY:Synthetic standup\r\nDTSTART;TZID=America/New_York:20261026T090000\r\nDTEND;TZID=America/New_York:20261026T091500\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        "day": "2026-11-02",
+        "tz": "America/New_York"
+      }
+    },
+    {
+      "id": "weekly-workday-weekend-empty",
+      "op": "day",
+      "input": {
+        "ics": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//synthetic//vectors//EN\r\nBEGIN:VEVENT\r\nUID:standup-1\r\nSUMMARY:Synthetic standup\r\nDTSTART;TZID=America/New_York:20261026T090000\r\nDTEND;TZID=America/New_York:20261026T091500\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        "day": "2026-10-31",
+        "tz": "America/New_York"
+      }
+    },
+    {
+      "id": "weekly-in-berlin-after-eu-dst-end",
+      "op": "day",
+      "input": {
+        "ics": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//synthetic//vectors//EN\r\nBEGIN:VEVENT\r\nUID:standup-1\r\nSUMMARY:Synthetic standup\r\nDTSTART;TZID=America/New_York:20261026T090000\r\nDTEND;TZID=America/New_York:20261026T091500\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        "day": "2026-10-28",
+        "tz": "Europe/Berlin"
+      }
+    },
+    {
+      "id": "weekly-in-berlin-before-eu-dst-end",
+      "op": "day",
+      "input": {
+        "ics": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//synthetic//vectors//EN\r\nBEGIN:VEVENT\r\nUID:standup-1\r\nSUMMARY:Synthetic standup\r\nDTSTART;TZID=America/New_York:20261026T090000\r\nDTEND;TZID=America/New_York:20261026T091500\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        "day": "2026-10-23",
+        "tz": "Europe/Berlin"
+      }
+    },
+    {
+      "id": "until-last-day",
+      "op": "day",
+      "input": {
+        "ics": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//synthetic//vectors//EN\r\nBEGIN:VEVENT\r\nUID:until-1\r\nSUMMARY:Until series\r\nDTSTART;TZID=America/New_York:20261102T140000\r\nDTEND;TZID=America/New_York:20261102T150000\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20261106T235959Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        "day": "2026-11-06",
+        "tz": "America/New_York"
+      }
+    },
+    {
+      "id": "until-after-end-empty",
+      "op": "day",
+      "input": {
+        "ics": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//synthetic//vectors//EN\r\nBEGIN:VEVENT\r\nUID:until-1\r\nSUMMARY:Until series\r\nDTSTART;TZID=America/New_York:20261102T140000\r\nDTEND;TZID=America/New_York:20261102T150000\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20261106T235959Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        "day": "2026-11-09",
+        "tz": "America/New_York"
+      }
+    },
+    {
+      "id": "count-third",
+      "op": "day",
+      "input": {
+        "ics": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//synthetic//vectors//EN\r\nBEGIN:VEVENT\r\nUID:count-1\r\nSUMMARY:Count series\r\nDTSTART;TZID=America/New_York:20261102T110000\r\nDTEND;TZID=America/New_York:20261102T113000\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;COUNT=3\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        "day": "2026-11-04",
+        "tz": "America/New_York"
+      }
+    },
+    {
+      "id": "count-after-end-empty",
+      "op": "day",
+      "input": {
+        "ics": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//synthetic//vectors//EN\r\nBEGIN:VEVENT\r\nUID:count-1\r\nSUMMARY:Count series\r\nDTSTART;TZID=America/New_York:20261102T110000\r\nDTEND;TZID=America/New_York:20261102T113000\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;COUNT=3\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        "day": "2026-11-05",
+        "tz": "America/New_York"
+      }
+    },
+    {
+      "id": "exdate-removes-one",
+      "op": "day",
+      "input": {
+        "ics": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//synthetic//vectors//EN\r\nBEGIN:VEVENT\r\nUID:standup-1\r\nSUMMARY:Synthetic standup\r\nDTSTART;TZID=America/New_York:20261026T090000\r\nDTEND;TZID=America/New_York:20261026T091500\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR\r\nEXDATE;TZID=America/New_York:20261104T090000\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        "day": "2026-11-04",
+        "tz": "America/New_York"
+      }
+    },
+    {
+      "id": "exdate-keeps-next",
+      "op": "day",
+      "input": {
+        "ics": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//synthetic//vectors//EN\r\nBEGIN:VEVENT\r\nUID:standup-1\r\nSUMMARY:Synthetic standup\r\nDTSTART;TZID=America/New_York:20261026T090000\r\nDTEND;TZID=America/New_York:20261026T091500\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR\r\nEXDATE;TZID=America/New_York:20261104T090000\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        "day": "2026-11-05",
+        "tz": "America/New_York"
+      }
+    },
+    {
+      "id": "berlin-daily-in-utc-cest",
+      "op": "day",
+      "input": {
+        "ics": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//synthetic//vectors//EN\r\nBEGIN:VEVENT\r\nUID:berlin-1\r\nSUMMARY:Berlin daily\r\nDTSTART;TZID=Europe/Berlin:20261020T080000\r\nDTEND;TZID=Europe/Berlin:20261020T083000\r\nRRULE:FREQ=DAILY;COUNT=20\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        "day": "2026-10-23",
+        "tz": "UTC"
+      }
+    },
+    {
+      "id": "berlin-daily-in-utc-cet",
+      "op": "day",
+      "input": {
+        "ics": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//synthetic//vectors//EN\r\nBEGIN:VEVENT\r\nUID:berlin-1\r\nSUMMARY:Berlin daily\r\nDTSTART;TZID=Europe/Berlin:20261020T080000\r\nDTEND;TZID=Europe/Berlin:20261020T083000\r\nRRULE:FREQ=DAILY;COUNT=20\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        "day": "2026-10-27",
+        "tz": "UTC"
+      }
+    },
+    {
+      "id": "utc-event-buckets-to-previous-la-day",
+      "op": "day",
+      "input": {
+        "ics": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//synthetic//vectors//EN\r\nBEGIN:VEVENT\r\nUID:late-1\r\nSUMMARY:Late call\r\nDTSTART:20261103T033000Z\r\nDTEND:20261103T043000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        "day": "2026-11-02",
+        "tz": "America/Los_Angeles"
+      }
+    },
+    {
+      "id": "utc-event-buckets-to-utc-day",
+      "op": "day",
+      "input": {
+        "ics": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//synthetic//vectors//EN\r\nBEGIN:VEVENT\r\nUID:late-1\r\nSUMMARY:Late call\r\nDTSTART:20261103T033000Z\r\nDTEND:20261103T043000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        "day": "2026-11-03",
+        "tz": "UTC"
+      }
+    },
+    {
+      "id": "utc-event-not-on-next-la-day",
+      "op": "day",
+      "input": {
+        "ics": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//synthetic//vectors//EN\r\nBEGIN:VEVENT\r\nUID:late-1\r\nSUMMARY:Late call\r\nDTSTART:20261103T033000Z\r\nDTEND:20261103T043000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        "day": "2026-11-03",
+        "tz": "America/Los_Angeles"
+      }
+    },
+    {
+      "id": "all-day-and-free-private",
+      "op": "day",
+      "input": {
+        "ics": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//synthetic//vectors//EN\r\nBEGIN:VEVENT\r\nUID:allday-1\r\nSUMMARY:Offsite\r\nDTSTART;VALUE=DATE:20261105\r\nDTEND;VALUE=DATE:20261106\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:free-1\r\nSUMMARY:Focus hold\r\nCLASS:PRIVATE\r\nTRANSP:TRANSPARENT\r\nDTSTART:20261105T150000Z\r\nDTEND:20261105T160000Z\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:standup-1\r\nSUMMARY:Synthetic standup\r\nDTSTART;TZID=America/New_York:20261026T090000\r\nDTEND;TZID=America/New_York:20261026T091500\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        "day": "2026-11-05",
+        "tz": "America/New_York"
+      }
+    },
+    {
+      "id": "unknown-zone-error",
+      "op": "day",
+      "input": {
+        "ics": "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//synthetic//vectors//EN\r\nBEGIN:VEVENT\r\nUID:standup-1\r\nSUMMARY:Synthetic standup\r\nDTSTART;TZID=America/New_York:20261026T090000\r\nDTEND;TZID=America/New_York:20261026T091500\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+        "day": "2026-11-02",
+        "tz": "Nowhere/Synthetic"
+      }
+    },
+    {
+      "id": "local-day-before-us-dst-end",
+      "op": "local-day",
+      "input": {
+        "at": "2026-11-01T05:30:00+00:00",
+        "tz": "America/New_York"
+      }
+    },
+    {
+      "id": "local-day-previous-evening",
+      "op": "local-day",
+      "input": {
+        "at": "2026-11-01T03:30:00+00:00",
+        "tz": "America/New_York"
+      }
+    },
+    {
+      "id": "local-day-berlin-cest-midnight",
+      "op": "local-day",
+      "input": {
+        "at": "2026-10-24T22:30:00+00:00",
+        "tz": "Europe/Berlin"
+      }
+    },
+    {
+      "id": "local-day-unknown-zone-error",
+      "op": "local-day",
+      "input": {
+        "at": "2026-10-24T22:30:00+00:00",
+        "tz": "Nowhere/Synthetic"
+      }
+    }
+  ]
+}

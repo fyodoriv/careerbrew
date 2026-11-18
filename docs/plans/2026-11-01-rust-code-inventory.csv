@@ -933,6 +933,7 @@ xtask/src/normalize.rs,keep-native,rust-00,Per-case verify normalization rules a
 crates/depvec/src/lib.rs,keep-native,rust-00,rust-01 dependency vector registry and runner over maintained crates
 crates/depvec/src/main.rs,keep-native,rust-00,rust-01 dependency vector candidate binary for migration verify
 crates/depvec/src/canon.rs,keep-native,rust-00,rust-01 typed value form shared by the vector candidate and oracle
+crates/depvec/src/calendar.rs,keep-native,rust-00,rust-01 calendar vector set with icalendar rrule and chrono-tz
 crates/depvec/src/json_yaml.rs,keep-native,rust-00,rust-01 JSON and YAML vector set with serde_json and yaml-rust2
 crates/depvec/tests/cli.rs,keep-native,rust-00,rust-01 dependency vector binary controls
 xtask/src/depvec.rs,keep-native,rust-00,rust-01 dependency vector verify with planted wrong-vector controls
