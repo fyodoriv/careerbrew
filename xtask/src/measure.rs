@@ -381,6 +381,7 @@ mod controls {
             "pyproject.toml",
             "uv.lock",
             "Cargo.lock",
+            "crates/cbcli/registry/registry.json",
         ] {
             let to = root.join(name);
             std::fs::create_dir_all(to.parent().unwrap()).unwrap();

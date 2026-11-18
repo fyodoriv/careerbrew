@@ -290,6 +290,7 @@ RUST_UV_VECTORS = (
     ("run", "ruff", "check", "."),
     ("run", "--quiet", "pyright", "--version"),
     ("run", "pyright"),
+    ("run", "--quiet", "python", "-I", "scripts/gen-registry.py", "--check"),
     ("run", "pytest", "-q", "-n", "0"),
     ("run", "careerbrew", "cards", "public-check"),
     ("run", "python", "scripts/check-card-code.py"),
