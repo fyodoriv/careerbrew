@@ -405,13 +405,16 @@ fn existing_out_is_refused_before_any_run() {
 /// record and the decide record.
 fn planted(body: &str, wide_floor: bool) -> (Value, Value) {
     let scratch = tempfile::tempdir().unwrap();
-    // `verify` also runs the HTTP contract: serve it with the oracle driver.
+    // `verify` also runs the DATA, role and HTTP contracts: serve them with
+    // the Python drivers and CLI, as `http_then` in tests/verify.rs does.
+    let py = python().display().to_string();
+    let drivers = root().join("xtask/tests/fixtures/capture");
     let http = format!(
-        "if [ \"$1\" = '--careerbrew-http-contract' ]; then exec '{}' -B '{}'; fi\n{body}",
-        python().display(),
-        root()
-            .join("xtask/tests/fixtures/capture/http_driver.py")
-            .display(),
+        "if [ \"$1\" = '--careerbrew-data-contract' ]; then shift; exec '{py}' -B -S '{}' \"$@\"; fi\n\
+         if [ \"$1\" = jobs ]; then exec '{py}' -B -m careerbrew \"$@\"; fi\n\
+         if [ \"$1\" = '--careerbrew-http-contract' ]; then exec '{py}' -B '{}'; fi\n{body}",
+        drivers.join("data_driver.py").display(),
+        drivers.join("http_driver.py").display(),
     );
     let candidate = script(scratch.path(), &http);
     let base = scratch.path().join("baseline.json");
@@ -525,17 +528,15 @@ fn planted_big_memory_candidate_passes_verify_and_decide_holds_it() {
 fn equal_cost_candidate_has_no_resource_reason() {
     let (verify, verdict) = planted(&format!("exec {}", oracle_line()), true);
     assert_eq!(verify["passed"], true, "{verify}");
-    // No resource reason holds it: only the test-flag sample sizes and the
-    // contracts a test candidate's verify cannot cover. The self-test
-    // proves that an equal-cost candidate activates on 30 samples.
-    assert_eq!(
-        verdict["reasons"],
-        json!([
-            "baseline-below-protocol-minimum",
-            "too-few-unique-pairs",
-            "verify-contract-missing",
-            "verify-violation-unobserved"
-        ]),
+    // No resource reason holds it; only the test-flag sample sizes may.
+    // The self-test proves that an equal-cost candidate activates on 30
+    // samples.
+    let reasons = verdict["reasons"].as_array().unwrap();
+    for resource in ["cpu-regressed", "rss-regressed"] {
+        assert!(!reasons.contains(&json!(resource)), "{verdict}");
+    }
+    assert!(
+        reasons.contains(&json!("too-few-unique-pairs")),
         "{verdict}"
     );
 }
