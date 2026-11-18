@@ -217,6 +217,7 @@ def fsrs_schedule(op, data):
     raise ValueError("unknown op")
 
 
+@contextlib.contextmanager
 def _fixtures(root):
     old = os.environ.get("CAREERBREW_HTTP_FIXTURES")
     os.environ["CAREERBREW_HTTP_FIXTURES"] = root
