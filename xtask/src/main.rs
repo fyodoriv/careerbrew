@@ -7,6 +7,8 @@ mod capture_http;
 mod decide;
 mod inventory;
 mod measure;
+mod noise_floor;
+mod normalize;
 mod observer_probe;
 mod resources;
 mod sites;
@@ -98,6 +100,20 @@ fn main() -> ExitCode {
     }
     if args.len() >= 2 && args[0] == "migration" && args[1] == "decide" {
         return decide_command(&args[2..]);
+    }
+    if let [migration, action, flag, file] = args.as_slice() {
+        if migration == "migration" && action == "noise-floor" && flag == "--baseline" {
+            return match noise_floor::measure(std::path::Path::new(file)) {
+                Ok(record) => {
+                    println!("{record}");
+                    ExitCode::SUCCESS
+                }
+                Err(reason) => {
+                    eprintln!("migration noise-floor: {reason}");
+                    ExitCode::from(2)
+                }
+            };
+        }
     }
     if args.len() >= 2 && args[0] == "migration" && args[1] == "measure" {
         return measure_command(&args[2..]);
@@ -271,8 +287,9 @@ fn main() -> ExitCode {
     eprintln!("       cargo xtask migration inventory --sites-list");
     eprintln!("       cargo xtask migration baseline --step <id> --python <absolute-path> --out <new-file> [--runs <n>] [--test-allow-few-runs]");
     eprintln!("       cargo xtask migration measure --step <id> --python <absolute-path> --out <new-file> [--pairs <n>] [--test-allow-few-pairs] [--test-candidate <absolute-path>]");
-    eprintln!("       cargo xtask migration decide --step <id> --baseline <file> --verify <file> --measure <file> --out <new-file>");
-    eprintln!("       cargo xtask migration verify --step <id> --python <absolute-path> --out <new-file> [--test-candidate <absolute-path>]");
+    eprintln!("       cargo xtask migration decide --step <id> --baseline <file> --verify <file> --measure <file> --out <new-file> [--test-noise-floor <absolute-file>]");
+    eprintln!("       cargo xtask migration noise-floor --baseline <absolute-file>");
+    eprintln!("       cargo xtask migration verify --step <id> --python <absolute-path> --out <new-file> [--test-candidate <absolute-path>] [--test-oracle <absolute-path>]");
     eprintln!("       cargo xtask migration toolchain-identity --rustc <absolute-path>");
     eprintln!(
         "       cargo xtask migration capture-actions --python <absolute-path> --out <new-file>"
@@ -365,7 +382,7 @@ fn baseline_command(rest: &[std::ffi::OsString]) -> ExitCode {
 /// Exit 0: activate. Exit 1: keep-python (verdict written). Exit 2: usage or
 /// refused input (nothing written).
 fn decide_command(rest: &[std::ffi::OsString]) -> ExitCode {
-    let mut slots: [Option<std::ffi::OsString>; 5] = Default::default();
+    let mut slots: [Option<std::ffi::OsString>; 6] = Default::default();
     for pair in rest.chunks(2) {
         let [flag, value] = pair else {
             eprintln!("migration decide: every flag needs a value");
@@ -377,6 +394,8 @@ fn decide_command(rest: &[std::ffi::OsString]) -> ExitCode {
             Some("--verify") => 2,
             Some("--measure") => 3,
             Some("--out") => 4,
+            // Test-only: a noise floor in place of the registry entry.
+            Some("--test-noise-floor") => 5,
             _ => {
                 eprintln!("migration decide: unknown flag");
                 return ExitCode::from(2);
@@ -387,7 +406,8 @@ fn decide_command(rest: &[std::ffi::OsString]) -> ExitCode {
             return ExitCode::from(2);
         }
     }
-    let [Some(step), Some(base), Some(verify), Some(measure), Some(output)] = slots else {
+    let [Some(step), Some(base), Some(verify), Some(measure), Some(output), test_floor] = slots
+    else {
         eprintln!(
             "migration decide: --step, --baseline, --verify, --measure and --out are required"
         );
@@ -399,6 +419,7 @@ fn decide_command(rest: &[std::ffi::OsString]) -> ExitCode {
         path(&base),
         path(&verify),
         path(&measure),
+        test_floor.as_deref().map(std::path::Path::new),
         path(&output),
     ) {
         Ok(record) => {
@@ -525,7 +546,8 @@ fn measure_command(rest: &[std::ffi::OsString]) -> ExitCode {
 /// `migration verify --step <id> --python <path> --out <new-file> [--test-candidate <path>]`.
 /// Exit 0 when every case matches; 1 on a refusal or a failed case.
 fn verify_command(rest: &[std::ffi::OsString]) -> ExitCode {
-    let (mut step, mut python, mut output, mut candidate) = (None, None, None, None);
+    let (mut step, mut python, mut output, mut candidate, mut oracle) =
+        (None, None, None, None, None);
     for pair in rest.chunks(2) {
         let [flag, value] = pair else {
             eprintln!("migration verify: every flag needs a value");
@@ -537,6 +559,8 @@ fn verify_command(rest: &[std::ffi::OsString]) -> ExitCode {
             Some("--out") => &mut output,
             // Test-only: point at a candidate binary before a port registers one.
             Some("--test-candidate") => &mut candidate,
+            // Test-only: a script in place of the Python oracle.
+            Some("--test-oracle") => &mut oracle,
             _ => {
                 eprintln!("migration verify: unknown flag");
                 return ExitCode::from(2);
@@ -559,6 +583,7 @@ fn verify_command(rest: &[std::ffi::OsString]) -> ExitCode {
         &step.to_string_lossy(),
         std::path::Path::new(&python),
         candidate.as_deref().map(std::path::Path::new),
+        oracle.as_deref().map(std::path::Path::new),
         std::path::Path::new(&output),
     ) {
         Ok(record) => {

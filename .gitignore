@@ -90,6 +90,8 @@ __pycache__/
 !/xtask/src/sites_tests.rs
 !/xtask/src/baseline.rs
 !/xtask/src/verify.rs
+!/xtask/src/noise_floor.rs
+!/xtask/src/normalize.rs
 !/xtask/src/baseline_verdict.rs
 !/xtask/src/decide.rs
 !/xtask/src/main.rs

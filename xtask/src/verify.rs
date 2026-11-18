@@ -6,8 +6,10 @@
 //! from the test-only flag, and the candidate binary's sha256 (checked before
 //! and after the runs). A candidate that cannot run, times out or prints
 //! output that is not UTF-8 or too large fails its case. A step with no Rust
-//! candidate is refused, never passed.
-use crate::{baseline, capture_actions};
+//! candidate is refused, never passed. Each case's registered normalization
+//! rules (`normalize.rs`) apply to both stdouts first; the stdout hashes are
+//! of the normalized text. A local path no rule covers refuses verify.
+use crate::{baseline, capture_actions, normalize};
 use serde_json::{json, Value};
 use std::path::Path;
 use std::process::Command;
@@ -16,16 +18,25 @@ pub const SCHEMA: &str = "careerbrew-migration-verify-v1";
 /// The oracle arguments before a case's CLI arguments.
 pub const ORACLE_PREFIX: &[&str] = &["-B", "-m", "careerbrew"];
 
-/// Runs one side in a fresh synthetic home; returns its exit code and stdout.
-fn side(root: &Path, program: &Path, args: &[&str]) -> Result<(Option<i32>, String), String> {
+/// A side's stdout held a local path that no registered rule covers.
+struct UnregisteredPath;
+
+/// Runs one side in a fresh synthetic home; returns its exit code and its
+/// stdout after the case's normalization rules.
+#[allow(clippy::type_complexity)]
+fn side(
+    root: &Path,
+    program: &Path,
+    args: &[&str],
+    rules: &[&str],
+) -> Result<Result<(Option<i32>, String), UnregisteredPath>, String> {
     let scratch = tempfile::tempdir().map_err(|_| "cannot create verify home")?;
     let environment = capture_actions::owned_environment(root, &scratch.path().join("owned"))?;
-    if environment
+    let home = environment
         .get("CAREERBREW_HOME")
-        .is_none_or(|home| home.is_empty())
-    {
-        return Err("synthetic CAREERBREW_HOME is empty".into());
-    }
+        .filter(|home| !home.is_empty())
+        .ok_or("synthetic CAREERBREW_HOME is empty")?
+        .clone();
     let mut command = Command::new(program);
     command
         .args(args)
@@ -33,7 +44,17 @@ fn side(root: &Path, program: &Path, args: &[&str]) -> Result<(Option<i32>, Stri
         .env_clear()
         .envs(&environment);
     let (_, exit, stdout, _) = capture_actions::execute(command)?;
-    Ok((exit, stdout))
+    let side = normalize::Side {
+        home: Path::new(&home),
+        scratch: scratch.path(),
+    };
+    Ok(normalize::apply(rules, &side, root, &stdout)
+        .map(|stdout| (exit, stdout))
+        .map_err(|()| UnregisteredPath))
+}
+
+fn unregistered(case: &str) -> String {
+    format!("case {case} prints a local path with no registered normalization rule; verify refused")
 }
 
 /// The capture sources plus the baseline and verify sources, as one hash.
@@ -42,7 +63,11 @@ fn sources_sha256(root: &Path) -> Result<String, String> {
     let map = sources
         .as_object_mut()
         .ok_or("capture sources are not a map")?;
-    for name in ["xtask/src/baseline.rs", "xtask/src/verify.rs"] {
+    for name in [
+        "xtask/src/baseline.rs",
+        "xtask/src/verify.rs",
+        "xtask/src/normalize.rs",
+    ] {
         let bytes = std::fs::read(root.join(name)).map_err(|_| "verify source missing")?;
         map.insert(name.to_owned(), json!(capture_actions::digest(&bytes)));
     }
@@ -56,17 +81,23 @@ fn binary_sha256(path: &Path) -> Result<String, String> {
 }
 
 /// Builds the record. `candidate` is the test-only override; without it the
-/// step's registered candidate is used.
+/// step's registered candidate is used. `test_oracle` is the test-only
+/// script run in place of `python` (it gets the same arguments).
 pub fn record(
     root: &Path,
     id: &str,
     python: &Path,
     candidate: Option<&Path>,
+    test_oracle: Option<&Path>,
 ) -> Result<Value, String> {
     let step = baseline::step(id)?;
     if !python.is_absolute() {
         return Err("--python must be an absolute path".into());
     }
+    if test_oracle.is_some_and(|oracle| !oracle.is_absolute()) {
+        return Err("--test-oracle must be an absolute path".into());
+    }
+    let oracle = test_oracle.unwrap_or(python);
     if std::env::var_os("CAREERBREW_HOME").is_some_and(|home| home.is_empty()) {
         return Err("CAREERBREW_HOME is set but empty".into());
     }
@@ -89,17 +120,20 @@ pub fn record(
     let mut cases = Vec::with_capacity(step.cases.len());
     let mut failed = Vec::new();
     for (case, args) in step.cases {
+        let rules = normalize::rules(step.id, case);
         let mut oracle_args = ORACLE_PREFIX.to_vec();
         oracle_args.extend_from_slice(args);
-        let (oracle_exit, oracle_stdout) = side(root, python, &oracle_args)?;
+        let (oracle_exit, oracle_stdout) = side(root, oracle, &oracle_args, rules)?
+            .map_err(|UnregisteredPath| unregistered(case))?;
         if oracle_exit != Some(0) {
             return Err(format!("oracle case {case} did not exit 0; verify refused"));
         }
         let oracle_stdout_sha256 = capture_actions::digest(oracle_stdout.as_bytes());
         // A spawn failure, timeout, non-UTF-8 or oversize output fails the
         // case; the reason text stays out of the record (it may hold paths).
-        let entry = match side(root, &candidate, args) {
-            Ok((candidate_exit, candidate_stdout)) => {
+        let entry = match side(root, &candidate, args, rules) {
+            Ok(Err(UnregisteredPath)) => return Err(unregistered(case)),
+            Ok(Ok((candidate_exit, candidate_stdout))) => {
                 let exit_matches = candidate_exit == oracle_exit;
                 let stdout_matches = candidate_stdout.as_bytes() == oracle_stdout.as_bytes();
                 json!({
@@ -108,6 +142,7 @@ pub fn record(
                     "candidate_ran": true,
                     "exit_matches": exit_matches,
                     "stdout_matches": stdout_matches,
+                    "normalization": rules,
                     "oracle_stdout_sha256": oracle_stdout_sha256,
                     "candidate_stdout_sha256": capture_actions::digest(candidate_stdout.as_bytes()),
                 })
@@ -118,6 +153,7 @@ pub fn record(
                 "candidate_ran": false,
                 "exit_matches": false,
                 "stdout_matches": false,
+                "normalization": rules,
                 "oracle_stdout_sha256": oracle_stdout_sha256,
                 "candidate_stdout_sha256": Value::Null,
             }),
@@ -140,6 +176,7 @@ pub fn record(
         "source_tree_dirty": baseline::dirty(root)?,
         "sources_sha256": hash,
         "test_candidate": test_candidate,
+        "test_oracle": test_oracle.is_some(),
         "candidate_sha256": candidate_sha256,
         "case_count": cases.len(),
         "passed_count": cases.len() - failed.len(),
@@ -156,6 +193,7 @@ pub fn run(
     id: &str,
     python: &Path,
     candidate: Option<&Path>,
+    test_oracle: Option<&Path>,
     output: &Path,
 ) -> Result<Value, String> {
     if !output.is_absolute() {
@@ -164,7 +202,7 @@ pub fn run(
     if output.exists() {
         return Err("verify output already exists".into());
     }
-    let record = record(root, id, python, candidate)?;
+    let record = record(root, id, python, candidate, test_oracle)?;
     capture_actions::write_receipt(&record, output)?;
     Ok(record)
 }
