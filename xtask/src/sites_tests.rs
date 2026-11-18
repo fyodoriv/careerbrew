@@ -28,7 +28,10 @@ fn files() -> Vec<(String, String)> {
         ),
         ("commands/go.md".to_owned(), "Run it.\n".to_owned()),
         ("hooks/pre-push".to_owned(), "#!/bin/sh\n".to_owned()),
-        ("docs/notes.md".to_owned(), "python3 -c 'prose only'\n".to_owned()),
+        (
+            "docs/notes.md".to_owned(),
+            "python3 -c 'prose only'\n".to_owned(),
+        ),
     ]
 }
 
@@ -63,7 +66,10 @@ fn discovery_finds_each_kind_and_skips_prose() {
     }
     assert!(found.iter().all(|site| site.path != "docs/notes.md"));
     assert_eq!(
-        found.iter().filter(|site| site.path == "scripts/a.sh").count(),
+        found
+            .iter()
+            .filter(|site| site.path == "scripts/a.sh")
+            .count(),
         2
     );
 }

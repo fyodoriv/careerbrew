@@ -195,6 +195,9 @@ Generated agent metadata uses one exclusive `.tmp` sibling per invocation; keep 
 Update-only checkout discovery shares a lookup only within that invocation and drops it before refresh. Never reuse discovery results across refreshes or later runs (`test_issue_426.py`).
 
 The Rust inventory gate checks source assignments against the staged Git index; stage new source paths and their assignments together.
+It also checks embedded code lines (`python3 -c`, `node -e`, `bash -c`, heredocs)
+and entry points against `docs/plans/2026-11-17-rust-embedded-sites.csv`. A changed
+line changes its key: update its row (`cargo xtask migration inventory --sites-list`).
 
 Rust capture tests read the staged Git tree, HEAD, and external runtime files.
 Stage intended source changes before the gate so its source-copy checks can
