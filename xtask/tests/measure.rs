@@ -380,3 +380,104 @@ fn existing_out_is_refused_before_any_run() {
     assert_eq!(std::fs::read(&out).unwrap(), b"keep");
     assert!(!marker.exists());
 }
+
+/// Runs the real baseline, verify, measure and decide records for one
+/// planted candidate on `rust-03` with the test flags; returns the verify
+/// record and the decide record.
+fn planted(body: &str) -> (Value, Value) {
+    let scratch = tempfile::tempdir().unwrap();
+    let candidate = script(scratch.path(), body);
+    let base = scratch.path().join("baseline.json");
+    passed(
+        &Command::new(XTASK)
+            .args(["migration", "baseline", "--step", "rust-03", "--python"])
+            .arg(python())
+            .arg("--out")
+            .arg(&base)
+            .args(["--runs", "3", "--test-allow-few-runs"])
+            .env_remove("CAREERBREW_HOME")
+            .output()
+            .unwrap(),
+    );
+    let verify = scratch.path().join("verify.json");
+    passed(
+        &Command::new(XTASK)
+            .args(["migration", "verify", "--step", "rust-03", "--python"])
+            .arg(python())
+            .arg("--out")
+            .arg(&verify)
+            .arg("--test-candidate")
+            .arg(&candidate)
+            .env_remove("CAREERBREW_HOME")
+            .output()
+            .unwrap(),
+    );
+    let measured = scratch.path().join("measure.json");
+    passed(
+        &with_candidate("rust-03", &measured, "3", &candidate)
+            .output()
+            .unwrap(),
+    );
+    let out = scratch.path().join("decide.json");
+    let result = Command::new(XTASK)
+        .args(["migration", "decide", "--step", "rust-03", "--baseline"])
+        .arg(&base)
+        .arg("--verify")
+        .arg(&verify)
+        .arg("--measure")
+        .arg(&measured)
+        .arg("--out")
+        .arg(&out)
+        .output()
+        .unwrap();
+    // Keep-python is exit 1; a refusal (exit 2) would mean no verdict.
+    assert_eq!(result.status.code(), Some(1), "{result:?}");
+    let read = |path: &Path| -> Value {
+        serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
+    };
+    (read(&verify), read(&out))
+}
+
+fn oracle_line() -> String {
+    format!("\"{}\" -B -m careerbrew \"$@\"", python().display())
+}
+
+fn holds_for(verdict: &Value, reason: &str) {
+    assert_eq!(verdict["decision"], "keep-python", "{verdict}");
+    let reasons = verdict["reasons"].as_array().unwrap();
+    assert!(reasons.contains(&json!(reason)), "{verdict}");
+}
+
+#[test]
+fn planted_slow_cpu_candidate_passes_verify_and_decide_holds_it() {
+    let once = oracle_line();
+    let body = format!("set -e\n{once}\n{once} >/dev/null\n{once} >/dev/null");
+    let (verify, verdict) = planted(&body);
+    assert_eq!(verify["passed"], true, "{verify}");
+    holds_for(&verdict, "cpu-regressed");
+}
+
+#[test]
+fn planted_big_memory_candidate_passes_verify_and_decide_holds_it() {
+    let body = format!(
+        "set -e\n\"{}\" -c 'held = bytes(1) * (512 << 20)'\nexec {}",
+        python().display(),
+        oracle_line()
+    );
+    let (verify, verdict) = planted(&body);
+    assert_eq!(verify["passed"], true, "{verify}");
+    holds_for(&verdict, "rss-regressed");
+}
+
+#[test]
+fn equal_cost_candidate_has_no_resource_reason() {
+    let (verify, verdict) = planted(&format!("exec {}", oracle_line()));
+    assert_eq!(verify["passed"], true, "{verify}");
+    // Only the test-flag sample-size reasons hold it; the self-test proves
+    // that an equal-cost candidate activates on 30 samples.
+    assert_eq!(
+        verdict["reasons"],
+        json!(["baseline-below-protocol-minimum", "too-few-unique-pairs"]),
+        "{verdict}"
+    );
+}

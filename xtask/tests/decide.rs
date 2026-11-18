@@ -515,3 +515,16 @@ fn noise_floor_measures_a_baseline_record() {
         .unwrap();
     assert_eq!(output.status.code(), Some(2), "{output:?}");
 }
+
+#[test]
+fn self_test_runs_the_decide_slow_path_controls() {
+    let output = std::process::Command::new(XTASK)
+        .args(["migration", "self-test"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "migration self-test: 17 controls passed\n"
+    );
+}

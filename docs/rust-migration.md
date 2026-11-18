@@ -1395,6 +1395,49 @@ baselines differs by more than 3x between runs on one OS, the p95-p5 method
 is too noisy; switch to a bootstrap interval before registering numbers.
 **Anchor:** Kalibera and Jones 2013 (variation and minimum effect size).
 
+### Planted slow-path controls (pre-registered 2026-11-18)
+
+Registered before the code, with its controls, for "Next" item 5.
+
+**Hypothesis.** A candidate that prints the oracle's exact output but costs
+far more CPU or memory passes `verify` and still gets `keep-python` from
+`decide`. An equal-cost candidate gets no resource reason. So the decide step
+holds a slow path on its own, not only through the output compare.
+
+**Controls, end to end** (real `baseline`, `verify`, `measure --pairs` and
+`decide` records on `rust-03`, test flags, 3 runs and 3 pairs; in
+`xtask/tests/measure.rs`). Each candidate runs the real Python oracle:
+
+| Candidate | Expected |
+| --- | --- |
+| slow CPU: runs the oracle 3 times, prints once (about 3x CPU) | `verify` passes; `decide` `keep-python` with `cpu-regressed` |
+| big memory: a child holds 512 MiB, then the oracle | `verify` passes; `decide` `keep-python` with `rss-regressed` |
+| equal cost: `exec` of the oracle | `verify` passes; no `cpu-regressed` and no `rss-regressed` |
+
+With test flags, every verdict also holds `too-few-unique-pairs` and
+`baseline-below-protocol-minimum`, so the equal-cost run cannot activate end
+to end. Activation of an equal-cost candidate is proved in the self-test on
+synthetic records of 30 samples and pairs.
+
+**Controls, self-test** (`decide::controls`, joined to
+`cargo xtask migration self-test`): on synthetic 30-sample records, a 3x CPU
+candidate holds with `cpu-regressed`, a 2x RSS candidate holds with
+`rss-regressed`, and an equal-cost candidate activates. A harness that
+accepts each slow path must fail its control: a unit test runs each control
+against an always-`activate` harness and expects it to fail.
+`tests/decide.rs` runs `migration self-test` and expects 17 controls
+(8 paired verdict, 6 trial planner, 3 decide).
+
+**Measurement:** `cargo test -p careerbrew-xtask --test measure --test decide`
+and `cargo test -p careerbrew-xtask --bin careerbrew-xtask decide::controls`
+on the hosted gate. **Success:** 3 of 3 end-to-end controls and 3 of 3
+self-test controls pass, and both always-accept runs fail. **Pivot:** if the
+equal-cost end-to-end run shows `cpu-regressed` in 2 or more hosted runs, a
+3-sample p95 is too noisy for this check; compare against the paired oracle
+samples (task `rust-00-decide-paired-regimes`) before trusting the ratio.
+**Anchor:** Kalibera and Jones 2013 (variation and minimum effect size);
+Jia and Harman 2011 (planted faults prove a check can fail).
+
 ### Next, in order
 
 1. Recheck the gate: `gh pr checks` on a fresh pull request, and
