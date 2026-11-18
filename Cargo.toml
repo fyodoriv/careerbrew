@@ -1,3 +1,3 @@
 [workspace]
-members = ["xtask", "experiments/hash", "crates/vault", "crates/depvec"]
+members = ["xtask", "experiments/hash", "crates/vault", "crates/depvec", "crates/purevec"]
 resolver = "2"

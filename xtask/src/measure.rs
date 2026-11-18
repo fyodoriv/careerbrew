@@ -34,16 +34,19 @@ const HASHED: &[&str] = &["xtask/src/measure.rs", "xtask/src/trial_plan.rs"];
 /// A registered Rust candidate: the step id, the executable path relative to
 /// the repo root, and its arguments. The candidate must be read-only and must
 /// exit 0.
-// Constructed once rust-03 registers its first candidate.
-#[allow(dead_code)]
 pub struct Candidate {
     pub step: &'static str,
     pub program: &'static str,
     pub args: &'static [&'static str],
 }
 
-/// No step has a Rust candidate yet; `rust-03` adds the first one.
-pub const CANDIDATES: &[Candidate] = &[];
+/// The registered Rust candidates. rust-02's stub runs every vector set in
+/// one process, like its oracle (`--all`).
+pub const CANDIDATES: &[Candidate] = &[Candidate {
+    step: "rust-02",
+    program: "target/debug/careerbrew-purevec",
+    args: &["--all"],
+}];
 
 /// Where the candidate comes from: the registry, or the test-only override.
 pub enum Source<'a> {
@@ -227,10 +230,11 @@ struct Inputs {
     candidate_sha256: String,
 }
 
-fn inputs(root: &Path, program: &Path) -> Result<Inputs, String> {
+fn inputs(root: &Path, step: &baseline::Step, program: &Path) -> Result<Inputs, String> {
     let binary = std::fs::read(program).map_err(|_| "cannot read the Rust candidate")?;
+    let hashed: Vec<&str> = HASHED.iter().chain(step.sources).copied().collect();
     Ok(Inputs {
-        sources: baseline::hashed_sources_with(root, HASHED)?,
+        sources: baseline::hashed_sources_with(root, &hashed)?,
         fixtures_sha256: baseline::fixtures_sha256(root)?,
         candidate_sha256: capture_actions::digest(&binary),
     })
@@ -266,7 +270,7 @@ pub fn record(
         return Err("CAREERBREW_HOME is set but empty".into());
     }
     let python_version = capture_actions::version(python)?;
-    let bound = inputs(root, &program)?;
+    let bound = inputs(root, step, &program)?;
     let sources_sha256 = capture_actions::digest(bound.sources.to_string().as_bytes());
     let oracle_args = step.oracle.iter().map(OsString::from).collect::<Vec<_>>();
     let sides = [
@@ -294,7 +298,7 @@ pub fn record(
         .into_iter()
         .map(|cache| regime(root, &sides, cache, pairs, &mut method))
         .collect::<Result<Vec<_>, _>>()?;
-    if inputs(root, &program).ok().as_ref() != Some(&bound) {
+    if inputs(root, step, &program).ok().as_ref() != Some(&bound) {
         return Err("a relevant source changed during the measure".into());
     }
     let (os, _) = resources::host_unit()?;
@@ -387,6 +391,12 @@ mod controls {
         (scratch, candidate)
     }
 
+    /// A CLI step with no extra sources, so these controls hash only the
+    /// shared inputs.
+    fn cli_step() -> &'static baseline::Step {
+        baseline::step("rust-03").unwrap()
+    }
+
     fn append(path: &Path) {
         let mut bytes = std::fs::read(path).unwrap_or_default();
         bytes.extend_from_slice(b"\n// changed\n");
@@ -397,11 +407,11 @@ mod controls {
     fn a_hashed_source_change_breaks_the_input_binding() {
         for name in ["xtask/src/measure.rs", "xtask/src/trial_plan.rs"] {
             let (scratch, candidate) = scratch_root();
-            let before = inputs(scratch.path(), &candidate).unwrap();
-            assert!(inputs(scratch.path(), &candidate).unwrap() == before);
+            let before = inputs(scratch.path(), cli_step(), &candidate).unwrap();
+            assert!(inputs(scratch.path(), cli_step(), &candidate).unwrap() == before);
             append(&scratch.path().join(name));
             assert!(
-                inputs(scratch.path(), &candidate).unwrap() != before,
+                inputs(scratch.path(), cli_step(), &candidate).unwrap() != before,
                 "{name}"
             );
         }
@@ -410,20 +420,20 @@ mod controls {
     #[test]
     fn a_fixture_change_breaks_the_input_binding() {
         let (scratch, candidate) = scratch_root();
-        let before = inputs(scratch.path(), &candidate).unwrap();
+        let before = inputs(scratch.path(), cli_step(), &candidate).unwrap();
         append(
             &scratch
                 .path()
                 .join("tests/fixtures/http/synthetic-added.json"),
         );
-        assert!(inputs(scratch.path(), &candidate).unwrap() != before);
+        assert!(inputs(scratch.path(), cli_step(), &candidate).unwrap() != before);
     }
 
     #[test]
     fn a_candidate_change_breaks_the_input_binding() {
         let (scratch, candidate) = scratch_root();
-        let before = inputs(scratch.path(), &candidate).unwrap();
+        let before = inputs(scratch.path(), cli_step(), &candidate).unwrap();
         append(&candidate);
-        assert!(inputs(scratch.path(), &candidate).unwrap() != before);
+        assert!(inputs(scratch.path(), cli_step(), &candidate).unwrap() != before);
     }
 }
