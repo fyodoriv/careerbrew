@@ -49,19 +49,8 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if the collector cannot be reached from the machine or the token cannot be approved within two weeks, switch the plugin to `kind: file` and let the company's own log forwarder read the file.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Splunk Docs, "Format events for HTTP Event Collector".
 
-- [ ] Rust migration: Build the baseline harness and complete code inventory
-  - **ID**: rust-00
-  - **Details**: Create the minimal Rust workspace, pinned toolchain, developer setup/doctor checks and migration harness. Give Rust format/lint/test steps distinct cache keys from the Python steps in scripts/check.sh; add a failing Rust control proving a cached Python success cannot skip native checks. Inventory every tracked executable file, embedded script and external interpreter. Capture the Python CLI/action/HTTP/data contracts and synthetic fixtures. Add positive controls and deliberately wrong-output, leaked-canary, skipped-test and slow-path negative controls. Land this preparation before measuring any port. Follow the measured Rust migration plan in `docs/rust-migration.md`: step `rust-00` in "Work breakdown" (its inputs, outputs and gate), "Scope", and "Measurement protocol for every step". This step also owns `crates/vault/Cargo.toml`, `experiments/hash/Cargo.toml`, the `xtask/tests/fixtures/` data and the 12 kept data files in `docs/plans/` (inventory CSV, activation manifest TSVs, embedded anchors, DATA schemas and action deltas) ("Every module has an owner step" in the same page). Split large capabilities into independently measured PRs; do not defer their tests to the final harness task. A component-only result does not enable production dispatch: the plan's full native activation closure must be measured before switching. What is done, what failed and what is next: section "State of rust-00" in `docs/rust-migration.md`. The old draft pull request and its continuation notes are not on the public repository; build on the public tree.
-  - **Files**: scripts/api-timing.py; scripts/check.sh; docs/proof/; proposed Cargo.toml and xtask/
-  - **Hypothesis**: the new measurement harness detects 100% of planted contract, canary, skipped-execution and resource regressions, accepts 100% of unchanged-oracle controls, and leaves 0 executable files unassigned; this is instrumentation, with no product switch.
-  - **Measurement**: `heavy-run cargo run -q --locked --offline -p careerbrew-xtask -- migration self-test` (the harness controls; 14 pass today) and `heavy-run cargo run -q --locked --offline -p careerbrew-xtask -- migration inventory --check` (0 unassigned paths). Each new control this step adds joins the self-test. The planted wrong-output, canary, skipped-test and slow-path controls must each fail the self-test when the harness accepts them.
-  - **Success**: The harness rejects 100% of planted defects and accepts 100% of unchanged-oracle trials; inventory has 0 unassigned executable paths. All applicable shared parity/resource gates pass; whole-repo fast/full checks remain green.
-  - **Pivot**: any contract disagreement, privacy violation or missing/duplicate write, or CPU/RSS ratio >1.10 B, blocks rollout. Rework the adapter or dependency, register the new approach and remeasure; keep the last verified handler. Preparation fails on any accepted planted defect or unsupported required contract.
-  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
-
 - [ ] Rust migration: Prove maintained dependency and data interoperability
   - **ID**: rust-01
-  - **Blocked**: prerequisite: rust-00 must land and pass its acceptance gates first
   - **Details**: Evaluate maintained Rust libraries for JSON/YAML, Fernet, FSRS, ICS recurrence/time zones, HTTP, file locks, subprocess limits and native parsers for retained Python/JavaScript teaching examples. Pin accepted crates and licenses in Cargo.lock. Run two-way Fernet vectors, old-data reads, FSRS schedule vectors and recurrence/DST fixtures against Python. Reject unsupported semantics before domain ports. Follow the measured Rust migration plan in `docs/rust-migration.md`: step `rust-01` in "Work breakdown" (its inputs, outputs and gate), "Scope", and "Measurement protocol for every step". Split large capabilities into independently measured PRs; do not defer their tests to the final harness task. A component-only result does not enable production dispatch: the plan's full native activation closure must be measured before switching.
   - **Files**: pyproject.toml; src/careerbrew/vault.py; store.py; tutor/cards.py; calendar.py
   - **Hypothesis**: this is a preparation step: harness and dependency controls replace speed claims. Maintained dependency adapters match 100% of the required data and algorithm vectors (two-way Fernet, old-data reads, FSRS schedules, recurrence and daylight-saving fixtures), with 0 unsupported required features and 0 custom cryptographic primitives. No product handler switches and no CPU or RSS result is claimed.
@@ -438,6 +427,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Success**: 0 gitleaks download failures in 30 runs, and the SHA-256 check still runs on every cache miss.
   - **Pivot**: if the cache adds more than 20 s to the job or the hash check can be skipped on a hit, drop the cache and use a bounded retry.
   - **Anchor**: Forsgren, Humble & Kim 2018, *Accelerate* (change failure rate); SLSA v1.0 (pinned, verified build inputs).
+
+- [ ] `rust-00`: observe the processes a run really starts, for the inventory
+  - **ID**: rust-00-inventory-process-observation
+  - **Details**: The inventory finds executable paths, embedded code and entry points by reading files (`inventory --check`, `--sites-check`). It does not see an interpreter or tool a run starts at runtime from a computed path. Trace the exec calls of the gate's own stories with the Linux observer (`docs/rust-migration.md` "Linux observer") and compare them with the inventory.
+  - **Files**: xtask/src/inventory.rs; xtask/src/observer.rs; docs/plans/2026-11-01-rust-code-inventory.csv; docs/rust-migration.md
+  - **Hypothesis**: every program the traced stories exec maps to an inventory row; a planted exec of an unlisted script is reported as unassigned.
+  - **Measurement**: `heavy-run --exclusive cargo xtask migration observer-probe --image <id>` with an inventory comparison step, plus a planted unlisted-exec control.
+  - **Success**: 0 unassigned exec targets on the traced stories, and the planted control is reported.
+  - **Pivot**: if tracing the stories costs more than 3x the gate's time, trace a fixed sample of stories and record that the observation is partial.
+  - **Anchor**: Linux `strace` exec tracing; Basili, Caldiera & Rombach 1994 (GQM).
 
 - [ ] `rust-00`: count descendants that leave the process group
   - **ID**: rust-00-process-tree-escapees

@@ -1158,6 +1158,13 @@ step has a registered Rust candidate yet, so no real record exists.
 
 ## State of rust-00
 
+**rust-00 is done (signed off 2026-11-18).** Its gate holds: the harness
+rejects every planted defect (wrong output, leaked canary, skipped test, slow
+path), accepts the unchanged oracle, and the inventory has 0 unassigned
+paths. The open items below have their own tasks in `TASKS.md`
+(`rust-00-measure-noise-floors`, `rust-00-process-tree-escapees`,
+`rust-00-inventory-process-observation`); they do not block `rust-01`.
+
 This section replaces the old continuation notes. Those notes and the old
 draft pull request are not on the public repository.
 
@@ -1203,18 +1210,20 @@ are **component parity only** and switch nothing:
   full harness. A first offline image build failed (the pinned `strace`
   package was not in the cache); a separate network-enabled preparation then
   built the image. Raw receipts stay local and are not in the repository.
-- Whole-process-tree resource collection is **built, not yet qualified**
-  (see "Process-tree resource accounting" below). It counts descendants that
-  stay in the child's process group; a descendant that calls `setsid` or
-  `setpgid` is not counted. Hosted numbers are still to be recorded.
+- Whole-process-tree resource collection is calibrated on hosted runs
+  (macOS 0.996x, Linux 0.972x; see "Process-tree resource accounting"
+  below). It counts descendants that stay in the child's process group; a
+  descendant that calls `setsid` or `setpgid` is not counted (task
+  `rust-00-process-tree-escapees`).
 - One full local gate on the old draft failed one owned-process cleanup test
   (all others passed). Its cause was never found. A later fast gate passed
   without explaining it. The hosted gate on `main` is green today; treat any
   repeat as a real failure and read its log.
 - A nonempty check label does not prove that a test ran. The future collector
   must bind that evidence.
-- Embedded-code discovery (beyond the reviewed anchors) and process
-  observation for the inventory are open.
+- Embedded-code discovery is done (`inventory --sites-check`). Process
+  observation of what a run really starts is open (task
+  `rust-00-inventory-process-observation`).
 
 ### Owned-child resource accounting (pre-registered 2026-11-16)
 
@@ -1455,34 +1464,14 @@ Jia and Harman 2011 (planted faults prove a check can fail).
 
 ### Next, in order
 
-1. Recheck the gate: `gh pr checks` on a fresh pull request, and
-   `cargo xtask migration self-test` and `inventory --check` locally.
-2. Done for the owned child: calibrated units on macOS (1.000x) and Linux
-   (0.979x) with `cargo xtask migration resources`, measured from a small
-   parent. Process-tree accounting is done: macOS 0.996x, Linux 0.972x.
-3. `cargo xtask migration baseline` is built (6 controls in
-   `cargo test -p careerbrew-xtask --test baseline`; the hosted gate prints its
-   `baseline` line with the resource calibration lines).
-   `cargo xtask migration verify` compares the CLI, HTTP, side-effect, DATA
-   and role contracts, traces data writes per phase, and writes the record
-   `decide` reads with empty `unobserved_violations` and `missing_contracts`
-   (`cargo test -p careerbrew-xtask --test verify`).
-   `measure --pairs` (paired cold and warm runs) and `decide` are built, and
-   `decide` reads the measure record end to end and judges each regime
-   against its own paired oracle samples. Next: record real numbers once
-   `rust-03` registers its candidate.
-4. Registries built: noise floors per step and OS, and per-case
-   normalization rules ("Noise floors and normalization rules"). Left: the
-   real `rust-03` floors from hosted baselines (task
-   `rust-00-measure-noise-floors`), and rules for the HTTP and data
-   contracts when `verify` covers them.
-5. Done: the planted slow-path controls ("Planted slow-path controls").
-   `decide` holds a 3x CPU and a 512 MiB candidate that pass `verify`; the
-   self-test runs 17 controls.
-6. The inventory covers embedded code and generated entry points
-   (`inventory --sites-check`, run by `inventory --check`). Next: process
-   observation of what a run really starts.
-7. Then mark `rust-00` done, remove its task block, and unblock `rust-01`.
+`rust-00` is done. Its follow-ups run beside the next steps:
+
+1. `rust-01`: prove maintained dependency and data interoperability.
+2. `rust-03` registers its Rust candidate. Then record real `measure` and
+   `decide` numbers, and the real `rust-03` noise floors from hosted
+   baselines (task `rust-00-measure-noise-floors`).
+3. Follow-ups that do not block a step: `rust-00-process-tree-escapees` and
+   `rust-00-inventory-process-observation`.
 
 ## Every module has an owner step
 
