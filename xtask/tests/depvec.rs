@@ -163,6 +163,9 @@ fn a_planted_wrong_code_parse_vector_fails_its_case() {
         serde_json::json!(["code-parse:python-function-with-types"])
     );
     assert_eq!(record["violations"]["contract"], 1);
+}
+
+#[test]
 fn a_planted_wrong_vector_fails_its_fernet_case() {
     let scratch = tempfile::tempdir().unwrap();
     let out = scratch.path().join("verify.json");
@@ -174,6 +177,9 @@ fn a_planted_wrong_vector_fails_its_fernet_case() {
         record["failed_cases"],
         serde_json::json!(["fernet:open-python-token"])
     );
+}
+
+#[test]
 fn a_planted_wrong_fsrs_vector_fails_its_case() {
     let scratch = tempfile::tempdir().unwrap();
     let out = scratch.path().join("verify.json");
@@ -187,6 +193,9 @@ fn a_planted_wrong_fsrs_vector_fails_its_case() {
         serde_json::json!(["fsrs:parameters"])
     );
     assert_eq!(record["violations"]["contract"], 1);
+}
+
+#[test]
 fn a_planted_wrong_runtime_vector_fails_its_case() {
     let scratch = tempfile::tempdir().unwrap();
     let out = scratch.path().join("verify.json");

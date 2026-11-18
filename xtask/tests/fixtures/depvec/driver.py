@@ -16,22 +16,16 @@ import os
 import struct
 import subprocess
 import sys
+import tempfile
+from pathlib import Path
 from zoneinfo import ZoneInfo
-from pathlib import Path
-import tempfile
-import tempfile
-from pathlib import Path
 
 import fsrs
 import yaml
 from cryptography.fernet import Fernet
 
-from careerbrew import calendar, store
-from careerbrew import backup, store, vault
-from careerbrew import store
-from careerbrew.tutor import cards
-from careerbrew import connectors, store
-from careerbrew.tutor import exercises
+from careerbrew import backup, calendar, connectors, store, vault
+from careerbrew.tutor import cards, exercises
 
 
 def encode(value):
@@ -105,6 +99,9 @@ def calendar_set(op, data):
         ]
     if op == "local-day":
         return datetime.datetime.fromisoformat(data["at"]).astimezone(tz).date().isoformat()
+    raise ValueError("unknown op")
+
+
 ROOT = Path(__file__).resolve().parents[4]
 
 
@@ -132,6 +129,9 @@ def code_parse(op, data):
         if done.returncode != 0:
             raise ValueError("does not parse")
         return "parsed"
+    raise ValueError("unknown op")
+
+
 @contextlib.contextmanager
 def _key_file(text):
     # A scratch key file and data root, so vault.py loads the key its own way.
@@ -172,6 +172,9 @@ def fernet(op, data):
                 "length": len(raw),
                 "opens": vault.open_bytes(sealed, create_key=False).hex(),
             }
+    raise ValueError("unknown op")
+
+
 # A fixed synthetic start; review times are minutes after it.
 FSRS_START = datetime.datetime(2026, 1, 5, 9, 0, tzinfo=datetime.UTC)
 
@@ -211,7 +214,9 @@ def fsrs_schedule(op, data):
                 }
             )
         return out
-@contextlib.contextmanager
+    raise ValueError("unknown op")
+
+
 def _fixtures(root):
     old = os.environ.get("CAREERBREW_HTTP_FIXTURES")
     os.environ["CAREERBREW_HTTP_FIXTURES"] = root
@@ -347,11 +352,54 @@ def runtime(op, data):
 
 
 # The registry: one line per vector set.
-SETS = {"calendar": calendar_set, "json-yaml": json_yaml}
-SETS = {"json-yaml": json_yaml, "code-parse": code_parse}
-SETS = {"fernet": fernet, "json-yaml": json_yaml}
-SETS = {"json-yaml": json_yaml, "fsrs": fsrs_schedule}
-SETS = {"json-yaml": json_yaml, "runtime": runtime}
+SETS = {
+    "calendar": calendar_set,
+    "code-parse": code_parse,
+    "fernet": fernet,
+    "fsrs": fsrs_schedule,
+    "json-yaml": json_yaml,
+    "runtime": runtime,
+}
+
+
+SETS = {
+    "calendar": calendar_set,
+    "code-parse": code_parse,
+    "fernet": fernet,
+    "fsrs": fsrs_schedule,
+    "json-yaml": json_yaml,
+    "runtime": runtime,
+}
+
+
+SETS = {
+    "calendar": calendar_set,
+    "code-parse": code_parse,
+    "fernet": fernet,
+    "fsrs": fsrs_schedule,
+    "json-yaml": json_yaml,
+    "runtime": runtime,
+}
+
+
+SETS = {
+    "calendar": calendar_set,
+    "code-parse": code_parse,
+    "fernet": fernet,
+    "fsrs": fsrs_schedule,
+    "json-yaml": json_yaml,
+    "runtime": runtime,
+}
+
+
+SETS = {
+    "calendar": calendar_set,
+    "code-parse": code_parse,
+    "fernet": fernet,
+    "fsrs": fsrs_schedule,
+    "json-yaml": json_yaml,
+    "runtime": runtime,
+}
 
 
 def main():

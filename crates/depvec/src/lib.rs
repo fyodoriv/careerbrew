@@ -20,14 +20,14 @@ use serde_json::{json, Value};
 pub type Run = fn(&str, &Value) -> Result<Value, String>;
 
 /// The registry: one line per vector set.
-pub const SETS: &[(&str, Run)] = &[("calendar", calendar::run), ("json-yaml", json_yaml::run)];
 pub const SETS: &[(&str, Run)] = &[
-    ("json-yaml", json_yaml::run),
+    ("calendar", calendar::run),
     ("code-parse", code_parse::run),
+    ("fernet", fernet::run),
+    ("fsrs", fsrs_schedule::run),
+    ("json-yaml", json_yaml::run),
+    ("runtime", runtime::run),
 ];
-pub const SETS: &[(&str, Run)] = &[("fernet", fernet::run), ("json-yaml", json_yaml::run)];
-pub const SETS: &[(&str, Run)] = &[("json-yaml", json_yaml::run), ("fsrs", fsrs_schedule::run)];
-pub const SETS: &[(&str, Run)] = &[("json-yaml", json_yaml::run), ("runtime", runtime::run)];
 
 /// Runs every vector of a fixture. A vector that fails gives `{"error":
 /// true}`; the reason stays out of the output, since only the outcome is
