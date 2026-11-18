@@ -81,6 +81,7 @@ __pycache__/
 !/crates/depvec/src/main.rs
 !/crates/depvec/src/canon.rs
 !/crates/depvec/src/json_yaml.rs
+!/crates/depvec/src/code_parse.rs
 !/crates/depvec/tests/
 /crates/depvec/tests/*
 !/crates/depvec/tests/cli.rs
@@ -130,6 +131,7 @@ __pycache__/
 /xtask/tests/fixtures/depvec/*
 !/xtask/tests/fixtures/depvec/driver.py
 !/xtask/tests/fixtures/depvec/json-yaml.json
+!/xtask/tests/fixtures/depvec/code-parse.json
 !/xtask/tests/fixtures/i01/
 /xtask/tests/fixtures/i01/*
 !/xtask/tests/fixtures/i01/pending-identities-v1.tsv
