@@ -387,7 +387,8 @@ fn a_planted_missing_write_fails_the_cli_case() {
     std::fs::write(
         &wrapper,
         format!(
-            "#!/bin/sh\n'{}' \"$@\"\nstatus=$?\nif [ \"$2\" = '-m' ]; then : > \"$CAREERBREW_HOME/oracle-made\"; fi\nexit $status\n",
+            "#!/bin/sh\nif [ \"$2\" != '-m' ]; then exec '{}' \"$@\"; fi\n'{}' \"$@\"\nstatus=$?\n: > \"$CAREERBREW_HOME/oracle-made\"\nexit $status\n",
+            python().display(),
             python().display()
         ),
     )
@@ -404,7 +405,13 @@ fn a_planted_missing_write_fails_the_cli_case() {
         .env_remove("CAREERBREW_HOME")
         .output()
         .unwrap();
-    assert_eq!(result.status.code(), Some(1));
+    assert_eq!(
+        result.status.code(),
+        Some(1),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(out.exists(), "{}", String::from_utf8_lossy(&result.stderr));
     let value = read(&out);
     assert_eq!(value["failed_cases"], serde_json::json!(["actions-json"]));
     let case = &value["cases"][0];
