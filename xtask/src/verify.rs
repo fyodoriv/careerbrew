@@ -2,11 +2,19 @@
 //! its Rust candidate on the same synthetic cases, each side in its own fresh
 //! synthetic home, and compare three contracts:
 //! - CLI: stdout and the exit code, byte for byte;
-//! - side effects: the entries each side leaves in its synthetic home
-//!   (path, mode and content hash), as extra, missing or changed entries;
+//! - side effects: the entries each side adds, changes or removes in its
+//!   synthetic home against the setup snapshot taken before it runs (path,
+//!   mode and content hash), as extra, missing or changed entries. This is a
+//!   final-state comparison, not a write trace: a rewrite with the same
+//!   bytes, or a write that is later removed, is not seen (`duplicate_writes`
+//!   stays unobserved);
 //! - HTTP (steps with `http_contract`): the `capture-http` fixture cases sent
 //!   over a real socket, compared on status, normalized headers and body.
 //!   The live oracle must still match the frozen `capture-http` reference.
+//!   The HTTP side effects are one more case, `http:side-effects`.
+//!
+//! The DATA contract is not verified yet; the record lists it under
+//! `missing_contracts`, and `decide` keeps Python while any is listed.
 //!
 //! It writes a content-free JSON record: step, per-case pass or fail with
 //! hashes and counts, the sources hash, the source revision, whether the
@@ -29,14 +37,33 @@ pub const ORACLE_PREFIX: &[&str] = &["-B", "-m", "careerbrew"];
 /// Violation kinds this verify has no observation for yet. `decide` keeps
 /// Python while any is listed: an unobserved count is never a zero.
 pub const UNOBSERVED: &[&str] = &["duplicate_writes", "role"];
+/// Contracts a step needs that this verify does not check yet.
+pub const MISSING_CONTRACTS: &[&str] = &["data"];
+/// The marker an entry the run removed gets in its side-effect map.
+const REMOVED: &str = "removed";
 /// HTTP statuses that refuse access; a candidate that answers another status
-/// on such a case is an authorization violation.
+/// or another body on such a case, or no answer, is an authorization
+/// violation.
 const DENIED: &[u64] = &[401, 403];
 
 type Writes = BTreeMap<String, String>;
 
+/// The entries a run added or changed against the setup snapshot, plus the
+/// setup entries it removed (marked `removed`).
+fn effects(before: &Writes, after: &Writes) -> Writes {
+    let mut effects: Writes = after
+        .iter()
+        .filter(|(k, v)| before.get(*k) != Some(*v))
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+    for key in before.keys().filter(|k| !after.contains_key(*k)) {
+        effects.insert(key.clone(), REMOVED.to_owned());
+    }
+    effects
+}
+
 /// Runs one side in a fresh synthetic home; returns its exit code, stdout
-/// and the entries it leaves in that home.
+/// and its side effects in that home.
 fn side(
     root: &Path,
     program: &Path,
@@ -51,6 +78,7 @@ fn side(
     {
         return Err("synthetic CAREERBREW_HOME is empty".into());
     }
+    let before = capture_actions::files(&owned, &owned, None)?;
     let mut command = Command::new(program);
     command
         .args(args)
@@ -58,7 +86,7 @@ fn side(
         .env_clear()
         .envs(&environment);
     let (_, exit, stdout, _) = capture_actions::execute(command)?;
-    let writes = capture_actions::files(&owned, &owned, None)?;
+    let writes = effects(&before, &capture_actions::files(&owned, &owned, None)?);
     Ok((exit, stdout, writes))
 }
 
@@ -256,7 +284,7 @@ fn http_cases(
                 let denied = expected["status"]
                     .as_u64()
                     .is_some_and(|status| DENIED.contains(&status));
-                violations.authorization += u64::from(denied && !status_matches);
+                violations.authorization += u64::from(denied && !(status_matches && body_matches));
                 json!({
                     "case": format!("http:{name}"),
                     "kind": "http",
@@ -271,6 +299,11 @@ fn http_cases(
             }
             None => {
                 violations.contract += 1;
+                violations.authorization += u64::from(
+                    expected["status"]
+                        .as_u64()
+                        .is_some_and(|status| DENIED.contains(&status)),
+                );
                 json!({
                     "case": format!("http:{name}"),
                     "kind": "http",
@@ -286,9 +319,24 @@ fn http_cases(
         };
         cases.push(entry);
     }
-    let (extra, missing, changed) = diff(&oracle.after, &served.after);
+    let oracle_effects = effects(&oracle.before, &oracle.after);
+    let served_effects = effects(&served.before, &served.after);
+    let (extra, missing, changed) = diff(&oracle_effects, &served_effects);
     violations.side_effect += extra + changed;
     violations.missing_writes += missing;
+    cases.push(json!({
+        "case": "http:side-effects",
+        "kind": "http-side-effect",
+        "passed": extra + missing + changed == 0,
+        "writes_match": extra + missing + changed == 0,
+        "oracle_writes": oracle_effects.len(),
+        "candidate_writes": served_effects.len(),
+        "extra_writes": extra,
+        "missing_writes": missing,
+        "changed_writes": changed,
+        "oracle_writes_sha256": writes_sha256(&oracle_effects),
+        "candidate_writes_sha256": writes_sha256(&served_effects),
+    }));
     Ok(json!({
         "writes_match": extra + missing + changed == 0,
         "extra_writes": extra,
@@ -368,6 +416,8 @@ pub fn record(
         "checks": checks,
         "violations": violations.to_json(),
         "unobserved_violations": UNOBSERVED,
+        "missing_contracts": MISSING_CONTRACTS,
+        "side_effects_observed": "final-state",
         "http": http,
         "cases": cases,
     }))

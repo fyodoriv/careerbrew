@@ -518,6 +518,8 @@ pub(crate) struct Served {
     /// The number of channels (stdout, stderr, each response) that hold the
     /// synthetic canary.
     pub canary_leaks: u64,
+    /// The owned synthetic home before the server started (setup entries).
+    pub before: BTreeMap<String, String>,
     /// The owned synthetic home after the run.
     pub after: BTreeMap<String, String>,
 }
@@ -591,6 +593,7 @@ pub(crate) fn serve(root: &Path, program: &Path, args: &[String]) -> Result<Serv
             root.join("src").display()
         ),
     );
+    let before = shared::files(&owned, &owned, None)?;
     let mut command = Command::new(program);
     command
         .args(args)
@@ -619,6 +622,11 @@ pub(crate) fn serve(root: &Path, program: &Path, args: &[String]) -> Result<Serv
         let mut cookie = String::new();
         for (slot, case) in responses.iter_mut().zip(cases) {
             let Ok(response) = request(port, case, token, &cookie, check) else {
+                // A server that exited leaves every remaining case None at
+                // once, never one request timeout per case.
+                if !matches!(check(), Ok(false)) {
+                    break;
+                }
                 continue;
             };
             if case["name"] == "set-cookie" {
@@ -645,6 +653,7 @@ pub(crate) fn serve(root: &Path, program: &Path, args: &[String]) -> Result<Serv
             .collect(),
         responses,
         canary_leaks,
+        before,
         after: shared::files(&owned, &owned, None)?,
     })
 }
