@@ -519,7 +519,7 @@ Every step below shares these rules. They are not repeated in each step.
   runs in its own fresh synthetic home.
 - **Planted control:** `--test-wrong-vector <set>` wraps the set's first
   input for the candidate only; that case must fail and verify exits 1
-  (`xtask/tests/depvec.rs`). `migration self-test` also runs 5 compare
+  (`xtask/tests/depvec.rs`, one control per set). `migration self-test` also runs 5 compare
   controls on synthetic answers.
 
 **Add a vector set** (one PR per set):
@@ -1170,7 +1170,7 @@ is `rust-01`.
 | --- | --- | --- | --- |
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
 | `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
-| `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`json-yaml` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
+| `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`json-yaml` and `calendar` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
 | `experiments/hash/` | `careerbrew-hash-experiment` | the pure `changes._h` hash for a supported synthetic JSON subset. It refuses values outside that subset. | none: component parity only |
 
 - No crate ships: `scripts/rust-shipped-crates.txt` is empty. A crate whose
