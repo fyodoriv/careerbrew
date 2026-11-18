@@ -1,0 +1,786 @@
+{
+ "set": "json-yaml",
+ "vectors": [
+  {
+   "id": "json-read-object-order",
+   "op": "json-read",
+   "input": "{\"b\": 1, \"a\": [true, false, null], \"c\": {\"z\": \"x\", \"y\": 2.5}}"
+  },
+  {
+   "id": "json-read-duplicate-key",
+   "op": "json-read",
+   "input": "{\"a\": 1, \"b\": 2, \"a\": 3}"
+  },
+  {
+   "id": "json-read-unicode",
+   "op": "json-read",
+   "input": "{\"name\": \"caf\\u00e9 \\u2603\", \"raw\": \"naïve ☃\"}"
+  },
+  {
+   "id": "json-read-surrogate-pair",
+   "op": "json-read",
+   "input": "\"\\ud83d\\ude00\""
+  },
+  {
+   "id": "json-read-numbers",
+   "op": "json-read",
+   "input": "[0, -7, 9007199254740993, 1.5, -0.25, 1e3, 2.5E-3, 10.0]"
+  },
+  {
+   "id": "json-read-int64-limits",
+   "op": "json-read",
+   "input": "[9223372036854775807, -9223372036854775808]"
+  },
+  {
+   "id": "json-read-escapes",
+   "op": "json-read",
+   "input": "\"tab\\tnew\\nquote\\\"slash\\/\""
+  },
+  {
+   "id": "json-read-whitespace",
+   "op": "json-read",
+   "input": "  \n [ ] \n"
+  },
+  {
+   "id": "json-read-jsonl-row",
+   "op": "json-read",
+   "input": "{\"id\": \"r1\", \"at\": \"2026-11-18T09:00:00+00:00\", \"n\": 3}"
+  },
+  {
+   "id": "json-read-rejects-trailing-comma",
+   "op": "json-read",
+   "input": "[1, 2,]"
+  },
+  {
+   "id": "json-read-rejects-extra-data",
+   "op": "json-read",
+   "input": "{} {}"
+  },
+  {
+   "id": "json-write-sorted-nested",
+   "op": "json-write",
+   "input": {
+    "t": "map",
+    "v": [
+     [
+      {
+       "t": "str",
+       "v": "b"
+      },
+      {
+       "t": "int",
+       "v": "1"
+      }
+     ],
+     [
+      {
+       "t": "str",
+       "v": "a"
+      },
+      {
+       "t": "list",
+       "v": [
+        {
+         "t": "bool",
+         "v": true
+        },
+        {
+         "t": "null"
+        },
+        {
+         "t": "str",
+         "v": "x"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "str",
+       "v": "c"
+      },
+      {
+       "t": "map",
+       "v": [
+        [
+         {
+          "t": "str",
+          "v": "z"
+         },
+         {
+          "t": "str",
+          "v": ""
+         }
+        ],
+        [
+         {
+          "t": "str",
+          "v": "y"
+         },
+         {
+          "t": "float",
+          "v": "3fe0000000000000"
+         }
+        ]
+       ]
+      }
+     ],
+     [
+      {
+       "t": "str",
+       "v": "e"
+      },
+      {
+       "t": "map",
+       "v": []
+      }
+     ],
+     [
+      {
+       "t": "str",
+       "v": "f"
+      },
+      {
+       "t": "list",
+       "v": []
+      }
+     ]
+    ]
+   }
+  },
+  {
+   "id": "json-write-key-order-unicode",
+   "op": "json-write",
+   "input": {
+    "t": "map",
+    "v": [
+     [
+      {
+       "t": "str",
+       "v": "é"
+      },
+      {
+       "t": "int",
+       "v": "1"
+      }
+     ],
+     [
+      {
+       "t": "str",
+       "v": "z"
+      },
+      {
+       "t": "int",
+       "v": "2"
+      }
+     ],
+     [
+      {
+       "t": "str",
+       "v": "A"
+      },
+      {
+       "t": "int",
+       "v": "3"
+      }
+     ]
+    ]
+   }
+  },
+  {
+   "id": "json-write-ensure-ascii",
+   "op": "json-write",
+   "input": {
+    "t": "map",
+    "v": [
+     [
+      {
+       "t": "str",
+       "v": "name"
+      },
+      {
+       "t": "str",
+       "v": "café ☃ 😀"
+      }
+     ]
+    ]
+   }
+  },
+  {
+   "id": "json-write-control-chars",
+   "op": "json-write",
+   "input": {
+    "t": "str",
+    "v": "a\tb\nc\u0001\"q\\"
+   }
+  },
+  {
+   "id": "json-write-default-str",
+   "op": "json-write",
+   "input": {
+    "t": "map",
+    "v": [
+     [
+      {
+       "t": "str",
+       "v": "day"
+      },
+      {
+       "t": "date",
+       "v": "2026-11-18"
+      }
+     ],
+     [
+      {
+       "t": "str",
+       "v": "at"
+      },
+      {
+       "t": "datetime",
+       "v": "2026-11-18T09:30:00"
+      }
+     ],
+     [
+      {
+       "t": "str",
+       "v": "utc"
+      },
+      {
+       "t": "datetime",
+       "v": "2026-11-18T09:30:00+00:00"
+      }
+     ]
+    ]
+   }
+  },
+  {
+   "id": "json-write-floats",
+   "op": "json-write",
+   "input": {
+    "t": "list",
+    "v": [
+     {
+      "t": "float",
+      "v": "3fe0000000000000"
+     },
+     {
+      "t": "float",
+      "v": "3ff0000000000000"
+     },
+     {
+      "t": "float",
+      "v": "c002000000000000"
+     },
+     {
+      "t": "float",
+      "v": "3fb999999999999a"
+     },
+     {
+      "t": "float",
+      "v": "4059000000000000"
+     },
+     {
+      "t": "float",
+      "v": "405edd2f1a9fbe77"
+     }
+    ]
+   }
+  },
+  {
+   "id": "json-write-ints",
+   "op": "json-write",
+   "input": {
+    "t": "list",
+    "v": [
+     {
+      "t": "int",
+      "v": "0"
+     },
+     {
+      "t": "int",
+      "v": "-1"
+     },
+     {
+      "t": "int",
+      "v": "9223372036854775807"
+     }
+    ]
+   }
+  },
+  {
+   "id": "json-write-top-scalars",
+   "op": "json-write",
+   "input": {
+    "t": "list",
+    "v": [
+     {
+      "t": "str",
+      "v": "plain"
+     },
+     {
+      "t": "null"
+     },
+     {
+      "t": "bool",
+      "v": false
+     }
+    ]
+   }
+  },
+  {
+   "id": "yaml-read-block-map",
+   "op": "yaml-read",
+   "input": "name: Ada\ncount: 3\nratio: 0.75\nactive: true\nnote: null\ntags:\n- one\n- two\n"
+  },
+  {
+   "id": "yaml-read-yaml11-bools",
+   "op": "yaml-read",
+   "input": "- yes\n- No\n- on\n- OFF\n- True\n- y\n- n\n"
+  },
+  {
+   "id": "yaml-read-null-forms",
+   "op": "yaml-read",
+   "input": "a: ~\nb: null\nc:\nd: Null\n"
+  },
+  {
+   "id": "yaml-read-quoted-stay-text",
+   "op": "yaml-read",
+   "input": "a: 'yes'\nb: \"123\"\nc: '2026-11-18'\nd: !!str 7\n"
+  },
+  {
+   "id": "yaml-read-ints",
+   "op": "yaml-read",
+   "input": "- 0\n- 42\n- -17\n- +5\n- 0x1F\n- 017\n- 0b101\n- 1_000\n- 1:30\n- 0o17\n"
+  },
+  {
+   "id": "yaml-read-floats",
+   "op": "yaml-read",
+   "input": "- 1.5\n- -0.25\n- 1.0e+3\n- 1e3\n- .5\n- .inf\n- -.Inf\n- 1_000.5\n- 6.\n"
+  },
+  {
+   "id": "yaml-read-timestamps",
+   "op": "yaml-read",
+   "input": "- 2026-11-18\n- 2026-11-18 09:30:00\n- 2026-11-18T09:30:00Z\n- 2026-11-18t09:30:00.5+05:30\n- 2026-1-5 7:05:09\n- 2026-11-18 09:30:00 -08:00\n"
+  },
+  {
+   "id": "yaml-read-rejects-invalid-date",
+   "op": "yaml-read",
+   "input": "- 2026-02-30\n"
+  },
+  {
+   "id": "yaml-read-not-a-date",
+   "op": "yaml-read",
+   "input": "- 2026-11-18x\n- 26-11-18\n"
+  },
+  {
+   "id": "yaml-read-duplicate-key",
+   "op": "yaml-read",
+   "input": "a: 1\nb: 2\na: 3\n"
+  },
+  {
+   "id": "yaml-read-anchor-alias",
+   "op": "yaml-read",
+   "input": "base: &b\n  x: 1\ncopy: *b\n"
+  },
+  {
+   "id": "yaml-read-unicode",
+   "op": "yaml-read",
+   "input": "name: café ☃\nquoted: \"\\u00e9\\U0001F600\"\n"
+  },
+  {
+   "id": "yaml-read-block-scalars",
+   "op": "yaml-read",
+   "input": "text: |\n  line one\n  line two\nfolded: >\n  a\n  b\n"
+  },
+  {
+   "id": "yaml-read-empty",
+   "op": "yaml-read",
+   "input": ""
+  },
+  {
+   "id": "yaml-read-comment-only",
+   "op": "yaml-read",
+   "input": "# only a comment\n"
+  },
+  {
+   "id": "yaml-read-int-keys",
+   "op": "yaml-read",
+   "input": "1: one\n2: two\n"
+  },
+  {
+   "id": "yaml-read-rejects-two-documents",
+   "op": "yaml-read",
+   "input": "a: 1\n---\nb: 2\n"
+  },
+  {
+   "id": "yaml-read-rejects-broken",
+   "op": "yaml-read",
+   "input": "a: [1, 2\n"
+  },
+  {
+   "id": "yaml-read-project-shape",
+   "op": "yaml-read",
+   "input": "projects:\n- id: p1\n  title: Ship the thing\n  due: 2026-12-01\n  done: no\n  hours: 2.5\n  links: []\n  meta: {}\n"
+  },
+  {
+   "id": "yaml-roundtrip-map",
+   "op": "yaml-roundtrip",
+   "input": {
+    "t": "map",
+    "v": [
+     [
+      {
+       "t": "str",
+       "v": "name"
+      },
+      {
+       "t": "str",
+       "v": "Ada"
+      }
+     ],
+     [
+      {
+       "t": "str",
+       "v": "count"
+      },
+      {
+       "t": "int",
+       "v": "3"
+      }
+     ],
+     [
+      {
+       "t": "str",
+       "v": "ratio"
+      },
+      {
+       "t": "float",
+       "v": "3fe8000000000000"
+      }
+     ],
+     [
+      {
+       "t": "str",
+       "v": "active"
+      },
+      {
+       "t": "bool",
+       "v": true
+      }
+     ],
+     [
+      {
+       "t": "str",
+       "v": "note"
+      },
+      {
+       "t": "null"
+      }
+     ],
+     [
+      {
+       "t": "str",
+       "v": "tags"
+      },
+      {
+       "t": "list",
+       "v": [
+        {
+         "t": "str",
+         "v": "one"
+        },
+        {
+         "t": "str",
+         "v": "two"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "str",
+       "v": "empty_list"
+      },
+      {
+       "t": "list",
+       "v": []
+      }
+     ],
+     [
+      {
+       "t": "str",
+       "v": "empty_map"
+      },
+      {
+       "t": "map",
+       "v": []
+      }
+     ]
+    ]
+   }
+  },
+  {
+   "id": "yaml-roundtrip-ambiguous-text",
+   "op": "yaml-roundtrip",
+   "input": {
+    "t": "list",
+    "v": [
+     {
+      "t": "str",
+      "v": "yes"
+     },
+     {
+      "t": "str",
+      "v": "No"
+     },
+     {
+      "t": "str",
+      "v": "on"
+     },
+     {
+      "t": "str",
+      "v": "OFF"
+     },
+     {
+      "t": "str",
+      "v": "null"
+     },
+     {
+      "t": "str",
+      "v": "~"
+     },
+     {
+      "t": "str",
+      "v": "123"
+     },
+     {
+      "t": "str",
+      "v": "1.5"
+     },
+     {
+      "t": "str",
+      "v": "0x1F"
+     },
+     {
+      "t": "str",
+      "v": "true"
+     },
+     {
+      "t": "str",
+      "v": ""
+     },
+     {
+      "t": "str",
+      "v": " lead"
+     },
+     {
+      "t": "str",
+      "v": "a: b"
+     },
+     {
+      "t": "str",
+      "v": "#x"
+     },
+     {
+      "t": "str",
+      "v": "-dash"
+     },
+     {
+      "t": "str",
+      "v": "line\nbreak"
+     }
+    ]
+   }
+  },
+  {
+   "id": "yaml-roundtrip-numbers",
+   "op": "yaml-roundtrip",
+   "input": {
+    "t": "list",
+    "v": [
+     {
+      "t": "int",
+      "v": "0"
+     },
+     {
+      "t": "int",
+      "v": "-5"
+     },
+     {
+      "t": "int",
+      "v": "9223372036854775807"
+     },
+     {
+      "t": "float",
+      "v": "3fe0000000000000"
+     },
+     {
+      "t": "float",
+      "v": "c002000000000000"
+     },
+     {
+      "t": "float",
+      "v": "4341c37937e08000"
+     },
+     {
+      "t": "float",
+      "v": "3e7ad7f29abcaf48"
+     },
+     {
+      "t": "float",
+      "v": "7ff0000000000000"
+     },
+     {
+      "t": "float",
+      "v": "fff0000000000000"
+     }
+    ]
+   }
+  },
+  {
+   "id": "yaml-roundtrip-unicode",
+   "op": "yaml-roundtrip",
+   "input": {
+    "t": "map",
+    "v": [
+     [
+      {
+       "t": "str",
+       "v": "name"
+      },
+      {
+       "t": "str",
+       "v": "café ☃ 😀"
+      }
+     ]
+    ]
+   }
+  },
+  {
+   "id": "yaml-roundtrip-date",
+   "op": "yaml-roundtrip",
+   "input": {
+    "t": "map",
+    "v": [
+     [
+      {
+       "t": "str",
+       "v": "due"
+      },
+      {
+       "t": "date",
+       "v": "2026-12-01"
+      }
+     ]
+    ]
+   }
+  },
+  {
+   "id": "yaml-roundtrip-int-keys",
+   "op": "yaml-roundtrip",
+   "input": {
+    "t": "map",
+    "v": [
+     [
+      {
+       "t": "int",
+       "v": "1"
+      },
+      {
+       "t": "str",
+       "v": "one"
+      }
+     ],
+     [
+      {
+       "t": "int",
+       "v": "2"
+      },
+      {
+       "t": "str",
+       "v": "two"
+      }
+     ]
+    ]
+   }
+  },
+  {
+   "id": "yaml-roundtrip-nested",
+   "op": "yaml-roundtrip",
+   "input": {
+    "t": "list",
+    "v": [
+     {
+      "t": "map",
+      "v": [
+       [
+        {
+         "t": "str",
+         "v": "id"
+        },
+        {
+         "t": "str",
+         "v": "p1"
+        }
+       ],
+       [
+        {
+         "t": "str",
+         "v": "done"
+        },
+        {
+         "t": "bool",
+         "v": false
+        }
+       ],
+       [
+        {
+         "t": "str",
+         "v": "hours"
+        },
+        {
+         "t": "float",
+         "v": "4004000000000000"
+        }
+       ]
+      ]
+     },
+     {
+      "t": "map",
+      "v": [
+       [
+        {
+         "t": "str",
+         "v": "id"
+        },
+        {
+         "t": "str",
+         "v": "p2"
+        }
+       ],
+       [
+        {
+         "t": "str",
+         "v": "links"
+        },
+        {
+         "t": "list",
+         "v": [
+          {
+           "t": "str",
+           "v": "a"
+          },
+          {
+           "t": "str",
+           "v": "b"
+          }
+         ]
+        }
+       ]
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

@@ -5,6 +5,7 @@ mod capture_actions;
 mod capture_data;
 mod capture_http;
 mod decide;
+mod depvec;
 mod inventory;
 mod measure;
 mod noise_floor;
@@ -23,7 +24,8 @@ fn main() -> ExitCode {
     if args == ["migration", "self-test"] {
         let passed = baseline_verdict::controls::run()
             + trial_plan::controls::run()
-            + decide::controls::run();
+            + decide::controls::run()
+            + depvec::controls::run();
         println!("migration self-test: {passed} controls passed");
         return ExitCode::SUCCESS;
     }
@@ -291,7 +293,7 @@ fn main() -> ExitCode {
     eprintln!("       cargo xtask migration measure --step <id> --python <absolute-path> --out <new-file> [--pairs <n>] [--test-allow-few-pairs] [--test-candidate <absolute-path>]");
     eprintln!("       cargo xtask migration decide --step <id> --baseline <file> --verify <file> --measure <file> --out <new-file> [--test-noise-floor <absolute-file>]");
     eprintln!("       cargo xtask migration noise-floor --baseline <absolute-file>");
-    eprintln!("       cargo xtask migration verify --step <id> --python <absolute-path> --out <new-file> [--test-candidate <absolute-path>] [--test-oracle <absolute-path>]");
+    eprintln!("       cargo xtask migration verify --step <id> --python <absolute-path> --out <new-file> [--test-candidate <absolute-path>] [--test-oracle <absolute-path>] [--test-wrong-vector <set>]");
     eprintln!("       cargo xtask migration toolchain-identity --rustc <absolute-path>");
     eprintln!(
         "       cargo xtask migration capture-actions --python <absolute-path> --out <new-file>"
@@ -548,8 +550,8 @@ fn measure_command(rest: &[std::ffi::OsString]) -> ExitCode {
 /// `migration verify --step <id> --python <path> --out <new-file> [--test-candidate <path>]`.
 /// Exit 0 when every case matches; 1 on a refusal or a failed case.
 fn verify_command(rest: &[std::ffi::OsString]) -> ExitCode {
-    let (mut step, mut python, mut output, mut candidate, mut oracle) =
-        (None, None, None, None, None);
+    let (mut step, mut python, mut output, mut candidate, mut oracle, mut wrong) =
+        (None, None, None, None, None, None);
     for pair in rest.chunks(2) {
         let [flag, value] = pair else {
             eprintln!("migration verify: every flag needs a value");
@@ -563,6 +565,8 @@ fn verify_command(rest: &[std::ffi::OsString]) -> ExitCode {
             Some("--test-candidate") => &mut candidate,
             // Test-only: a script in place of the Python oracle.
             Some("--test-oracle") => &mut oracle,
+            // Test-only: plant a wrong vector in this vector set (rust-01).
+            Some("--test-wrong-vector") => &mut wrong,
             _ => {
                 eprintln!("migration verify: unknown flag");
                 return ExitCode::from(2);
@@ -586,6 +590,7 @@ fn verify_command(rest: &[std::ffi::OsString]) -> ExitCode {
         std::path::Path::new(&python),
         candidate.as_deref().map(std::path::Path::new),
         oracle.as_deref().map(std::path::Path::new),
+        wrong.as_deref().and_then(std::ffi::OsStr::to_str),
         std::path::Path::new(&output),
     ) {
         Ok(record) => {

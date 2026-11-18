@@ -567,7 +567,7 @@ fn self_test_runs_the_decide_slow_path_controls() {
     assert!(output.status.success(), "{output:?}");
     assert_eq!(
         String::from_utf8_lossy(&output.stdout),
-        "migration self-test: 17 controls passed\n"
+        "migration self-test: 22 controls passed\n"
     );
 }
 
