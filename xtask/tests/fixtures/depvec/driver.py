@@ -7,14 +7,19 @@ in the typed value form `crates/depvec/src/canon.rs` describes.
 To add a set: a function below and one line in SETS.
 """
 
+import base64
+import contextlib
 import datetime
 import json
+import os
 import struct
 import sys
+import tempfile
 
 import yaml
+from cryptography.fernet import Fernet
 
-from careerbrew import store
+from careerbrew import backup, store, vault
 
 
 def encode(value):
@@ -78,8 +83,51 @@ def json_yaml(op, data):
     raise ValueError("unknown op")
 
 
+@contextlib.contextmanager
+def _key_file(text):
+    # A scratch key file and data root, so vault.py loads the key its own way.
+    with tempfile.TemporaryDirectory() as scratch:
+        key = os.path.join(scratch, "backup.key")
+        with open(key, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        old = {name: os.environ.get(name) for name in ("CAREERBREW_KEY_FILE", "CAREERBREW_HOME")}
+        os.environ["CAREERBREW_KEY_FILE"] = key
+        os.environ["CAREERBREW_HOME"] = os.path.join(scratch, "data")
+        try:
+            yield
+        finally:
+            for name, value in old.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
+
+
+def fernet(op, data):
+    with _key_file(data["cipher_file"]):
+        if op == "open":
+            return vault.open_bytes(data["data"].encode(), create_key=False).hex()
+        if op == "open-strict":
+            # The checks backup.verify makes before it decrypts a backup.
+            token = data["data"].encode()
+            if len(token) % 4 or not token:
+                raise ValueError("not strict base64")
+            base64.b64decode(token, altchars=b"-_", validate=True)
+            return Fernet(backup.load_key(create=False)).decrypt(token).hex()
+        if op == "seal":
+            sealed = vault.seal_bytes(bytes.fromhex(data["plaintext_hex"]))
+            raw = base64.urlsafe_b64decode(sealed[len(vault.MAGIC) :])
+            return {
+                "magic": vault.is_sealed(sealed),
+                "version": raw[0],
+                "length": len(raw),
+                "opens": vault.open_bytes(sealed, create_key=False).hex(),
+            }
+    raise ValueError("unknown op")
+
+
 # The registry: one line per vector set.
-SETS = {"json-yaml": json_yaml}
+SETS = {"fernet": fernet, "json-yaml": json_yaml}
 
 
 def main():

@@ -560,6 +560,18 @@ writing YAML for a string that looks like a date or `1_000`, or a datetime
 | YAML read and write | `serde_yaml` | 0.9.34 | MIT OR Apache-2.0 | rejected | archived and unmaintained since 2024 |
 | YAML read and write | `serde_norway`, `serde_yaml_ng` | 0.9.42, 0.10.0 | MIT OR Apache-2.0 | rejected | serde forks of `serde_yaml`: their values do not keep the scalar style, so a quoted `'yes'` and a plain `yes` look the same and YAML 1.1 reads cannot match PyYAML |
 | YAML read and write | `serde-saphyr` | 2.2.0 | MIT OR Apache-2.0 | not chosen yet | active, but its newest release is days old; look again if `yaml-rust2` falls behind |
+| Fernet tokens (data at rest, backups) | `fernet` (feature `rustcrypto`) | 0.2.2 | MIT | kept | already pinned by `crates/vault`; the `fernet` vector set: Python-made tokens open in Rust and Rust-made tokens open in Python, old plaintext and a 2020 token still read, and a wrong key, a tampered, truncated or future token all fail on both sides. Its AES, CBC, HMAC and SHA-256 come from the RustCrypto crates (`aes`, `cbc`, `hmac`, `sha2`, MIT OR Apache-2.0); no crypto code is ours. It has no way to pass the IV, so a seal vector compares the envelope's shape and plaintext, not its bytes |
+| Fernet tokens | `fernet` (default feature `openssl`) | 0.2.2 | MIT | rejected | needs a system OpenSSL to build and link; `rustcrypto` gives the same tokens in pure Rust |
+| Base64 for tokens | `base64` | 0.22.1 | MIT OR Apache-2.0 | kept | already pinned by `crates/vault`; the strict check `backup.verify` makes (`open-strict` vectors) and the Python-compatible lenient read in `careerbrew-vault` |
+
+Appended bytes, decided: a vault read (`vault.open_bytes`) keeps Python's
+behavior. Python's base64 decoder stops at a token's completed padding, so
+bytes appended after it are ignored, and Rust does the same
+(`open-appended-after-padding` opens on both sides). This is safe: the HMAC
+still covers every byte of the token, and appended bytes without padding
+first change the token and fail (`open-appended-without-padding`). A backup
+read (`backup.verify`) stays strict, and appended bytes fail there on both
+sides (`strict-appended-after-padding`).
 
 ### rust-02: Port pure setting schemas, paths, clocks and hashes
 

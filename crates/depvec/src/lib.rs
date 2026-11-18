@@ -7,6 +7,7 @@
 //! To add a set: a module here, one line in `SETS`, one line in the driver's
 //! `SETS`, and a fixture `xtask/tests/fixtures/depvec/<set>.json`.
 pub mod canon;
+pub mod fernet;
 pub mod json_yaml;
 
 use serde_json::{json, Value};
@@ -15,7 +16,7 @@ use serde_json::{json, Value};
 pub type Run = fn(&str, &Value) -> Result<Value, String>;
 
 /// The registry: one line per vector set.
-pub const SETS: &[(&str, Run)] = &[("json-yaml", json_yaml::run)];
+pub const SETS: &[(&str, Run)] = &[("fernet", fernet::run), ("json-yaml", json_yaml::run)];
 
 /// Runs every vector of a fixture. A vector that fails gives `{"error":
 /// true}`; the reason stays out of the output, since only the outcome is
