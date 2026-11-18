@@ -5,7 +5,7 @@
 # Each step's time goes to .metrics/events.jsonl; scripts/metrics.sh reports it.
 #
 # A cache-eligible step that passed can be skipped while its inputs are unchanged,
-# except `leaks`, format, lint, types, unit, web-types, e2e and Rust checks, whose inputs are not fully keyed
+# except `leaks`, format, lint, types, registry, unit, web-types, e2e and Rust checks, whose inputs are not fully keyed
 # (hash of the content of tracked and untracked files, like the nx cache). A
 # step's inputs are every file, or the git pathspecs `inputs_of` names for it,
 # like an nx target's inputs; `scripts/check.sh inputs <step>...` prints them.
@@ -27,7 +27,7 @@ NOT_READ=(':(exclude)TASKS.md' ':(exclude)RECURRING.md' ':(exclude)docs/learning
 inputs_of() { # inputs_of <step>: print its pathspecs, one per line (none: every file)
   case "$1" in
     # unit reads every file: test_no_conflict_markers.py scans each tracked file.
-    format | lint | types | public-cards | card-code | exercises | web-* | e2e) printf '%s\n' "${NOT_READ[@]}" ;;
+    format | lint | types | registry | public-cards | card-code | exercises | web-* | e2e) printf '%s\n' "${NOT_READ[@]}" ;;
   esac
 }
 if [ "$mode" = inputs ]; then
@@ -78,7 +78,7 @@ step() {
     case "$only" in *" $name "*) seen="$seen$name " ;; *) return 0 ;; esac
   fi
   local k; step_key "$name"
-  case "$name" in format | lint | types | unit | exercises | web-types | e2e | rust-fmt | rust-clippy | rust-test | rust-inventory) k="" ;; esac
+  case "$name" in format | lint | types | registry | unit | exercises | web-types | e2e | rust-fmt | rust-clippy | rust-test | rust-inventory) k="" ;; esac
   if [ -n "$k" ] && [ "$(cat ".metrics/cache/$name" 2>/dev/null)" = "$k" ]; then
     printf '{"ts":"%s","event":"check.step","name":"%s","seconds":0,"ok":true,"cached":true}\n' \
       "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$name" >> .metrics/events.jsonl
@@ -128,6 +128,8 @@ if [ -f pyproject.toml ]; then
   if uv run --quiet pyright --version >/dev/null 2>&1; then step types uv run pyright; fi
   # pytest-xdist runs the unit tests on every CPU; UNIT_JOBS=0 runs them one by one.
   step unit uv run pytest -q -n "${UNIT_JOBS:-auto}"
+  # The generated action registry matches the CLI parser (rust-03); it renders help on the pinned Python, a runtime input, so it never caches.
+  step registry uv run --quiet python -I scripts/gen-registry.py --check
   step public-cards env -u CAREERBREW_PUBLIC_CARDS uv run careerbrew cards public-check
   step card-code uv run python scripts/check-card-code.py
   step exercises env -u CAREERBREW_EXERCISES uv run careerbrew exercises check

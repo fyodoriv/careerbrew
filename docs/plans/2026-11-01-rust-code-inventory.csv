@@ -168,6 +168,7 @@ scripts/check-docs.sh,port,rust-27,Port each assertion/helper with its domain sl
 scripts/check-sources.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/check-stories.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/check.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/gen-registry.py,port,rust-26,Generates the action registry from the argparse tree; retires when rust-26 makes the registry generate the parser
 scripts/hosted-gate.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/checkup.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/doctor.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -426,6 +427,7 @@ tests/safety/test_issue_327_native_cleanup.py,port,rust-27,Port each assertion/h
 tests/unit/__init__.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/conftest.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_action_parity.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_action_registry.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_agent_skill_declaration.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_api_cache.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_batch_gate.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here

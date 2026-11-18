@@ -99,6 +99,11 @@ __pycache__/
 !/crates/purevec/tests/
 /crates/purevec/tests/*
 !/crates/purevec/tests/cli.rs
+!/crates/cbcli/
+/crates/cbcli/*
+!/crates/cbcli/registry/
+/crates/cbcli/registry/*
+!/crates/cbcli/registry/registry.json
 !/rust-toolchain.toml
 !/.cargo/
 /.cargo/*
