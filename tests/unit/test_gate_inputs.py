@@ -42,6 +42,7 @@ WALKS = {
     "tests/e2e/us-40-corporate-rehearsal.sh": "bundles the committed main branch (never in any cache key) and reads only its push remote and checkup state",
     "tests/e2e/us-43-data-show.sh": "snapshots the files of its data folder ($CAREERBREW_HOME), not the repo",
     "tests/e2e/us-80-learn-project.sh": "lists the files of its temp repo ($repo) to prove learning writes nothing there",
+    "xtask/tests/fixtures/depvec/driver.py": "globs one fixed path, web/node_modules/@esbuild/*/bin/esbuild, to find the esbuild binary; it reads no other repo file",
     "src/careerbrew/machine.py": "walks a job-hunt data folder (_data_files), not the repo",
     "src/careerbrew/learn/project.py": "reads docs/**/*.md of the repo given to `learn start --repo`; no story gives it this repo (checked below)",
     "src/careerbrew/privacy.py": (
