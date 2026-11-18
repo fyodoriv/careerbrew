@@ -1,0 +1,2466 @@
+{
+  "set": "settings",
+  "vectors": [
+    {
+      "id": "hhmm-0900",
+      "op": "set",
+      "input": {
+        "key": "work_start",
+        "raw": "09:00"
+      }
+    },
+    {
+      "id": "hhmm-9-00",
+      "op": "set",
+      "input": {
+        "key": "work_start",
+        "raw": "9:00"
+      }
+    },
+    {
+      "id": "hhmm-2400",
+      "op": "set",
+      "input": {
+        "key": "work_start",
+        "raw": "24:00"
+      }
+    },
+    {
+      "id": "hhmm-2359",
+      "op": "set",
+      "input": {
+        "key": "work_start",
+        "raw": "23:59"
+      }
+    },
+    {
+      "id": "hhmm-2000",
+      "op": "set",
+      "input": {
+        "key": "work_start",
+        "raw": "20:00"
+      }
+    },
+    {
+      "id": "hhmm-1960",
+      "op": "set",
+      "input": {
+        "key": "work_start",
+        "raw": "19:60"
+      }
+    },
+    {
+      "id": "hhmm-arabic-digits",
+      "op": "set",
+      "input": {
+        "key": "work_start",
+        "raw": "٠٩:٠٠"
+      }
+    },
+    {
+      "id": "hhmm-arabic-tens",
+      "op": "set",
+      "input": {
+        "key": "work_start",
+        "raw": "1٩:3٠"
+      }
+    },
+    {
+      "id": "hhmm-fullwidth",
+      "op": "set",
+      "input": {
+        "key": "work_start",
+        "raw": "１9:00"
+      }
+    },
+    {
+      "id": "hhmm-space",
+      "op": "set",
+      "input": {
+        "key": "work_start",
+        "raw": "09:00 "
+      }
+    },
+    {
+      "id": "hhmm-empty",
+      "op": "set",
+      "input": {
+        "key": "work_start",
+        "raw": ""
+      }
+    },
+    {
+      "id": "hhmm-2a00",
+      "op": "set",
+      "input": {
+        "key": "work_start",
+        "raw": "2٣:00"
+      }
+    },
+    {
+      "id": "int-spaces",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": " 5 "
+      }
+    },
+    {
+      "id": "int-plus",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "+5"
+      }
+    },
+    {
+      "id": "int-underscore",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "1_000"
+      }
+    },
+    {
+      "id": "int-double-underscore",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "1__0"
+      }
+    },
+    {
+      "id": "int-trailing-underscore",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "10_"
+      }
+    },
+    {
+      "id": "int-leading-underscore",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "_10"
+      }
+    },
+    {
+      "id": "int-float",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "1.5"
+      }
+    },
+    {
+      "id": "int-arabic",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "٣"
+      }
+    },
+    {
+      "id": "int-tab-nbsp",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "\t7 "
+      }
+    },
+    {
+      "id": "int-fs",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "\u001c8\u001f"
+      }
+    },
+    {
+      "id": "int-over",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "3601"
+      }
+    },
+    {
+      "id": "int-lo",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "0"
+      }
+    },
+    {
+      "id": "int-hi",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "3600"
+      }
+    },
+    {
+      "id": "int-neg",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "-1"
+      }
+    },
+    {
+      "id": "int-neg-zero",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "-0"
+      }
+    },
+    {
+      "id": "int-empty",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": ""
+      }
+    },
+    {
+      "id": "int-sign-only",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "-"
+      }
+    },
+    {
+      "id": "int-huge",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "999999999999999999999999999999999999999999999999999999999999"
+      }
+    },
+    {
+      "id": "int-huge-neg",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "-999999999999999999999999999999999999999999999999999999999999"
+      }
+    },
+    {
+      "id": "int-word",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "abc"
+      }
+    },
+    {
+      "id": "int-quote",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "it's"
+      }
+    },
+    {
+      "id": "int-both-quotes",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "a'b\"c"
+      }
+    },
+    {
+      "id": "int-backslash",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "a\\b"
+      }
+    },
+    {
+      "id": "int-newline",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "1\n2"
+      }
+    },
+    {
+      "id": "int-ctrl",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "\u0001"
+      }
+    },
+    {
+      "id": "int-c1",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "x"
+      }
+    },
+    {
+      "id": "int-nbsp-mid",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "1 2"
+      }
+    },
+    {
+      "id": "int-ls",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "1 2"
+      }
+    },
+    {
+      "id": "int-accent",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "é"
+      }
+    },
+    {
+      "id": "int-zwsp",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "1​2"
+      }
+    },
+    {
+      "id": "int-emoji",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "1😀"
+      }
+    },
+    {
+      "id": "int-range-1023",
+      "op": "set",
+      "input": {
+        "key": "serve_port",
+        "raw": "1023"
+      }
+    },
+    {
+      "id": "int-range-1024",
+      "op": "set",
+      "input": {
+        "key": "serve_port",
+        "raw": "1024"
+      }
+    },
+    {
+      "id": "int-range-65535",
+      "op": "set",
+      "input": {
+        "key": "serve_port",
+        "raw": "65535"
+      }
+    },
+    {
+      "id": "int-range-65536",
+      "op": "set",
+      "input": {
+        "key": "serve_port",
+        "raw": "65536"
+      }
+    },
+    {
+      "id": "int-us64-99999",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "99999"
+      }
+    },
+    {
+      "id": "int-us64-zero",
+      "op": "set",
+      "input": {
+        "key": "web_cache_seconds",
+        "raw": "0"
+      }
+    },
+    {
+      "id": "bool-maybe",
+      "op": "set",
+      "input": {
+        "key": "web_tab_cache",
+        "raw": "maybe"
+      }
+    },
+    {
+      "id": "bool-TRUE",
+      "op": "set",
+      "input": {
+        "key": "web_tab_cache",
+        "raw": "TRUE"
+      }
+    },
+    {
+      "id": "bool-Yes",
+      "op": "set",
+      "input": {
+        "key": "web_tab_cache",
+        "raw": "Yes"
+      }
+    },
+    {
+      "id": "bool-on",
+      "op": "set",
+      "input": {
+        "key": "web_tab_cache",
+        "raw": "on"
+      }
+    },
+    {
+      "id": "bool-1",
+      "op": "set",
+      "input": {
+        "key": "web_tab_cache",
+        "raw": "1"
+      }
+    },
+    {
+      "id": "bool-OFF",
+      "op": "set",
+      "input": {
+        "key": "web_tab_cache",
+        "raw": "OFF"
+      }
+    },
+    {
+      "id": "bool-no",
+      "op": "set",
+      "input": {
+        "key": "web_tab_cache",
+        "raw": "no"
+      }
+    },
+    {
+      "id": "bool-0",
+      "op": "set",
+      "input": {
+        "key": "web_tab_cache",
+        "raw": "0"
+      }
+    },
+    {
+      "id": "bool-empty",
+      "op": "set",
+      "input": {
+        "key": "web_tab_cache",
+        "raw": ""
+      }
+    },
+    {
+      "id": "bool-space",
+      "op": "set",
+      "input": {
+        "key": "web_tab_cache",
+        "raw": " true"
+      }
+    },
+    {
+      "id": "days-weekdays",
+      "op": "set",
+      "input": {
+        "key": "work_days",
+        "raw": "0,1,2,3,4"
+      }
+    },
+    {
+      "id": "days-dup-empty",
+      "op": "set",
+      "input": {
+        "key": "work_days",
+        "raw": "4,,4, 1 ,"
+      }
+    },
+    {
+      "id": "days-seven",
+      "op": "set",
+      "input": {
+        "key": "work_days",
+        "raw": "7"
+      }
+    },
+    {
+      "id": "days-neg",
+      "op": "set",
+      "input": {
+        "key": "work_days",
+        "raw": "-1"
+      }
+    },
+    {
+      "id": "days-empty",
+      "op": "set",
+      "input": {
+        "key": "work_days",
+        "raw": ""
+      }
+    },
+    {
+      "id": "days-commas",
+      "op": "set",
+      "input": {
+        "key": "work_days",
+        "raw": ",,"
+      }
+    },
+    {
+      "id": "days-spaces",
+      "op": "set",
+      "input": {
+        "key": "work_days",
+        "raw": " 6 , 0"
+      }
+    },
+    {
+      "id": "days-word",
+      "op": "set",
+      "input": {
+        "key": "work_days",
+        "raw": "1,x"
+      }
+    },
+    {
+      "id": "days-tab",
+      "op": "set",
+      "input": {
+        "key": "work_days",
+        "raw": "1,\t2"
+      }
+    },
+    {
+      "id": "days-arabic",
+      "op": "set",
+      "input": {
+        "key": "work_days",
+        "raw": "٢,0"
+      }
+    },
+    {
+      "id": "days-huge",
+      "op": "set",
+      "input": {
+        "key": "work_days",
+        "raw": "0,99999999999999999999999999999999999999999999999999"
+      }
+    },
+    {
+      "id": "text-120",
+      "op": "set",
+      "input": {
+        "key": "ladder",
+        "raw": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "id": "text-121",
+      "op": "set",
+      "input": {
+        "key": "ladder",
+        "raw": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "id": "text-120-multibyte",
+      "op": "set",
+      "input": {
+        "key": "ladder",
+        "raw": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+      }
+    },
+    {
+      "id": "text-121-multibyte",
+      "op": "set",
+      "input": {
+        "key": "ladder",
+        "raw": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+      }
+    },
+    {
+      "id": "text-newline",
+      "op": "set",
+      "input": {
+        "key": "ladder",
+        "raw": "a\nb"
+      }
+    },
+    {
+      "id": "text-cr",
+      "op": "set",
+      "input": {
+        "key": "ladder",
+        "raw": "a\rb"
+      }
+    },
+    {
+      "id": "text-empty",
+      "op": "set",
+      "input": {
+        "key": "ladder",
+        "raw": ""
+      }
+    },
+    {
+      "id": "text-ok",
+      "op": "set",
+      "input": {
+        "key": "ladder",
+        "raw": "staff-ladder"
+      }
+    },
+    {
+      "id": "list-items",
+      "op": "set",
+      "input": {
+        "key": "backup_targets",
+        "raw": " a , ,b,"
+      }
+    },
+    {
+      "id": "list-empty",
+      "op": "set",
+      "input": {
+        "key": "backup_targets",
+        "raw": ""
+      }
+    },
+    {
+      "id": "list-nbsp",
+      "op": "set",
+      "input": {
+        "key": "backup_targets",
+        "raw": " x ,y"
+      }
+    },
+    {
+      "id": "email-ok",
+      "op": "set",
+      "input": {
+        "key": "pm_email",
+        "raw": "a@b.c"
+      }
+    },
+    {
+      "id": "email-empty",
+      "op": "set",
+      "input": {
+        "key": "pm_email",
+        "raw": ""
+      }
+    },
+    {
+      "id": "email-no-dot",
+      "op": "set",
+      "input": {
+        "key": "pm_email",
+        "raw": "a@bc"
+      }
+    },
+    {
+      "id": "email-dot-start",
+      "op": "set",
+      "input": {
+        "key": "pm_email",
+        "raw": "a@.bc"
+      }
+    },
+    {
+      "id": "email-dot-end",
+      "op": "set",
+      "input": {
+        "key": "pm_email",
+        "raw": "a@bc."
+      }
+    },
+    {
+      "id": "email-two-at",
+      "op": "set",
+      "input": {
+        "key": "pm_email",
+        "raw": "a@b@c.d"
+      }
+    },
+    {
+      "id": "email-space",
+      "op": "set",
+      "input": {
+        "key": "pm_email",
+        "raw": "a b@c.d"
+      }
+    },
+    {
+      "id": "email-nbsp",
+      "op": "set",
+      "input": {
+        "key": "pm_email",
+        "raw": "a@b .cd"
+      }
+    },
+    {
+      "id": "email-ideographic",
+      "op": "set",
+      "input": {
+        "key": "pm_email",
+        "raw": "a@b.c　"
+      }
+    },
+    {
+      "id": "email-fs",
+      "op": "set",
+      "input": {
+        "key": "pm_email",
+        "raw": "a@b.\u001cc"
+      }
+    },
+    {
+      "id": "email-dots",
+      "op": "set",
+      "input": {
+        "key": "pm_email",
+        "raw": "a@b..c"
+      }
+    },
+    {
+      "id": "email-no-local",
+      "op": "set",
+      "input": {
+        "key": "pm_email",
+        "raw": "@b.c"
+      }
+    },
+    {
+      "id": "priority-ok",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "tools=*/repo-a|*/repo-b, core, web=WEB-*"
+      }
+    },
+    {
+      "id": "priority-empty",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": ""
+      }
+    },
+    {
+      "id": "priority-bare",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "a"
+      }
+    },
+    {
+      "id": "priority-upper",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "Tools"
+      }
+    },
+    {
+      "id": "priority-long-name",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "id": "priority-name-40",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "id": "priority-dash-first",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "-a"
+      }
+    },
+    {
+      "id": "priority-dup",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "a, b, a=x"
+      }
+    },
+    {
+      "id": "priority-dup-after-glob",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "a=x,a"
+      }
+    },
+    {
+      "id": "priority-eq-no-glob",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "a="
+      }
+    },
+    {
+      "id": "priority-eq-bars",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "a=| |"
+      }
+    },
+    {
+      "id": "priority-glob-80",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "a=gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg"
+      }
+    },
+    {
+      "id": "priority-glob-81",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "a=ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg"
+      }
+    },
+    {
+      "id": "priority-glob-eq",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "a=x=y"
+      }
+    },
+    {
+      "id": "priority-glob-space",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "a=x y|z"
+      }
+    },
+    {
+      "id": "priority-glob-nbsp",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "a=x y"
+      }
+    },
+    {
+      "id": "priority-20",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19"
+      }
+    },
+    {
+      "id": "priority-21",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "p0,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19,p20"
+      }
+    },
+    {
+      "id": "priority-quote-name",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "it's=x"
+      }
+    },
+    {
+      "id": "priority-empty-name",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": "=x"
+      }
+    },
+    {
+      "id": "priority-spaces-around",
+      "op": "set",
+      "input": {
+        "key": "project_priority",
+        "raw": " a = x | y ,b"
+      }
+    },
+    {
+      "id": "stt-ok",
+      "op": "set",
+      "input": {
+        "key": "stt_command",
+        "raw": "whisper -f {audio}"
+      }
+    },
+    {
+      "id": "stt-empty",
+      "op": "set",
+      "input": {
+        "key": "stt_command",
+        "raw": ""
+      }
+    },
+    {
+      "id": "stt-missing",
+      "op": "set",
+      "input": {
+        "key": "stt_command",
+        "raw": "whisper -f file"
+      }
+    },
+    {
+      "id": "quiet-wrap",
+      "op": "set",
+      "input": {
+        "key": "notify_quiet_hours",
+        "raw": "19:00-08:00"
+      }
+    },
+    {
+      "id": "quiet-OFF",
+      "op": "set",
+      "input": {
+        "key": "notify_quiet_hours",
+        "raw": "OFF"
+      }
+    },
+    {
+      "id": "quiet-none",
+      "op": "set",
+      "input": {
+        "key": "notify_quiet_hours",
+        "raw": "none"
+      }
+    },
+    {
+      "id": "quiet-None",
+      "op": "set",
+      "input": {
+        "key": "notify_quiet_hours",
+        "raw": " None "
+      }
+    },
+    {
+      "id": "quiet-empty",
+      "op": "set",
+      "input": {
+        "key": "notify_quiet_hours",
+        "raw": ""
+      }
+    },
+    {
+      "id": "quiet-same",
+      "op": "set",
+      "input": {
+        "key": "notify_quiet_hours",
+        "raw": "08:00-08:00"
+      }
+    },
+    {
+      "id": "quiet-bad",
+      "op": "set",
+      "input": {
+        "key": "notify_quiet_hours",
+        "raw": "8:00-09:00"
+      }
+    },
+    {
+      "id": "quiet-space-dash",
+      "op": "set",
+      "input": {
+        "key": "notify_quiet_hours",
+        "raw": "08:00 - 09:00"
+      }
+    },
+    {
+      "id": "quiet-2400",
+      "op": "set",
+      "input": {
+        "key": "notify_quiet_hours",
+        "raw": "24:00-08:00"
+      }
+    },
+    {
+      "id": "quiet-arabic",
+      "op": "set",
+      "input": {
+        "key": "notify_quiet_hours",
+        "raw": "٠٨:٠٠-09:00"
+      }
+    },
+    {
+      "id": "quiet-arabic-same",
+      "op": "set",
+      "input": {
+        "key": "notify_quiet_hours",
+        "raw": "٠٨:00-08:00"
+      }
+    },
+    {
+      "id": "quiet-strip",
+      "op": "set",
+      "input": {
+        "key": "notify_quiet_hours",
+        "raw": "\t19:00-08:00　"
+      }
+    },
+    {
+      "id": "url-id7",
+      "op": "set",
+      "input": {
+        "key": "checkup_artifact_url",
+        "raw": "https://claude.ai/artifact/aaaaaaa"
+      }
+    },
+    {
+      "id": "url-id8",
+      "op": "set",
+      "input": {
+        "key": "checkup_artifact_url",
+        "raw": "https://claude.ai/artifact/aaaaaaaa"
+      }
+    },
+    {
+      "id": "url-id64",
+      "op": "set",
+      "input": {
+        "key": "checkup_artifact_url",
+        "raw": "https://claude.ai/artifact/A1-A1-A1-A1-A1-A1-A1-A1-A1-A1-A1-A1-A1-A1-A1-A1-A1-A1-A1-A1-A1-b"
+      }
+    },
+    {
+      "id": "url-id65",
+      "op": "set",
+      "input": {
+        "key": "checkup_artifact_url",
+        "raw": "https://claude.ai/artifact/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "id": "url-code",
+      "op": "set",
+      "input": {
+        "key": "checkup_artifact_url",
+        "raw": "https://claude.ai/code/artifact/abc-1234"
+      }
+    },
+    {
+      "id": "url-http",
+      "op": "set",
+      "input": {
+        "key": "checkup_artifact_url",
+        "raw": "http://claude.ai/artifact/abcdefgh"
+      }
+    },
+    {
+      "id": "url-underscore",
+      "op": "set",
+      "input": {
+        "key": "checkup_artifact_url",
+        "raw": "https://claude.ai/artifact/abc_defgh"
+      }
+    },
+    {
+      "id": "url-empty",
+      "op": "set",
+      "input": {
+        "key": "checkup_artifact_url",
+        "raw": ""
+      }
+    },
+    {
+      "id": "url-trailing",
+      "op": "set",
+      "input": {
+        "key": "checkup_artifact_url",
+        "raw": "https://claude.ai/artifact/abcdefgh/"
+      }
+    },
+    {
+      "id": "tools-ok",
+      "op": "set",
+      "input": {
+        "key": "feed_tool_sources",
+        "raw": "mcp__chat__*=chat, mcp__tickets__*=tickets"
+      }
+    },
+    {
+      "id": "tools-empty",
+      "op": "set",
+      "input": {
+        "key": "feed_tool_sources",
+        "raw": ""
+      }
+    },
+    {
+      "id": "tools-no-eq",
+      "op": "set",
+      "input": {
+        "key": "feed_tool_sources",
+        "raw": "mcp__chat__*"
+      }
+    },
+    {
+      "id": "tools-no-glob",
+      "op": "set",
+      "input": {
+        "key": "feed_tool_sources",
+        "raw": "=chat"
+      }
+    },
+    {
+      "id": "tools-no-src",
+      "op": "set",
+      "input": {
+        "key": "feed_tool_sources",
+        "raw": "x="
+      }
+    },
+    {
+      "id": "tools-upper-src",
+      "op": "set",
+      "input": {
+        "key": "feed_tool_sources",
+        "raw": "x=Chat"
+      }
+    },
+    {
+      "id": "tools-long-src",
+      "op": "set",
+      "input": {
+        "key": "feed_tool_sources",
+        "raw": "x=sssssssssssssssssssssssssssssssssssssssss"
+      }
+    },
+    {
+      "id": "tools-src-40",
+      "op": "set",
+      "input": {
+        "key": "feed_tool_sources",
+        "raw": "x=ssssssssssssssssssssssssssssssssssssssss"
+      }
+    },
+    {
+      "id": "tools-src-chars",
+      "op": "set",
+      "input": {
+        "key": "feed_tool_sources",
+        "raw": "x=a.b_c-d"
+      }
+    },
+    {
+      "id": "tools-long-raw",
+      "op": "set",
+      "input": {
+        "key": "feed_tool_sources",
+        "raw": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+      }
+    },
+    {
+      "id": "tools-long-src-repr",
+      "op": "set",
+      "input": {
+        "key": "feed_tool_sources",
+        "raw": "x=SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS"
+      }
+    },
+    {
+      "id": "tools-glob-eq",
+      "op": "set",
+      "input": {
+        "key": "feed_tool_sources",
+        "raw": "a=b=c"
+      }
+    },
+    {
+      "id": "choice-yes",
+      "op": "set",
+      "input": {
+        "key": "telemetry_consent",
+        "raw": "yes"
+      }
+    },
+    {
+      "id": "choice-YES",
+      "op": "set",
+      "input": {
+        "key": "telemetry_consent",
+        "raw": "YES"
+      }
+    },
+    {
+      "id": "choice-unset",
+      "op": "set",
+      "input": {
+        "key": "telemetry_consent",
+        "raw": "unset"
+      }
+    },
+    {
+      "id": "choice-empty",
+      "op": "set",
+      "input": {
+        "key": "telemetry_consent",
+        "raw": ""
+      }
+    },
+    {
+      "id": "backend-osascript",
+      "op": "set",
+      "input": {
+        "key": "notify_backend",
+        "raw": "osascript"
+      }
+    },
+    {
+      "id": "backend-bad",
+      "op": "set",
+      "input": {
+        "key": "notify_backend",
+        "raw": "growl"
+      }
+    },
+    {
+      "id": "window-since-last",
+      "op": "set",
+      "input": {
+        "key": "standup_window",
+        "raw": "since-last"
+      }
+    },
+    {
+      "id": "window-bad",
+      "op": "set",
+      "input": {
+        "key": "standup_window",
+        "raw": "since"
+      }
+    },
+    {
+      "id": "send-via-email",
+      "op": "set",
+      "input": {
+        "key": "pm_send_via",
+        "raw": "email"
+      }
+    },
+    {
+      "id": "send-via-bad",
+      "op": "set",
+      "input": {
+        "key": "pm_send_via",
+        "raw": "Slack"
+      }
+    },
+    {
+      "id": "timezone-any",
+      "op": "set",
+      "input": {
+        "key": "timezone",
+        "raw": "not a zone"
+      }
+    },
+    {
+      "id": "timezone-empty",
+      "op": "set",
+      "input": {
+        "key": "timezone",
+        "raw": ""
+      }
+    },
+    {
+      "id": "stt-model-any",
+      "op": "set",
+      "input": {
+        "key": "stt_model",
+        "raw": "~/m.bin"
+      }
+    },
+    {
+      "id": "baseline-600",
+      "op": "set",
+      "input": {
+        "key": "time_baseline_inbox",
+        "raw": "600"
+      }
+    },
+    {
+      "id": "baseline-601",
+      "op": "set",
+      "input": {
+        "key": "time_baseline_inbox",
+        "raw": "601"
+      }
+    },
+    {
+      "id": "delegated-steps",
+      "op": "set",
+      "input": {
+        "key": "work_steps",
+        "raw": "a,b"
+      }
+    },
+    {
+      "id": "delegated-checkouts",
+      "op": "set",
+      "input": {
+        "key": "work_checkouts",
+        "raw": "careerbrew"
+      }
+    },
+    {
+      "id": "delegated-probe",
+      "op": "set",
+      "input": {
+        "key": "work_signin_probe",
+        "raw": "true"
+      }
+    },
+    {
+      "id": "delegated-tz",
+      "op": "set",
+      "input": {
+        "key": "standup_tz",
+        "raw": "Europe/Berlin"
+      }
+    },
+    {
+      "id": "set-unknown-key",
+      "op": "set",
+      "input": {
+        "key": "no_such_key",
+        "raw": "1"
+      }
+    },
+    {
+      "id": "set-keeps-position",
+      "op": "set",
+      "input": {
+        "key": "work_start",
+        "raw": "10:00",
+        "settings": {
+          "t": "map",
+          "v": [
+            [
+              {
+                "t": "str",
+                "v": "serve_port"
+              },
+              {
+                "t": "int",
+                "v": "9000"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "work_start"
+              },
+              {
+                "t": "str",
+                "v": "08:00"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "extra"
+              },
+              {
+                "t": "bool",
+                "v": true
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "set-appends",
+      "op": "set",
+      "input": {
+        "key": "serve_port",
+        "raw": "9000",
+        "settings": {
+          "t": "map",
+          "v": [
+            [
+              {
+                "t": "str",
+                "v": "work_start"
+              },
+              {
+                "t": "str",
+                "v": "08:00"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "set-value-error-keeps-map",
+      "op": "set",
+      "input": {
+        "key": "serve_port",
+        "raw": "x",
+        "settings": {
+          "t": "map",
+          "v": [
+            [
+              {
+                "t": "str",
+                "v": "serve_port"
+              },
+              {
+                "t": "int",
+                "v": "9000"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "effective-empty",
+      "op": "effective",
+      "input": {}
+    },
+    {
+      "id": "effective-mixed",
+      "op": "effective",
+      "input": {
+        "settings": {
+          "t": "map",
+          "v": [
+            [
+              {
+                "t": "str",
+                "v": "work_start"
+              },
+              {
+                "t": "null"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "serve_port"
+              },
+              {
+                "t": "str",
+                "v": "not a number"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "work_days"
+              },
+              {
+                "t": "list",
+                "v": [
+                  {
+                    "t": "int",
+                    "v": "5"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "custom"
+              },
+              {
+                "t": "float",
+                "v": "3ff8000000000000"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "ladder"
+              },
+              {
+                "t": "bool",
+                "v": false
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "zzz"
+              },
+              {
+                "t": "list",
+                "v": []
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "time_baseline_inbox"
+              },
+              {
+                "t": "int",
+                "v": "12"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "effective-int-key",
+      "op": "effective",
+      "input": {
+        "settings": {
+          "t": "map",
+          "v": [
+            [
+              {
+                "t": "int",
+                "v": "1"
+              },
+              {
+                "t": "str",
+                "v": "one"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "pm_slack"
+              },
+              {
+                "t": "str",
+                "v": "#c"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "get-default",
+      "op": "get",
+      "input": {
+        "key": "work_days"
+      }
+    },
+    {
+      "id": "get-stored-none",
+      "op": "get",
+      "input": {
+        "key": "work_start",
+        "settings": {
+          "t": "map",
+          "v": [
+            [
+              {
+                "t": "str",
+                "v": "work_start"
+              },
+              {
+                "t": "null"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "serve_port"
+              },
+              {
+                "t": "str",
+                "v": "not a number"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "work_days"
+              },
+              {
+                "t": "list",
+                "v": [
+                  {
+                    "t": "int",
+                    "v": "5"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "custom"
+              },
+              {
+                "t": "float",
+                "v": "3ff8000000000000"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "ladder"
+              },
+              {
+                "t": "bool",
+                "v": false
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "zzz"
+              },
+              {
+                "t": "list",
+                "v": []
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "time_baseline_inbox"
+              },
+              {
+                "t": "int",
+                "v": "12"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "get-stored-any-type",
+      "op": "get",
+      "input": {
+        "key": "serve_port",
+        "settings": {
+          "t": "map",
+          "v": [
+            [
+              {
+                "t": "str",
+                "v": "work_start"
+              },
+              {
+                "t": "null"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "serve_port"
+              },
+              {
+                "t": "str",
+                "v": "not a number"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "work_days"
+              },
+              {
+                "t": "list",
+                "v": [
+                  {
+                    "t": "int",
+                    "v": "5"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "custom"
+              },
+              {
+                "t": "float",
+                "v": "3ff8000000000000"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "ladder"
+              },
+              {
+                "t": "bool",
+                "v": false
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "zzz"
+              },
+              {
+                "t": "list",
+                "v": []
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "time_baseline_inbox"
+              },
+              {
+                "t": "int",
+                "v": "12"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "get-unknown",
+      "op": "get",
+      "input": {
+        "key": "nope",
+        "settings": {
+          "t": "map",
+          "v": [
+            [
+              {
+                "t": "str",
+                "v": "work_start"
+              },
+              {
+                "t": "null"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "serve_port"
+              },
+              {
+                "t": "str",
+                "v": "not a number"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "work_days"
+              },
+              {
+                "t": "list",
+                "v": [
+                  {
+                    "t": "int",
+                    "v": "5"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "custom"
+              },
+              {
+                "t": "float",
+                "v": "3ff8000000000000"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "ladder"
+              },
+              {
+                "t": "bool",
+                "v": false
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "zzz"
+              },
+              {
+                "t": "list",
+                "v": []
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "time_baseline_inbox"
+              },
+              {
+                "t": "int",
+                "v": "12"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "get-baseline",
+      "op": "get",
+      "input": {
+        "key": "time_baseline_inbox",
+        "settings": {
+          "t": "map",
+          "v": [
+            [
+              {
+                "t": "str",
+                "v": "work_start"
+              },
+              {
+                "t": "null"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "serve_port"
+              },
+              {
+                "t": "str",
+                "v": "not a number"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "work_days"
+              },
+              {
+                "t": "list",
+                "v": [
+                  {
+                    "t": "int",
+                    "v": "5"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "custom"
+              },
+              {
+                "t": "float",
+                "v": "3ff8000000000000"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "ladder"
+              },
+              {
+                "t": "bool",
+                "v": false
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "zzz"
+              },
+              {
+                "t": "list",
+                "v": []
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "time_baseline_inbox"
+              },
+              {
+                "t": "int",
+                "v": "12"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "unset-stored",
+      "op": "unset",
+      "input": {
+        "key": "serve_port",
+        "settings": {
+          "t": "map",
+          "v": [
+            [
+              {
+                "t": "str",
+                "v": "work_start"
+              },
+              {
+                "t": "null"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "serve_port"
+              },
+              {
+                "t": "str",
+                "v": "not a number"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "work_days"
+              },
+              {
+                "t": "list",
+                "v": [
+                  {
+                    "t": "int",
+                    "v": "5"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "custom"
+              },
+              {
+                "t": "float",
+                "v": "3ff8000000000000"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "ladder"
+              },
+              {
+                "t": "bool",
+                "v": false
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "zzz"
+              },
+              {
+                "t": "list",
+                "v": []
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "time_baseline_inbox"
+              },
+              {
+                "t": "int",
+                "v": "12"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "unset-stored-none",
+      "op": "unset",
+      "input": {
+        "key": "work_start",
+        "settings": {
+          "t": "map",
+          "v": [
+            [
+              {
+                "t": "str",
+                "v": "work_start"
+              },
+              {
+                "t": "null"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "serve_port"
+              },
+              {
+                "t": "str",
+                "v": "not a number"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "work_days"
+              },
+              {
+                "t": "list",
+                "v": [
+                  {
+                    "t": "int",
+                    "v": "5"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "custom"
+              },
+              {
+                "t": "float",
+                "v": "3ff8000000000000"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "ladder"
+              },
+              {
+                "t": "bool",
+                "v": false
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "zzz"
+              },
+              {
+                "t": "list",
+                "v": []
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "time_baseline_inbox"
+              },
+              {
+                "t": "int",
+                "v": "12"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "unset-absent",
+      "op": "unset",
+      "input": {
+        "key": "web_tab_cache",
+        "settings": {
+          "t": "map",
+          "v": [
+            [
+              {
+                "t": "str",
+                "v": "work_start"
+              },
+              {
+                "t": "null"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "serve_port"
+              },
+              {
+                "t": "str",
+                "v": "not a number"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "work_days"
+              },
+              {
+                "t": "list",
+                "v": [
+                  {
+                    "t": "int",
+                    "v": "5"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "custom"
+              },
+              {
+                "t": "float",
+                "v": "3ff8000000000000"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "ladder"
+              },
+              {
+                "t": "bool",
+                "v": false
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "zzz"
+              },
+              {
+                "t": "list",
+                "v": []
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "time_baseline_inbox"
+              },
+              {
+                "t": "int",
+                "v": "12"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "unset-unknown-stored",
+      "op": "unset",
+      "input": {
+        "key": "custom",
+        "settings": {
+          "t": "map",
+          "v": [
+            [
+              {
+                "t": "str",
+                "v": "work_start"
+              },
+              {
+                "t": "null"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "serve_port"
+              },
+              {
+                "t": "str",
+                "v": "not a number"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "work_days"
+              },
+              {
+                "t": "list",
+                "v": [
+                  {
+                    "t": "int",
+                    "v": "5"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "custom"
+              },
+              {
+                "t": "float",
+                "v": "3ff8000000000000"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "ladder"
+              },
+              {
+                "t": "bool",
+                "v": false
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "zzz"
+              },
+              {
+                "t": "list",
+                "v": []
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "time_baseline_inbox"
+              },
+              {
+                "t": "int",
+                "v": "12"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "unset-false",
+      "op": "unset",
+      "input": {
+        "key": "ladder",
+        "settings": {
+          "t": "map",
+          "v": [
+            [
+              {
+                "t": "str",
+                "v": "work_start"
+              },
+              {
+                "t": "null"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "serve_port"
+              },
+              {
+                "t": "str",
+                "v": "not a number"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "work_days"
+              },
+              {
+                "t": "list",
+                "v": [
+                  {
+                    "t": "int",
+                    "v": "5"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "custom"
+              },
+              {
+                "t": "float",
+                "v": "3ff8000000000000"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "ladder"
+              },
+              {
+                "t": "bool",
+                "v": false
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "zzz"
+              },
+              {
+                "t": "list",
+                "v": []
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "time_baseline_inbox"
+              },
+              {
+                "t": "int",
+                "v": "12"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "unset-empty-list",
+      "op": "unset",
+      "input": {
+        "key": "zzz",
+        "settings": {
+          "t": "map",
+          "v": [
+            [
+              {
+                "t": "str",
+                "v": "work_start"
+              },
+              {
+                "t": "null"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "serve_port"
+              },
+              {
+                "t": "str",
+                "v": "not a number"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "work_days"
+              },
+              {
+                "t": "list",
+                "v": [
+                  {
+                    "t": "int",
+                    "v": "5"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "custom"
+              },
+              {
+                "t": "float",
+                "v": "3ff8000000000000"
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "ladder"
+              },
+              {
+                "t": "bool",
+                "v": false
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "zzz"
+              },
+              {
+                "t": "list",
+                "v": []
+              }
+            ],
+            [
+              {
+                "t": "str",
+                "v": "time_baseline_inbox"
+              },
+              {
+                "t": "int",
+                "v": "12"
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "int-arabic-letter-mark",
+      "op": "set",
+      "input": {
+        "key": "serve_port",
+        "raw": "؜1"
+      }
+    },
+    {
+      "id": "tools-unassigned-src",
+      "op": "set",
+      "input": {
+        "key": "feed_tool_sources",
+        "raw": "a=͸b"
+      }
+    },
+    {
+      "id": "int-astral-private-use",
+      "op": "set",
+      "input": {
+        "key": "serve_port",
+        "raw": "󰀀"
+      }
+    }
+  ]
+}
