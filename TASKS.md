@@ -553,16 +553,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: 2 runs outside 0.5x to 2x means `wait4` `ru_maxrss` is not usable there; switch to `/proc/<pid>/status` as the plan says.
   - **Anchor**: Kalibera & Jones 2013 (rigorous benchmarking).
 
-- [ ] Make migration decide judge each regime against its own paired oracle samples
-  - **ID**: rust-00-decide-paired-regimes
-  - **Details**: `xtask/src/decide.rs` compares the cold and the warm candidate p95 with the one warm baseline record (`cpu_us_p95`), and never reads the measure record's `oracle_cpu_us` and `oracle_tree_max_rss_bytes`. So interleaving has no effect on the verdict, and the rule "each decision covers one cache state" (`docs/rust-migration.md`) does not hold. Compare each regime's candidate samples with that regime's paired oracle samples, keep the baseline record for the protocol checks, and update the decide tests and docs.
-  - **Files**: xtask/src/decide.rs; xtask/tests/decide.rs; xtask/tests/measure.rs; docs/rust-migration.md
-  - **Hypothesis**: a synthetic measure record whose cold candidate is 1.2x its cold oracle but under the warm baseline moves from `activate` (0 of 1 held) to `keep-python` with `cpu-regressed` (1 of 1 held).
-  - **Measurement**: `cargo test -p careerbrew-xtask --test decide` on hosted CI, with one new control per regime.
-  - **Success**: both new regime controls hold the step and every existing decide control still passes.
-  - **Pivot**: if paired oracle p95 varies more than 10% between two identical synthetic records, register a noise floor first and stop this change.
-  - **Anchor**: Kalibera & Jones 2013 (Rigorous Benchmarking in Reasonable Time).
-
 - [ ] Keep main's CI result under 20 minutes when two runs overlap (free macOS 5-job limit)
   - **ID**: ci-macos-queue-overlap
   - **Details**: Since the gate split (#80), one run alone gives main's result in 14m01s (run 43706837756). Each run needs 4 macOS jobs, and the free plan runs 5 macOS jobs at once, so a second run waits: main runs 43702544809 and 43704358195 took 30m15s and 30m34s from push, queued 8 to 18 min behind other runs. Pull request runs already cancel older runs of the same PR (`concurrency` in `.github/workflows/ci.yml`). Options to measure, in order: (1) merge one PR at a time (no code; write it in `docs/ci.md`); (2) run the macOS `checks` and `native` parts in one job only on pull requests, keeping 4 parts on main; (3) cancel an older main run when a newer main commit arrives, and let `scripts/hosted-gate.sh` keep skipping cancelled runs. Never drop a required check or the macOS gate.
