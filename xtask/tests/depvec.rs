@@ -1,7 +1,6 @@
 //! Controls for `migration verify --step rust-01` (dependency vectors): the
 //! built `careerbrew-depvec` candidate agrees with the Python driver on
-//! every vector of every set; a planted wrong vector fails exactly its
-//! case in each set; a
+//! every vector; a planted wrong vector fails exactly its case; a
 //! `--test-wrong-vector` that names no set is refused; a candidate that
 //! cannot answer fails every case. Each test owns its temp folder.
 use std::os::unix::fs::PermissionsExt;
@@ -47,18 +46,26 @@ fn read(out: &Path) -> serde_json::Value {
     serde_json::from_str(&std::fs::read_to_string(out).unwrap()).unwrap()
 }
 
-/// Every registered vector set, in the order verify lists them.
-const SETS: [&str; 2] = ["code-parse", "json-yaml"];
+/// Every vector set fixture, so a part that adds a set needs no test edit here.
+fn fixtures() -> Vec<(String, usize)> {
+    let dir = root().join("xtask/tests/fixtures/depvec");
+    let mut sets: Vec<(String, usize)> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| p.extension().is_some_and(|x| x == "json"))
+        .map(|p| {
+            let text = std::fs::read_to_string(&p).unwrap();
+            let fixture: serde_json::Value = serde_json::from_str(&text).unwrap();
+            let name = p.file_stem().unwrap().to_string_lossy().into_owned();
+            (name, fixture["vectors"].as_array().unwrap().len())
+        })
+        .collect();
+    sets.sort();
+    sets
+}
 
 fn vector_count() -> usize {
-    SETS.iter()
-        .map(|set| {
-            let path = root().join(format!("xtask/tests/fixtures/depvec/{set}.json"));
-            let fixture: serde_json::Value =
-                serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
-            fixture["vectors"].as_array().unwrap().len()
-        })
-        .sum()
+    fixtures().iter().map(|(_, n)| n).sum()
 }
 
 #[test]
@@ -75,7 +82,15 @@ fn the_rust_candidate_agrees_with_python_on_every_vector() {
     assert_eq!(record["step"], "rust-01");
     assert_eq!(record["passed"], true);
     assert_eq!(record["case_count"], vector_count());
-    assert_eq!(record["vector_sets"], serde_json::json!(SETS));
+    let mut sets: Vec<String> = record["vector_sets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_owned())
+        .collect();
+    sets.sort();
+    let names: Vec<String> = fixtures().into_iter().map(|(n, _)| n).collect();
+    assert_eq!(sets, names);
     assert_eq!(record["violations"]["contract"], 0);
 }
 
@@ -91,22 +106,6 @@ fn a_planted_wrong_vector_fails_its_case() {
     assert_eq!(
         record["failed_cases"],
         serde_json::json!(["json-yaml:json-read-object-order"])
-    );
-    assert_eq!(record["violations"]["contract"], 1);
-}
-
-#[test]
-fn a_planted_wrong_code_parse_vector_fails_its_case() {
-    let scratch = tempfile::tempdir().unwrap();
-    let out = scratch.path().join("verify.json");
-    let run = verify(&depvec(), &out, &["--test-wrong-vector", "code-parse"]);
-    assert_eq!(run.status.code(), Some(1));
-    let record = read(&out);
-    assert_eq!(record["passed"], false);
-    assert_eq!(record["planted_wrong_vector"], "code-parse");
-    assert_eq!(
-        record["failed_cases"],
-        serde_json::json!(["code-parse:python-function-with-types"])
     );
     assert_eq!(record["violations"]["contract"], 1);
 }
@@ -133,4 +132,20 @@ fn a_candidate_that_cannot_answer_fails_every_case() {
     let record = read(&out);
     assert_eq!(record["passed_count"], 0);
     assert_eq!(record["case_count"], vector_count());
+}
+
+#[test]
+fn a_planted_wrong_code_parse_vector_fails_its_case() {
+    let scratch = tempfile::tempdir().unwrap();
+    let out = scratch.path().join("verify.json");
+    let run = verify(&depvec(), &out, &["--test-wrong-vector", "code-parse"]);
+    assert_eq!(run.status.code(), Some(1));
+    let record = read(&out);
+    assert_eq!(record["passed"], false);
+    assert_eq!(record["planted_wrong_vector"], "code-parse");
+    assert_eq!(
+        record["failed_cases"],
+        serde_json::json!(["code-parse:python-function-with-types"])
+    );
+    assert_eq!(record["violations"]["contract"], 1);
 }
