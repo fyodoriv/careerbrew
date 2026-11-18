@@ -8,7 +8,9 @@
 //! its existing output. Contract controls: a candidate that serves a wrong
 //! HTTP body (and prints the canary) fails its HTTP cases with authorization
 //! and privacy counts; an extra or a missing entry in the synthetic home
-//! fails the CLI case with side_effect or missing_writes counts. Each test
+//! fails the CLI case with side_effect or missing_writes counts; an HTTP
+//! candidate that writes fails the `http:side-effects` case; a dead HTTP
+//! candidate fails every HTTP case and counts the denied ones. Each test
 //! owns its temp folder.
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
@@ -96,11 +98,11 @@ fn a_candidate_identical_to_the_oracle_passes() {
         String::from_utf8_lossy(&result.stderr)
     );
     assert!(String::from_utf8_lossy(&result.stdout)
-        .contains("step=rust-03 cases=22 passed=22 failed=none"));
+        .contains("step=rust-03 cases=23 passed=23 failed=none"));
     let value = read(&out);
     assert_eq!(value["schema"], "careerbrew-migration-verify-v1");
     assert_eq!(value["step"], "rust-03");
-    assert_eq!(value["case_count"], 22);
+    assert_eq!(value["case_count"], 23);
     assert_eq!(value["passed"], true);
     assert_eq!(value["cases"][0]["case"], "actions-json");
     assert_eq!(value["cases"][0]["kind"], "cli");
@@ -110,7 +112,13 @@ fn a_candidate_identical_to_the_oracle_passes() {
     assert_eq!(value["cases"][1]["kind"], "http");
     assert_eq!(value["cases"][1]["body_matches"], true);
     // The record is decide's verify input: checks and every violation count.
-    assert_eq!(value["checks"].as_array().unwrap().len(), 22);
+    assert_eq!(value["checks"].as_array().unwrap().len(), 23);
+    // The HTTP side effects are a case of their own.
+    let last = value["cases"].as_array().unwrap().last().unwrap().clone();
+    assert_eq!(last["case"], "http:side-effects");
+    assert_eq!(last["passed"], true);
+    // The DATA contract is not verified yet: decide must see it is missing.
+    assert_eq!(value["missing_contracts"], serde_json::json!(["data"]));
     assert_eq!(
         value["checks"][0],
         serde_json::json!({"id": "actions-json", "passed": true})
@@ -370,12 +378,30 @@ fn a_planted_extra_write_fails_the_cli_case() {
 
 #[test]
 fn a_planted_missing_write_fails_the_cli_case() {
+    // The oracle itself writes a file in its home; the candidate does not.
+    // Setup entries are the same on both sides, so only the oracle's own
+    // write can make this case fail.
     let scratch = tempfile::tempdir().unwrap();
     let out = scratch.path().join("verify.json");
-    let missing = oracle_candidate(scratch.path(), "rmdir \"$XDG_CACHE_HOME\"");
-    let result = verify("rust-03", &out)
+    let wrapper = scratch.path().join("oracle-python");
+    std::fs::write(
+        &wrapper,
+        format!(
+            "#!/bin/sh\n'{}' \"$@\"\nstatus=$?\nif [ \"$2\" = '-m' ]; then : > \"$CAREERBREW_HOME/oracle-made\"; fi\nexit $status\n",
+            python().display()
+        ),
+    )
+    .unwrap();
+    std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let same = oracle_candidate(scratch.path(), "");
+    let result = Command::new(XTASK)
+        .args(["migration", "verify", "--step", "rust-03", "--python"])
+        .arg(&wrapper)
+        .arg("--out")
+        .arg(&out)
         .arg("--test-candidate")
-        .arg(&missing)
+        .arg(&same)
+        .env_remove("CAREERBREW_HOME")
         .output()
         .unwrap();
     assert_eq!(result.status.code(), Some(1));
@@ -387,4 +413,92 @@ fn a_planted_missing_write_fails_the_cli_case() {
     assert_eq!(case["extra_writes"], 0);
     assert_eq!(value["violations"]["missing_writes"], 1);
     assert_eq!(value["violations"]["side_effect"], 0);
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(!text.contains("oracle-made"));
+}
+
+#[test]
+fn a_planted_http_write_fails_the_http_side_effect_case() {
+    let scratch = tempfile::tempdir().unwrap();
+    let out = scratch.path().join("verify.json");
+    let writer = candidate(
+        scratch.path(),
+        &format!(
+            "if [ \"$1\" = '{HTTP_FLAG}' ]; then : > \"$CAREERBREW_HOME/planted-http\"; exec '{}' -B '{}'; fi\nexec '{}' -B -m careerbrew \"$@\"",
+            python().display(),
+            root().join("xtask/tests/fixtures/capture/http_driver.py").display(),
+            python().display(),
+        ),
+    );
+    let result = verify("rust-03", &out)
+        .arg("--test-candidate")
+        .arg(&writer)
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&result.stderr).contains("http:side-effects"));
+    let value = read(&out);
+    assert_eq!(
+        value["failed_cases"],
+        serde_json::json!(["http:side-effects"])
+    );
+    assert_eq!(value["violations"]["side_effect"], 1);
+    assert_eq!(value["violations"]["contract"], 0);
+    let check = value["checks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|check| check["id"] == "http:side-effects")
+        .unwrap()
+        .clone();
+    assert_eq!(check["passed"], false);
+}
+
+/// A planted server that publishes readiness, then exits at once.
+const DEAD_SERVER: &str = r#"
+import json, os, pathlib
+control = json.loads(pathlib.Path(os.environ["CAREERBREW_CAPTURE_INPUT"]).read_text())
+protocol = pathlib.Path(control["protocol"])
+ready = protocol / ".ready.tmp"
+ready.write_text(json.dumps({"pid": os.getpid(), "host": "127.0.0.1", "port": 9}))
+os.replace(ready, protocol / "ready.json")
+"#;
+
+#[test]
+fn a_dead_http_candidate_fails_every_case_and_counts_denied_ones() {
+    let scratch = tempfile::tempdir().unwrap();
+    let out = scratch.path().join("verify.json");
+    let server = scratch.path().join("dead_server.py");
+    std::fs::write(&server, DEAD_SERVER).unwrap();
+    let dead = candidate(
+        scratch.path(),
+        &format!(
+            "if [ \"$1\" = '{HTTP_FLAG}' ]; then exec '{}' -B '{}'; fi\nexec '{}' -B -m careerbrew \"$@\"",
+            python().display(),
+            server.display(),
+            python().display(),
+        ),
+    );
+    let started = std::time::Instant::now();
+    let result = verify("rust-03", &out)
+        .arg("--test-candidate")
+        .arg(&dead)
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1));
+    let value = read(&out);
+    let http: Vec<_> = value["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|case| case["kind"] == "http")
+        .cloned()
+        .collect();
+    assert_eq!(http.len(), 21);
+    assert!(http.iter().all(|case| case["candidate_answered"] == false));
+    // Each case the oracle refuses (401 or 403) is also an authorization
+    // violation when the candidate gives no answer.
+    assert!(value["violations"]["authorization"].as_u64().unwrap() > 0);
+    // A dead server stops the requests at once, not one timeout per case.
+    assert!(started.elapsed() < std::time::Duration::from_secs(120));
 }

@@ -32,6 +32,7 @@ fn verify() -> Value {
             "side_effect": 0, "missing_writes": 0, "duplicate_writes": 0,
         },
         "unobserved_violations": [],
+        "missing_contracts": [],
     })
 }
 
@@ -172,6 +173,16 @@ fn each_keep_reason_has_a_control() {
         "verify-violation-unobserved",
     );
 
+    // A contract verify did not check (DATA) keeps Python.
+    let mut uncovered = verify();
+    uncovered["missing_contracts"] = json!(["data"]);
+    keeps_with(
+        baseline(),
+        uncovered,
+        measure(1000),
+        "verify-contract-missing",
+    );
+
     for state in ["cold", "warm"] {
         let mut one = measure(1000);
         one["regimes"]
@@ -283,6 +294,11 @@ fn malformed_input_is_refused_without_a_verdict() {
                 .as_object_mut()
                 .unwrap()
                 .remove("unobserved_violations");
+            (baseline(), wrong, measure(1000))
+        },
+        {
+            let mut wrong = verify();
+            wrong.as_object_mut().unwrap().remove("missing_contracts");
             (baseline(), wrong, measure(1000))
         },
         {
