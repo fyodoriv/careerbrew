@@ -94,6 +94,7 @@ __pycache__/
 !/crates/purevec/Cargo.toml
 !/crates/purevec/src/
 /crates/purevec/src/*
+!/crates/purevec/src/hash.rs
 !/crates/purevec/src/lib.rs
 !/crates/purevec/src/main.rs
 !/crates/purevec/tests/
@@ -154,6 +155,7 @@ __pycache__/
 !/xtask/tests/fixtures/purevec/
 /xtask/tests/fixtures/purevec/*
 !/xtask/tests/fixtures/purevec/driver.py
+!/xtask/tests/fixtures/purevec/hash.json
 !/xtask/tests/fixtures/i01/
 /xtask/tests/fixtures/i01/*
 !/xtask/tests/fixtures/i01/pending-identities-v1.tsv

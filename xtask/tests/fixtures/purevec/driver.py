@@ -12,10 +12,53 @@ write outside the synthetic home verify gives it.
 """
 
 import json
+import struct
 import sys
+from datetime import date, datetime
+from pathlib import PurePosixPath
 
-# The registry: one line per vector set.
-SETS = {}
+
+def _typed(value):
+    """One typed input value: the canon.rs form, plus `tuple` and `path`."""
+    t, v = value["t"], value.get("v")
+    if t == "null":
+        return None
+    if t in ("bool", "str"):
+        return v
+    if t == "int":
+        return int(v)
+    if t == "float":
+        return struct.unpack(">d", bytes.fromhex(v))[0]
+    if t == "date":
+        return date.fromisoformat(v)
+    if t == "datetime":
+        return datetime.fromisoformat(v)
+    if t == "path":
+        return PurePosixPath(v)
+    if t == "list":
+        return [_typed(item) for item in v]
+    if t == "tuple":
+        return tuple(_typed(item) for item in v)
+    if t == "map":
+        return {_typed(k): _typed(item) for k, item in v}
+    raise ValueError("unknown type")
+
+
+def hash_set(op, value):
+    """`changes._h` on one typed value: the serialized text and the digest."""
+    from careerbrew import changes
+
+    if op != "input-hash":
+        raise ValueError("unknown op")
+    obj = _typed(value)
+    text = json.dumps(obj, sort_keys=True, default=str)
+    return {"t": "list", "v": [{"t": "str", "v": text}, {"t": "str", "v": changes._h(obj)}]}
+
+
+# The registry: one line per vector set, sorted by name.
+SETS = {
+    "hash": hash_set,
+}
 
 
 def main():

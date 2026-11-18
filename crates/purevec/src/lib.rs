@@ -4,12 +4,14 @@
 //! pull request. A set is one line in [`SETS`].
 use serde_json::{json, Value};
 
+pub mod hash;
+
 /// One vector set: its name and the function that maps one vector's `op`
 /// and `input` to an output value.
 type Set = (&'static str, fn(&str, &Value) -> Result<Value, String>);
 
-/// The registry: one line per vector set.
-pub const SETS: &[Set] = &[];
+/// The registry: one line per vector set, sorted by name.
+pub const SETS: &[Set] = &[("hash", hash::run)];
 
 /// Runs every vector of `fixture` through the named set and returns
 /// `{"set", "results": [{"id", "output"}]}`. An unknown set is refused.

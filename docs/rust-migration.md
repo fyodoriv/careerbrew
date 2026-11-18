@@ -739,6 +739,30 @@ contracts do not apply: the vectors make no writes and use no roles.
   `baseline` (its source hash changes). The verdict is component parity
   only; it is not a user-facing speed claim.
 
+Set `hash`: the `changes._h` input hash primitive that rust-24 reuses
+(`crates/purevec/src/hash.rs`, `input_hash`). 57 vectors, op `input-hash`,
+each output `[serialized text, 16 hex digest]`. The digest is the `sha2`
+crate; the text is Python's `json.dumps(sort_keys=True, default=str)`
+layout. The input is a typed value (the `canon.rs` form plus `tuple` and
+`path`), so ints, floats, big ints and non-string keys stay apart. The
+vectors cover YAML-typed leaves (the callers hash promo ladders and company
+fields loaded from YAML): empty and nested maps, ASCII escapes, controls
+(`\u007f` is escaped, not raw), BMP and astral text (surrogate pairs), int,
+bool, float and `None` keys in Python's numeric order, exact int against
+float keys, equal keys merged (`True` and `1`: first key, last value),
+float `repr` (`1e+16`, `1e-05`, `-0.0`, `NaN`, `Infinity`, `5e-324`), ints
+past i64 and at Python's 4300-digit limit, tuples, dates, datetimes and
+paths through `default=str`, and five refusals (str against int keys,
+`None` against str keys, a date key, a tuple key, a 4301-digit int).
+Planted control: `a_planted_wrong_hash_vector_fails_its_case`
+(`xtask/tests/purevec.rs`). Known gaps, no vectors: `NaN` keys (Python
+sorts them in an order the candidate refuses), lone surrogates, `bytes`,
+`set` and `Decimal` leaves, ints written with `_` or spaces, a changed
+`PYTHONINTMAXSTRDIGITS`, recursion past Python's limit, and date or
+datetime text that is not in canonical `isoformat` form. `experiments/hash`
+stays: `tests/unit/test_rust_hash_experiment.py` still builds and checks
+it, so retiring it is its own change.
+
 ### rust-03: Introduce the native CLI and one read-only pilot
 
 - **Depends on:** `rust-02`.
@@ -1314,7 +1338,7 @@ is `rust-01`.
 | --- | --- | --- | --- |
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
 | `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
-| `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: no vector sets yet; `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only |
+| `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: set `hash` (`changes._h` over `sha2 =0.10.9`); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only |
 | `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`calendar`, `code-parse`, `fernet`, `fsrs`, `json-yaml` and `runtime` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
 | `experiments/hash/` | `careerbrew-hash-experiment` | the pure `changes._h` hash for a supported synthetic JSON subset. It refuses values outside that subset. | none: component parity only |
 
