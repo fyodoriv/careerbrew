@@ -526,7 +526,7 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Details**: On 2026-11-18 macOS `part` jobs of the CI workflow sat queued for over 2 hours with 0 steps, then ended `cancelled`, so `gate (macos-15)` failed on PRs #136 to #140 and #146 with no code fault; each needed `gh run rerun <id> --failed`, some twice. Find what cancels a queued job (workflow `concurrency`, a `timeout-minutes` that counts queue time, or GitHub's own queue limit), then make a queued-too-long part rerun once by itself or report "no runner" instead of a failed gate.
   - **Files**: .github/workflows/ci.yml; docs/ci.md
   - **Hypothesis**: most failed `gate (macos-15)` results in a week come from parts cancelled with 0 steps, so making the gate tell "no runner" apart from a test failure cuts manual reruns to 0 for that cause.
-  - **Measurement**: `gh run list --workflow CI --limit 100 --json databaseId` then, per run, `gh api repos/fyodoriv/careerbrew/actions/runs/<id>/jobs --jq '[.jobs[]|select(.conclusion=="cancelled" and (.steps|length)==0)]|length'`; count over 7 days before and after.
+  - **Measurement**: `gh run list --workflow CI --limit 100 --json databaseId` then, per run, `gh api repos/{owner}/{repo}/actions/runs/<id>/jobs --jq '[.jobs[]|select(.conclusion=="cancelled" and (.steps|length)==0)]|length'`; count over 7 days before and after.
   - **Success**: 0 manual reruns needed for 0-step cancelled macOS parts over 7 days.
   - **Pivot**: if the cancel comes from GitHub's queue limit and cannot be changed, move the macOS parts to a scheduled run on `main` and keep Linux as the pull request gate; record it in `docs/ci.md`.
   - **Anchor**: Forsgren, Humble & Kim 2018 (DORA: lead time and change failure rate).
