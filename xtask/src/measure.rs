@@ -9,6 +9,9 @@
 //! home, so the data folder is never warm):
 //! - cold: no warm-up run, and each oracle run gets its own empty
 //!   `PYTHONPYCACHEPREFIX`, so Python compiles every module from source.
+//!   Cold changes only the Python side: for the Rust candidate it differs
+//!   from warm only by the missing warm-up run, and the OS page cache is
+//!   still warm from earlier runs.
 //! - warm: one discarded warm-up run per side first. The oracle warm-up may
 //!   write bytecode into one regime-owned `PYTHONPYCACHEPREFIX`; the samples
 //!   then read it (with `-B`, so they write nothing).
@@ -23,8 +26,9 @@ use std::path::{Path, PathBuf};
 
 pub const SCHEMA: &str = "careerbrew-migration-measure-v1";
 pub const DEFAULT_PAIRS: usize = 30;
-/// The protocol's minimum pair count per regime; fewer need the test flag.
-pub const MIN_PAIRS: usize = 30;
+/// The protocol's minimum pair count per regime (the trial planner's);
+/// fewer need the test flag.
+pub const MIN_PAIRS: usize = trial_plan::MIN_PAIRS as usize;
 const HASHED: &[&str] = &["xtask/src/measure.rs", "xtask/src/trial_plan.rs"];
 
 /// A registered Rust candidate: the step id, the executable path relative to
@@ -156,42 +160,54 @@ fn regime(
     method: &mut &'static str,
 ) -> Result<Value, String> {
     let warm = cache == CacheRegime::Warm;
-    // Regime-owned bytecode folder; it lives for this regime only.
-    let shared = tempfile::tempdir().map_err(|_| "cannot create bytecode folder")?;
-    let pycache = warm.then(|| shared.path().to_path_buf());
+    // Warm only: one regime-owned bytecode folder that lives for this regime.
+    let shared = if warm {
+        Some(tempfile::tempdir().map_err(|_| "cannot create bytecode folder")?)
+    } else {
+        None
+    };
+    let pycache = shared.as_ref().map(|folder| folder.path().to_path_buf());
     if warm {
         for side in sides {
             execute(root, side, &side.warmup_args, pycache.as_deref(), true)?;
         }
     }
+    // At the protocol minimum the planner itself (with its own refusal)
+    // fixes the order; a test-flag run below it uses the same order rule.
+    let planned: Vec<(u64, [Arm; 2])> = if pairs >= MIN_PAIRS {
+        trial_plan::plan(pairs as u64, cache)?
+            .map(|pair| (pair.id, pair.order))
+            .collect()
+    } else {
+        (1..=pairs as u64)
+            .map(|id| (id, trial_plan::order(id, cache)))
+            .collect()
+    };
     let (mut oracle, mut candidate) = (Series::default(), Series::default());
     let mut ids = Vec::with_capacity(pairs);
-    let mut first = None;
-    for id in 1..=pairs as u64 {
-        let order = trial_plan::order(id, cache);
-        if id == 1 {
-            first = Some(order);
-        }
+    // The side order each pair actually ran in, logged at execution time.
+    let mut orders: Vec<Vec<&'static str>> = Vec::with_capacity(pairs);
+    for (id, order) in planned {
+        let mut ran = Vec::with_capacity(2);
         for arm in order {
             let (side, series) = match arm {
                 Arm::Baseline => (&sides[0], &mut oracle),
                 Arm::Candidate => (&sides[1], &mut candidate),
             };
             let usage = execute(root, side, &side.args, pycache.as_deref(), false)?;
+            ran.push(side.name);
             *method = usage.tree_method;
             series.push(&usage);
         }
+        orders.push(ran);
         ids.push(id);
     }
-    let name = |arm: &Arm| match arm {
-        Arm::Baseline => "oracle",
-        Arm::Candidate => "candidate",
-    };
     Ok(json!({
         "cache_state": if warm { "warm" } else { "cold" },
         "pair_ids": ids,
         "cached": 0,
-        "first": first.unwrap_or(trial_plan::order(1, cache)).iter().map(name).collect::<Vec<_>>(),
+        "first": orders.first().cloned().unwrap_or_default(),
+        "orders": orders,
         "oracle_cpu_us": oracle.cpu,
         "oracle_tree_max_rss_bytes": oracle.rss,
         "oracle_wall_us": oracle.wall,
@@ -200,6 +216,24 @@ fn regime(
         "candidate_wall_us": candidate.wall,
         "summary": {"oracle": oracle.summary(), "candidate": candidate.summary()},
     }))
+}
+
+/// The inputs one measure binds: the hashed sources, the HTTP fixtures, and
+/// the candidate executable file (not files it may load).
+#[derive(PartialEq)]
+struct Inputs {
+    sources: Value,
+    fixtures_sha256: String,
+    candidate_sha256: String,
+}
+
+fn inputs(root: &Path, program: &Path) -> Result<Inputs, String> {
+    let binary = std::fs::read(program).map_err(|_| "cannot read the Rust candidate")?;
+    Ok(Inputs {
+        sources: baseline::hashed_sources_with(root, HASHED)?,
+        fixtures_sha256: baseline::fixtures_sha256(root)?,
+        candidate_sha256: capture_actions::digest(&binary),
+    })
 }
 
 pub fn record(
@@ -232,12 +266,8 @@ pub fn record(
         return Err("CAREERBREW_HOME is set but empty".into());
     }
     let python_version = capture_actions::version(python)?;
-    // Binds only the candidate executable file, not files it may load.
-    let binary = std::fs::read(&program).map_err(|_| "cannot read the Rust candidate")?;
-    let candidate_sha256 = capture_actions::digest(&binary);
-    let sources = baseline::hashed_sources_with(root, HASHED)?;
-    let fixtures = baseline::fixtures_sha256(root)?;
-    let sources_sha256 = capture_actions::digest(sources.to_string().as_bytes());
+    let bound = inputs(root, &program)?;
+    let sources_sha256 = capture_actions::digest(bound.sources.to_string().as_bytes());
     let oracle_args = step.oracle.iter().map(OsString::from).collect::<Vec<_>>();
     let sides = [
         Side {
@@ -264,13 +294,7 @@ pub fn record(
         .into_iter()
         .map(|cache| regime(root, &sides, cache, pairs, &mut method))
         .collect::<Result<Vec<_>, _>>()?;
-    if baseline::hashed_sources_with(root, HASHED)? != sources
-        || baseline::fixtures_sha256(root)? != fixtures
-        || std::fs::read(&program)
-            .map(|bytes| capture_actions::digest(&bytes))
-            .ok()
-            != Some(candidate_sha256.clone())
-    {
+    if inputs(root, &program).ok().as_ref() != Some(&bound) {
         return Err("a relevant source changed during the measure".into());
     }
     let (os, _) = resources::host_unit()?;
@@ -284,7 +308,7 @@ pub fn record(
         "test_override": test_override,
         "oracle_command": oracle_command,
         "candidate_command": candidate_command,
-        "candidate_sha256": candidate_sha256,
+        "candidate_sha256": bound.candidate_sha256,
         "os": os,
         "arch": std::env::consts::ARCH,
         "rust_toolchain": baseline::toolchain(root)?,
@@ -292,7 +316,7 @@ pub fn record(
         "source_revision": baseline::revision(root)?,
         "source_tree_dirty": baseline::dirty(root)?,
         "sources_sha256": sources_sha256,
-        "fixtures_sha256": fixtures,
+        "fixtures_sha256": bound.fixtures_sha256,
         "meets_protocol_minimum": pairs >= MIN_PAIRS && !test_override,
         "tree_method": method,
         "pairs": pairs,
@@ -376,7 +400,10 @@ mod controls {
             let before = inputs(scratch.path(), &candidate).unwrap();
             assert!(inputs(scratch.path(), &candidate).unwrap() == before);
             append(&scratch.path().join(name));
-            assert!(inputs(scratch.path(), &candidate).unwrap() != before, "{name}");
+            assert!(
+                inputs(scratch.path(), &candidate).unwrap() != before,
+                "{name}"
+            );
         }
     }
 
@@ -384,7 +411,11 @@ mod controls {
     fn a_fixture_change_breaks_the_input_binding() {
         let (scratch, candidate) = scratch_root();
         let before = inputs(scratch.path(), &candidate).unwrap();
-        append(&scratch.path().join("tests/fixtures/http/synthetic-added.json"));
+        append(
+            &scratch
+                .path()
+                .join("tests/fixtures/http/synthetic-added.json"),
+        );
         assert!(inputs(scratch.path(), &candidate).unwrap() != before);
     }
 

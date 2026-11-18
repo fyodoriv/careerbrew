@@ -93,7 +93,10 @@ fn test_candidate_writes_a_paired_cold_and_warm_record() {
     assert_eq!(regimes[1]["cache_state"], "warm");
     // `orders` logs the side order each pair actually ran in: cold odd and
     // warm even pairs start with the oracle.
-    let (oc, co) = (json!(["oracle", "candidate"]), json!(["candidate", "oracle"]));
+    let (oc, co) = (
+        json!(["oracle", "candidate"]),
+        json!(["candidate", "oracle"]),
+    );
     assert_eq!(regimes[0]["orders"], json!([oc, co, oc]));
     assert_eq!(regimes[1]["orders"], json!([co, oc, co]));
     assert_eq!(regimes[0]["first"], oc);
