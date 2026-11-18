@@ -15,6 +15,17 @@ fn all_lists_the_registered_sets() {
 }
 
 #[test]
+fn no_vector_code_reads_the_wall_clock() {
+    let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    for entry in std::fs::read_dir(src).unwrap() {
+        let text = std::fs::read_to_string(entry.unwrap().path()).unwrap();
+        for read in ["Utc::now", "Local::now", "SystemTime::now"] {
+            assert!(!text.contains(read), "vector code must not call {read}");
+        }
+    }
+}
+
+#[test]
 fn an_unknown_set_is_refused() {
     let scratch = std::env::temp_dir().join(format!("careerbrew-purevec-{}", std::process::id()));
     std::fs::create_dir_all(&scratch).unwrap();

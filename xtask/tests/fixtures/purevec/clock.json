@@ -1,0 +1,790 @@
+{
+ "set": "clock",
+ "zone_data": {
+  "oracle": "Python zoneinfo with an empty tz path, so the tzdata package 2026.5 (IANA 2026e) from uv.lock",
+  "candidate": "chrono-tz 0.10.4, IANA 2025b compiled in"
+ },
+ "vectors": [
+  {
+   "id": "day-bounds-ny-spring",
+   "op": "day-bounds",
+   "input": {
+    "day": "2026-03-08",
+    "tz": "America/New_York"
+   }
+  },
+  {
+   "id": "day-span-ny-spring",
+   "op": "day-span",
+   "input": {
+    "day": "2026-03-08",
+    "tz": "America/New_York"
+   }
+  },
+  {
+   "id": "day-bounds-ny-fall",
+   "op": "day-bounds",
+   "input": {
+    "day": "2026-11-01",
+    "tz": "America/New_York"
+   }
+  },
+  {
+   "id": "day-span-ny-fall",
+   "op": "day-span",
+   "input": {
+    "day": "2026-11-01",
+    "tz": "America/New_York"
+   }
+  },
+  {
+   "id": "day-bounds-ny-summer",
+   "op": "day-bounds",
+   "input": {
+    "day": "2026-06-15",
+    "tz": "America/New_York"
+   }
+  },
+  {
+   "id": "day-span-ny-summer",
+   "op": "day-span",
+   "input": {
+    "day": "2026-06-15",
+    "tz": "America/New_York"
+   }
+  },
+  {
+   "id": "day-bounds-santiago-spring",
+   "op": "day-bounds",
+   "input": {
+    "day": "2026-09-06",
+    "tz": "America/Santiago"
+   }
+  },
+  {
+   "id": "day-span-santiago-spring",
+   "op": "day-span",
+   "input": {
+    "day": "2026-09-06",
+    "tz": "America/Santiago"
+   }
+  },
+  {
+   "id": "day-bounds-santiago-fall",
+   "op": "day-bounds",
+   "input": {
+    "day": "2026-04-05",
+    "tz": "America/Santiago"
+   }
+  },
+  {
+   "id": "day-span-santiago-fall",
+   "op": "day-span",
+   "input": {
+    "day": "2026-04-05",
+    "tz": "America/Santiago"
+   }
+  },
+  {
+   "id": "day-bounds-havana-spring",
+   "op": "day-bounds",
+   "input": {
+    "day": "2026-03-08",
+    "tz": "America/Havana"
+   }
+  },
+  {
+   "id": "day-span-havana-spring",
+   "op": "day-span",
+   "input": {
+    "day": "2026-03-08",
+    "tz": "America/Havana"
+   }
+  },
+  {
+   "id": "day-bounds-havana-fall",
+   "op": "day-bounds",
+   "input": {
+    "day": "2026-11-01",
+    "tz": "America/Havana"
+   }
+  },
+  {
+   "id": "day-span-havana-fall",
+   "op": "day-span",
+   "input": {
+    "day": "2026-11-01",
+    "tz": "America/Havana"
+   }
+  },
+  {
+   "id": "day-bounds-lord-howe-spring",
+   "op": "day-bounds",
+   "input": {
+    "day": "2026-10-04",
+    "tz": "Australia/Lord_Howe"
+   }
+  },
+  {
+   "id": "day-span-lord-howe-spring",
+   "op": "day-span",
+   "input": {
+    "day": "2026-10-04",
+    "tz": "Australia/Lord_Howe"
+   }
+  },
+  {
+   "id": "day-bounds-lord-howe-fall",
+   "op": "day-bounds",
+   "input": {
+    "day": "2026-04-05",
+    "tz": "Australia/Lord_Howe"
+   }
+  },
+  {
+   "id": "day-span-lord-howe-fall",
+   "op": "day-span",
+   "input": {
+    "day": "2026-04-05",
+    "tz": "Australia/Lord_Howe"
+   }
+  },
+  {
+   "id": "day-bounds-kolkata",
+   "op": "day-bounds",
+   "input": {
+    "day": "2026-03-08",
+    "tz": "Asia/Kolkata"
+   }
+  },
+  {
+   "id": "day-span-kolkata",
+   "op": "day-span",
+   "input": {
+    "day": "2026-03-08",
+    "tz": "Asia/Kolkata"
+   }
+  },
+  {
+   "id": "day-bounds-utc",
+   "op": "day-bounds",
+   "input": {
+    "day": "2026-03-08",
+    "tz": "UTC"
+   }
+  },
+  {
+   "id": "day-span-utc",
+   "op": "day-span",
+   "input": {
+    "day": "2026-03-08",
+    "tz": "UTC"
+   }
+  },
+  {
+   "id": "day-bounds-berlin-spring",
+   "op": "day-bounds",
+   "input": {
+    "day": "2026-03-29",
+    "tz": "Europe/Berlin"
+   }
+  },
+  {
+   "id": "day-span-berlin-spring",
+   "op": "day-span",
+   "input": {
+    "day": "2026-03-29",
+    "tz": "Europe/Berlin"
+   }
+  },
+  {
+   "id": "day-bounds-berlin-fall",
+   "op": "day-bounds",
+   "input": {
+    "day": "2026-10-25",
+    "tz": "Europe/Berlin"
+   }
+  },
+  {
+   "id": "day-span-berlin-fall",
+   "op": "day-span",
+   "input": {
+    "day": "2026-10-25",
+    "tz": "Europe/Berlin"
+   }
+  },
+  {
+   "id": "day-bounds-unknown-zone",
+   "op": "day-bounds",
+   "input": {
+    "day": "2026-03-08",
+    "tz": "Mars/Olympus"
+   }
+  },
+  {
+   "id": "day-bounds-bad-day",
+   "op": "day-bounds",
+   "input": {
+    "day": "2026-02-30",
+    "tz": "UTC"
+   }
+  },
+  {
+   "id": "aware-naive",
+   "op": "aware",
+   "input": {
+    "value": "2026-06-15T10:00",
+    "kind": "datetime",
+    "tz": "America/New_York"
+   }
+  },
+  {
+   "id": "aware-gap-kept",
+   "op": "aware",
+   "input": {
+    "value": "2026-03-08T02:30",
+    "kind": "datetime",
+    "tz": "America/New_York"
+   }
+  },
+  {
+   "id": "aware-overlap-fold0",
+   "op": "aware",
+   "input": {
+    "value": "2026-11-01T01:30",
+    "kind": "datetime",
+    "tz": "America/New_York"
+   }
+  },
+  {
+   "id": "aware-lord-howe-gap",
+   "op": "aware",
+   "input": {
+    "value": "2026-10-04T02:15",
+    "kind": "datetime",
+    "tz": "Australia/Lord_Howe"
+   }
+  },
+  {
+   "id": "aware-lord-howe-overlap",
+   "op": "aware",
+   "input": {
+    "value": "2026-04-05T01:45",
+    "kind": "datetime",
+    "tz": "Australia/Lord_Howe"
+   }
+  },
+  {
+   "id": "aware-santiago-midnight-gap",
+   "op": "aware",
+   "input": {
+    "value": "2026-09-06T00:00",
+    "kind": "datetime",
+    "tz": "America/Santiago"
+   }
+  },
+  {
+   "id": "aware-havana-midnight-gap",
+   "op": "aware",
+   "input": {
+    "value": "2026-03-08T00:30",
+    "kind": "datetime",
+    "tz": "America/Havana"
+   }
+  },
+  {
+   "id": "aware-offset-kept",
+   "op": "aware",
+   "input": {
+    "value": "2026-06-15T10:00+05:30",
+    "kind": "datetime",
+    "tz": "America/New_York"
+   }
+  },
+  {
+   "id": "aware-z-kept",
+   "op": "aware",
+   "input": {
+    "value": "2026-06-15T10:00Z",
+    "kind": "datetime",
+    "tz": "Asia/Kolkata"
+   }
+  },
+  {
+   "id": "aware-date-all-day",
+   "op": "aware",
+   "input": {
+    "value": "2026-03-08",
+    "kind": "date",
+    "tz": "America/New_York"
+   }
+  },
+  {
+   "id": "aware-date-midnight-gap",
+   "op": "aware",
+   "input": {
+    "value": "2026-09-06",
+    "kind": "date",
+    "tz": "America/Santiago"
+   }
+  },
+  {
+   "id": "aware-fraction",
+   "op": "aware",
+   "input": {
+    "value": "2026-06-15T10:00:01.5",
+    "kind": "datetime",
+    "tz": "UTC"
+   }
+  },
+  {
+   "id": "aware-microseconds",
+   "op": "aware",
+   "input": {
+    "value": "2026-06-15T10:00:01.123456",
+    "kind": "datetime",
+    "tz": "UTC"
+   }
+  },
+  {
+   "id": "aware-seconds",
+   "op": "aware",
+   "input": {
+    "value": "2026-06-15T10:00:59",
+    "kind": "datetime",
+    "tz": "Asia/Kolkata"
+   }
+  },
+  {
+   "id": "aware-hour-only",
+   "op": "aware",
+   "input": {
+    "value": "2026-06-15T10",
+    "kind": "datetime",
+    "tz": "UTC"
+   }
+  },
+  {
+   "id": "aware-space-separator",
+   "op": "aware",
+   "input": {
+    "value": "2026-06-15 10:00",
+    "kind": "datetime",
+    "tz": "UTC"
+   }
+  },
+  {
+   "id": "aware-compact-offset",
+   "op": "aware",
+   "input": {
+    "value": "2026-06-15T10:00+0530",
+    "kind": "datetime",
+    "tz": "UTC"
+   }
+  },
+  {
+   "id": "aware-negative-offset",
+   "op": "aware",
+   "input": {
+    "value": "2026-06-15T10:00-03:00",
+    "kind": "datetime",
+    "tz": "UTC"
+   }
+  },
+  {
+   "id": "aware-invalid-month",
+   "op": "aware",
+   "input": {
+    "value": "2026-13-01T10:00",
+    "kind": "datetime",
+    "tz": "UTC"
+   }
+  },
+  {
+   "id": "aware-invalid-text",
+   "op": "aware",
+   "input": {
+    "value": "not-a-date",
+    "kind": "datetime",
+    "tz": "UTC"
+   }
+  },
+  {
+   "id": "aware-invalid-hour",
+   "op": "aware",
+   "input": {
+    "value": "2026-06-15T25:00",
+    "kind": "datetime",
+    "tz": "UTC"
+   }
+  },
+  {
+   "id": "aware-empty",
+   "op": "aware",
+   "input": {
+    "value": "",
+    "kind": "datetime",
+    "tz": "UTC"
+   }
+  },
+  {
+   "id": "shift-ics-default-end",
+   "op": "shift",
+   "input": {
+    "value": "2026-06-15T10:00",
+    "tz": "America/New_York",
+    "days": 0,
+    "hours": 1,
+    "minutes": 0,
+    "seconds": 0
+   }
+  },
+  {
+   "id": "shift-ics-end-into-gap",
+   "op": "shift",
+   "input": {
+    "value": "2026-03-08T01:30",
+    "tz": "America/New_York",
+    "days": 0,
+    "hours": 1,
+    "minutes": 0,
+    "seconds": 0
+   }
+  },
+  {
+   "id": "shift-day-across-spring",
+   "op": "shift",
+   "input": {
+    "value": "2026-03-07T12:00",
+    "tz": "America/New_York",
+    "days": 1,
+    "hours": 0,
+    "minutes": 0,
+    "seconds": 0
+   }
+  },
+  {
+   "id": "shift-day-across-fall",
+   "op": "shift",
+   "input": {
+    "value": "2026-10-31T12:00",
+    "tz": "America/New_York",
+    "days": 1,
+    "hours": 0,
+    "minutes": 0,
+    "seconds": 0
+   }
+  },
+  {
+   "id": "shift-hours-across-fall",
+   "op": "shift",
+   "input": {
+    "value": "2026-11-01T00:30",
+    "tz": "America/New_York",
+    "days": 0,
+    "hours": 2,
+    "minutes": 0,
+    "seconds": 0
+   }
+  },
+  {
+   "id": "shift-negative",
+   "op": "shift",
+   "input": {
+    "value": "2026-06-15T00:30",
+    "tz": "UTC",
+    "days": -1,
+    "hours": 0,
+    "minutes": -45,
+    "seconds": 0
+   }
+  },
+  {
+   "id": "shift-seconds-carry",
+   "op": "shift",
+   "input": {
+    "value": "2026-12-31T23:59:59",
+    "tz": "UTC",
+    "days": 0,
+    "hours": 0,
+    "minutes": 0,
+    "seconds": 1
+   }
+  },
+  {
+   "id": "shift-fixed-offset",
+   "op": "shift",
+   "input": {
+    "value": "2026-06-15T23:00+05:30",
+    "tz": null,
+    "days": 0,
+    "hours": 2,
+    "minutes": 0,
+    "seconds": 0
+   }
+  },
+  {
+   "id": "shift-naive",
+   "op": "shift",
+   "input": {
+    "value": "2026-06-15T23:00",
+    "tz": null,
+    "days": 0,
+    "hours": 0,
+    "minutes": 90,
+    "seconds": 30
+   }
+  },
+  {
+   "id": "shift-lord-howe",
+   "op": "shift",
+   "input": {
+    "value": "2026-10-03T23:00",
+    "tz": "Australia/Lord_Howe",
+    "days": 0,
+    "hours": 3,
+    "minutes": 0,
+    "seconds": 0
+   }
+  },
+  {
+   "id": "tz-valid-berlin",
+   "op": "tz-valid",
+   "input": {
+    "value": "Europe/Berlin"
+   }
+  },
+  {
+   "id": "tz-valid-padded-utc",
+   "op": "tz-valid",
+   "input": {
+    "value": " UTC "
+   }
+  },
+  {
+   "id": "tz-valid-empty",
+   "op": "tz-valid",
+   "input": {
+    "value": ""
+   }
+  },
+  {
+   "id": "tz-valid-spaces",
+   "op": "tz-valid",
+   "input": {
+    "value": "   "
+   }
+  },
+  {
+   "id": "tz-valid-unknown",
+   "op": "tz-valid",
+   "input": {
+    "value": "Mars/Olympus"
+   }
+  },
+  {
+   "id": "tz-valid-relative",
+   "op": "tz-valid",
+   "input": {
+    "value": "../etc/passwd"
+   }
+  },
+  {
+   "id": "tz-valid-lord-howe",
+   "op": "tz-valid",
+   "input": {
+    "value": "Australia/Lord_Howe"
+   }
+  },
+  {
+   "id": "system-tz-name",
+   "op": "system-tz",
+   "input": {
+    "tz_env": "America/New_York"
+   }
+  },
+  {
+   "id": "system-tz-colon",
+   "op": "system-tz",
+   "input": {
+    "tz_env": ":Asia/Kolkata"
+   }
+  },
+  {
+   "id": "system-tz-unknown",
+   "op": "system-tz",
+   "input": {
+    "tz_env": "Mars/Olympus"
+   }
+  },
+  {
+   "id": "system-tz-utc",
+   "op": "system-tz",
+   "input": {
+    "tz_env": "UTC"
+   }
+  },
+  {
+   "id": "now-pinned-naive",
+   "op": "now",
+   "input": {
+    "pinned": "2026-10-19T10:00",
+    "tz": "America/New_York",
+    "clock": "2026-03-08T07:30:00+00:00"
+   }
+  },
+  {
+   "id": "now-utc-pinned-naive",
+   "op": "now-utc",
+   "input": {
+    "pinned": "2026-10-19T10:00",
+    "tz": "America/New_York",
+    "clock": "2026-03-08T07:30:00+00:00"
+   }
+  },
+  {
+   "id": "now-pinned-offset",
+   "op": "now",
+   "input": {
+    "pinned": "2026-10-19T10:00+05:30",
+    "tz": "America/New_York",
+    "clock": "2026-03-08T07:30:00+00:00"
+   }
+  },
+  {
+   "id": "now-utc-pinned-offset",
+   "op": "now-utc",
+   "input": {
+    "pinned": "2026-10-19T10:00+05:30",
+    "tz": "America/New_York",
+    "clock": "2026-03-08T07:30:00+00:00"
+   }
+  },
+  {
+   "id": "now-pinned-z",
+   "op": "now",
+   "input": {
+    "pinned": "2026-10-19T10:00Z",
+    "tz": "Asia/Kolkata",
+    "clock": "2026-03-08T07:30:00+00:00"
+   }
+  },
+  {
+   "id": "now-utc-pinned-z",
+   "op": "now-utc",
+   "input": {
+    "pinned": "2026-10-19T10:00Z",
+    "tz": "Asia/Kolkata",
+    "clock": "2026-03-08T07:30:00+00:00"
+   }
+  },
+  {
+   "id": "now-pinned-gap",
+   "op": "now",
+   "input": {
+    "pinned": "2026-03-08T02:30",
+    "tz": "America/New_York",
+    "clock": "2026-03-08T07:30:00+00:00"
+   }
+  },
+  {
+   "id": "now-utc-pinned-gap",
+   "op": "now-utc",
+   "input": {
+    "pinned": "2026-03-08T02:30",
+    "tz": "America/New_York",
+    "clock": "2026-03-08T07:30:00+00:00"
+   }
+  },
+  {
+   "id": "now-pinned-date-only",
+   "op": "now",
+   "input": {
+    "pinned": "2026-10-19",
+    "tz": "Australia/Lord_Howe",
+    "clock": "2026-03-08T07:30:00+00:00"
+   }
+  },
+  {
+   "id": "now-utc-pinned-date-only",
+   "op": "now-utc",
+   "input": {
+    "pinned": "2026-10-19",
+    "tz": "Australia/Lord_Howe",
+    "clock": "2026-03-08T07:30:00+00:00"
+   }
+  },
+  {
+   "id": "now-pinned-invalid",
+   "op": "now",
+   "input": {
+    "pinned": "2026-10-19T99:00",
+    "tz": "UTC",
+    "clock": "2026-03-08T07:30:00+00:00"
+   }
+  },
+  {
+   "id": "now-utc-pinned-invalid",
+   "op": "now-utc",
+   "input": {
+    "pinned": "2026-10-19T99:00",
+    "tz": "UTC",
+    "clock": "2026-03-08T07:30:00+00:00"
+   }
+  },
+  {
+   "id": "now-empty-is-unset",
+   "op": "now",
+   "input": {
+    "pinned": "",
+    "tz": "America/New_York",
+    "clock": "2026-03-08T07:30:00+00:00"
+   }
+  },
+  {
+   "id": "now-utc-empty-is-unset",
+   "op": "now-utc",
+   "input": {
+    "pinned": "",
+    "tz": "America/New_York",
+    "clock": "2026-03-08T07:30:00+00:00"
+   }
+  },
+  {
+   "id": "now-unset",
+   "op": "now",
+   "input": {
+    "pinned": null,
+    "tz": "Australia/Lord_Howe",
+    "clock": "2026-03-08T07:30:00+00:00"
+   }
+  },
+  {
+   "id": "now-utc-unset",
+   "op": "now-utc",
+   "input": {
+    "pinned": null,
+    "tz": "Australia/Lord_Howe",
+    "clock": "2026-03-08T07:30:00+00:00"
+   }
+  },
+  {
+   "id": "now-clock-in-overlap",
+   "op": "now",
+   "input": {
+    "pinned": "",
+    "tz": "America/New_York",
+    "clock": "2026-11-01T05:30:00+00:00"
+   }
+  },
+  {
+   "id": "now-utc-clock-in-overlap",
+   "op": "now-utc",
+   "input": {
+    "pinned": "",
+    "tz": "America/New_York",
+    "clock": "2026-11-01T05:30:00+00:00"
+   }
+  }
+ ]
+}

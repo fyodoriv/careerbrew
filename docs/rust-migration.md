@@ -705,8 +705,8 @@ like `rust-01` (row `RUST_02` in `xtask/src/depvec.rs`). The DATA and role
 contracts do not apply: the vectors make no writes and use no roles.
 
 - **Vector set:** a fixture `xtask/tests/fixtures/purevec/<set>.json`, in the
-  rust-01 shape. There are no sets yet; the setting, path, clock and hash
-  sets come one per pull request.
+  rust-01 shape. The setting, path, clock and hash sets come one per pull
+  request; each set is one line in each `SETS` registry.
 - **Oracle:** `xtask/tests/fixtures/purevec/driver.py <set> <file>`, or
   `--all` (prints the set names) for `baseline` and `measure`.
 - **Candidate:** `careerbrew-purevec <set> <file>` or `--all`
@@ -715,7 +715,7 @@ contracts do not apply: the vectors make no writes and use no roles.
   also covers the driver and the five Python inputs), a `measure` candidate
   (`target/debug/careerbrew-purevec --all`) and `unmeasured` noise floors
   for macOS and Linux. All four commands accept `--step rust-02`.
-- **No sets yet:** verify records one failed case, `no-vector-sets`, so a
+- **No sets:** verify records one failed case, `no-vector-sets`, so a
   record with 0 vectors never passes.
 - **Real-home writes:** verify snapshots the caller's real homes
   (the repo's `private/` folder, careerbrew's default data folder, and a
@@ -734,6 +734,30 @@ contracts do not apply: the vectors make no writes and use no roles.
   `work/feed/.lock`), so a run that overlaps one fails `real-home-writes`
   although neither side wrote. Stop the watcher before a verify run, and
   rerun once before you trust a failure of that case.
+- **Set `clock`** (89 vectors, `clock.json`): the clock helpers of
+  `calendar.py` (`_day_bounds`, `_aware`, `now`, `now_utc`, `system_tz`)
+  and `config._tz`, with the zone, the pinned `CAREERBREW_NOW` and the wall
+  clock injected by each vector (`crates/purevec/src/clock.rs`). It covers
+  23 h, 25 h and 30-minute DST days (New York, Berlin, Lord Howe), zones
+  whose midnight falls in the gap (Santiago, Havana), Kolkata and UTC; the
+  real and the Python wall span of each day (Python reports 24 h for both);
+  fold=0 in a gap (the wall time is kept, with the offset before) and in an
+  overlap; `timedelta` sums across transitions (the `parse_ics` +1 h default
+  end, a day, hours, negative and carried values); the `fromisoformat` forms
+  `Z`, `+05:30`, `+0530`, naive, date only, hour only, a space separator,
+  fractional seconds and invalid values; an empty `CAREERBREW_NOW` counts as
+  unset. Zone data: the oracle empties the tz path, so it reads the
+  `tzdata` package from `uv.lock` (2026.5, IANA 2026e); the candidate uses
+  `chrono-tz` 0.10.4 (IANA 2025b compiled in). Both are recorded in the
+  fixture's `zone_data`; all 89 vectors agree in spite of the skew. Known
+  gaps: `local_tz` (the `settings.yaml` read) and the `/etc/localtime`
+  lookup of `system_tz` stay Python (rust-05); `fromisoformat` forms the
+  candidate refuses (week dates, compact dates and times, offsets with
+  seconds, more than 6 fraction digits); zone names that differ only by
+  letter case (a case-insensitive disk lets Python load them). The four
+  owner test files the plan names hold no clock assertions, so none were
+  ported. `crates/purevec/tests/cli.rs` fails on a wall-clock read
+  (`Utc::now`, `Local::now`, `SystemTime::now`) in vector code.
 - **Measure is per process:** both sides run every set with `--all`, so a
   ratio covers the whole step, not one slice. Each slice PR re-runs
   `baseline` (its source hash changes). The verdict is component parity
@@ -1314,7 +1338,7 @@ is `rust-01`.
 | --- | --- | --- | --- |
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
 | `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
-| `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: no vector sets yet; `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only |
+| `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only |
 | `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`calendar`, `code-parse`, `fernet`, `fsrs`, `json-yaml` and `runtime` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
 | `experiments/hash/` | `careerbrew-hash-experiment` | the pure `changes._h` hash for a supported synthetic JSON subset. It refuses values outside that subset. | none: component parity only |
 
