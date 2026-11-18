@@ -173,6 +173,8 @@ fn decide_consumes_the_measure_record_with_a_baseline_record() {
         "unobserved_violations": [],
         // rust-03's declared scope: verify lists these, decide requires it.
         "missing_contracts": ["http", "data", "role"],
+        "test_scope": null,
+        "python_denied": "env",
     });
     std::fs::write(&verify, serde_json::to_vec(&record).unwrap()).unwrap();
     let out = scratch.path().join("decide.json");

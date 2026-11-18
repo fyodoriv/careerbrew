@@ -104,7 +104,8 @@ pub fn verdict(
     measure: &Value,
     test_floor: Option<&Value>,
 ) -> Result<Value, String> {
-    let declared = baseline::step(step)?.scoped_out();
+    let registered = baseline::step(step)?;
+    let declared = registered.scoped_out();
     header(base, "baseline", baseline::SCHEMA, step)?;
     let os = base["os"]
         .as_str()
@@ -213,6 +214,14 @@ pub fn verdict(
     }
     if !unobserved.is_empty() {
         reasons.insert("verify-violation-unobserved");
+    }
+    // A test-only scope (`--test-scope`) never activates, and a `no_python`
+    // step needs a record that ran its candidate with Python denied.
+    if !verify["test_scope"].is_null() {
+        reasons.insert("verify-test-scope");
+    }
+    if registered.no_python && verify["python_denied"].as_str() != Some("env") {
+        reasons.insert("verify-python-not-denied");
     }
     let listed: BTreeSet<&str> = missing_contracts.iter().filter_map(Value::as_str).collect();
     if listed.iter().any(|name| !declared.contains(name)) {
@@ -404,6 +413,7 @@ pub mod controls {
             "violations": violations,
             "unobserved_violations": [],
             "missing_contracts": baseline::step("rust-03").expect("registered").scoped_out(),
+            "test_scope": null, "python_denied": "env",
         })
     }
 

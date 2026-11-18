@@ -36,6 +36,8 @@ fn verify() -> Value {
         "unobserved_violations": [],
         // rust-03 scopes out HTTP, DATA and role; decide requires this list.
         "missing_contracts": ["http", "data", "role"],
+        "test_scope": null,
+        "python_denied": "env",
     })
 }
 
@@ -225,6 +227,31 @@ fn each_keep_reason_has_a_control() {
         full_scope,
         measure(1000),
         "verify-contract-scope-mismatch",
+    );
+
+    // A record made under a test-only scope never activates, even when it
+    // carries the step's own scope list.
+    for scope in ["allow-python", "full"] {
+        let mut scoped = verify();
+        scoped["test_scope"] = json!(scope);
+        keeps_with(baseline(), scoped, measure(1000), "verify-test-scope");
+    }
+    // A no_python step (rust-03) needs a record that denied Python.
+    let mut allowed = verify();
+    allowed["python_denied"] = Value::Null;
+    keeps_with(
+        baseline(),
+        allowed,
+        measure(1000),
+        "verify-python-not-denied",
+    );
+    let mut absent = verify();
+    absent.as_object_mut().unwrap().remove("python_denied");
+    keeps_with(
+        baseline(),
+        absent,
+        measure(1000),
+        "verify-python-not-denied",
     );
 
     for state in ["cold", "warm"] {

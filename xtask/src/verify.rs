@@ -38,8 +38,10 @@
 //!   violation.
 //!
 //! A contract a step scopes out is listed in `missing_contracts`; `decide`
-//! requires that list to equal the step's declared scope. Every run gets the
-//! step's extra environment (`Step::env`) on both sides. A step with
+//! requires that list to equal the step's declared scope. The CLI and
+//! registry projection runs get the step's extra environment (`Step::env`)
+//! on both sides; the HTTP, DATA and role runs (only under a step that keeps
+//! them, or `--test-scope full`) do not. A step with
 //! `no_python` runs each candidate side with Python denied (`NO_PYTHON_HOME`).
 //!
 //! It writes a content-free JSON record: step, per-case pass or fail with
