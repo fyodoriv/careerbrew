@@ -44,6 +44,8 @@ fn measure(cpu: u64) -> Value {
             "cache_state": state,
             "pair_ids": (1..=30).collect::<Vec<u64>>(),
             "cached": 0,
+            "oracle_cpu_us": vec![1000u64; 30],
+            "oracle_tree_max_rss_bytes": vec![50_000u64; 30],
             "candidate_cpu_us": vec![cpu; 30],
             "candidate_tree_max_rss_bytes": vec![55_000u64; 30],
         })
@@ -554,4 +556,58 @@ fn noise_floor_measures_a_baseline_record() {
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(2), "{output:?}");
+}
+
+/// Sets one regime's paired oracle CPU samples and its candidate CPU.
+fn paired(state: usize, oracle: u64, candidate: u64) -> Value {
+    let mut record = measure(1000);
+    record["regimes"][state]["oracle_cpu_us"] = json!(vec![oracle; 30]);
+    record["regimes"][state]["candidate_cpu_us"] = json!(vec![candidate; 30]);
+    record
+}
+
+#[test]
+fn a_cold_candidate_over_its_cold_oracle_holds_under_the_baseline() {
+    // Cold candidate 600 us is under the 1,000 us warm baseline, but 1.2x
+    // its own paired cold oracle (500 us): the cold regime holds the step.
+    keeps_with(baseline(), verify(), paired(0, 500, 600), "cpu-regressed");
+}
+
+#[test]
+fn a_warm_candidate_over_its_warm_oracle_holds_under_the_baseline() {
+    keeps_with(baseline(), verify(), paired(1, 500, 600), "cpu-regressed");
+}
+
+#[test]
+fn each_regime_reports_its_own_oracle_p95() {
+    let dir = tempfile::tempdir().unwrap();
+    // A cold oracle at 2,000 us lets a 2,100 us cold candidate pass, though
+    // it is over the warm baseline: the regime is judged by its own pairs.
+    let (output, record) = decide(dir.path(), &baseline(), &verify(), &paired(0, 2000, 2100));
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let record = record.unwrap();
+    assert_eq!(record["decision"], "activate");
+    assert_eq!(record["regimes"][0]["oracle_cpu_us_p95"], 2000);
+    assert_eq!(record["regimes"][1]["oracle_cpu_us_p95"], 1000);
+    assert_eq!(record["regimes"][0]["oracle_tree_max_rss_bytes"], 50_000);
+}
+
+#[test]
+fn a_regime_without_matching_oracle_samples_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut missing = measure(1000);
+    missing["regimes"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("oracle_cpu_us");
+    let mut short = measure(1000);
+    short["regimes"][1]["oracle_tree_max_rss_bytes"]
+        .as_array_mut()
+        .unwrap()
+        .pop();
+    for wrong in [missing, short] {
+        let (output, record) = decide(dir.path(), &baseline(), &verify(), &wrong);
+        assert_eq!(output.status.code(), Some(2), "{output:?}");
+        assert!(record.is_none());
+    }
 }
