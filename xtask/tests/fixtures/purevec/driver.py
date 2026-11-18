@@ -6,16 +6,92 @@ A set run prints one JSON line,
 in the typed value form `crates/depvec/src/canon.rs` describes. `--all`
 prints {"sets": [...]}, the registered set names, for baseline and measure.
 
-It has no sets yet: the setting, path, clock and hash sets come one per pull
-request. To add a set: a function below and one line in SETS. A set must not
-write outside the synthetic home verify gives it.
+The setting, path, clock and hash sets come one per pull request. To add a
+set: a function below and one line in SETS. A set must not write outside the
+synthetic home verify gives it.
 """
 
 import json
+import struct
 import sys
+import types
+from pathlib import PurePosixPath
 
-# The registry: one line per vector set.
-SETS = {}
+from careerbrew import config
+
+
+def encode(value):
+    if value is None:
+        return {"t": "null"}
+    if isinstance(value, bool):
+        return {"t": "bool", "v": value}
+    if isinstance(value, int):
+        return {"t": "int", "v": str(value)}
+    if isinstance(value, float):
+        return {"t": "float", "v": struct.pack(">d", value).hex()}
+    if isinstance(value, str):
+        return {"t": "str", "v": value}
+    if isinstance(value, list):
+        return {"t": "list", "v": [encode(item) for item in value]}
+    if isinstance(value, dict):
+        return {"t": "map", "v": [[encode(k), encode(v)] for k, v in value.items()]}
+    raise TypeError("unsupported value type")
+
+
+def decode(value):
+    kind, v = value["t"], value.get("v")
+    if kind == "null":
+        return None
+    if kind in ("bool", "str"):
+        return v
+    if kind == "int":
+        return int(v)
+    if kind == "float":
+        return struct.unpack(">d", bytes.fromhex(v))[0]
+    if kind == "list":
+        return [decode(item) for item in v]
+    if kind == "map":
+        return {decode(k): decode(item) for k, item in v}
+    raise ValueError("unknown value type")
+
+
+# Validators that call workday modules with I/O, and `_tz` (tzdata): the
+# candidate refuses them, so the oracle does not run them either.
+DELEGATED = {"work_steps", "work_checkouts", "work_signin_probe", "standup_tz"}
+
+
+def settings(op, data):
+    """config's pure value logic over an in-memory settings map: the file
+    read, the write and the event are replaced, so nothing touches a home."""
+    stored = decode(data.get("settings", {"t": "map", "v": []}))
+    written = []
+    config._file = lambda: dict(stored)
+    config.store = types.SimpleNamespace(write_yaml=lambda _path, value: written.append(value))
+    config.events = types.SimpleNamespace(emit=lambda *_a, **_k: None)
+    config.paths = types.SimpleNamespace(data_root=lambda: PurePosixPath("synthetic"))
+    key = data.get("key")
+    try:
+        if op == "effective":
+            return [encode(row) for row in config.effective()]
+        if op == "get":
+            return {"value": encode(config.get(key))}
+        if op == "set":
+            if key in DELEGATED:
+                return {"refused": "delegated"}
+            value = config.set_value(key, data["raw"])
+            return {"value": encode(value), "written": encode(written[-1])}
+        if op == "unset":
+            config.unset(key)
+            return {"written": encode(written[-1]) if written else None}
+    except (KeyError, ValueError) as e:
+        return {"raised": type(e).__name__, "message": e.args[0]}
+    raise ValueError("unknown op")
+
+
+# The registry: one line per vector set, sorted by name.
+SETS = {
+    "settings": settings,
+}
 
 
 def main():

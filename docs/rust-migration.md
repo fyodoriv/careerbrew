@@ -705,8 +705,9 @@ like `rust-01` (row `RUST_02` in `xtask/src/depvec.rs`). The DATA and role
 contracts do not apply: the vectors make no writes and use no roles.
 
 - **Vector set:** a fixture `xtask/tests/fixtures/purevec/<set>.json`, in the
-  rust-01 shape. There are no sets yet; the setting, path, clock and hash
-  sets come one per pull request.
+  rust-01 shape. The setting, path, clock and hash sets come one per pull
+  request; each adds one module in `crates/purevec/src` and one line in each
+  `SETS` registry (one entry per line, sorted by name).
 - **Oracle:** `xtask/tests/fixtures/purevec/driver.py <set> <file>`, or
   `--all` (prints the set names) for `baseline` and `measure`.
 - **Candidate:** `careerbrew-purevec <set> <file>` or `--all`
@@ -715,7 +716,7 @@ contracts do not apply: the vectors make no writes and use no roles.
   also covers the driver and the five Python inputs), a `measure` candidate
   (`target/debug/careerbrew-purevec --all`) and `unmeasured` noise floors
   for macOS and Linux. All four commands accept `--step rust-02`.
-- **No sets yet:** verify records one failed case, `no-vector-sets`, so a
+- **No sets:** verify records one failed case, `no-vector-sets`, so a
   record with 0 vectors never passes.
 - **Real-home writes:** verify snapshots the caller's real homes
   (the repo's `private/` folder, careerbrew's default data folder, and a
@@ -738,6 +739,39 @@ contracts do not apply: the vectors make no writes and use no roles.
   ratio covers the whole step, not one slice. Each slice PR re-runs
   `baseline` (its source hash changes). The verdict is component parity
   only; it is not a user-facing speed claim.
+
+Set `settings` (`crates/purevec/src/settings.rs`, 187 vectors): the pure
+value logic of `config.py` over an in-memory settings map. Ops: `set` (the
+`set_value` validators, the `unknown setting ...; known: ...` KeyError text
+and the `<key>: <message>` re-raise, and the written map), `effective`
+(precedence: a stored value of any type wins, a stored `None` stays `None`,
+an absent key falls back to its default, unknown keys follow in order with
+help `not a known setting (kept as is)`, and `DEFAULTS` in insertion order
+with the 8 `time_baseline_*` keys), `get` (its own KeyError text) and `unset`
+(a stored `None` is never removed). It covers the 13 self-contained
+validators and the `timezone`, `stt_model` and `pm_send_via` lambdas with
+hand-written matchers that follow Python's `re` on `str` (`\d` is any
+Unicode decimal digit, `\s` is `str.isspace()`) and Python's `int()`
+(Unicode digits, underscores, whitespace). It also ports the
+`tests/e2e/us-64-fast-views.sh` settings checks (a bad `web_cache_seconds`
+names the range, a bad `web_tab_cache` names the values); the other three
+owner test files (`test_contributing.py`, `test_eval_case_loading.py`,
+`test_issue_335_337.py`) hold no settings or validator assertion. The oracle
+replaces config's file read, write and event with in-memory stand-ins, so no
+vector touches a home. Known gaps:
+- `work_steps`, `work_checkouts` and `work_signin_probe` call workday
+  modules that do I/O, and `standup_tz` (`_tz`) reads tzdata: `set` answers
+  `{"refused": "delegated"}` on both sides. `_tz` comes with the clock set;
+  the workday validators need `rust-07` or later.
+- The settings file read and write (`_file`, `store.write_yaml`) and the
+  `config.set` event are `rust-05`.
+- Python `repr()` in error texts: the candidate escapes ASCII and C1
+  controls, Unicode spaces and a few format characters; other non-printable
+  code points (unassigned, private use, other format characters) are not
+  matched.
+- `int()` over 4,300 digits raises Python's digit-limit error; the
+  candidate gives the range error.
+- The digit table is Unicode 15.0.0, the oracle Python's version.
 
 ### rust-03: Introduce the native CLI and one read-only pilot
 
@@ -1314,7 +1348,7 @@ is `rust-01`.
 | --- | --- | --- | --- |
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
 | `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
-| `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: no vector sets yet; `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only |
+| `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: set `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists the sets, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only |
 | `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`calendar`, `code-parse`, `fernet`, `fsrs`, `json-yaml` and `runtime` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
 | `experiments/hash/` | `careerbrew-hash-experiment` | the pure `changes._h` hash for a supported synthetic JSON subset. It refuses values outside that subset. | none: component parity only |
 
