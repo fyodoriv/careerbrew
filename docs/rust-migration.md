@@ -1169,7 +1169,7 @@ draft pull request are not on the public repository.
 | Workspace, toolchain pin, `cargo xtask` alias | in place | `cargo xtask migration self-test` |
 | Paired verdict (`baseline_verdict.rs`) | 8 of 8 synthetic controls pass; an empty check suite is refused | `cargo xtask migration self-test` |
 | Trial planner (`trial_plan.rs`) | 6 of 6 controls pass | `cargo xtask migration self-test` |
-| Planted slow path (`decide::controls`) | 3 of 3 self-test controls (3x CPU holds with `cpu-regressed`, 2x RSS holds with `rss-regressed`, equal cost activates); each slow control fails an always-activate harness; 3 end-to-end controls on real `rust-03` records (slow CPU and 512 MiB candidates pass `verify`, and `decide` holds them; an equal-cost candidate gets no resource reason). See "Planted slow-path controls" | `cargo xtask migration self-test`; `cargo test -p careerbrew-xtask --test measure --test decide` |
+| Planted slow path (`decide::controls`) | 3 of 3 self-test controls (3x CPU holds with `cpu-regressed`, 2x RSS holds with `rss-regressed`, equal cost activates); each slow control fails an always-activate harness, and the equal-cost control fails an always-hold harness; 3 end-to-end controls on real `rust-03` records (slow CPU and 512 MiB candidates pass `verify`, and `decide` holds them; an equal-cost candidate gets no resource reason). See "Planted slow-path controls" | `cargo xtask migration self-test`; `cargo test -p careerbrew-xtask --test measure --test decide` |
 | Direct-path inventory | 0 unassigned tracked direct paths; 4 negative controls (removed, duplicated, untracked row, broken CSV field) refused; runs in the normal gate | `cargo xtask migration inventory --check` |
 | Embedded anchors | the reviewed sites match staged source; a missing or repeated anchor is refused | `cargo xtask migration inventory --embedded-check` |
 | Embedded sites and entry points | 188 discovered sites assigned (123 embedded lines, 25 agent skills, 17 workflow runs, 8 npm scripts, 6 agent commands, 4 lefthook runs, 3 git hooks, 1 agent hook, 1 console script); 13 controls (each kind found and prose skipped, full pass, unassigned planted site, removed site, duplicate row and bad task, unlisted real interpreter forms, tool flags skipped, a repeated identical line, YAML run blocks, skill directories and flow lists, malformed entry-point files, non-UTF-8 files, list rows as manifest rows) in `xtask/src/sites_tests.rs`; runs in the normal gate inside `inventory --check` | `cargo xtask migration inventory --sites-check` |
@@ -1427,19 +1427,29 @@ With test flags, every verdict also holds `too-few-unique-pairs` and
 to end. Activation of an equal-cost candidate is proved in the self-test on
 synthetic records of 30 samples and pairs.
 
+The equal-cost run passes `decide` a test noise floor above every sample,
+with an absolute limit of 3x the baseline. A hosted runner can swing CPU
+time by more than 10% between the baseline and the measure runs, so the
+1.10 ratio would make this run a coin flip, not a check. The 3x limit still
+holds a real slow path. The slow CPU and 512 MiB runs keep the live 1.10
+ratio.
+
 **Controls, self-test** (`decide::controls`, joined to
 `cargo xtask migration self-test`): on synthetic 30-sample records, a 3x CPU
 candidate holds with `cpu-regressed`, a 2x RSS candidate holds with
 `rss-regressed`, and an equal-cost candidate activates. A harness that
 accepts each slow path must fail its control: a unit test runs each control
-against an always-`activate` harness and expects it to fail.
+against an always-`activate` harness and expects it to fail, and the
+equal-cost control runs against an always-`keep-python` harness and expects
+it to fail. The controls pass a fixed zero noise floor, so they prove the
+1.10 ratio whatever floor the registry holds for `rust-03` later.
 `tests/decide.rs` runs `migration self-test` and expects 17 controls
 (8 paired verdict, 6 trial planner, 3 decide).
 
 **Measurement:** `cargo test -p careerbrew-xtask --test measure --test decide`
 and `cargo test -p careerbrew-xtask --bin careerbrew-xtask decide::controls`
 on the hosted gate. **Success:** 3 of 3 end-to-end controls and 3 of 3
-self-test controls pass, and both always-accept runs fail. **Pivot:** if the
+self-test controls pass, and the always-accept and always-hold runs fail. **Pivot:** if the
 equal-cost end-to-end run shows `cpu-regressed` in 2 or more hosted runs, a
 3-sample p95 is too noisy for this check; compare against the paired oracle
 samples (task `rust-00-decide-paired-regimes`) before trusting the ratio.

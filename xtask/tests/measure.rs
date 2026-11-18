@@ -384,7 +384,7 @@ fn existing_out_is_refused_before_any_run() {
 /// Runs the real baseline, verify, measure and decide records for one
 /// planted candidate on `rust-03` with the test flags; returns the verify
 /// record and the decide record.
-fn planted(body: &str) -> (Value, Value) {
+fn planted(body: &str, wide_floor: bool) -> (Value, Value) {
     let scratch = tempfile::tempdir().unwrap();
     let candidate = script(scratch.path(), body);
     let base = scratch.path().join("baseline.json");
@@ -443,7 +443,8 @@ fn planted(body: &str) -> (Value, Value) {
     });
     std::fs::write(&decide_verify, serde_json::to_vec(&shaped).unwrap()).unwrap();
     let out = scratch.path().join("decide.json");
-    let result = Command::new(XTASK)
+    let mut decide = Command::new(XTASK);
+    decide
         .args(["migration", "decide", "--step", "rust-03", "--baseline"])
         .arg(&base)
         .arg("--verify")
@@ -451,9 +452,30 @@ fn planted(body: &str) -> (Value, Value) {
         .arg("--measure")
         .arg(&measured)
         .arg("--out")
-        .arg(&out)
-        .output()
-        .unwrap();
+        .arg(&out);
+    if wide_floor {
+        // A hosted runner can swing CPU time by more than 10% between the
+        // baseline and the measure runs. A floor above every sample makes
+        // decide use an absolute limit of 3x the baseline instead of the
+        // 1.10 ratio, so only a real slow path can add a resource reason.
+        let recorded = read(&base);
+        let cpu = recorded["summary"]["cpu_us_p95"].as_u64().unwrap();
+        let rss = recorded["samples"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|sample| sample["tree_max_rss_bytes"].as_u64().unwrap())
+            .max()
+            .unwrap();
+        let floor = scratch.path().join("floor.json");
+        let limits = json!({
+            "cpu_floor_us": u64::MAX, "cpu_absolute_us": cpu * 3,
+            "rss_floor_bytes": u64::MAX, "rss_absolute_bytes": rss * 3,
+        });
+        std::fs::write(&floor, serde_json::to_vec(&limits).unwrap()).unwrap();
+        decide.arg("--test-noise-floor").arg(&floor);
+    }
+    let result = decide.output().unwrap();
     // Keep-python is exit 1; a refusal (exit 2) would mean no verdict.
     assert_eq!(result.status.code(), Some(1), "{result:?}");
     (verified, read(&out))
@@ -475,7 +497,7 @@ fn holds_for(verdict: &Value, reason: &str) {
 fn planted_slow_cpu_candidate_passes_verify_and_decide_holds_it() {
     let once = oracle_line();
     let body = format!("set -e\n{once}\n{once} >/dev/null\n{once} >/dev/null");
-    let (verify, verdict) = planted(&body);
+    let (verify, verdict) = planted(&body, false);
     assert_eq!(verify["passed"], true, "{verify}");
     holds_for(&verdict, "cpu-regressed");
 }
@@ -487,14 +509,14 @@ fn planted_big_memory_candidate_passes_verify_and_decide_holds_it() {
         python().display(),
         oracle_line()
     );
-    let (verify, verdict) = planted(&body);
+    let (verify, verdict) = planted(&body, false);
     assert_eq!(verify["passed"], true, "{verify}");
     holds_for(&verdict, "rss-regressed");
 }
 
 #[test]
 fn equal_cost_candidate_has_no_resource_reason() {
-    let (verify, verdict) = planted(&format!("exec {}", oracle_line()));
+    let (verify, verdict) = planted(&format!("exec {}", oracle_line()), true);
     assert_eq!(verify["passed"], true, "{verify}");
     // Only the test-flag sample-size reasons hold it; the self-test proves
     // that an equal-cost candidate activates on 30 samples.

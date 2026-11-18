@@ -296,7 +296,14 @@ pub mod controls {
     }
 
     fn real(base: &Value, verify: &Value, measure: &Value) -> Value {
-        verdict("rust-03", base, verify, measure, None).expect("synthetic records are valid")
+        // A fixed zero floor keeps the 1.10 ratio, so a registered noise
+        // floor for rust-03 cannot change what these controls prove.
+        let floor = json!({
+            "cpu_floor_us": 0, "cpu_absolute_us": 0,
+            "rss_floor_bytes": 0, "rss_absolute_bytes": 0,
+        });
+        verdict("rust-03", base, verify, measure, Some(&floor))
+            .expect("synthetic records are valid")
     }
 
     fn base() -> Value {
@@ -376,6 +383,16 @@ pub mod controls {
         #[should_panic(expected = "planted cpu-regressed accepted")]
         fn slow_cpu_control_fails_an_accepting_harness() {
             slow_cpu_holds(always_activate);
+        }
+
+        fn always_hold(_: &Value, _: &Value, _: &Value) -> Value {
+            json!({"decision": "keep-python", "reasons": ["cpu-regressed"]})
+        }
+
+        #[test]
+        #[should_panic(expected = "equal cost held")]
+        fn equal_cost_control_fails_a_holding_harness() {
+            equal_cost_activates(always_hold);
         }
 
         #[test]
