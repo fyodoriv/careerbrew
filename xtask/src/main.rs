@@ -21,7 +21,9 @@ use std::process::ExitCode;
 fn main() -> ExitCode {
     let args = std::env::args_os().skip(1).collect::<Vec<_>>();
     if args == ["migration", "self-test"] {
-        let passed = baseline_verdict::controls::run() + trial_plan::controls::run();
+        let passed = baseline_verdict::controls::run()
+            + trial_plan::controls::run()
+            + decide::controls::run();
         println!("migration self-test: {passed} controls passed");
         return ExitCode::SUCCESS;
     }

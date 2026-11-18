@@ -432,9 +432,8 @@ fn planted(body: &str) -> (Value, Value) {
         .unwrap();
     // Keep-python is exit 1; a refusal (exit 2) would mean no verdict.
     assert_eq!(result.status.code(), Some(1), "{result:?}");
-    let read = |path: &Path| -> Value {
-        serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
-    };
+    let read =
+        |path: &Path| -> Value { serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap() };
     (read(&verify), read(&out))
 }
 

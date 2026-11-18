@@ -277,3 +277,111 @@ pub fn run(
     crate::capture_actions::write_receipt(&record, output)?;
     Ok(record)
 }
+
+/// Planted slow-path controls for `migration self-test`, on synthetic
+/// records of 30 samples and pairs: a 3x CPU and a 2x RSS candidate must
+/// hold, an equal-cost one must activate. Each control takes the harness
+/// under test, so a harness that accepts a slow path fails its control.
+pub mod controls {
+    use super::*;
+
+    pub type Harness = fn(&Value, &Value, &Value) -> Value;
+
+    pub fn run() -> usize {
+        let cases: [fn(Harness); 3] = [slow_cpu_holds, big_rss_holds, equal_cost_activates];
+        for case in cases {
+            case(real);
+        }
+        cases.len()
+    }
+
+    fn real(base: &Value, verify: &Value, measure: &Value) -> Value {
+        verdict("rust-03", base, verify, measure, None).expect("synthetic records are valid")
+    }
+
+    fn base() -> Value {
+        let samples: Vec<Value> = (1..=30)
+            .map(
+                |run| json!({"run": run, "tree_cpu_us": 100_000, "tree_max_rss_bytes": 50_000_000}),
+            )
+            .collect();
+        json!({
+            "schema": baseline::SCHEMA, "step": "rust-03", "os": "linux",
+            "runs": 30, "meets_protocol_minimum": true, "source_tree_dirty": false,
+            "cache_state": baseline::CACHE_STATE, "samples": samples,
+            "summary": {"cpu_us_p95": 100_000},
+        })
+    }
+
+    fn verify() -> Value {
+        let violations: serde_json::Map<String, Value> = VIOLATIONS
+            .iter()
+            .map(|name| ((*name).to_string(), json!(0)))
+            .collect();
+        json!({
+            "schema": VERIFY_SCHEMA, "step": "rust-03",
+            "checks": [{"id": "actions-json", "passed": true}],
+            "violations": violations,
+        })
+    }
+
+    fn measure(cpu: u64, rss: u64) -> Value {
+        let regime = |state: &str| {
+            json!({
+                "cache_state": state, "pair_ids": (1..=30).collect::<Vec<u64>>(), "cached": 0,
+                "candidate_cpu_us": vec![cpu; 30], "candidate_tree_max_rss_bytes": vec![rss; 30],
+            })
+        };
+        json!({"schema": MEASURE_SCHEMA, "step": "rust-03", "os": "linux",
+               "regimes": [regime("cold"), regime("warm")]})
+    }
+
+    fn holds(record: &Value, reason: &str) {
+        assert_eq!(
+            record["decision"], "keep-python",
+            "planted {reason} accepted"
+        );
+        assert_eq!(record["reasons"], json!([reason]), "planted {reason}");
+    }
+
+    pub fn slow_cpu_holds(harness: Harness) {
+        let record = harness(&base(), &verify(), &measure(300_000, 50_000_000));
+        holds(&record, "cpu-regressed");
+    }
+
+    pub fn big_rss_holds(harness: Harness) {
+        let record = harness(&base(), &verify(), &measure(100_000, 100_000_000));
+        holds(&record, "rss-regressed");
+    }
+
+    pub fn equal_cost_activates(harness: Harness) {
+        let record = harness(&base(), &verify(), &measure(100_000, 50_000_000));
+        assert_eq!(record["decision"], "activate", "equal cost held: {record}");
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        fn always_activate(_: &Value, _: &Value, _: &Value) -> Value {
+            json!({"decision": "activate", "reasons": []})
+        }
+
+        #[test]
+        fn controls_pass_on_the_real_harness() {
+            assert_eq!(run(), 3);
+        }
+
+        #[test]
+        #[should_panic(expected = "planted cpu-regressed accepted")]
+        fn slow_cpu_control_fails_an_accepting_harness() {
+            slow_cpu_holds(always_activate);
+        }
+
+        #[test]
+        #[should_panic(expected = "planted rss-regressed accepted")]
+        fn big_rss_control_fails_an_accepting_harness() {
+            big_rss_holds(always_activate);
+        }
+    }
+}

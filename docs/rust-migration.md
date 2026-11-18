@@ -462,7 +462,7 @@ Every step below shares these rules. They are not repeated in each step.
   `cargo xtask migration self-test` and `cargo xtask migration inventory --check`
   pass. The common parity, resource and privacy gates also apply.
 - **Measurement now:** `cargo run -q --locked --offline -p careerbrew-xtask -- migration self-test`
-  (14 harness controls today, exit 0) and
+  (17 harness controls today, exit 0) and
   `cargo run -q --locked --offline -p careerbrew-xtask -- migration inventory --check`
   (0 unassigned paths). Run both under `heavy-run`. The `baseline`, `verify`,
   `measure` and `decide` commands replace them when they exist.
@@ -1108,7 +1108,7 @@ The tool has no `--help`. A wrong argument prints the usage and exits 2.
 
 | Command | What it does |
 | --- | --- |
-| `cargo xtask migration self-test` | runs the 8 paired-verdict controls and the 6 trial-planner controls, all on synthetic data |
+| `cargo xtask migration self-test` | runs the 8 paired-verdict controls, the 6 trial-planner controls and the 3 planted slow-path decide controls, all on synthetic data |
 | `cargo xtask migration inventory --check` | checks that every tracked direct code path in the staged Git index has exactly one row in the [code inventory](plans/2026-11-01-rust-code-inventory.csv), then runs the `--sites-check` below |
 | `cargo xtask migration inventory --sites-check` | discovers embedded code and generated entry points in the staged Git index and checks each against the [embedded sites](plans/2026-11-17-rust-embedded-sites.csv); an unassigned site, a row whose site is gone, a repeated row or a bad task is refused |
 | `cargo xtask migration inventory --sites-list` | prints every discovered site as a `kind,path,key,task` manifest row; a new site has an empty task to fill in |
@@ -1169,6 +1169,7 @@ draft pull request are not on the public repository.
 | Workspace, toolchain pin, `cargo xtask` alias | in place | `cargo xtask migration self-test` |
 | Paired verdict (`baseline_verdict.rs`) | 8 of 8 synthetic controls pass; an empty check suite is refused | `cargo xtask migration self-test` |
 | Trial planner (`trial_plan.rs`) | 6 of 6 controls pass | `cargo xtask migration self-test` |
+| Planted slow path (`decide::controls`) | 3 of 3 self-test controls (3x CPU holds with `cpu-regressed`, 2x RSS holds with `rss-regressed`, equal cost activates); each slow control fails an always-activate harness; 3 end-to-end controls on real `rust-03` records (slow CPU and 512 MiB candidates pass `verify`, and `decide` holds them; an equal-cost candidate gets no resource reason). See "Planted slow-path controls" | `cargo xtask migration self-test`; `cargo test -p careerbrew-xtask --test measure --test decide` |
 | Direct-path inventory | 0 unassigned tracked direct paths; 4 negative controls (removed, duplicated, untracked row, broken CSV field) refused; runs in the normal gate | `cargo xtask migration inventory --check` |
 | Embedded anchors | the reviewed sites match staged source; a missing or repeated anchor is refused | `cargo xtask migration inventory --embedded-check` |
 | Embedded sites and entry points | 188 discovered sites assigned (123 embedded lines, 25 agent skills, 17 workflow runs, 8 npm scripts, 6 agent commands, 4 lefthook runs, 3 git hooks, 1 agent hook, 1 console script); 13 controls (each kind found and prose skipped, full pass, unassigned planted site, removed site, duplicate row and bad task, unlisted real interpreter forms, tool flags skipped, a repeated identical line, YAML run blocks, skill directories and flow lists, malformed entry-point files, non-UTF-8 files, list rows as manifest rows) in `xtask/src/sites_tests.rs`; runs in the normal gate inside `inventory --check` | `cargo xtask migration inventory --sites-check` |
@@ -1461,7 +1462,9 @@ Jia and Harman 2011 (planted faults prove a check can fail).
    real `rust-03` floors from hosted baselines (task
    `rust-00-measure-noise-floors`), and rules for the HTTP and data
    contracts when `verify` covers them.
-5. Add the planted slow-path control and prove the decide step holds it.
+5. Done: the planted slow-path controls ("Planted slow-path controls").
+   `decide` holds a 3x CPU and a 512 MiB candidate that pass `verify`; the
+   self-test runs 17 controls.
 6. The inventory covers embedded code and generated entry points
    (`inventory --sites-check`, run by `inventory --check`). Next: process
    observation of what a run really starts.
