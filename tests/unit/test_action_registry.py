@@ -127,9 +127,7 @@ def test_a_regeneration_keeps_a_native_route(tmp_path, monkeypatch):
     assert (tmp_path / "registry.json").read_text(encoding="utf-8") == actions.REGISTRY.read_text(encoding="utf-8")
 
 
-def test_a_missing_registry_fails_with_the_fix(tmp_path, monkeypatch):
-    import pytest
-
+def test_a_missing_registry_walks_the_parser(tmp_path, monkeypatch):
+    # A copy of src/ alone (the Rust capture tests make one) has no registry file.
     monkeypatch.setattr(actions, "REGISTRY", tmp_path / "missing.json")
-    with pytest.raises(actions.ActionError, match="gen-registry.py"):
-        actions.catalog()
+    assert actions.catalog() == actions.catalog_from_parser()

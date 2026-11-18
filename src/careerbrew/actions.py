@@ -192,15 +192,19 @@ def _arg(a: argparse.Action) -> dict[str, Any] | None:
 # below, and tests/unit/test_action_registry.py fails when it drifts. `careerbrew actions`, the web
 # app's Actions view, and the native pilot binary all read this one file.
 REGISTRY = Path(__file__).resolve().parents[2] / "crates" / "cbcli" / "registry" / "registry.json"
-REGEN = "uv run python scripts/gen-registry.py"
 
 
 def catalog() -> list[dict[str, Any]]:
-    """Every action, read from the generated registry (no parser build)."""
+    """Every action, read from the generated registry (no parser build).
+
+    A tree without the registry file (a copy of `src/` alone, as the Rust capture tests make)
+    walks the parser instead: the same rows, by the parity test. The `registry` gate step fails
+    when the committed file is missing or stale, so the repo never ships without it.
+    """
     try:
         text = REGISTRY.read_text(encoding="utf-8")
     except FileNotFoundError:
-        raise ActionError(f"the action registry is missing ({REGISTRY}); fix: {REGEN}") from None
+        return catalog_from_parser()
     return json.loads(text)["rows"]
 
 
