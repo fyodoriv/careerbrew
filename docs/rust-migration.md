@@ -551,6 +551,26 @@ tags other than `!!str`; `.nan` (its sign bit differs by CPU in PyYAML); and
 writing YAML for a string that looks like a date or `1_000`, or a datetime
 (the `yaml-rust2` emitter does not quote these).
 
+**Set `runtime` (38 vectors):** `http-fixture-path` (the
+`connectors._fixture_path` key: netloc as written, path runs outside
+`[A-Za-z0-9_.-]` made one `_`, `root` for no path, query and fragment
+dropped), `http-fixture-read` (the file `connectors.http_get` reads from
+synthetic fixtures: `.json`, then `.xml`, `.html`, `.csv`; no match is an
+error), `lock-probe` (flock exclusion across processes and languages: a Rust
+`File::lock` holder against a Python `fcntl.flock` peer process, and a
+Python holder against a Rust probe; exclusive and shared modes, and a
+released lock) and `run-limited` (the `exercises._limits` CPU and memory
+limits and the `exercises._child` wall timeout and outcome rules, on fixed
+`/bin/sh` programs: ok, exit 3, a CPU spin, a sleep). The lock peer on the
+Rust side is `.venv/bin/python` under the repo root (verify runs the
+candidate there), or `CAREERBREW_DEPVEC_PYTHON`.
+
+Known gaps for `runtime`: hosts with capitals and URLs with non-ASCII or
+space characters in the path (`http::Uri` refuses some that `urlsplit`
+accepts); `fcntl.lockf` and `fcntl.LOCK_UN` from another process; process
+groups (neither side kills grandchildren); no real network request, so no
+HTTP client crate is pinned yet.
+
 #### rust-01 dependency decisions
 
 | Need | Crate | Version | Licence | Decision | Evidence |
@@ -560,6 +580,14 @@ writing YAML for a string that looks like a date or `1_000`, or a datetime
 | YAML read and write | `serde_yaml` | 0.9.34 | MIT OR Apache-2.0 | rejected | archived and unmaintained since 2024 |
 | YAML read and write | `serde_norway`, `serde_yaml_ng` | 0.9.42, 0.10.0 | MIT OR Apache-2.0 | rejected | serde forks of `serde_yaml`: their values do not keep the scalar style, so a quoted `'yes'` and a plain `yes` look the same and YAML 1.1 reads cannot match PyYAML |
 | YAML read and write | `serde-saphyr` | 2.2.0 | MIT OR Apache-2.0 | not chosen yet | active, but its newest release is days old; look again if `yaml-rust2` falls behind |
+| HTTP fixture URL split | `http` (`http::Uri`) | 1.5.0 | MIT OR Apache-2.0 | kept | keeps the authority as written, like `urlsplit().netloc`, and drops the fragment; pulls only `bytes` (MIT OR Apache-2.0); `http-fixture-path` and `http-fixture-read` vectors |
+| HTTP fixture URL split | `url` | 2.5.8 | MIT OR Apache-2.0 | rejected | lowercases hosts, drops default ports and percent-encodes paths, so the fixture key differs from `urlsplit`; pulls about 40 ICU crates (Unicode-3.0) |
+| HTTP client | `ureq` | none | MIT OR Apache-2.0 | deferred | no vector makes a network request yet; picked and pinned in the step that first sends one |
+| File locks | `std::fs::File::lock` | Rust 1.100.0 | MIT OR Apache-2.0 | kept | standard library since Rust 1.89; flock on Unix, the same lock as Python `fcntl.flock`; `lock-probe` vectors cross both directions |
+| File locks | `fs4`, `fd-lock` | latest | MIT OR Apache-2.0 | rejected | the standard library now gives the same flock lock with no extra crate |
+| Subprocess CPU and memory limits | `rlimit` | 0.11.0 | MIT | kept | maintained `setrlimit` wrapper over `libc` (already in the lock file), called in `pre_exec` like `exercises._limits`; `run-limited` vectors |
+| Subprocess wall timeout | `wait-timeout` | 0.2.1 | MIT | kept | small, stable, widely used; kill and reap on timeout like `subprocess.run(timeout=)`; `run-limited` vectors |
+| Subprocess limits | `process_control` | latest | MIT OR Apache-2.0 | rejected | has wall and memory limits but no CPU-time limit |
 
 ### rust-02: Port pure setting schemas, paths, clocks and hashes
 
@@ -1154,7 +1182,7 @@ is `rust-01`.
 | --- | --- | --- | --- |
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
 | `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
-| `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`json-yaml` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
+| `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`json-yaml` and `runtime` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
 | `experiments/hash/` | `careerbrew-hash-experiment` | the pure `changes._h` hash for a supported synthetic JSON subset. It refuses values outside that subset. | none: component parity only |
 
 - No crate ships: `scripts/rust-shipped-crates.txt` is empty. A crate whose

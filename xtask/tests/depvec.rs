@@ -47,10 +47,15 @@ fn read(out: &Path) -> serde_json::Value {
 }
 
 fn vector_count() -> usize {
-    let text =
-        std::fs::read_to_string(root().join("xtask/tests/fixtures/depvec/json-yaml.json")).unwrap();
-    let fixture: serde_json::Value = serde_json::from_str(&text).unwrap();
-    fixture["vectors"].as_array().unwrap().len()
+    ["json-yaml", "runtime"]
+        .iter()
+        .map(|set| {
+            let file = format!("xtask/tests/fixtures/depvec/{set}.json");
+            let text = std::fs::read_to_string(root().join(file)).unwrap();
+            let fixture: serde_json::Value = serde_json::from_str(&text).unwrap();
+            fixture["vectors"].as_array().unwrap().len()
+        })
+        .sum()
 }
 
 #[test]
@@ -67,7 +72,10 @@ fn the_rust_candidate_agrees_with_python_on_every_vector() {
     assert_eq!(record["step"], "rust-01");
     assert_eq!(record["passed"], true);
     assert_eq!(record["case_count"], vector_count());
-    assert_eq!(record["vector_sets"], serde_json::json!(["json-yaml"]));
+    assert_eq!(
+        record["vector_sets"],
+        serde_json::json!(["json-yaml", "runtime"])
+    );
     assert_eq!(record["violations"]["contract"], 0);
 }
 
@@ -85,6 +93,21 @@ fn a_planted_wrong_vector_fails_its_case() {
         serde_json::json!(["json-yaml:json-read-object-order"])
     );
     assert_eq!(record["violations"]["contract"], 1);
+}
+
+#[test]
+fn a_planted_wrong_runtime_vector_fails_its_case() {
+    let scratch = tempfile::tempdir().unwrap();
+    let out = scratch.path().join("verify.json");
+    let run = verify(&depvec(), &out, &["--test-wrong-vector", "runtime"]);
+    assert_eq!(run.status.code(), Some(1));
+    let record = read(&out);
+    assert_eq!(record["passed"], false);
+    assert_eq!(record["planted_wrong_vector"], "runtime");
+    assert_eq!(
+        record["failed_cases"],
+        serde_json::json!(["runtime:path-api-repo"])
+    );
 }
 
 #[test]
