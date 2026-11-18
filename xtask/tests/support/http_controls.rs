@@ -214,6 +214,12 @@ pub fn rejects_real_served_source_change() {
     for name in ["pyproject.toml", "uv.lock", "Cargo.lock"] {
         std::fs::copy(root().join(name), shadow.join(name)).unwrap();
     }
+    std::fs::create_dir_all(shadow.join("crates/cbcli/registry")).unwrap();
+    std::fs::copy(
+        root().join("crates/cbcli/registry/registry.json"),
+        shadow.join("crates/cbcli/registry/registry.json"),
+    )
+    .unwrap();
     std::fs::create_dir_all(shadow.join("docs/plans")).unwrap();
     std::fs::copy(
         root().join("docs/plans/2026-11-08-promise-action-delta.json"),
