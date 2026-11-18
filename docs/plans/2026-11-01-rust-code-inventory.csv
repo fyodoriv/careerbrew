@@ -943,7 +943,7 @@ crates/depvec/tests/cli.rs,keep-native,rust-00,rust-01 dependency vector binary 
 xtask/src/depvec.rs,keep-native,rust-00,rust-01 dependency vector verify with planted wrong-vector controls
 xtask/tests/depvec.rs,keep-native,rust-00,rust-01 verify controls against the Python vector oracle with a planted wrong vector
 xtask/tests/fixtures/depvec/driver.py,port,rust-27,Retire the rust-01 Python dependency vector oracle with the Python migration oracle
-crates/purevec/src/lib.rs,keep-native,rust-00,rust-02 pure value vector registry and runner (no sets yet)
+crates/purevec/src/lib.rs,keep-native,rust-00,rust-02 pure value vector registry and runner
 crates/purevec/src/main.rs,keep-native,rust-00,rust-02 pure value vector candidate binary for migration verify and measure
 crates/purevec/src/settings.rs,keep-native,rust-00,rust-02 settings vector set: config validators DEFAULTS and pure precedence
 crates/purevec/tests/cli.rs,keep-native,rust-00,rust-02 pure value vector binary controls

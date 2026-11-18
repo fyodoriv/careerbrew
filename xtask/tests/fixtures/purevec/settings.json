@@ -2437,6 +2437,30 @@
           ]
         }
       }
+    },
+    {
+      "id": "int-arabic-letter-mark",
+      "op": "set",
+      "input": {
+        "key": "serve_port",
+        "raw": "؜1"
+      }
+    },
+    {
+      "id": "tools-unassigned-src",
+      "op": "set",
+      "input": {
+        "key": "feed_tool_sources",
+        "raw": "a=͸b"
+      }
+    },
+    {
+      "id": "int-astral-private-use",
+      "op": "set",
+      "input": {
+        "key": "serve_port",
+        "raw": "󰀀"
+      }
     }
   ]
 }

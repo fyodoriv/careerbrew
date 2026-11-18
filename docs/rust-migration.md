@@ -740,7 +740,7 @@ contracts do not apply: the vectors make no writes and use no roles.
   `baseline` (its source hash changes). The verdict is component parity
   only; it is not a user-facing speed claim.
 
-Set `settings` (`crates/purevec/src/settings.rs`, 187 vectors): the pure
+Set `settings` (`crates/purevec/src/settings.rs`, 190 vectors): the pure
 value logic of `config.py` over an in-memory settings map. Ops: `set` (the
 `set_value` validators, the `unknown setting ...; known: ...` KeyError text
 and the `<key>: <message>` re-raise, and the written map), `effective`
@@ -765,13 +765,10 @@ vector touches a home. Known gaps:
   the workday validators need `rust-07` or later.
 - The settings file read and write (`_file`, `store.write_yaml`) and the
   `config.set` event are `rust-05`.
-- Python `repr()` in error texts: the candidate escapes ASCII and C1
-  controls, Unicode spaces and a few format characters; other non-printable
-  code points (unassigned, private use, other format characters) are not
-  matched.
 - `int()` over 4,300 digits raises Python's digit-limit error; the
   candidate gives the range error.
-- The digit table is Unicode 15.0.0, the oracle Python's version.
+- The digit table and the `repr()` non-printable table are Unicode
+  15.0.0, the oracle Python's version.
 
 ### rust-03: Introduce the native CLI and one read-only pilot
 
