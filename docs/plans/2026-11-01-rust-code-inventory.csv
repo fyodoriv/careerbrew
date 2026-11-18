@@ -936,6 +936,7 @@ crates/depvec/src/canon.rs,keep-native,rust-00,rust-01 typed value form shared b
 crates/depvec/src/calendar.rs,keep-native,rust-00,rust-01 calendar vector set with icalendar rrule and chrono-tz
 crates/depvec/src/json_yaml.rs,keep-native,rust-00,rust-01 JSON and YAML vector set with serde_json and yaml-rust2
 crates/depvec/src/code_parse.rs,keep-native,rust-00,rust-01 teaching example parse vector set with ruff_python_parser and oxc
+crates/depvec/src/fernet.rs,keep-native,rust-00,rust-01 Fernet vector set with the fernet crate through the careerbrew-vault codec
 crates/depvec/tests/cli.rs,keep-native,rust-00,rust-01 dependency vector binary controls
 xtask/src/depvec.rs,keep-native,rust-00,rust-01 dependency vector verify with planted wrong-vector controls
 xtask/tests/depvec.rs,keep-native,rust-00,rust-01 verify controls against the Python vector oracle with a planted wrong vector

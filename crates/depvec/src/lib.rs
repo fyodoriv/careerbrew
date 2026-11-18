@@ -9,6 +9,7 @@
 pub mod calendar;
 pub mod canon;
 pub mod code_parse;
+pub mod fernet;
 pub mod json_yaml;
 
 use serde_json::{json, Value};
@@ -22,6 +23,7 @@ pub const SETS: &[(&str, Run)] = &[
     ("json-yaml", json_yaml::run),
     ("code-parse", code_parse::run),
 ];
+pub const SETS: &[(&str, Run)] = &[("fernet", fernet::run), ("json-yaml", json_yaml::run)];
 
 /// Runs every vector of a fixture. A vector that fails gives `{"error":
 /// true}`; the reason stays out of the output, since only the outcome is

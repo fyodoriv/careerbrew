@@ -19,3 +19,6 @@ oxc_semantic = "=0.159.0"
 oxc_span = "=0.159.0"
 ruff_python_ast = "=0.0.22"
 ruff_python_parser = "=0.0.22"
+careerbrew-vault = { path = "../vault" }
+fernet = { version = "=0.2.2", default-features = false, features = ["rustcrypto", "fernet_danger_timestamps"] }
+base64 = "=0.22.1"
