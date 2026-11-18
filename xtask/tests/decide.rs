@@ -31,6 +31,7 @@ fn verify() -> Value {
             "contract": 0, "privacy": 0, "authorization": 0, "role": 0,
             "side_effect": 0, "missing_writes": 0, "duplicate_writes": 0,
         },
+        "unobserved_violations": [],
     })
 }
 
@@ -161,6 +162,16 @@ fn each_keep_reason_has_a_control() {
     dirty["source_tree_dirty"] = json!(true);
     keeps_with(dirty, verify(), measure(1000), "baseline-dirty-tree");
 
+    // A violation kind verify could not observe never counts as zero.
+    let mut unobserved = verify();
+    unobserved["unobserved_violations"] = json!(["duplicate_writes"]);
+    keeps_with(
+        baseline(),
+        unobserved,
+        measure(1000),
+        "verify-violation-unobserved",
+    );
+
     for state in ["cold", "warm"] {
         let mut one = measure(1000);
         one["regimes"]
@@ -264,6 +275,16 @@ fn malformed_input_is_refused_without_a_verdict() {
         {
             let mut wrong = verify();
             wrong["checks"] = json!([]);
+            (baseline(), wrong, measure(1000))
+        },
+        {
+            let mut wrong = verify();
+            wrong.as_object_mut().unwrap().remove("unobserved_violations");
+            (baseline(), wrong, measure(1000))
+        },
+        {
+            let mut wrong = verify();
+            wrong["unobserved_violations"] = json!(["not-a-kind"]);
             (baseline(), wrong, measure(1000))
         },
     ];
