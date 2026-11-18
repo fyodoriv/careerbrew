@@ -261,7 +261,7 @@ fn main() -> ExitCode {
     eprintln!("       cargo xtask migration inventory --check");
     eprintln!("       cargo xtask migration inventory --embedded-check");
     eprintln!("       cargo xtask migration baseline --step <id> --python <absolute-path> --out <new-file> [--runs <n>] [--test-allow-few-runs]");
-    eprintln!("       cargo xtask migration measure --step <id> --out <new-file> [--runs <n>] [--test-allow-few-runs] [--test-candidate <absolute-path>]");
+    eprintln!("       cargo xtask migration measure --step <id> --python <absolute-path> --out <new-file> [--pairs <n>] [--test-allow-few-pairs] [--test-candidate <absolute-path>]");
     eprintln!("       cargo xtask migration decide --step <id> --baseline <file> --verify <file> --measure <file> --out <new-file> [--test-noise-floor <absolute-file>]");
     eprintln!("       cargo xtask migration noise-floor --baseline <absolute-file>");
     eprintln!("       cargo xtask migration verify --step <id> --python <absolute-path> --out <new-file> [--test-candidate <absolute-path>] [--test-oracle <absolute-path>]");
@@ -426,14 +426,15 @@ fn decide_command(rest: &[std::ffi::OsString]) -> ExitCode {
     }
 }
 
-/// `migration measure --step <id> --out <new-file> [--runs <n>]`.
+/// `migration measure --step <id> --python <path> --out <new-file> [--pairs <n>]`.
 fn measure_command(rest: &[std::ffi::OsString]) -> ExitCode {
-    let (mut step, mut output, mut runs, mut candidate) = (None, None, None, None);
-    // Test-only: allow fewer runs than the protocol minimum.
-    let allow_few_runs = rest.iter().any(|arg| arg == "--test-allow-few-runs");
+    let (mut step, mut python, mut output, mut pairs, mut candidate) =
+        (None, None, None, None, None);
+    // Test-only: allow fewer pairs than the protocol minimum.
+    let allow_few_pairs = rest.iter().any(|arg| arg == "--test-allow-few-pairs");
     let rest = rest
         .iter()
-        .filter(|arg| *arg != "--test-allow-few-runs")
+        .filter(|arg| *arg != "--test-allow-few-pairs")
         .cloned()
         .collect::<Vec<_>>();
     for pair in rest.chunks(2) {
@@ -443,12 +444,13 @@ fn measure_command(rest: &[std::ffi::OsString]) -> ExitCode {
         };
         let slot = match flag.to_str() {
             Some("--step") => &mut step,
+            Some("--python") => &mut python,
             Some("--out") => &mut output,
-            Some("--runs") => &mut runs,
+            Some("--pairs") => &mut pairs,
             // Test-only: measure this executable instead of the registered candidate.
             Some("--test-candidate") => &mut candidate,
-            Some("--pairs") => {
-                eprintln!("migration measure: --pairs is not built yet; this interim sampler takes --runs");
+            Some("--runs") => {
+                eprintln!("migration measure: --runs is replaced by --pairs");
                 return ExitCode::from(2);
             }
             _ => {
@@ -461,15 +463,15 @@ fn measure_command(rest: &[std::ffi::OsString]) -> ExitCode {
             return ExitCode::from(2);
         }
     }
-    let (Some(step), Some(output)) = (step, output) else {
-        eprintln!("migration measure: --step and --out are required");
+    let (Some(step), Some(python), Some(output)) = (step, python, output) else {
+        eprintln!("migration measure: --step, --python and --out are required");
         return ExitCode::from(2);
     };
-    let runs = match runs.map(|value| value.to_string_lossy().parse::<usize>()) {
-        None => baseline::DEFAULT_RUNS,
-        Some(Ok(runs)) => runs,
+    let pairs = match pairs.map(|value| value.to_string_lossy().parse::<usize>()) {
+        None => measure::DEFAULT_PAIRS,
+        Some(Ok(pairs)) => pairs,
         Some(Err(_)) => {
-            eprintln!("migration measure: --runs must be a number");
+            eprintln!("migration measure: --pairs must be a number");
             return ExitCode::from(2);
         }
     };
@@ -483,23 +485,30 @@ fn measure_command(rest: &[std::ffi::OsString]) -> ExitCode {
     match measure::run(
         root,
         &step.to_string_lossy(),
+        std::path::Path::new(&python),
         &source,
-        runs,
-        allow_few_runs,
+        pairs,
+        allow_few_pairs,
         std::path::Path::new(&output),
     ) {
         Ok(record) => {
-            let summary = &record["summary"];
-            println!(
-                "migration measure: step={} os={} runs={} cpu_us_p50={} cpu_us_p95={} tree_max_rss_bytes_p50={} tree_max_rss_bytes_p95={}",
+            let mut line = format!(
+                "migration measure: step={} os={} pairs={}",
                 record["step"].as_str().unwrap_or(""),
                 record["os"].as_str().unwrap_or(""),
-                record["runs"],
-                summary["cpu_us_p50"],
-                summary["cpu_us_p95"],
-                summary["tree_max_rss_bytes_p50"],
-                summary["tree_max_rss_bytes_p95"],
+                record["pairs"],
             );
+            for regime in record["regimes"].as_array().into_iter().flatten() {
+                let state = regime["cache_state"].as_str().unwrap_or("");
+                for side in ["oracle", "candidate"] {
+                    let summary = &regime["summary"][side];
+                    line.push_str(&format!(
+                        " {state}_{side}_cpu_us_p95={} {state}_{side}_tree_max_rss_bytes_p95={}",
+                        summary["cpu_us_p95"], summary["tree_max_rss_bytes_p95"],
+                    ));
+                }
+            }
+            println!("{line}");
             ExitCode::SUCCESS
         }
         Err(reason) => {
