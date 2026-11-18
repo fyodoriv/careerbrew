@@ -927,6 +927,6 @@ xtask/tests/decide.rs,keep-native,rust-00,Decide controls: activation each keep 
 xtask/src/measure.rs,keep-native,rust-00,Rust candidate registry and paired cold and warm measure record
 xtask/tests/measure.rs,keep-native,rust-00,Paired measure positive control decide end to end and refusals
 xtask/src/verify.rs,keep-native,rust-00,Differential verify of a step Rust candidate against its Python oracle with a content-free record
-xtask/tests/verify.rs,keep-native,rust-00,Verify refusal without a candidate and identical different-output and nonzero candidate controls
+xtask/tests/verify.rs,keep-native,rust-00,Verify refusals and CLI HTTP and side-effect contract controls with planted defects
 xtask/src/noise_floor.rs,keep-native,rust-00,Noise floor registry per step and OS and the noise-floor measurement from a baseline record
 xtask/src/normalize.rs,keep-native,rust-00,Per-case verify normalization rules and the unregistered local path refusal
