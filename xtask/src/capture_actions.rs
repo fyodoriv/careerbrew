@@ -104,6 +104,8 @@ pub(crate) fn sources(root: &Path) -> Result<Value, String> {
         "xtask/tests/fixtures/capture/http-reference-rules-promise-v3.json",
         "xtask/tests/fixtures/capture/actions-reference-telemetry-v4.json",
         "xtask/tests/fixtures/capture/http-reference-telemetry-v4.json",
+        // rust-03: `careerbrew actions` and /api/actions read their rows from this file.
+        "crates/cbcli/registry/registry.json",
     ] {
         hashes.insert(
             name.to_owned(),

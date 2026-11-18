@@ -1937,7 +1937,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 
 - `src/careerbrew/` (2): `actions.py`, `agent_workflows.py`
 - CLI handlers it ports out of `cli.py` (1): `cmd_actions`
-- Generated files it adds (not code, so not in the inventory): `crates/cbcli/registry/registry.json`, `config/native-routes.txt`. Its generator `scripts/gen-registry.py` is owned by `rust-26`, which retires it.
+- Generated files it adds (not code, so not in the inventory): `crates/cbcli/registry/registry.json`, `config/native-routes.txt`. Its generator `scripts/gen-registry.py` is owned by `rust-26`, which retires it. The registry is a capture source input (`capture_actions::sources()`), so capture, baseline and measure records hash it; the source-copy probe count moved from 139 to 140.
 - Assertions it ports (1 test file, the files themselves are listed under `rust-27`): `test_every_action_has_an_e2e.py`
 
 #### rust-04: Port privacy, policy and approval enforcement (3 files)
