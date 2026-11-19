@@ -8,7 +8,7 @@ use std::process::{Command, Output};
 
 const BIN: &str = env!("CARGO_BIN_EXE_careerbrew-native");
 const REFERENCE: &str =
-    include_str!("../../../xtask/tests/fixtures/capture/actions-reference-telemetry-v4.json");
+    include_str!("../../../xtask/tests/fixtures/capture/actions-reference-indie-v5.json");
 const ROOT_USAGE_HEAD: &str =
     "usage: careerbrew [-h] [--no-watch] [--no-web] [--no-refresh] [--version]\n";
 
@@ -46,14 +46,14 @@ fn files(dir: &Path) -> Vec<String> {
 }
 
 #[test]
-fn actions_json_is_byte_equal_to_the_frozen_v4_reference() {
+fn actions_json_is_byte_equal_to_the_frozen_v5_reference() {
     let home = tempfile::tempdir().unwrap();
     let result = native(home.path(), &["actions", "--json"]);
     assert_eq!(result.status.code(), Some(0));
     assert!(result.stderr.is_empty());
     assert_eq!(text(&result.stdout), REFERENCE);
     let rows = parse(REFERENCE).unwrap();
-    assert_eq!(rows.as_array().unwrap().len(), 240);
+    assert_eq!(rows.as_array().unwrap().len(), 252);
     // Events off: nothing is written.
     assert!(files(home.path()).is_empty());
 }
@@ -91,7 +91,7 @@ fn the_text_listing_ends_with_the_count_line() {
     let out = text(&result.stdout);
     assert_eq!(out.lines().count(), 241);
     assert!(out.ends_with(
-        "\n240 action(s); the web app runs them in Actions; details: careerbrew actions --json\n"
+        "\n252 action(s); the web app runs them in Actions; details: careerbrew actions --json\n"
     ));
 }
 

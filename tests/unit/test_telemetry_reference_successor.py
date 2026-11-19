@@ -46,11 +46,3 @@ def test_http_successor_changes_only_the_two_catalog_answers():
             assert after == expected
         else:
             assert after == before
-
-
-def test_the_live_catalog_equals_the_telemetry_successor(tmp_path, monkeypatch):
-    from careerbrew import actions
-
-    monkeypatch.setenv("CAREERBREW_HOME", str(tmp_path))
-    live = json.loads(json.dumps(actions.catalog()))
-    assert live == json.loads((FIXTURES / "actions-reference-telemetry-v4.json").read_text())

@@ -24,7 +24,7 @@ import yaml
 from . import events, paths, plugins, store
 
 ROLES = ("personal", "corporate")
-PERSONAL_ONLY = ("jobs", "drill", "interview", "interview-patterns", "prep", "cards", "library", "import")
+PERSONAL_ONLY = ("jobs", "drill", "interview", "interview-patterns", "prep", "cards", "library", "import", "indie")
 
 
 class RoleError(PermissionError):

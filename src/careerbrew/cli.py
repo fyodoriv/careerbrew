@@ -3995,6 +3995,202 @@ def cmd_learn_tour_export(a: argparse.Namespace) -> int:
     return 0
 
 
+# ---------- independent mode (US-112) and peer improvement (US-113) ----------
+def cmd_indie(a: argparse.Namespace) -> int:
+    """`/indie`: the owner's own repos as income bets. Prints ids, counts and percentages; never an amount, never a hypothesis off the owner's terminal."""
+    from . import indie, report, runs
+
+    try:
+        return _indie(a, indie, report, runs)
+    except indie.IndieError as e:
+        say(f"error: {e} (breaks {indie.STORY})")
+        return 2
+
+
+def _indie(a: argparse.Namespace, indie: Any, report: Any, runs: Any) -> int:
+    sub = a.sub
+    if sub == "goal":
+        if a.monthly is not None:
+            indie.set_goal(a.monthly, a.by or "")
+        p = indie.progress()
+        if a.json:
+            print(json.dumps(p))
+        elif not p["set"]:
+            say("goal: not set. You type it (it stays encrypted, and is never printed): careerbrew indie goal --monthly <amount> --by YYYY-MM-DD")
+        else:
+            got = "no income recorded" if p["percent"] is None else f"{p['percent']}% of the target"
+            say(f"goal: set{' for ' + p['by'] if p['by'] else ''}; {p['month']}: {got} ({p['months_recorded']} month(s) recorded)")
+        return 0
+    if sub == "income":
+        if a.amount is not None:
+            if not a.month:
+                raise indie.IndieError("pass --month YYYY-MM with --amount")
+            indie.add_income(a.month, a.amount, a.bet or "")
+        p = indie.progress()
+        if a.json:
+            print(json.dumps(p))
+        else:
+            say(f"income: {p['months_recorded']} month(s) recorded; {p['month']}: {'no record' if p['percent'] is None else str(p['percent']) + '% of the target'}")
+        return 0
+    if sub == "scan":
+        got = indie.scan()
+        if a.json:
+            print(json.dumps(got))
+        else:
+            say(f"bets: {len(got['bets'])} ({len(got['added'])} new, {len(got['missing'])} with no folder)" + (f"; new: {', '.join(got['added'])}" if got["added"] else ""))
+        return 0
+    if sub == "bets":
+        rows = indie.readings()
+        out = [
+            {"bet": i, "state": b["state"], "kind": b.get("kind", ""), "lacks": indie.ready(b), "held": indie.held(i, b, rows), "metric_status": ([r["status"] for r in rows if r["bet"] == i] or ["no-data"])[-1]}
+            for i, b in sorted(indie.bets().items())
+        ]
+        if a.json:
+            print(json.dumps({"bets": out}))
+            return 0
+        for r in out:
+            say(f"  {r['bet']:<24} {r['state']:<9} {r['kind'] or '-':<10} {r['metric_status']:<8}" + (" HELD" if r["held"] else "") + (f"  lacks: {', '.join(r['lacks'])}" if r["lacks"] else ""))
+        say(f"bets: {len(out)}, {sum(r['state'] == 'active' for r in out)} active, {sum(r['state'] == 'proposed' for r in out)} waiting for a hypothesis")
+        return 0
+    if sub == "bet":
+        fields = {k: getattr(a, k) for k in ("kind", "hypothesis", "metric", "success", "pivot", "measure")}
+        if a.lower_is_better:
+            fields["higher_is_better"] = False
+        b = indie.set_bet(a.id, **fields) if any(v is not None for v in fields.values()) else indie.bet(a.id)
+        show = may_show_business()
+        out = {
+            "bet": a.id,
+            "state": b["state"],
+            "kind": b.get("kind", ""),
+            "lacks": indie.ready(b),
+            "success": b.get("success"),
+            "pivot": b.get("pivot"),
+            "higher_is_better": b.get("higher_is_better", True),
+            "has_measure": bool(b.get("measure")),
+        }
+        if show:
+            out |= {k: b.get(k, "") for k in ("hypothesis", "metric", "measure", "path")}
+        if a.json:
+            print(json.dumps(out))
+        else:
+            say(
+                f"bet {a.id}: {b['state']}, kind {b.get('kind') or '-'}"
+                + (f", lacks {', '.join(out['lacks'])}" if out["lacks"] else ", ready")
+                + (f"\n  hypothesis: {b.get('hypothesis', '')}\n  metric: {b.get('metric', '')} (success {b.get('success')}, pivot {b.get('pivot')})" if show else "")
+            )
+        return 0
+    if sub == "decide":
+        if not a.yes:
+            raise indie.IndieError(f"a decision on a bet is the owner's: add --yes after the owner says so (careerbrew indie decide {a.id} {a.decision} --yes)")
+        b = indie.decide(a.id, a.decision)
+        if b["state"] == "active":
+            from .work import projects
+
+            try:
+                projects.add(a.id)  # a session needs a project record
+            except projects.ProjectError:
+                pass  # it has one already
+        say(f"bet {a.id}: {b['state']}")
+        return 0
+    if sub == "measure":
+        r = indie.measure(a.id, a.value)
+        if a.json:
+            print(json.dumps(r))
+        else:
+            say(f"bet {a.id}: {r['status']} ({r['value']})" + ("; held until the owner decides" if indie.held(a.id, indie.bet(a.id)) else ""))
+        return 0
+    if sub == "review":
+        got = indie.review(a.weeks)
+        if a.json:
+            print(json.dumps(got))
+            return 0
+        step = run_say()
+        for w in got["weeks"]:
+            step(
+                f"  week to {w['week_ending']}: {w['outcomes']} outcome(s), {w['agent_hours'] if w['agent_hours'] is not None else 'no-data'} agent-hour(s), {w['hours_per_outcome'] if w['hours_per_outcome'] is not None else 'no-data'} h per outcome, {w['asks']} ask(s)"
+            )
+        if report.finish(runs.indie_review(got), say) is None:
+            say(f"indie review: {sum(w['outcomes'] for w in got['weeks'])} outcome(s) in {a.weeks} week(s)")
+        return 0
+    if sub == "run":
+        p = indie.plan()
+        if a.json:
+            print(json.dumps(p))
+            return 0
+        step = run_say()
+        for r in p["bets"]:
+            step(f"  {r['rank']}. {r['bet']:<24} {'SESSION' if r['slot'] else r['state']:<9} {r['reason']} -> {r['next']['do']}")
+        if report.finish(runs.indie_day(p), say) is None:
+            say(f"indie day {p['day']}: {len(p['sessions'])} session(s), {len(p['questions'])} question(s) for you, {p['coverage']['with_next_action']}/{p['coverage']['repos']} repos with a next action")
+        return 0
+    if sub == "end":
+        hours: dict[str, float] = {}
+        for item in a.hours or []:
+            name, _, val = item.partition("=")
+            try:
+                hours[name] = float(val)
+            except ValueError:
+                raise indie.IndieError("--hours looks like <bet>=<hours>, for example sidequest=1.5") from None
+        rows = indie.end(hours)
+        if a.json:
+            print(json.dumps({"days": rows}))
+        else:
+            say(f"indie day recorded: {len(rows)} bet(s), {round(sum(r['hours'] for r in rows), 2)} agent-hour(s), {sum(r['asks'] for r in rows)} ask(s); next: careerbrew indie review")
+        return 0
+    raise indie.IndieError("unknown indie command (careerbrew indie --help)")
+
+
+def cmd_peer(a: argparse.Namespace) -> int:
+    """How `/indie` and `/work` improve each other: what a side has not reviewed of its peer, and one trial at a time."""
+    from . import peers
+
+    try:
+        if a.sub == "status":
+            rows = [peers.status(s) for s in ([a.side] if a.side else ["indie", "work"])]
+            if a.json:
+                print(json.dumps({"sides": rows}))
+                return 0
+            for r in rows:
+                say(f"{r['side']} ({r['persona']})")
+                say(
+                    f"  from {r['peer']}: {len(r['unreviewed_lessons'])} lesson(s) to review, {len(r['peer_commits'])} source commit(s) since the last review; {r['adopted']} adopted, {r['declined']} declined; trial: {r['open_trial']['id'] if r['open_trial'] else 'none'}"
+                )
+                for line in r["next"]:
+                    say(f"  next: {line}")
+            return 0
+        if a.start:
+            if not a.side or not a.metric:
+                raise peers.PeerError("--start needs --side and --metric")
+            e = peers.start(a.side, a.start, a.metric, a.lesson or "")
+            say(
+                json.dumps(e)
+                if a.json
+                else f"trial {e['id']} started on {e['metric']} (baseline {e['baseline'] if e['baseline'] is not None else 'no-data'}); close it after {peers.MIN_DAYS} day(s) or more: careerbrew peer experiment --side {a.side} --close"
+            )
+            return 0
+        if a.close:
+            if not a.side:
+                raise peers.PeerError("--close needs --side")
+            e = peers.close(a.side)
+            if a.json:
+                say(json.dumps(e))
+            else:
+                say(f"trial {e['id']}: {e['verdict']} ({e['metric']}: {e['baseline']} -> {e['value']})")
+                say(f"  add to {peers.SIDES[a.side]['skill']}/LESSONS.md by pull request: {e['write']}" if e["write"] else "  nothing to keep: undo the change")
+            return 0
+        rows = [e for e in peers.experiments() if not a.side or e["side"] == a.side]
+        if a.json:
+            say(json.dumps({"experiments": rows}))
+            return 0
+        for e in rows:
+            say(f"  {e['id']:<12} {e['metric']:<20} {e['verdict'] or 'open':<8} {e['change']}")
+        say(f"trials: {len(rows)}, {sum(not e['closed'] for e in rows)} open, {sum(e['verdict'] == 'KEEP' for e in rows)} kept")
+        return 0
+    except peers.PeerError as e:
+        say(f"error: {e} (breaks {peers.STORY})")
+        return 2
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="careerbrew", description="Private, local-first career assistant for programmers. With no command: start everything (watcher, web app, refresh) and show what matters now.")
     p.set_defaults(fn=cmd_start, cmd="start")
@@ -4786,6 +4982,56 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("id")
     sp.add_argument("action", choices=["read", "accept", "dismiss", "snooze"])
     add(nt, "open", cmd_notify, "open a notification in the web app (marks it read; never prints the token); a pop-up click runs this").add_argument("id", nargs="?")
+
+    ind = sub.add_parser("indie", help="independent mode: your own repos as income bets; rank them, measure outcomes per agent-hour, review weekly (US-112)").add_subparsers(dest="sub", required=True)
+    sp = add(ind, "goal", cmd_indie, "your monthly independent-income target; prints progress as a percentage only, never the amount")
+    sp.add_argument("--monthly", type=float, help="the target per month (you type it; stored encrypted)")
+    sp.add_argument("--by", help="the date you want to reach it, YYYY-MM-DD")
+    sp.add_argument("--json", action="store_true")
+    sp = add(ind, "income", cmd_indie, "record a month's independent income (you type it); prints only the percentage of the target")
+    sp.add_argument("--month", help="YYYY-MM")
+    sp.add_argument("--amount", type=float)
+    sp.add_argument("--bet", help="the bet that earned it")
+    sp.add_argument("--json", action="store_true")
+    add(ind, "scan", cmd_indie, "find the repos under indie_roots; each new one becomes a proposed bet with no agent time").add_argument("--json", action="store_true")
+    add(ind, "bets", cmd_indie, "every bet: state, kind, what it lacks, its metric's last status").add_argument("--json", action="store_true")
+    sp = add(ind, "bet", cmd_indie, "show or fill in one bet: kind, hypothesis, metric, success and pivot lines, measure command")
+    sp.add_argument("id")
+    sp.add_argument("--kind", choices=["product", "sponsors", "audience", "consulting", "enabler"], help="how it leads to income (enabler: a tool that serves the other bets)")
+    sp.add_argument("--hypothesis", help="one line: who pays or follows, for what, and why")
+    sp.add_argument("--metric", help="the number that shows it (users, stars, revenue, replies)")
+    sp.add_argument("--success", type=float, help="at or past this, keep going")
+    sp.add_argument("--pivot", type=float, help="under this twice in a row, the bet is held until you decide")
+    sp.add_argument("--lower-is-better", dest="lower_is_better", action="store_true")
+    sp.add_argument("--measure", help="a command that prints the metric's value on its last line (run in the repo, no shell)")
+    sp.add_argument("--json", action="store_true")
+    sp = add(ind, "decide", cmd_indie, "the owner's call on a bet: activate, persevere, pause, pivot, or kill")
+    sp.add_argument("id")
+    sp.add_argument("decision", choices=["activate", "persevere", "pause", "pivot", "kill"])
+    sp.add_argument("--yes", action="store_true", help="the owner said so")
+    sp = add(ind, "measure", cmd_indie, "record one reading of a bet's metric (its measure command, or --value): KEEP, WATCH, or PIVOT")
+    sp.add_argument("id")
+    sp.add_argument("--value", type=float)
+    sp.add_argument("--json", action="store_true")
+    sp = add(ind, "review", cmd_indie, "per week: outcomes, agent-hours, hours per outcome, asks per outcome; each bet's status (numbers only)")
+    sp.add_argument("--weeks", type=int, default=4, choices=range(1, 27), metavar="1..26")
+    sp.add_argument("--json", action="store_true")
+    add(ind, "run", cmd_indie, "today's indie day: every bet ranked, who gets a session, each next action, the questions for you").add_argument("--json", action="store_true")
+    sp = add(ind, "end", cmd_indie, "end the indie day: record each bet's agent-hours and asks from its session")
+    sp.add_argument("--hours", action="append", metavar="BET=HOURS", help="override the clock for one bet (repeat)")
+    sp.add_argument("--json", action="store_true")
+
+    pe = sub.add_parser("peer", help="how /indie and /work improve each other: unreviewed peer lessons and source changes, one trial at a time (US-113)").add_subparsers(dest="sub", required=True)
+    sp = add(pe, "status", cmd_peer, "for each side: its peer's lessons with no verdict, peer source commits since its last review, both sides' numbers, what to do next")
+    sp.add_argument("--for", dest="side", choices=["indie", "work"])
+    sp.add_argument("--json", action="store_true")
+    sp = add(pe, "experiment", cmd_peer, "trial one process change on a side's own metric: --start, then --close after 3 days or more for KEEP, REVERT, or NEUTRAL; no flag lists trials")
+    sp.add_argument("--side", choices=["indie", "work"])
+    sp.add_argument("--start", metavar="CHANGE", help="one line: the change this side makes")
+    sp.add_argument("--metric", help="indie: hours_per_outcome, asks_per_outcome, outcomes_per_week; work: step_fail_rate, step_blocked_rate, step_minutes")
+    sp.add_argument("--lesson", help="the peer lesson this trial tries, like L-work-1")
+    sp.add_argument("--close", action="store_true")
+    sp.add_argument("--json", action="store_true")
 
     add(sub, "review", cmd_review, "measure outcomes; KEEP / WATCH / PIVOT").add_argument("--html", action="store_true")
 

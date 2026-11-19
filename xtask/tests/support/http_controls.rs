@@ -25,7 +25,7 @@ mod capture_http {
                 != HISTORICAL_REFERENCE.as_bytes()
             || shared::digest(HISTORICAL_REFERENCE.as_bytes()) != HISTORICAL_REFERENCE_SHA256
             || std::fs::read(
-                root.join("xtask/tests/fixtures/capture/http-reference-telemetry-v4.json"),
+                root.join("xtask/tests/fixtures/capture/http-reference-indie-v5.json"),
             )
             .unwrap()
                 != REFERENCE.as_bytes()
@@ -93,6 +93,8 @@ pub fn rejects_changed_reference_inputs_before_python() {
         "xtask/tests/fixtures/capture/http-reference-rules-promise-v3.json",
         "xtask/tests/fixtures/capture/actions-reference-telemetry-v4.json",
         "xtask/tests/fixtures/capture/http-reference-telemetry-v4.json",
+        "xtask/tests/fixtures/capture/actions-reference-indie-v5.json",
+        "xtask/tests/fixtures/capture/http-reference-indie-v5.json",
         "xtask/tests/fixtures/capture/actions-reference-v1.json",
         "xtask/tests/fixtures/capture/actions-reference-promise-v2.json",
         "xtask/tests/fixtures/capture/http-reference-v1.json",

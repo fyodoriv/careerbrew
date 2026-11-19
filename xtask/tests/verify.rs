@@ -763,7 +763,7 @@ fn a_planted_canary_leak_counts_once_in_the_case_that_leaked() {
 
 /// The frozen catalog the live `actions --json` oracle must print.
 fn reference() -> PathBuf {
-    root().join("xtask/tests/fixtures/capture/actions-reference-telemetry-v4.json")
+    root().join("xtask/tests/fixtures/capture/actions-reference-indie-v5.json")
 }
 
 #[test]

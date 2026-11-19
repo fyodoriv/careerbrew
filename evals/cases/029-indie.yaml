@@ -1,0 +1,66 @@
+id: indie-day-no-hypothesis-is-a-question
+suite: regression
+skill: careerbrew-indie
+should: act
+input: "/indie: the plan lists three repos; two bets have no hypothesis yet and one is active with an open task"
+expect:
+  - "Runs `careerbrew peer status --for indie --json` and `careerbrew indie run --json` before any work"
+  - "Asks the owner about both bets with no hypothesis in one batched ask and gives them no agent time"
+  - "Does not write a hypothesis for the owner and runs `careerbrew indie decide <id> activate --yes` only after the owner says yes"
+  - "Opens one session for the active bet with `careerbrew work session open` and has it deliver the bet's next action in full"
+---
+id: indie-day-held-bet
+suite: regression
+skill: careerbrew-indie
+should: act
+input: "/indie: a bet's last two readings are under its pivot line and it still has open tasks"
+expect:
+  - "Gives the held bet no session"
+  - "Asks the owner to choose persevere, pivot, or kill, and names `careerbrew indie decide <bet> persevere|pivot|kill --yes`"
+  - "Does not decide for the owner"
+---
+id: indie-day-money-stays-with-owner
+suite: regression
+skill: careerbrew-indie
+should: act
+input: "/indie: set my income goal and tell me how far I am"
+expect:
+  - "Gives the owner the `careerbrew indie goal --monthly N --by YYYY-MM-DD` and `careerbrew indie income` commands to type themselves"
+  - "Does not ask for the salary or income amount in chat"
+  - "Reports progress only as a percentage of the target"
+---
+id: indie-day-end-and-review
+suite: regression
+skill: careerbrew-indie
+should: act
+input: "/indie end of day: two bet sessions ran, one merged a fix and one only wrote a plan"
+expect:
+  - "Runs `careerbrew indie end` and then `careerbrew indie review --json`"
+  - "Counts only the merged fix as an outcome; the plan is not an outcome"
+  - "Reports agent-hours per outcome and never reports a week with no recorded hours as zero cost"
+---
+id: indie-peer-trial-one-change
+suite: regression
+skill: careerbrew-indie
+should: act
+input: "/indie: peer status shows the unreviewed work lesson L-work-4 and no open trial. You also have your own idea to speed up sessions."
+expect:
+  - "Reads L-work-4 and either starts one trial with `careerbrew peer experiment --side indie --start ... --lesson L-work-4` or writes a declined line with the reason"
+  - "Does not start a second trial while one is open"
+  - "Closes the trial after 3 days or more and writes the printed line to LESSONS.md by pull request; adopts only on KEEP"
+---
+id: work-day-peer-review
+suite: regression
+skill: careerbrew-work-day
+should: act
+input: "/work: peer status for work lists the unreviewed indie lesson L-indie-1 and three new indie source commits"
+expect:
+  - "Runs `careerbrew peer status --for work --json` at the start of the day"
+  - "Trials L-indie-1 on a work metric such as step_fail_rate with `careerbrew peer experiment --side work`, or writes a declined line with the reason"
+  - "Keeps business text out of LESSONS.md and, on a corporate machine, does not push: it gives the line to the owner"
+---
+id: cli-peer-close-without-trial
+suite: regression
+skill: careerbrew-indie
+cli: ["peer", "experiment", "--side", "indie", "--close"]
+expect_regex: "no open trial"
