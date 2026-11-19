@@ -132,6 +132,7 @@ __pycache__/
 !/xtask/src/toolchain_identity.rs
 !/xtask/src/trial_plan.rs
 !/xtask/src/capture_actions.rs
+!/xtask/src/leak_check.rs
 !/xtask/tests/
 /xtask/tests/*
 !/xtask/tests/activation_manifest.rs
@@ -144,6 +145,7 @@ __pycache__/
 !/xtask/tests/verify.rs
 !/xtask/tests/depvec.rs
 !/xtask/tests/purevec.rs
+!/xtask/tests/leak_check.rs
 !/xtask/tests/fixtures/
 /xtask/tests/fixtures/*
 !/xtask/tests/fixtures/depvec/

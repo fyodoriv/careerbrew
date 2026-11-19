@@ -7,6 +7,7 @@ mod capture_http;
 mod decide;
 mod depvec;
 mod inventory;
+mod leak_check;
 mod measure;
 mod noise_floor;
 mod normalize;
@@ -28,6 +29,9 @@ fn main() -> ExitCode {
             + depvec::controls::run();
         println!("migration self-test: {passed} controls passed");
         return ExitCode::SUCCESS;
+    }
+    if args.first().is_some_and(|a| a == "leak-check") {
+        return leak_check_command(&args[1..]);
     }
     if args == ["migration", "inventory", "--check"] {
         return match inventory::check().and_then(|count| Ok((count, sites::check()?))) {
@@ -284,7 +288,8 @@ fn main() -> ExitCode {
             };
         }
     }
-    eprintln!("usage: cargo xtask migration self-test");
+    eprintln!("usage: cargo xtask leak-check [--staged] [--repo <dir>] --terms-file <file>");
+    eprintln!("       cargo xtask migration self-test");
     eprintln!("       cargo xtask migration inventory --check");
     eprintln!("       cargo xtask migration inventory --embedded-check");
     eprintln!("       cargo xtask migration inventory --sites-check");
@@ -306,6 +311,42 @@ fn main() -> ExitCode {
     );
     eprintln!("       cargo xtask migration observer-probe --image <immutable-id> [--out <new-directory> [--freeze-only|--fault-controls-only]]");
     ExitCode::from(2)
+}
+
+/// `leak-check [--staged] [--repo <dir>] --terms-file <file>`: exit 0 clean,
+/// 1 on a finding, 2 on a usage or terms-file error.
+fn leak_check_command(rest: &[std::ffi::OsString]) -> ExitCode {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let Some(rest) = rest
+        .iter()
+        .map(|a| a.to_str().map(str::to_string))
+        .collect::<Option<Vec<_>>>()
+    else {
+        eprintln!("leak-check: arguments must be UTF-8");
+        return ExitCode::from(2);
+    };
+    let Some(args) = leak_check::parse(&rest, root) else {
+        eprintln!("usage: cargo xtask leak-check [--staged] [--repo <dir>] --terms-file <file>");
+        return ExitCode::from(2);
+    };
+    let terms = match leak_check::read_terms(&args.terms_file) {
+        Ok(terms) => terms,
+        Err(reason) => {
+            eprintln!("leak-check: {reason}");
+            return ExitCode::from(2);
+        }
+    };
+    let report = leak_check::scan_repo(&args.repo, args.staged, &terms);
+    for line in report.lines() {
+        println!("{line}");
+    }
+    if report.findings.is_empty() {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
 }
 
 /// `migration baseline --step <id> --python <path> --out <new-file> [--runs <n>]`.

@@ -66,6 +66,7 @@ Run every command from the repo root.
 | Verify one migration step's Rust candidate against its Python oracle (stdout and exit code per case, fresh synthetic home per side; writes a content-free JSON record with pass or fail per case) | `heavy-run cargo xtask migration verify --step rust-03 --python "$PWD/.venv/bin/python" --out "$PWD/.metrics/verify-rust-03.json"`; a step with no Rust candidate yet is refused (exit 1); a differing case names itself and exits 1 |
 | Propose a migration step's noise floor from one baseline record (prints JSON, writes nothing; register it in `xtask/src/noise_floor.rs`) | `cargo xtask migration noise-floor --baseline <absolute-file>` |
 | Fixed Linux observer preparation | `cargo xtask migration observer-probe --image <frozen-image-id>`; follow the fixed observer protocol, retain receipts locally, and obtain release before actual execution |
+| Native repo leak scan over a synthetic terms file (rust-27b slice 1; not yet behind `scripts/leak-check.sh`) | `cargo xtask leak-check [--staged] [--repo <dir>] --terms-file <file>`; exit 0 clean, 1 finding, 2 usage; prints term ids only |
 | Speed report | `scripts/metrics.sh` |
 | README Proof numbers (after a green gate; writes `docs/proof/metrics.json`, then the README section) | `scripts/metrics.sh proof` |
 | Capability coverage (runs each distinct story once per report; cross-run reuse is unqualified) | `scripts/metrics.sh capability-coverage` |
