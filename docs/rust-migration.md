@@ -1107,15 +1107,27 @@ Each listed test file maps to vectors: `test_privacy_index.py`,
 (`python -I <generator> <file>`) into a scratch file of
 `{"sets": {"<set>": [{"id", "op", "input"}]}}`, then gives that same path to
 both drivers (`<driver> <set> <file>`, answer shape as in the rust-01 vector
-framework). It hashes the file before and after; a driver that changes it is
-refused. Each driver first answers `unicode-version`; a mismatch records one
+framework). It hashes the file after the generator writes it and again after
+every driver run; a driver that changes it is refused, and the record counts
+these checks (`vector_file_hash_checks`). The record also names the
+candidate that ran (`candidate.kind`: `rust-binary` or `python-test-script`)
+and the plant (`candidate.plant`, `none` on a real run). Each driver first answers `unicode-version`; a mismatch records one
 failed `unicode-version` case and runs no vector case. Cases are
 `<set>:<id>`, compared with the shared `depvec::compare`.
 
 - Exit 0 when every case passes, 1 when a case fails, 2 on a refusal
-  (missing driver, generator failure, unreadable or malformed vector file).
-- Planted controls (`--test-plant`): `remove-case`, `change-byte` and
-  `unicode-mismatch`. Each fails and names its case
+  (missing driver, generator failure, unreadable or malformed vector file,
+  an `--out` that is relative or already exists, checked before the
+  generator runs).
+- `--generator`, `--driver` and `--test-candidate-script` must resolve
+  (after `..` and symlinks) to files inside the repo root; any other path is
+  refused with a fixed message that does not echo it.
+- On a set run, a candidate that exits non-zero or prints JSON that is not
+  a valid answer is not a refusal: each case of that set fails (exit 1). A
+  bad Python oracle answer, or no Unicode version from either side, is a
+  refusal.
+- Planted controls (`--test-plant`): `remove-case`, `change-byte` (one byte of the first
+  case's output value, never a key) and `unicode-mismatch`. Each fails and names its case
   (`xtask/tests/vecdriver.rs`, with the synthetic fixtures in
   `xtask/tests/fixtures/vecdriver/`). `migration self-test` runs 4 more
   compare controls.
