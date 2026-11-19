@@ -139,6 +139,8 @@ if [ -f Cargo.toml ]; then
   step rust-clippy cargo clippy --all-targets -- -D warnings
   step rust-test cargo test --all
   step rust-inventory cargo xtask migration inventory --check
+  # The policy crate's library does no IO (rust-04d; docs/rust-migration.md, rust-04 "Ownership split").
+  step rust-policy-io uv run --quiet python -I scripts/policy-no-io.py
 fi
 
 if [ -f web/package.json ]; then

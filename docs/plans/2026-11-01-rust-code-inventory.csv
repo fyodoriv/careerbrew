@@ -976,3 +976,14 @@ xtask/tests/fixtures/purevec/driver.py,port,rust-27,Retire the rust-02 Python pu
 xtask/tests/fixtures/purevec/settings.json,port,rust-27,Retire the rust-02 settings vectors with the Python migration oracle
 tests/unit/test_rust05b_storage_hardening.py,port,rust-05,Port rust-05b storage hardening controls for temp files and key and settings and append locks
 tests/unit/test_rust07a_shapes.py,port,rust-07,Fixed refusals for malformed plugin policy and manifest shapes
+crates/policy/src/lib.rs,keep-native,rust-00,rust-04d policy core: pure privacy decisions over supplied inputs with no IO
+crates/policy/src/text.rs,keep-native,rust-00,rust-04d Python str rules on Python Unicode tables: lower strip split splitlines and normalize
+crates/policy/src/canary.rs,keep-native,rust-00,rust-04d canary engine: term_id term_pattern find_leaks leak_spans and _match_kind
+crates/policy/src/allow.rs,keep-native,rust-00,rust-04d allowlists: sensitive_terms filter rules _identifier_shaped and public_suspects
+crates/policy/src/vectors.rs,keep-native,rust-00,rust-04d vector sets canary-core canary-match leak-spans allowlists in the oracle answer shape
+crates/policy/src/tables.rs,keep-native,rust-00,rust-04d generated Python 3.12 Unicode tables for str predicates and re case folding
+crates/policy/src/bin/policy-vectors.rs,keep-native,rust-00,rust-04d policy-vectors driver binary: the one IO edge that reads the vector file
+crates/policy/tests/controls.rs,keep-native,rust-00,rust-04d controls: planted EXTRA_CASES removal json.dumps form and no-echo refusal
+crates/policy/gen_tables.py,port,rust-27,Generates the policy crate Unicode tables from CPython; retire with the Python migration oracle
+scripts/policy-no-io.py,port,rust-27,Gate step rust-policy-io: refuses IO in the policy crate library; retire remaining harness here
+tests/unit/test_policy_no_io.py,port,rust-27,Guard: the policy crate IO gate passes the crate and refuses planted IO uses
