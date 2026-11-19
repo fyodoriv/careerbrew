@@ -111,17 +111,6 @@ fn read(out: &Path) -> serde_json::Value {
 }
 
 #[test]
-fn a_step_with_no_candidate_is_refused() {
-    let scratch = tempfile::tempdir().unwrap();
-    let out = scratch.path().join("verify.json");
-    let result = verify("rust-03", &out).output().unwrap();
-    assert_eq!(result.status.code(), Some(1));
-    assert!(String::from_utf8_lossy(&result.stderr)
-        .contains("step rust-03 has no Rust candidate yet; verify refused"));
-    assert!(!out.exists());
-}
-
-#[test]
 fn a_candidate_identical_to_the_oracle_passes() {
     let scratch = tempfile::tempdir().unwrap();
     let out = scratch.path().join("verify.json");
@@ -137,21 +126,23 @@ fn a_candidate_identical_to_the_oracle_passes() {
         String::from_utf8_lossy(&result.stderr)
     );
     assert!(String::from_utf8_lossy(&result.stdout)
-        .contains("step=rust-03 cases=34 passed=34 failed=none"));
+        .contains("step=rust-03 cases=47 passed=47 failed=none"));
     let value = read(&out);
     assert_eq!(value["schema"], "careerbrew-migration-verify-v1");
     assert_eq!(value["step"], "rust-03");
-    assert_eq!(value["case_count"], 34);
+    assert_eq!(value["case_count"], 47);
     assert_eq!(value["passed"], true);
     assert_eq!(value["cases"][0]["case"], "actions-json");
     assert_eq!(value["cases"][0]["kind"], "cli");
     assert_eq!(value["cases"][0]["passed"], true);
     assert_eq!(value["cases"][0]["writes_match"], true);
-    assert_eq!(value["cases"][1]["case"], "http:actions");
-    assert_eq!(value["cases"][1]["kind"], "http");
-    assert_eq!(value["cases"][1]["body_matches"], true);
+    // 14 CLI cases, then the HTTP cases.
+    assert_eq!(value["cases"][13]["case"], "help-actions");
+    assert_eq!(value["cases"][14]["case"], "http:actions");
+    assert_eq!(value["cases"][14]["kind"], "http");
+    assert_eq!(value["cases"][14]["body_matches"], true);
     // The record is decide's verify input: checks and every violation count.
-    assert_eq!(value["checks"].as_array().unwrap().len(), 34);
+    assert_eq!(value["checks"].as_array().unwrap().len(), 47);
     let find = |id: &str| {
         value["cases"]
             .as_array()
@@ -422,7 +413,7 @@ fn a_planted_extra_write_fails_the_cli_case() {
     let out = scratch.path().join("verify.json");
     let extra = oracle_candidate(
         scratch.path(),
-        "if [ \"$1\" = actions ]; then : > \"$CAREERBREW_HOME/planted-extra\"; fi",
+        "if [ \"$*\" = 'actions --json' ]; then : > \"$CAREERBREW_HOME/planted-extra\"; fi",
     );
     let result = verify("rust-03", &out)
         .arg("--test-candidate")
@@ -454,7 +445,7 @@ fn a_planted_missing_write_fails_the_cli_case() {
     std::fs::write(
         &wrapper,
         format!(
-            "#!/bin/sh\nif [ \"$2\" != '-m' ] || [ \"$4\" != actions ]; then exec '{}' \"$@\"; fi\n'{}' \"$@\"\nstatus=$?\n: > \"$CAREERBREW_HOME/oracle-made\"\nexit $status\n",
+            "#!/bin/sh\nif [ \"$*\" != '-B -m careerbrew actions --json' ]; then exec '{}' \"$@\"; fi\n'{}' \"$@\"\nstatus=$?\n: > \"$CAREERBREW_HOME/oracle-made\"\nexit $status\n",
             python().display(),
             python().display()
         ),
@@ -777,28 +768,45 @@ fn reference() -> PathBuf {
 
 #[test]
 fn rust_03_scope_checks_the_cli_and_the_registry_projection_only() {
-    // A candidate with no Python that prints the frozen catalog.
+    // A candidate with no Python that prints the frozen catalog for
+    // `actions --json` and nothing else: the other 13 CLI cases fail, and
+    // no HTTP, DATA or role case runs.
     let scratch = tempfile::tempdir().unwrap();
     let out = scratch.path().join("verify.json");
     let native = candidate(
         scratch.path(),
-        &format!("exec /bin/cat '{}'", reference().display()),
+        &format!(
+            "if [ \"$*\" = 'actions --json' ]; then exec /bin/cat '{}'; fi\nexit 0",
+            reference().display()
+        ),
     );
     let result = scoped("rust-03", &out)
         .arg("--test-candidate")
         .arg(&native)
         .output()
         .unwrap();
-    assert!(
-        result.status.success(),
-        "{}",
-        String::from_utf8_lossy(&result.stderr)
-    );
+    assert_eq!(result.status.code(), Some(1));
     let value = read(&out);
-    assert_eq!(value["passed"], true);
-    assert_eq!(value["case_count"], 2);
+    assert_eq!(value["passed"], false);
+    assert_eq!(value["case_count"], 15);
     assert_eq!(value["cases"][0]["case"], "actions-json");
-    let projection = &value["cases"][1];
+    assert_eq!(value["cases"][0]["passed"], true);
+    assert_eq!(value["failed_cases"].as_array().unwrap().len(), 13);
+    let kinds: std::collections::BTreeSet<String> = value["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|case| case["kind"].as_str().unwrap().to_owned())
+        .collect();
+    assert_eq!(
+        kinds,
+        ["cli", "registry-projection"]
+            .map(str::to_owned)
+            .into_iter()
+            .collect()
+    );
+    let projection = &value["cases"][14];
+    assert_eq!(projection["passed"], true);
     assert_eq!(projection["case"], "registry-projection");
     assert_eq!(projection["kind"], "registry-projection");
     assert_eq!(projection["body_matches"], true);
@@ -841,12 +849,13 @@ fn a_planted_python_fallback_fails_under_the_no_python_denial() {
         .unwrap();
     assert_eq!(result.status.code(), Some(1));
     let value = read(&denied);
-    assert_eq!(
-        value["failed_cases"],
-        serde_json::json!(["actions-json", "registry-projection"])
-    );
+    // Every CLI case and the projection fail.
+    let failed = value["failed_cases"].as_array().unwrap();
+    assert_eq!(failed.len(), 15);
+    assert_eq!(failed[0], "actions-json");
+    assert_eq!(failed[14], "registry-projection");
     assert_eq!(value["cases"][0]["exit_matches"], false);
-    assert_eq!(value["violations"]["contract"], 2);
+    assert_eq!(value["violations"]["contract"], 15);
     let allowed = scratch.path().join("allowed.json");
     let result = scoped("rust-03", &allowed)
         .arg("--test-candidate")
@@ -883,13 +892,17 @@ fn a_planted_wrong_catalog_fails_the_registry_projection() {
     assert_eq!(result.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&result.stderr).contains("registry-projection"));
     let value = read(&out);
-    let projection = &value["cases"][1];
+    let projection = &value["cases"][14];
     assert_eq!(projection["case"], "registry-projection");
     assert_eq!(projection["candidate_ran"], true);
     assert_eq!(projection["exit_zero"], true);
     assert_eq!(projection["body_matches"], false);
     assert_eq!(projection["passed"], false);
-    assert_eq!(value["violations"]["contract"], 2);
+    // The CLI cases print `[]` too, so each fails except `actions-none-json`,
+    // whose Python output is `[]`: 13 CLI cases plus the projection.
+    assert_eq!(value["cases"][5]["case"], "actions-none-json");
+    assert_eq!(value["cases"][5]["passed"], true);
+    assert_eq!(value["violations"]["contract"], 14);
 }
 
 #[test]

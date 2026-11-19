@@ -10,7 +10,22 @@ pub const SYNTHETIC_HOME: &str = "synthetic-home";
 pub const HOME_PLACEHOLDER: &str = "<home>";
 
 /// (step, case, rule ids).
-pub const REGISTRY: &[(&str, &str, &[&str])] = &[("rust-03", "actions-json", &[SYNTHETIC_HOME])];
+pub const REGISTRY: &[(&str, &str, &[&str])] = &[
+    ("rust-03", "actions-json", &[SYNTHETIC_HOME]),
+    ("rust-03", "actions-text", &[SYNTHETIC_HOME]),
+    ("rust-03", "actions-name-json", &[SYNTHETIC_HOME]),
+    ("rust-03", "actions-prefix-json", &[SYNTHETIC_HOME]),
+    ("rust-03", "actions-prefix-text", &[SYNTHETIC_HOME]),
+    ("rust-03", "actions-none-json", &[SYNTHETIC_HOME]),
+    ("rust-03", "actions-none-text", &[SYNTHETIC_HOME]),
+    ("rust-03", "actions-bad-flag", &[SYNTHETIC_HOME]),
+    ("rust-03", "actions-extra-pos", &[SYNTHETIC_HOME]),
+    ("rust-03", "help-root", &[SYNTHETIC_HOME]),
+    ("rust-03", "help-short", &[SYNTHETIC_HOME]),
+    ("rust-03", "help-group", &[SYNTHETIC_HOME]),
+    ("rust-03", "help-leaf", &[SYNTHETIC_HOME]),
+    ("rust-03", "help-actions", &[SYNTHETIC_HOME]),
+];
 
 /// The registered rule ids of one case; none is an empty list.
 pub fn rules(step: &str, case: &str) -> &'static [&'static str] {

@@ -952,6 +952,13 @@ crates/purevec/src/main.rs,keep-native,rust-00,rust-02 pure value vector candida
 crates/purevec/src/paths.rs,keep-native,rust-00,rust-02 paths vector set: CAREERBREW_HOME refusal and path values over an injected environment
 crates/purevec/src/settings.rs,keep-native,rust-00,rust-02 settings vector set: config validators DEFAULTS and pure precedence
 crates/purevec/tests/cli.rs,keep-native,rust-00,rust-02 pure value vector binary controls
+crates/cbcli/src/lib.rs,keep-native,rust-00,rust-03 native CLI pilot: actions and static help dispatch with exit 64 outside the pilot
+crates/cbcli/src/main.rs,keep-native,rust-00,rust-03 native CLI pilot binary careerbrew-native
+crates/cbcli/src/registry.rs,keep-native,rust-00,rust-03 native CLI pilot: compiled-in action registry and order-keeping JSON reader
+crates/cbcli/src/render.rs,keep-native,rust-00,rust-03 native CLI pilot: actions text listing and Python-compatible json.dumps writer
+crates/cbcli/src/help.rs,keep-native,rust-00,rust-03 native CLI pilot: static help pages at 80 columns
+crates/cbcli/src/events.rs,keep-native,rust-00,rust-03 native CLI pilot: content-free cli.run event row append
+crates/cbcli/tests/cli.rs,keep-native,rust-00,rust-03 native CLI pilot controls: reference bytes argparse errors exit 64 event row writer properties
 xtask/tests/purevec.rs,keep-native,rust-00,rust-02 vector step controls: four commands accept it and a planted home write is counted
 xtask/tests/fixtures/purevec/driver.py,port,rust-27,Retire the rust-02 Python pure value vector oracle with the Python migration oracle
 xtask/tests/fixtures/purevec/settings.json,port,rust-27,Retire the rust-02 settings vectors with the Python migration oracle
