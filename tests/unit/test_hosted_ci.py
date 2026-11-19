@@ -34,3 +34,16 @@ def test_no_playwright_config_lets_playwright_fetch_into_the_checkout():
     assert len(configs) >= 4, configs
     for config in configs:
         assert "captureGitInfo: { commit: false, diff: false }" in config.read_text(), config.relative_to(ROOT)
+
+
+def test_every_playwright_browser_install_has_a_time_limit_and_retries():
+    # A hung `playwright install --with-deps` held a gate part for its whole
+    # 60-minute job limit (2026-11-19). Each install must bound every try.
+    for name in ("gate-part.yml", "visual-pictures.yml"):
+        text = (ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
+        assert "npx playwright install --with-deps chromium" in text, name
+        for line in text.splitlines():
+            if "npx playwright install" in line:
+                assert "alarm 600" in line, f"{name}: {line.strip()}"
+        assert "for try in 1 2 3" in text, name
+        assert "timeout-minutes: 32" in text, name

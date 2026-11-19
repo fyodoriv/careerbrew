@@ -57,7 +57,16 @@ jobs:
 
       - name: Playwright browser (Chromium), as in the gate
         working-directory: web
-        run: npx playwright install --with-deps chromium
+        # A hung apt or download once held a gate part for its whole 60-minute
+        # limit. Each try gets 10 minutes of wall time (perl alarm works on Linux
+        # and macOS), and a failed or stuck try is retried twice.
+        timeout-minutes: 32
+        run: |
+          for try in 1 2 3; do
+            perl -e 'alarm 600; exec @ARGV' npx playwright install --with-deps chromium && exit 0
+            echo "playwright install try $try failed or timed out"
+          done
+          exit 1
 
       - name: Draw, compare and print the pictures
         env:
