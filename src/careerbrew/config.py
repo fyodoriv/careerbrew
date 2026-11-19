@@ -15,7 +15,7 @@ import re
 from collections.abc import Iterator
 from typing import Any
 
-from . import events, paths, store
+from . import config_io, events, paths
 
 
 def _hhmm(v: str) -> str:
@@ -263,7 +263,7 @@ for _action in ("pm_update", "standup", "day_log", "day_plan", "evidence", "prom
 
 
 def _file() -> dict[str, Any]:
-    return store.read_yaml(paths.data_root() / "settings.yaml", {}) or {}
+    return config_io.read_settings()
 
 
 def get(key: str) -> Any:
@@ -289,7 +289,7 @@ def set_value(key: str, raw: str) -> Any:
     with _settings_lock():
         data = _file()
         data[key] = value
-        store.write_yaml(paths.data_root() / "settings.yaml", data)
+        config_io.write_settings(data)
     events.emit("config.set", status="ok")
     return value
 
@@ -298,7 +298,7 @@ def unset(key: str) -> None:
     with _settings_lock():
         data = _file()
         if data.pop(key, None) is not None:
-            store.write_yaml(paths.data_root() / "settings.yaml", data)
+            config_io.write_settings(data)
 
 
 @contextlib.contextmanager

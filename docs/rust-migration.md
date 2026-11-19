@@ -329,7 +329,7 @@ checks them.
 
 | File | Rows cover | Controls |
 | --- | --- | --- |
-| [activation manifest](plans/2026-11-04-rust-activation-manifest.tsv) | the config, vault, approvals and role rows of the table: 24 cross-module call sites (config 4, vault 3, approvals 7, role and bridges 10) and 22 local bridge calls | 6 |
+| [activation manifest](plans/2026-11-04-rust-activation-manifest.tsv) | the config, vault, approvals and role rows of the table: 28 cross-module call sites (config 4, settings IO 2, key provider 2, vault 3, approvals 7, role and bridges 10) and 23 local bridge calls | 6 |
 | [activation providers](plans/2026-11-04-rust-activation-providers.tsv) | the changes, job strategy and tutor gap, and teacher and exercise rows: 50 more cross-module sites (22, 11 and 17) and 29 local rows | 13 in all |
 | [activation workday](plans/2026-11-04-rust-activation-workday.tsv) | work-day start, end, clock and the background watcher: 60 more cross-module sites and 22 local rows, 7 runtime boundaries | 20 in all |
 
@@ -1100,14 +1100,25 @@ Case folding and word splits depend on this table.
     crash and interruption boundaries.
   - Port whole transactions together. Never hold a parent lock while a child
     takes it again.
-- **Inputs:** `src/careerbrew/store.py`, `vault.py`, `secrets.py`, `backup.py`
-  (key provider), `config.py` (IO), `events.py` (emit primitive), `approvals.py`
+- **Inputs:** `src/careerbrew/store.py`, `vault.py`, `secrets.py`, `keyfile.py`
+  (key provider), `config_io.py` (settings IO), `events.py` (emit primitive), `approvals.py`
   (receipt IO); the disconnected `crates/vault` codec.
 - **Outputs:** the native storage engine and key provider.
 - **Gate:** 100% old and new round trips; 0 lost or duplicate writes in 1,000
   mixed-writer operations; 0 plaintext secret exits or file-mode regressions.
   Production dispatch waits for the closure in the
   [worked example](#build-order-versus-production-activation).
+- **Sub-step `rust-05a` (Python provider split, no behaviour change):**
+  the seams the native port takes over now live in their own modules.
+  - `keyfile.py` holds `key_path` and `load_key` (path, mode `0600`,
+    missing-key refusal). `backup.key_path` and `backup.load_key` stay as
+    thin names, so callers and test patches keep working.
+  - `config_io.py` holds `read_settings` and `write_settings` for
+    `settings.yaml`. `config` keeps the schema, validators and the settings
+    lock.
+  - `events.emit` is `events.record` (the clean row) then `events.write_row`
+    (the append). The `ts` stamp stays on the wall clock.
+  - Tests: `tests/unit/test_rust05a_provider_seams.py`.
 - **Sub-step `rust-05b` (Python hardening, done first):** the Python oracle
   now holds the contract the Rust port must match.
   - `vault._rewrite` uses a temp name unique to each writer and removes it
@@ -2171,7 +2182,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 | [`rust-02`](#rust-02-port-pure-setting-schemas-paths-clocks-and-hashes) | 3 | 1 | 4 |
 | [`rust-03`](#rust-03-introduce-the-native-cli-and-one-read-only-pilot) | 2 | 1 | 1 |
 | [`rust-04`](#rust-04-port-privacy-policy-and-approval-enforcement) | 3 | 8 | 4 |
-| [`rust-05`](#rust-05-port-encrypted-storage-and-transaction-locks) | 3 | 2 | 1 |
+| [`rust-05`](#rust-05-port-encrypted-storage-and-transaction-locks) | 5 | 2 | 1 |
 | [`rust-06`](#rust-06-port-backup-restore-and-cross-machine-sync) | 2 | 7 | 6 |
 | [`rust-07`](#rust-07-port-plugin-machine-and-account-setup) | 22 | 11 | 9 |
 | [`rust-08`](#rust-08-port-http-sources-calendar-and-mail) | 58 | 1 | 5 |
@@ -2195,7 +2206,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 | [`rust-26`](#rust-26-complete-native-cli-coverage-and-default-entry-point) | 12 | 0 | 0 |
 | [`rust-27`](#rust-27-port-developer-tools-test-harnesses-installers-and-release-checks) | 477 | 0 | 68 |
 | [`rust-28`](#rust-28-retire-the-old-implementation-and-verify-fresh-machine-releases) | 4 | 0 | 0 |
-| **All steps** | **958 of 958** | **168 of 168** | **374 of 374** |
+| **All steps** | **960 of 960** | **168 of 168** | **374 of 374** |
 
 #### rust-00: Build the baseline harness and complete code inventory (72 files)
 
@@ -2234,7 +2245,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 - `src/careerbrew/` (2): `actions.py`, `agent_workflows.py`
 - CLI handlers it ports out of `cli.py` (1): `cmd_actions`
 - Native crate it adds (`keep-native` in the inventory): `crates/cbcli/src/` (`lib.rs`, `main.rs`, `registry.rs`, `render.rs`, `help.rs`, `events.rs`) and `crates/cbcli/tests/cli.rs`.
-- Generated files it adds (not code, so not in the inventory): `crates/cbcli/registry/registry.json`, `config/native-routes.txt`. Its generator `scripts/gen-registry.py` is owned by `rust-26`, which retires it. The registry is a capture source input (`capture_actions::sources()`), so capture, baseline and measure records hash it; the source-copy probe count moved from 139 to 140.
+- Generated files it adds (not code, so not in the inventory): `crates/cbcli/registry/registry.json`, `config/native-routes.txt`. Its generator `scripts/gen-registry.py` is owned by `rust-26`, which retires it. The registry is a capture source input (`capture_actions::sources()`), so capture, baseline and measure records hash it; the source-copy probe count moved from 139 to 140 (and to 142 when `rust-05a` added `keyfile.py` and `config_io.py`).
 - Assertions it ports (1 test file, the files themselves are listed under `rust-27`): `test_every_action_has_an_e2e.py`
 
 #### rust-04: Port privacy, policy and approval enforcement (3 files)
@@ -2244,9 +2255,9 @@ row stays, but it means the **dispatcher**, not the handlers:
 - CLI handlers it ports out of `cli.py` (8): `cmd_approvals_decide`, `cmd_approvals_guidance`, `cmd_approvals_list`, `cmd_approvals_request`, `cmd_approvals_show`, `cmd_draft_judge`, `cmd_draft_route`, `cmd_privacy_scan`
 - Assertions it ports (4 test files, the files themselves are listed under `rust-27`): `test_issue_314.py`, `test_privacy_index.py`, `test_privacy_scan_file.py`, `test_public_scrub.py`
 
-#### rust-05: Port encrypted storage and transaction locks (3 files)
+#### rust-05: Port encrypted storage and transaction locks (5 files)
 
-- `src/careerbrew/` (3): `secrets.py`, `store.py`, `vault.py`
+- `src/careerbrew/` (5): `config_io.py`, `keyfile.py`, `secrets.py`, `store.py`, `vault.py`
 - CLI handlers it ports out of `cli.py` (2): `cmd_data_edit`, `cmd_secret_set`
 - Assertions it ports (1 test file, the files themselves are listed under `rust-27`): `test_issue_366.py`
 
