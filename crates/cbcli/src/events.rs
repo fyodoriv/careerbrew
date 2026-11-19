@@ -15,7 +15,8 @@ const PYPROJECT: &str = include_str!("../../../pyproject.toml");
 /// this crate reaches the store or the vault.
 pub struct Caps {
     /// The data root, or None when it cannot be resolved the way Python
-    /// does (an empty `CAREERBREW_HOME`, or one that starts with `~`).
+    /// does (an empty `CAREERBREW_HOME`, `~user`, or an unset home with no
+    /// `CAREERBREW_NATIVE_REPO`).
     pub home: Option<PathBuf>,
     /// False when `CAREERBREW_EVENTS=off`.
     pub events_on: bool,
@@ -26,12 +27,16 @@ pub struct Caps {
 impl Caps {
     pub fn from_env(get: impl Fn(&str) -> Option<String>) -> Caps {
         let home = match get("CAREERBREW_HOME") {
-            Some(value) if value.trim().is_empty() || value.starts_with('~') => None,
-            Some(value) => Some(PathBuf::from(value)),
-            // Python resolves `private/` from its package at run time; a
-            // folder fixed at build time could be another checkout, so an
-            // unset home is unresolved and such a run goes to Python.
-            None => None,
+            // Python raises on an empty value; exit 64 lets it do so.
+            Some(value) if value.trim().is_empty() => None,
+            Some(value) => expand_user(&value, get("HOME")).map(PathBuf::from),
+            // Python's default is `<repo>/private`, with the repo found from
+            // its own package. The console script passes that repo in
+            // `CAREERBREW_NATIVE_REPO`; a run without it goes to Python, as a
+            // folder fixed at build time could be another checkout.
+            None => get("CAREERBREW_NATIVE_REPO")
+                .filter(|repo| repo.starts_with('/'))
+                .map(|repo| PathBuf::from(repo).join("private")),
         };
         let agent = ["CLAUDECODE", "CODEX_SANDBOX"]
             .iter()
@@ -50,6 +55,25 @@ impl Caps {
         let _ = std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o700));
         Some(root)
     }
+}
+
+/// Python's `posixpath.expanduser` for `~` and `~/...`. `~user` and a
+/// missing `HOME` return None: Python reads the password database there.
+pub fn expand_user(path: &str, home: Option<String>) -> Option<String> {
+    if !path.starts_with('~') {
+        return Some(path.to_owned());
+    }
+    let rest = &path[1..];
+    if !(rest.is_empty() || rest.starts_with('/')) {
+        return None;
+    }
+    let home = home?;
+    let joined = format!("{}{rest}", home.trim_end_matches('/'));
+    Some(if joined.is_empty() {
+        "/".to_owned()
+    } else {
+        joined
+    })
 }
 
 pub fn version() -> &'static str {
