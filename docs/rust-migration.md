@@ -8,8 +8,9 @@ repository can do any step from this page and the task block.
 - **Status:** a plan. No Rust code runs in production today. No speed or memory
   gain is claimed. See [Current state](#current-state) and
   [State of rust-00](#state-of-rust-00).
-- **Next task:** `rust-02` (pure settings, paths, clocks and hashes). `rust-00`
-  and `rust-01` are done (2026-11-18); their follow-ups are tasks in `TASKS.md`.
+- **Next task:** `rust-03` (native CLI and one read-only pilot). `rust-00`,
+  `rust-01` and `rust-02` are done (2026-11-18); their follow-ups are tasks in
+  `TASKS.md`.
 - **How to read it:** the [goal](#goal-and-vision) and [decision](#decision-and-rejected-alternatives),
   then the [measurement protocol](#measurement-protocol-for-every-step), then
   [build order versus production activation](#build-order-versus-production-activation),
@@ -373,7 +374,7 @@ Anchor: Tarjan 1972, *Depth-First Search and Linear Graph Algorithms*
 
 ### Lanes and order
 
-- `rust-00` and `rust-01` are done; `rust-02` is ready now. Each task's **Blocked** line is a hard gate.
+- `rust-00`, `rust-01` and `rust-02` are done; `rust-03` is ready now. Each task's **Blocked** line is a hard gate.
 - After the shared storage and policy steps, independent domain lanes may run
   in parallel. They must not share mutable fixture homes.
 - Each domain step ports its own CLI handlers and test assertions, and routes
@@ -839,6 +840,28 @@ vector touches a home. Known gaps:
   candidate gives the range error.
 - The digit table and the `repr()` non-printable table are Unicode
   15.0.0, the oracle Python's version.
+
+#### rust-02 close-out
+
+Done 2026-11-18, on macOS, with the four sets of #149. Records stay local.
+
+- **verify:** 411 of 411 vectors pass; 0 real-home writes; 0 violations.
+- **baseline (Python oracle, 30 runs):** CPU p50 108 ms, p95 113 ms; tree
+  RSS p50 40.1 MB, p95 40.6 MB.
+- **measure (30 pairs, CPU p95 / tree RSS p95):** cold: oracle 393 ms /
+  45.4 MB, candidate 2.6 ms / 3.4 MB. Warm: oracle 89 ms / 37.1 MB,
+  candidate 2.5 ms / 3.4 MB.
+- **decide:** `activate`, no reasons. The noise floor is `unmeasured` on
+  macOS, so the 1.10 ratio applied to every case.
+- **What `activate` means here:** component parity only. No command routes
+  to native code: `rust-02` owns no CLI command, and the config capability
+  switches only with `rust-05` settings IO (see the activation manifest
+  splits). Production dispatch waits for `rust-04`, `rust-05` and `rust-07`.
+- **Known gaps:** the empty `TZ` (or bare `:`) refusal, `local_tz` and the
+  `system_tz` disk lookup stay Python until `rust-05`; `sub`,
+  `require_outside_data_root`, `~user` and a `~` with no `HOME` stay Python;
+  the `fromisoformat` forms and case-only zone names listed in set `clock`;
+  noise floors are `unmeasured` on both OSes; no Linux run yet.
 
 ### rust-03: Introduce the native CLI and one read-only pilot
 
@@ -1418,10 +1441,11 @@ the commands in each row before you rely on it.
 
 **Summary:** the Rust code is measurement preparation and two disconnected
 component experiments. No CLI command, HTTP route or watcher calls Rust. The
-app runs on Python. No step has a merged decide result. `rust-00` and `rust-01` are done (2026-11-18): six
-dependency vector sets (`calendar`, `code-parse`, `fernet`, `fsrs`,
-`json-yaml`, `runtime`) agree with the Python oracle on every vector, and
-each set's planted wrong vector fails. The next task is `rust-02`.
+app runs on Python. `rust-00`, `rust-01` and `rust-02` are done (2026-11-18). For
+`rust-01`, six dependency vector sets (`calendar`, `code-parse`, `fernet`,
+`fsrs`, `json-yaml`, `runtime`) agree with the Python oracle on every vector,
+and each set's planted wrong vector fails. For `rust-02`, see
+[rust-02 close-out](#rust-02-close-out). The next task is `rust-03`.
 
 ### Crates (`ls crates xtask experiments`, `Cargo.toml`)
 
@@ -1429,7 +1453,7 @@ each set's planted wrong vector fails. The next task is `rust-02`.
 | --- | --- | --- | --- |
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
 | `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
-| `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only |
+| `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`calendar`, `code-parse`, `fernet`, `fsrs`, `json-yaml` and `runtime` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
 | `experiments/hash/` | `careerbrew-hash-experiment` | the pure `changes._h` hash for a supported synthetic JSON subset. It refuses values outside that subset. | none: component parity only |
 
