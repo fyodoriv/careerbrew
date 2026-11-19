@@ -19,10 +19,7 @@ def main() -> None:
     name, path = sys.argv[1], sys.argv[2]
     with open(path, encoding="utf-8") as vectors:
         sets = json.load(vectors)["sets"]
-    results = [
-        {"id": vector["id"], "output": {"ok": OPS[vector["op"]](vector["input"])}}
-        for vector in sets[name]
-    ]
+    results = [{"id": vector["id"], "output": {"ok": OPS[vector["op"]](vector["input"])}} for vector in sets[name]]
     print(json.dumps({"set": name, "results": results}))
 
 
