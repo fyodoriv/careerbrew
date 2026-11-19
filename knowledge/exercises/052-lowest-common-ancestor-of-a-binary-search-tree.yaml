@@ -93,9 +93,9 @@ tests:
   expected: 2
   note: skewed tree
 scale:
-  generator: "def make(n):\n    def b(lo, hi):\n        if lo > hi:\n            return None\n       \
-    \ m = (lo + hi) // 2\n        return TreeNode(m, b(lo, m - 1), b(m + 1, hi))\n    return [b(1, n),\
-    \ 1, 2]\n"
+  # The walk only reads the tree, and one call takes microseconds, so the timer repeats it up to 50 times
+  # per size. Building 50 fresh 100,000-node trees per timing run took most of 40 s of CPU; build each size once.
+  generator: "_trees = {}\ndef make(n):\n    def b(lo, hi):\n        if lo > hi:\n            return None\n        m = (lo + hi) // 2\n        return TreeNode(m, b(lo, m - 1), b(m + 1, hi))\n    if n not in _trees:\n        _trees[n] = b(1, n)\n    return [_trees[n], 1, 2]\n"
   sizes:
   - 10000
   - 100000

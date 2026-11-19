@@ -457,16 +457,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if re-exec breaks exit codes, signals or the pre-push hook, drop it and keep only the agent hook plus a doctor warning.
   - **Anchor**: Forsgren, Humble & Kim 2018 (DORA change failure rate); Reason 1990, *Human Error* (defence in depth).
 
-- [ ] The `exercises` gate step can pass the 60 s scaling CPU limit on a hosted Ubuntu runner
-  - **ID**: exercises-scale-cpu-margin-hosted
-  - **Details**: On 2026-11-15 PR 94's `native (ubuntu-24.04)` part failed only in `exercises`: `lowest-common-ancestor-of-a-binary-search-tree: reference solution scaling failed: {"category": "scale_error", "cpu_seconds": 60, ...}`. The same step passed on the PR's earlier run, on PR 96 and on main's last 3 runs, and a rerun passed. Locally `careerbrew exercises check knowledge/exercises/052-lowest-common-ancestor-of-a-binary-search-tree.yaml` used 34.9 s of CPU, so a slower runner nears the limit (`SCALE_CPU_SECONDS` in `src/careerbrew/tutor/exercises.py`). Find which sizes take the time and shrink the scaling inputs for this exercise, or measure each exercise's scaling CPU and fail when one uses more than half the limit.
-  - **Files**: src/careerbrew/tutor/exercises.py; knowledge/exercises/052-lowest-common-ancestor-of-a-binary-search-tree.yaml; tests/unit/test_exercise_complexity.py
-  - **Hypothesis**: with every reference scaling run under 30 s of local CPU, the hosted `exercises` step fails 0 times in 20 runs, against 1 in about 10 seen now.
-  - **Measurement**: `uv run careerbrew exercises check <file>` CPU time per exercise (`/usr/bin/time -p`), and `gh run list --workflow ci.yml -L 20` failures in the `exercises` step.
-  - **Success**: the slowest reference scaling run uses under 30 s of local CPU, and 0 hosted `exercises` failures in 20 runs.
-  - **Pivot**: if shrinking the inputs flattens the slope so the complexity check can no longer tell O(n) from O(n^2), keep the inputs and give hosted runs a scaled CPU limit instead.
-  - **Anchor**: Luo et al. 2014, "An empirical analysis of flaky tests" (FSE; timing-dependent tests).
-
 - [ ] Prove the company plugin works on the corporate machine after the move to the new history
   - **ID**: company-plugin-after-history-move
   - **Blocked**: a step only the corporate machine can do: the plugin and its tools live there. Check: `git -C "$(uv run careerbrew where)" rev-list --max-parents=0 HEAD` prints `22e3e591b70dd8a5f8a1111355201b85c8f68ed5` on that machine.
