@@ -585,6 +585,8 @@ pub(crate) fn owned_environment(
     }
     for (key, value) in [
         ("CAREERBREW_EVENTS", "off"),
+        // The capture records the Python catalog; keep `actions` off the native route.
+        ("CAREERBREW_NATIVE", "off"),
         ("CAREERBREW_LLM", "off"),
         ("CAREERBREW_NOTIFY", "off"),
         ("CAREERBREW_POSTHOG_KEY", ""),

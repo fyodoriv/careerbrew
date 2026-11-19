@@ -3,6 +3,7 @@
 # scripts/public-readiness.sh counts every other file that holds them (surface S3).
 pyproject.toml
 README.md
+.github/FUNDING.yml
 CONTRIBUTING.md
 INSTALL.md
 scripts/install.sh
