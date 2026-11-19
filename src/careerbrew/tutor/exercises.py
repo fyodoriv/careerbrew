@@ -177,7 +177,7 @@ if payload.get("scale"):
         runs = []; k = 1
         try:
             while len(runs) < payload["scale"].get("repeats", 1):
-                batch = [ns["make"](n) for _ in range(k)]  # fresh inputs: a solution may mutate one
+                batch = [ns["make"](n) for _ in range(k)]  # a new input per call: a solution may mutate one (a generator that caches must still return a new top object)
                 gc.collect(); gc.disable()
                 # CPU time, not wall time (a busy machine's waits read as growth, 2026-10-22). A short run repeats k times: a CPU clock can tick in 1 ms steps.
                 t0 = time.process_time()
