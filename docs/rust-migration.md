@@ -1108,6 +1108,18 @@ Case folding and word splits depend on this table.
   mixed-writer operations; 0 plaintext secret exits or file-mode regressions.
   Production dispatch waits for the closure in the
   [worked example](#build-order-versus-production-activation).
+- **Sub-step `rust-05b` (Python hardening, done first):** the Python oracle
+  now holds the contract the Rust port must match.
+  - `vault._rewrite` uses a temp name unique to each writer and removes it
+    when the swap fails; `store.write_text` removes its temp file too.
+  - `backup.load_key` creates a new key with `O_CREAT | O_EXCL` at mode
+    `0600`. A first run that loses the race reads the other run's key.
+  - `config.set_value` and `config.unset` hold `.settings.yaml.lock` (data
+    root) across read, change and write.
+  - A plaintext `store.append_jsonl` takes the same `.<name>.lock` that
+    `upsert_jsonl` takes.
+  - Tests: `tests/unit/test_rust05b_storage_hardening.py`. The approvals lock
+    is `rust-05b2`, after the `rust-04` approvals edits merge.
 
 ### rust-06: Port backup, restore and cross-machine sync
 
