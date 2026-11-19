@@ -581,6 +581,7 @@ tests/unit/test_memory_sync.py,port,rust-27,Port each assertion/helper with its 
 tests/unit/test_metrics_report.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_metrics_share.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_migrate_history.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_native_route.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_no_conflict_markers.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_notion_import.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_open_prs.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -878,6 +879,7 @@ tests/unit/test_issue_426.py,port,rust-27,Check invocation-scoped update discove
 tests/unit/test_issue_423_metadata_temp.py,port,rust-27,Check owned temporary metadata publication and cleanup
 scripts/browser-test-receipts.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/e2e/us-110-pm-promise-outcomes.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-111-native-actions.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_browser_test_receipts.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_e2e_cache_runtime.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_389_baseline.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here

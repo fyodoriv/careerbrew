@@ -2080,3 +2080,21 @@ See [Agent hosts](agent-hosts.md) for runtime, deployment and regression details
 | Case | Test | Log event |
 |---|---|---|
 | owner decision and refusals | `tests/e2e/us-110-pm-promise-outcomes.sh` | `work.promise` |
+
+## US-111: Switch one action to the native CLI, and roll it back with one line or one variable
+
+- **Host contract**: dual-host-shared-memory
+- **Mode**: platform
+- **As** a careerbrew user, **I want** each action routed to Python or to the native `careerbrew-native` binary one line at a time, with a rollback that needs no code change, **so that** a faster native path can ship without changing what any command prints.
+- **Acceptance criteria**:
+  - Given the committed `config/native-routes.txt` (every action `python`), when I run `careerbrew actions --json`, then Python answers and the native binary never runs.
+  - Given `actions` routed native (the route line, or `CAREERBREW_ROUTE_ACTIONS=native`), when I run `careerbrew actions --json`, then `careerbrew-native` answers with the same bytes as Python.
+  - Given a rollback (`CAREERBREW_NATIVE=off`, `CAREERBREW_ROUTE_ACTIONS=python`, or a missing binary), when I run the same command, then Python answers with the same bytes; a missing binary logs `cli.native_fallback`.
+  - Given the native binary refuses the argv (exit 64), when the command runs, then Python runs it and `cli.native_unsupported` is logged.
+- **Metric**: byte differences in `actions --json` between the python, native and rollback routes. **Target**: 0 in the US-111 runs.
+- **Skill**: `skills/careerbrew-best-practices`
+- **Web views**: none
+
+| Case | Test | Log event |
+|---|---|---|
+| python, native and rollback routes print the same bytes; a refusal falls back | `tests/e2e/us-111-native-actions.sh` | `cli.native_fallback`, `cli.native_unsupported` |

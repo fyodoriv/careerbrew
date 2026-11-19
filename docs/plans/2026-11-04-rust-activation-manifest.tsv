@@ -49,7 +49,7 @@ cross	approvals.request	calendar.now_utc	66	calendar.now_utc()
 cross	approvals.decide	store.write_json	85	store.write_json(
 cross	approvals.decide	events.emit	86	events.emit("approvals.decide"
 cross	approvals.decide	calendar.now_utc	84	calendar.now_utc()
-cross	cli.main	machine.guard	4837	machine.guard(args.cmd)
+cross	cli.main	machine.guard	4839	machine.guard(args.cmd)
 cross	cli.may_show_business	plugins.effective_policy	57	plugins.effective_policy()
 cross	server.Handler._guard	machine.role	1037	machine.role()
 cross	machine.info	store.read_yaml	90	store.read_yaml(
@@ -82,6 +82,6 @@ local	store.write_json	store.write_text	100	write_text(path,
 local	calendar.now_utc	calendar.now	59	now()
 local	calendar.now	calendar.local_tz	54	local_tz()
 unresolved	config.set_value	283	DEFAULTS[key][1](raw)	setting registry selects a validator
-unresolved	cli.main	4838	args.fn(args)	parser selects the command implementation
+unresolved	cli.main	4840	args.fn(args)	parser selects the command implementation
 unresolved	vault._fernet	40	@lru_cache(maxsize=4)	module cache controls whether key loading executes
 unresolved	cli.may_show_business	57	sys.stdout.isatty() or _owner_ui()	terminal and request context control whether plugin policy runs
