@@ -12,7 +12,7 @@ node	jobs.sources.load	rust-19	src/careerbrew/jobs/sources.py	244
 node	jobs.strategy.applications_path	rust-19	src/careerbrew/jobs/strategy.py	45
 node	jobs.strategy.build	rust-19	src/careerbrew/jobs/strategy.py	115
 node	jobs.strategy.log_application	rust-19	src/careerbrew/jobs/strategy.py	49
-node	plugins.resources	rust-07	src/careerbrew/plugins.py	456
+node	plugins.resources	rust-07	src/careerbrew/plugins.py	499
 node	plugins.tree_hash	rust-07	src/careerbrew/plugins.py	194
 node	prep.mark_stale	rust-19	src/careerbrew/prep.py	100
 node	research.page	rust-19	src/careerbrew/research.py	26

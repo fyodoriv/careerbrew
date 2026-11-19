@@ -1251,6 +1251,11 @@ Case folding and word splits depend on this table.
 - **Outputs:** native live policy, the third provider of the approval closure.
 - **Gate:** 100% of readiness, manifest and repair cases agree; 0 secret
   disclosures, silent repairs or unmanaged configuration writes.
+- **Slice `rust-07b` (preparation):** pure decisions over supplied facts:
+  `plugins.validate_manifest_data`, `merge_policy`, `refresh_order`;
+  `machine.readiness_rows`, `cloud_service`, `per_user`, `guard_decision`,
+  `suggest_decision`; `msauth.classify_poll`, `classify_refresh`. The old
+  names probe, then call them. `mcp_check.check_rows` is not split yet.
 
 ### rust-08: Port HTTP sources, calendar and mail
 
