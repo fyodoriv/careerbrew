@@ -422,6 +422,8 @@ tests/e2e/web_seed.py,port,rust-27,Port each assertion/helper with its domain sl
 tests/fixtures/notifier/fake-notifier.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/fixtures/plugin-acme/bin/tickets.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/fixtures/voice/fake-stt.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/oracles/rust04.py,port,rust-04,The rust-04 Python vector oracle; retire with the Python migration oracle
+tests/oracles/rust04_vectors.py,port,rust-04,The rust-04 vector generator; retire with the Python migration oracle
 tests/safety/test_issue_327_native.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/safety/test_issue_327_native_cleanup.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/__init__.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here

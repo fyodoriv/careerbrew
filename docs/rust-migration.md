@@ -1068,6 +1068,28 @@ Each listed test file maps to vectors: `test_privacy_index.py`,
   entry removed; the `<` removed from the mention lookbehind; the receipt
   validator accepts an unknown status.
 
+#### Oracle and generator (rust-04c)
+
+- Generator: `python -I tests/oracles/rust04_vectors.py <new-file>` writes
+  every set's cases and the synthetic canary terms. It refuses an existing
+  file. It reads no clock, randomness or data folder.
+- Oracle: `python -I tests/oracles/rust04.py <set> <file>` prints one line,
+  `{"set", "unidata_version", "results": [{"id", "output": {"ok": ...} |
+  {"error": {"class", "message"}}}]}`. `--all [<file>]` runs every set (from
+  the generator in memory when no file is given) and prints only set names,
+  the case count, the Unicode version and a SHA-256 of the results.
+- The real functions run on supplied data. For one case at a time the
+  oracle replaces the approvals store, events, clock and id, and the data
+  root and plugin list behind `sensitive_terms`.
+- No term text in any output: matched text is a length, a term pattern is a
+  hash, a filtered term is its `term_id`. Every output is checked against
+  every term pattern; a hit exits 3 and names the case only.
+- Until `rust-04b` lands, `validate-records` and `validate-directory` cases
+  report `{"validator": "absent"}`.
+- `cargo xtask migration baseline --step rust-04` runs the oracle with
+  `--all`. The step has no Rust candidate yet, so `verify` and `measure`
+  refuse it.
+
 #### Unicode version check
 
 The verify record stores Python's `unicodedata.unidata_version` and the
