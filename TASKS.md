@@ -511,6 +511,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P2
 
+- [ ] Exercise 052's complexity check cannot reject an O(n) walk
+  - **ID**: exercise-052-reject-linear-walk
+  - **Details**: In `knowledge/exercises/052-lowest-common-ancestor-of-a-binary-search-tree.yaml` a solution that walks every node first measured a slope of 1.01 (1.09 ms, 3.46 ms, 11.08 ms at 10,000, 31,623 and 100,000 nodes), but `_complexity` in `src/careerbrew/tutor/exercises.py` passes any run whose largest size takes under 50 ms, so it counts as `ok` against `O(log n)`. A memo keyed by a child node (the generator reuses the tree below each fresh root) would also escape the check. Larger trees cost CPU, which the hosted scaling limit cannot spare, so the fix is likely a lower floor for sublinear classes or a per-exercise floor.
+  - **Files**: src/careerbrew/tutor/exercises.py; knowledge/exercises/052-lowest-common-ancestor-of-a-binary-search-tree.yaml; tests/unit/test_exercise_complexity.py
+  - **Hypothesis**: with a floor that sublinear exercises can reach, a planted linear walk on 052 is rejected in 100% of runs while the reference still passes 100%.
+  - **Measurement**: a unit test that runs a planted linear-walk solution and the reference through `exercises.check` for 052.
+  - **Success**: the planted walk fails and the reference passes, and the reference scaling run stays under 30 s of local CPU.
+  - **Pivot**: if no floor separates them without flakes, mark 052's complexity as advisory instead of a gate.
+  - **Anchor**: Goldsmith, Aiken & Wilkerson 2007, "Measuring empirical computational complexity" (FSE).
+
 - [ ] CI: stop macOS gate parts from being cancelled while they wait for a runner
   - **ID**: ci-macos-runner-wait
   - **Details**: On 2026-11-18 macOS `part` jobs of the CI workflow sat queued for over 2 hours with 0 steps, then ended `cancelled`, so `gate (macos-15)` failed on PRs #136 to #140 and #146 with no code fault; each needed `gh run rerun <id> --failed`, some twice. Find what cancels a queued job (workflow `concurrency`, a `timeout-minutes` that counts queue time, or GitHub's own queue limit), then make a queued-too-long part rerun once by itself or report "no runner" instead of a failed gate.
