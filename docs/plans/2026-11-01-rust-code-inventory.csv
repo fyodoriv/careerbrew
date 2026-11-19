@@ -964,4 +964,4 @@ crates/cbcli/tests/cli.rs,keep-native,rust-00,rust-03 native CLI pilot controls:
 xtask/tests/purevec.rs,keep-native,rust-00,rust-02 vector step controls: four commands accept it and a planted home write is counted
 xtask/tests/fixtures/purevec/driver.py,port,rust-27,Retire the rust-02 Python pure value vector oracle with the Python migration oracle
 xtask/tests/fixtures/purevec/settings.json,port,rust-27,Retire the rust-02 settings vectors with the Python migration oracle
-tests/unit/test_rust05b_storage_hardening.py,port,rust-05,Port rust-05b storage hardening controls: unique vault temp, temp cleanup, exclusive key create, settings and plaintext append locks
+tests/unit/test_rust05b_storage_hardening.py,port,rust-05,Port rust-05b storage hardening controls for temp files and key and settings and append locks
