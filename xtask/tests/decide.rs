@@ -34,7 +34,10 @@ fn verify() -> Value {
             "side_effect": 0, "missing_writes": 0, "duplicate_writes": 0,
         },
         "unobserved_violations": [],
-        "missing_contracts": [],
+        // rust-03 scopes out HTTP, DATA and role; decide requires this list.
+        "missing_contracts": ["http", "data", "role"],
+        "test_scope": null,
+        "python_denied": "env",
     })
 }
 
@@ -196,14 +199,59 @@ fn each_keep_reason_has_a_control() {
         "verify-violation-unobserved",
     );
 
-    // A contract verify did not check (DATA) keeps Python.
+    // A contract verify did not check that the step does not scope out
+    // (the CLI contract) keeps Python.
     let mut uncovered = verify();
-    uncovered["missing_contracts"] = json!(["data"]);
+    uncovered["missing_contracts"] = json!(["http", "data", "role", "cli"]);
     keeps_with(
         baseline(),
         uncovered,
         measure(1000),
         "verify-contract-missing",
+    );
+
+    // A record that does not list a scoped-out contract was made under
+    // another scope (here: one that claims HTTP): it keeps Python.
+    let mut other_scope = verify();
+    other_scope["missing_contracts"] = json!(["data", "role"]);
+    keeps_with(
+        baseline(),
+        other_scope,
+        measure(1000),
+        "verify-contract-scope-mismatch",
+    );
+    let mut full_scope = verify();
+    full_scope["missing_contracts"] = json!([]);
+    keeps_with(
+        baseline(),
+        full_scope,
+        measure(1000),
+        "verify-contract-scope-mismatch",
+    );
+
+    // A record made under a test-only scope never activates, even when it
+    // carries the step's own scope list.
+    for scope in ["allow-python", "full"] {
+        let mut scoped = verify();
+        scoped["test_scope"] = json!(scope);
+        keeps_with(baseline(), scoped, measure(1000), "verify-test-scope");
+    }
+    // A no_python step (rust-03) needs a record that denied Python.
+    let mut allowed = verify();
+    allowed["python_denied"] = Value::Null;
+    keeps_with(
+        baseline(),
+        allowed,
+        measure(1000),
+        "verify-python-not-denied",
+    );
+    let mut absent = verify();
+    absent.as_object_mut().unwrap().remove("python_denied");
+    keeps_with(
+        baseline(),
+        absent,
+        measure(1000),
+        "verify-python-not-denied",
     );
 
     for state in ["cold", "warm"] {
@@ -691,4 +739,22 @@ fn the_warm_noise_floor_does_not_cover_the_cold_regime() {
     assert_eq!(record["reasons"], json!(["cpu-regressed"]));
     assert_eq!(record["regimes"][0]["noise_floor_applied"], false);
     assert_eq!(record["regimes"][1]["noise_floor_applied"], true);
+}
+
+#[test]
+fn a_registry_projection_check_is_judged_like_any_check() {
+    // rust-03's offline contract: a passing projection activates, a failed
+    // one keeps Python.
+    let dir = tempfile::tempdir().unwrap();
+    let mut passing = verify();
+    passing["checks"] = json!([
+        {"id": "actions-json", "passed": true},
+        {"id": "registry-projection", "passed": true},
+    ]);
+    let (output, record) = decide(dir.path(), &baseline(), &passing, &measure(1000));
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert_eq!(record.unwrap()["decision"], "activate");
+    let mut failing = passing.clone();
+    failing["checks"][1]["passed"] = json!(false);
+    keeps_with(baseline(), failing, measure(1000), "verify-check-failed");
 }

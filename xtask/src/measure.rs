@@ -84,6 +84,8 @@ struct Side {
     args: Vec<OsString>,
     warmup_args: Vec<OsString>,
     python: bool,
+    /// The step's extra environment (`baseline::Step::env`).
+    env: &'static [(&'static str, &'static str)],
 }
 
 /// One real execution in a fresh synthetic home. `pycache` sets the bytecode
@@ -98,6 +100,9 @@ fn execute(
     let scratch = tempfile::tempdir().map_err(|_| "cannot create measure home")?;
     let mut environment: BTreeMap<String, String> =
         capture_actions::owned_environment(root, &scratch.path().join("owned"))?;
+    for (key, value) in side.env {
+        environment.insert((*key).to_owned(), (*value).to_owned());
+    }
     if environment
         .get("CAREERBREW_HOME")
         .is_none_or(|home| home.is_empty())
@@ -233,8 +238,10 @@ struct Inputs {
 fn inputs(root: &Path, step: &baseline::Step, program: &Path) -> Result<Inputs, String> {
     let binary = std::fs::read(program).map_err(|_| "cannot read the Rust candidate")?;
     let hashed: Vec<&str> = HASHED.iter().chain(step.sources).copied().collect();
+    let mut sources = baseline::hashed_sources_with(root, &hashed)?;
+    baseline::bind_env(&mut sources, step)?;
     Ok(Inputs {
-        sources: baseline::hashed_sources_with(root, &hashed)?,
+        sources,
         fixtures_sha256: baseline::fixtures_sha256(root)?,
         candidate_sha256: capture_actions::digest(&binary),
     })
@@ -284,6 +291,7 @@ pub fn record(
                 .collect(),
             args: oracle_args,
             python: true,
+            env: step.env,
         },
         Side {
             name: "candidate",
@@ -291,6 +299,7 @@ pub fn record(
             args: args.iter().map(OsString::from).collect(),
             warmup_args: args.iter().map(OsString::from).collect(),
             python: false,
+            env: step.env,
         },
     ];
     let mut method = "unknown";

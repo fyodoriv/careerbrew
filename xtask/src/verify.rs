@@ -16,7 +16,12 @@
 //!   over a real socket, compared on status, normalized headers and body.
 //!   The live oracle must still match the frozen `capture-http` reference.
 //!   The HTTP side effects are one more case, `http:side-effects`;
-//! - DATA: the `capture-data` corpus (10 cases, 19 phases) run in order in
+//! - registry projection (steps with `registry_projection`): the candidate's
+//!   `actions --json` stdout, wrapped as `{"actions": ...}`, must equal the
+//!   body of the frozen capture-http `/api/actions` cases (0 and 4). It is
+//!   the offline stand-in for a step that serves no HTTP: no server starts.
+//!   The live Python oracle must match the same bodies, or verify refuses;
+//! - DATA (steps with `data_contract`): the `capture-data` corpus (10 cases, 19 phases) run in order in
 //!   one fresh synthetic home per side: the oracle is the Python data driver
 //!   (run twice, in two homes, and it must agree with itself), the candidate
 //!   gets `--careerbrew-data-contract <trial> <case> <role>`. Each phase's
@@ -27,10 +32,17 @@
 //!   path written twice inside one phase is one write. File contents are
 //!   left out of the DATA side effects (rule `data-ciphertext`: each home has
 //!   its own key); the reader phases prove the content;
-//! - role: the Python oracle makes a fresh home a corporate machine, then
+//! - role (steps with `role_contract`): the Python oracle makes a fresh home a corporate machine, then
 //!   each side runs a job-hunt command (`jobs list`); the oracle refuses it,
 //!   and a candidate with another exit code, stdout or writes is a `role`
 //!   violation.
+//!
+//! A contract a step scopes out is listed in `missing_contracts`; `decide`
+//! requires that list to equal the step's declared scope. The CLI and
+//! registry projection runs get the step's extra environment (`Step::env`)
+//! on both sides; the HTTP, DATA and role runs (only under a step that keeps
+//! them, or `--test-scope full`) do not. A step with
+//! `no_python` runs each candidate side with Python denied (`NO_PYTHON_HOME`).
 //!
 //! It writes a content-free JSON record: step, per-case pass or fail with
 //! hashes and counts, the sources hash, the source revision, whether the
@@ -55,6 +67,16 @@ pub const ORACLE_PREFIX: &[&str] = &["-B", "-m", "careerbrew"];
 pub const UNOBSERVED: &[&str] = &[];
 /// Contracts a step needs that this verify does not check yet.
 pub const MISSING_CONTRACTS: &[&str] = &[];
+/// Python denial for a candidate run of a `no_python` step. The synthetic
+/// environment has no `PATH`, so a bare `python3` is not found; on top of
+/// that `PYTHONHOME` points at this missing folder inside the side's scratch
+/// folder, so a CPython started by absolute path (without `-E` or `-I`)
+/// cannot load its standard library and exits nonzero. A candidate that
+/// clears its environment or passes `-E`/`-I` is not caught: the record says
+/// `python_denied: "env"`, not a process-level proof.
+pub const NO_PYTHON_HOME: &str = "no-python";
+/// The test-only scopes `--test-scope` accepts.
+pub const TEST_SCOPES: &[&str] = &["full", "allow-python"];
 /// The marker an entry the run removed gets in its side-effect map.
 const REMOVED: &str = "removed";
 /// HTTP statuses that refuse access; a candidate that answers another status
@@ -81,6 +103,28 @@ fn effects(before: &Writes, after: &Writes) -> Writes {
 /// A side's stdout held a local path that no registered rule covers.
 struct UnregisteredPath;
 
+/// How one side runs: the step's extra environment, and whether Python is
+/// denied to it.
+struct Run {
+    env: &'static [(&'static str, &'static str)],
+    deny_python: bool,
+}
+
+impl Run {
+    fn apply(&self, environment: &mut BTreeMap<String, String>, scratch: &Path) {
+        for (key, value) in self.env {
+            environment.insert((*key).to_owned(), (*value).to_owned());
+        }
+        if self.deny_python {
+            environment.remove("PYTHONPATH");
+            environment.insert(
+                "PYTHONHOME".to_owned(),
+                scratch.join(NO_PYTHON_HOME).to_string_lossy().into_owned(),
+            );
+        }
+    }
+}
+
 /// Runs one side in a fresh synthetic home; returns its exit code, its
 /// stdout after the case's normalization rules, and its side effects in
 /// that home.
@@ -90,10 +134,12 @@ fn side(
     program: &Path,
     args: &[&str],
     rules: &[&str],
+    run: &Run,
 ) -> Result<Result<(Option<i32>, String, Writes), UnregisteredPath>, String> {
     let scratch = tempfile::tempdir().map_err(|_| "cannot create verify home")?;
     let owned = scratch.path().join("owned");
-    let environment = capture_actions::owned_environment(root, &owned)?;
+    let mut environment = capture_actions::owned_environment(root, &owned)?;
+    run.apply(&mut environment, scratch.path());
     let home = environment
         .get("CAREERBREW_HOME")
         .filter(|home| !home.is_empty())
@@ -220,22 +266,32 @@ fn cli_cases(
     python: &Path,
     candidate: &Path,
     step: &baseline::Step,
+    deny_python: bool,
     cases: &mut Vec<Value>,
     violations: &mut Violations,
 ) -> Result<(), String> {
+    let oracle_run = Run {
+        env: step.env,
+        deny_python: false,
+    };
+    let candidate_run = Run {
+        env: step.env,
+        deny_python,
+    };
     for (case, args) in step.cases {
         let rules = normalize::rules(step.id, case);
         let mut oracle_args = ORACLE_PREFIX.to_vec();
         oracle_args.extend_from_slice(args);
-        let (oracle_exit, oracle_stdout, oracle_writes) = side(root, python, &oracle_args, rules)?
-            .map_err(|UnregisteredPath| unregistered(case))?;
+        let (oracle_exit, oracle_stdout, oracle_writes) =
+            side(root, python, &oracle_args, rules, &oracle_run)?
+                .map_err(|UnregisteredPath| unregistered(case))?;
         if oracle_exit != Some(0) {
             return Err(format!("oracle case {case} did not exit 0; verify refused"));
         }
         let oracle_stdout_sha256 = capture_actions::digest(oracle_stdout.as_bytes());
         // A spawn failure, timeout, non-UTF-8 or oversize output fails the
         // case; the reason text stays out of the record (it may hold paths).
-        let entry = match side(root, candidate, args, rules) {
+        let entry = match side(root, candidate, args, rules, &candidate_run) {
             Ok(Err(UnregisteredPath)) => return Err(unregistered(case)),
             Ok(Ok((candidate_exit, candidate_stdout, candidate_writes))) => {
                 let exit_matches = candidate_exit == oracle_exit;
@@ -393,6 +449,95 @@ fn http_cases(
         "changed_writes": changed,
         "canary_leaks": served.canary_leaks,
     }))
+}
+
+/// The CLI arguments the registry projection runs on both sides.
+const PROJECTION_ARGS: &[&str] = &["actions", "--json"];
+/// The frozen capture-http cases whose body is the action catalog
+/// (`actions` and `localhost`, both `GET /api/actions`).
+const PROJECTION_HTTP_CASES: &[(usize, &str)] = &[(0, "actions"), (4, "localhost")];
+const PROJECTION_CASE: &str = "registry-projection";
+
+/// `{"actions": <stdout as JSON>}`, or None when stdout is not JSON.
+fn projection_body(stdout: &str) -> Option<Value> {
+    serde_json::from_str::<Value>(stdout)
+        .ok()
+        .map(|rows| json!({"actions": rows}))
+}
+
+/// The registry projection: the candidate's `actions --json` stdout, wrapped
+/// as `{"actions": ...}`, must equal the body of the frozen capture-http
+/// `/api/actions` cases. The live Python oracle must match the same bodies,
+/// or verify refuses. Pushes one entry.
+fn registry_projection(
+    root: &Path,
+    python: &Path,
+    candidate: &Path,
+    step: &baseline::Step,
+    deny_python: bool,
+    cases: &mut Vec<Value>,
+    violations: &mut Violations,
+) -> Result<(), String> {
+    let reference = capture_http::reference()?;
+    let mut bodies = Vec::new();
+    for (index, name) in PROJECTION_HTTP_CASES {
+        let case = reference
+            .get(*index)
+            .filter(|case| case["name"] == *name && case["path"] == "/api/actions")
+            .ok_or("the capture-http reference has no action catalog case")?;
+        bodies.push(&case["body"]);
+    }
+    let matches = |body: &Option<Value>| {
+        body.as_ref()
+            .is_some_and(|body| bodies.iter().all(|expected| *expected == body))
+    };
+    let oracle_run = Run {
+        env: step.env,
+        deny_python: false,
+    };
+    let mut oracle_args = ORACLE_PREFIX.to_vec();
+    oracle_args.extend_from_slice(PROJECTION_ARGS);
+    let (oracle_exit, oracle_stdout, _) = side(root, python, &oracle_args, &[], &oracle_run)?
+        .map_err(|UnregisteredPath| unregistered(PROJECTION_CASE))?;
+    let oracle_body = projection_body(&oracle_stdout);
+    if oracle_exit != Some(0) || !matches(&oracle_body) {
+        return Err(
+            "the registry projection oracle differs from the capture-http reference; verify refused"
+                .into(),
+        );
+    }
+    let candidate_run = Run {
+        env: step.env,
+        deny_python,
+    };
+    // A stdout with a local path cannot equal the path-free reference: it
+    // fails the case. A spawn failure, timeout, non-UTF-8 or oversize output
+    // fails it too; no reason text reaches the record.
+    let answer = side(root, candidate, PROJECTION_ARGS, &[], &candidate_run);
+    let (ran, exit_zero, body) = match answer {
+        Ok(Ok((exit, stdout, _))) => (true, exit == Some(0), projection_body(&stdout)),
+        Ok(Err(UnregisteredPath)) => (true, false, None),
+        Err(_) => (false, false, None),
+    };
+    let body_matches = matches(&body);
+    let passed = exit_zero && body_matches;
+    violations.contract += u64::from(!passed);
+    let digest = |body: &Option<Value>| {
+        body.as_ref()
+            .map(|body| capture_actions::digest(body.to_string().as_bytes()))
+    };
+    cases.push(json!({
+        "case": PROJECTION_CASE,
+        "kind": "registry-projection",
+        "passed": passed,
+        "candidate_ran": ran,
+        "exit_zero": exit_zero,
+        "body_matches": body_matches,
+        "http_cases": PROJECTION_HTTP_CASES.iter().map(|(_, name)| format!("http:{name}")).collect::<Vec<_>>(),
+        "oracle_body_sha256": digest(&oracle_body),
+        "candidate_body_sha256": digest(&body),
+    }));
+    Ok(())
 }
 
 /// The flag verify passes when it runs one DATA contract phase on the
@@ -762,6 +907,7 @@ fn role_case(
 /// Builds the record. `candidate` is the test-only override; without it the
 /// step's registered candidate is used. `test_oracle` is the test-only
 /// script run in place of `python` (it gets the same arguments).
+#[allow(clippy::too_many_arguments)]
 pub fn record(
     root: &Path,
     id: &str,
@@ -770,9 +916,16 @@ pub fn record(
     test_oracle: Option<&Path>,
     wrong: Option<&str>,
     plant_write: Option<&str>,
+    test_scope: Option<&str>,
 ) -> Result<Value, String> {
+    if test_scope.is_some_and(|scope| !TEST_SCOPES.contains(&scope)) {
+        return Err("--test-scope must be full or allow-python".into());
+    }
     // A vector step (rust-01, rust-02) has no CLI contract: it compares vectors.
     if let Some(step) = depvec::step(id) {
+        if test_scope.is_some() {
+            return Err("--test-scope applies only to a CLI step".into());
+        }
         return depvec::record(
             root,
             step,
@@ -816,16 +969,62 @@ pub fn record(
     }
     let hash = sources_sha256(root)?;
     let candidate_sha256 = binary_sha256(&candidate)?;
+    // `full` is the surface every CLI step had before contracts were scoped
+    // (HTTP, DATA and role, Python allowed, no registry projection: the HTTP
+    // contract compares the same /api/actions bodies over a socket).
+    let full = test_scope == Some("full");
+    let deny_python = step.no_python && test_scope.is_none();
+    let (http_on, data_on, role_on) = if full {
+        (true, true, true)
+    } else {
+        (step.http_contract, step.data_contract, step.role_contract)
+    };
+    let projection_on = step.registry_projection && !full;
     let mut cases = Vec::new();
     let mut violations = Violations::default();
-    cli_cases(root, oracle, &candidate, step, &mut cases, &mut violations)?;
-    let http = if step.http_contract {
+    cli_cases(
+        root,
+        oracle,
+        &candidate,
+        step,
+        deny_python,
+        &mut cases,
+        &mut violations,
+    )?;
+    let http = if http_on {
         http_cases(root, python, &candidate, &mut cases, &mut violations)?
     } else {
         Value::Null
     };
-    data_cases(root, python, &candidate, &mut cases, &mut violations)?;
-    role_case(root, python, &candidate, &mut cases, &mut violations)?;
+    if projection_on {
+        registry_projection(
+            root,
+            python,
+            &candidate,
+            step,
+            deny_python,
+            &mut cases,
+            &mut violations,
+        )?;
+    }
+    if data_on {
+        data_cases(root, python, &candidate, &mut cases, &mut violations)?;
+    }
+    if role_on {
+        role_case(root, python, &candidate, &mut cases, &mut violations)?;
+    }
+    let mut contracts = vec!["cli", "side-effect"];
+    let mut missing: Vec<&str> = MISSING_CONTRACTS.to_vec();
+    for (name, on) in baseline::SCOPED.iter().zip([http_on, data_on, role_on]) {
+        if on {
+            contracts.push(name);
+        } else {
+            missing.push(name);
+        }
+        if *name == "http" && projection_on {
+            contracts.push(PROJECTION_CASE);
+        }
+    }
     if sources_sha256(root)? != hash {
         return Err("a relevant source changed during verify".into());
     }
@@ -850,7 +1049,9 @@ pub fn record(
         "test_candidate": test_candidate,
         "test_oracle": test_oracle.is_some(),
         "candidate_sha256": candidate_sha256,
-        "contracts": if step.http_contract { json!(["cli", "side-effect", "http", "data", "role"]) } else { json!(["cli", "side-effect", "data", "role"]) },
+        "test_scope": test_scope,
+        "python_denied": if deny_python { json!("env") } else { Value::Null },
+        "contracts": contracts,
         "case_count": cases.len(),
         "passed_count": cases.len() - failed.len(),
         "failed_cases": failed,
@@ -858,7 +1059,7 @@ pub fn record(
         "checks": checks,
         "violations": violations.to_json(),
         "unobserved_violations": UNOBSERVED,
-        "missing_contracts": MISSING_CONTRACTS,
+        "missing_contracts": missing,
         "side_effects_observed": "final-state",
         "writes_traced": "per-phase",
         "http": http,
@@ -871,6 +1072,10 @@ pub fn record(
 pub struct Plants<'a> {
     pub wrong: Option<&'a str>,
     pub home_write: Option<&'a str>,
+    /// `--test-scope`: `full` runs HTTP, DATA and role whatever the step
+    /// scopes, with Python allowed and no registry projection; `allow-python`
+    /// keeps the step's scope but lifts the Python denial.
+    pub scope: Option<&'a str>,
 }
 
 /// Writes the record to a new absolute file. The record is written even when
@@ -884,14 +1089,27 @@ pub fn run(
     plants: Plants,
     output: &Path,
 ) -> Result<Value, String> {
-    let Plants { wrong, home_write } = plants;
+    let Plants {
+        wrong,
+        home_write,
+        scope,
+    } = plants;
     if !output.is_absolute() {
         return Err("--out must be an absolute path".into());
     }
     if output.exists() {
         return Err("verify output already exists".into());
     }
-    let record = record(root, id, python, candidate, test_oracle, wrong, home_write)?;
+    let record = record(
+        root,
+        id,
+        python,
+        candidate,
+        test_oracle,
+        wrong,
+        home_write,
+        scope,
+    )?;
     capture_actions::write_receipt(&record, output)?;
     Ok(record)
 }
