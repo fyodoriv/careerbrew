@@ -87,7 +87,9 @@ def read_lessons(side: str) -> dict[str, Any]:
 
 def _peer_commits(side: str, mark: str) -> list[str]:
     """Short ids of the commits that changed the peer's sources since this side's marker (30 days with no marker)."""
-    span = [f"{mark}..HEAD"] if mark else ["--since=30 days ago", "HEAD"]
+    if mark and not indie.git_out(root(), "rev-parse", "--verify", "--quiet", f"{mark}^{{commit}}"):
+        mark = ""  # an unknown marker hides nothing: fall back to the window
+    span = [f"{mark}..HEAD"] if mark else [f"--since={(calendar.now() - timedelta(days=30)).isoformat()}", "HEAD"]
     out = indie.git_out(root(), "log", "--format=%h", *span, "--", *SIDES[PEER[side]]["sources"])
     return out.split()
 
@@ -161,9 +163,12 @@ def start(side: str, change: str, metric: str, lesson: str = "") -> dict[str, An
 
 
 def verdict(side: str, metric: str, baseline: float | None, value: float | None) -> str:
-    if baseline is None or value is None or baseline == 0:
+    if baseline is None or value is None:
         return "NO-DATA"
-    better = (value - baseline) / baseline * (1 if SIDES[side]["metrics"][metric] else -1)
+    sign = 1 if SIDES[side]["metrics"][metric] else -1
+    if baseline == 0:  # no ratio from zero: any move away from it is a full move
+        return "NEUTRAL" if value == 0 else "KEEP" if value * sign > 0 else "REVERT"
+    better = (value - baseline) / baseline * sign
     return "KEEP" if better >= MARGIN else "REVERT" if better <= -MARGIN else "NEUTRAL"
 
 
@@ -185,6 +190,8 @@ def close(side: str) -> dict[str, Any]:
 
 def lesson_line(e: dict[str, Any]) -> str:
     """The line the agent adds to the side's LESSONS.md (by pull request) for a closed trial."""
+    if e["verdict"] == "NO-DATA":
+        return ""  # no number: neither adopted nor declined
     numbers = f"(metric {e['metric']}: {e['baseline']} -> {e['value']}, {e['verdict']})"
     if e["lesson"]:
         word = "adopted" if e["verdict"] == "KEEP" else "declined"

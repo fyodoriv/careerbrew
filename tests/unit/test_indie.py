@@ -77,7 +77,7 @@ def test_a_bet_with_no_hypothesis_is_a_question_for_the_owner_not_work():
     p = _plan()
     assert p["sessions"] == [] and p["questions"] == ["alpha", "beta", "gamma"]
     assert all(b["next"]["kind"] == "question" and not b["slot"] for b in p["bets"])
-    assert p["coverage"] == {"repos": 3, "with_next_action": 3}
+    assert p["coverage"] == {"repos": 3, "with_next_action": 3, "with_task": 0}
 
 
 def test_only_the_owner_activates_a_bet_and_only_with_a_full_hypothesis(capsys):
@@ -268,3 +268,47 @@ def test_the_ranking_beats_round_robin_in_a_seeded_eight_week_simulation():
     assert mean(mine, (6, 7), "outcomes") > 1.15 * mean(mine, (0, 1), "outcomes")  # and delivers more
     assert mean(mine, (6, 7), "outcomes") > 1.4 * mean(control, (6, 7), "outcomes")
     assert indie.simulate("ucb", 7) == indie.simulate("ucb", 7)  # seeded: the same run every time
+
+
+def test_an_active_bet_that_lost_a_field_gets_no_session():
+    indie.scan()
+    _activate("alpha")
+    indie.set_bet("alpha", metric="")
+    p = _plan()
+    row = next(b for b in p["bets"] if b["bet"] == "alpha")
+    assert p["sessions"] == [] and "alpha" in p["questions"] and row["next"]["kind"] == "question" and "lacks metric" in row["reason"]
+
+
+def test_a_failed_measure_command_records_no_reading(apps):
+    indie.scan()
+    _activate("alpha")
+    indie.set_bet("alpha", measure=f'{sys.executable} -c "print(0); raise SystemExit(3)"')
+    with pytest.raises(indie.IndieError, match="failed .exit 3.: no reading recorded"):
+        indie.measure("alpha")
+    assert indie.readings("alpha") == []
+    with pytest.raises(indie.IndieError, match="unbalanced quote"):
+        indie.set_bet("alpha", measure="echo 'open")
+
+
+def test_an_agent_never_sees_a_reading_or_a_line(monkeypatch, capsys):
+    indie.scan()
+    _activate("alpha")
+    monkeypatch.setattr(cli, "may_show_business", lambda: False)
+    capsys.readouterr()
+    assert cli.main(["indie", "measure", "alpha", "--value", "4242"]) == 0
+    assert cli.main(["indie", "measure", "alpha", "--value", "4242", "--json"]) == 0
+    assert cli.main(["indie", "bet", "alpha", "--json"]) == 0
+    out = capsys.readouterr().out
+    assert "4242" not in out and CANARY not in out and '"has_success": true' in out and '"success"' not in out
+
+
+def test_the_trend_is_total_cost_over_total_outcomes():
+    indie.scan()
+    indie.log_day("alpha", 3.0, asks=1, day="2026-11-18")
+    indie.log_day("gamma", 4.0, asks=2, day="2026-11-10")
+    trend = indie.review(4)["trend"]
+    assert trend["hours_per_outcome"] == {"earlier": None, "recent": round(7.0 / 3, 2)}  # weeks 3 and 4: 7 hours, 3 outcomes
+    assert trend["asks_per_outcome"]["recent"] == 1.0
+    assert indie.plan()["coverage"]["with_task"] == 0
+    with pytest.raises(indie.IndieError, match="--by is a date"):
+        indie.set_goal(100, "soon")

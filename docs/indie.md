@@ -44,6 +44,14 @@ A bet with no hypothesis gets no agent time: it becomes a question for you. Only
 4. `careerbrew indie end` records the day's agent-hours and asks per bet.
 5. `careerbrew indie review` shows each week: outcomes, agent-hours per outcome, and asks per outcome.
 
+What an agent sees: ids, states, counts, and `KEEP` / `WATCH` / `PIVOT`. A bet's hypothesis, its success and pivot lines, and each reading's value show only in your own terminal. The plan's `coverage` counts the repos, those with any next action (`with_next_action`), and those whose next action is a task (`with_task`).
+
+Limits to know:
+
+- A week's trend is its total agent-hours (and asks) over its total outcomes. A week with a failed agent-time read shows no hours, never a lower number.
+- An outcome counts for the week its commit landed, even when no hours were recorded for that bet. Record hours every day (`careerbrew indie end`) or the cost per outcome reads too low.
+- A measure command that exits with an error records no reading.
+
 ## How bets are ranked
 
 - An **outcome** is a merged `feat`, `fix`, or `perf` commit in the bet's repo. Upkeep does not count.

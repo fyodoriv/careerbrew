@@ -30,7 +30,7 @@ expect "$(cb indie bets)" "bets: 3, 0 active, 3 waiting for a hypothesis" "a new
 plan="$(cb indie run --json)"
 expect "$plan" '"sessions": []' "error case: a bet with no hypothesis gets no session"
 expect "$plan" '"questions": ["alpha", "beta", "gamma"]' "each one becomes a question for the owner"
-expect "$plan" '"coverage": {"repos": 3, "with_next_action": 3}' "every repo has a next action"
+expect "$plan" '"coverage": {"repos": 3, "with_next_action": 3, "with_task": 0}' "every repo has a next action"
 event_seen indie.run
 
 # 2. The owner types the goal and the income; agents only ever see a percentage.

@@ -61,7 +61,10 @@ def set_goal(monthly: float, by: str = "") -> dict[str, Any]:
     if not math.isfinite(monthly) or monthly <= 0:
         raise IndieError("the monthly income target is a number above 0")
     if by:
-        date.fromisoformat(by)
+        try:
+            date.fromisoformat(by)
+        except ValueError:
+            raise IndieError("--by is a date like 2027-12-31") from None
     g = {"monthly": monthly, "by": by, "set_at": _stamp()}
     store.write_yaml(_file("goal.yaml"), g)
     return g
@@ -190,7 +193,10 @@ def set_bet(ident: str, **fields: Any) -> dict[str, Any]:
                 raise IndieError(f"keep the {k} under 400 characters")
         b[k] = v
     if b.get("measure"):
-        shlex.split(b["measure"])
+        try:
+            shlex.split(b["measure"])
+        except ValueError:
+            raise IndieError("the measure command has an unbalanced quote") from None
     all_bets[ident] = b
     _save(all_bets)
     return b
@@ -234,6 +240,8 @@ def measure(ident: str, value: float | None = None) -> dict[str, Any]:
             r = subprocess.run(shlex.split(b["measure"]), cwd=b["path"], capture_output=True, text=True, timeout=120, check=False)
         except (OSError, subprocess.TimeoutExpired) as e:
             raise IndieError(f"the measure command of {ident} did not run ({type(e).__name__})") from None
+        if r.returncode != 0:
+            raise IndieError(f"the measure command of {ident} failed (exit {r.returncode}): no reading recorded")
         lines = [x for x in r.stdout.strip().splitlines() if x.strip()]
         try:
             value = float(lines[-1].strip())
@@ -311,8 +319,8 @@ def review(weeks: int = 4, at: datetime | None = None) -> dict[str, Any]:
         mine = [r for r in logged if start.date() < date.fromisoformat(r["day"]) <= end.date()]
         hours: float | None
         if use_adapter:
-            parts = [cum[i][k + 1] - cum[i][k] for i in active if cum[i][k + 1] is not None and cum[i][k] is not None]  # type: ignore[operator]
-            hours = round(max(0.0, sum(parts)), 2) if parts else None
+            parts = [cum[i][k + 1] - cum[i][k] if cum[i][k + 1] is not None and cum[i][k] is not None else None for i in active]  # type: ignore[operator]
+            hours = round(max(0.0, sum(p for p in parts if p is not None)), 2) if parts and None not in parts else None  # one failed read: no-data, never an undercount
         else:
             hours = round(sum(r["hours"] for r in mine), 2) if mine else None
         asks = sum(r.get("asks", 0) for r in mine)
@@ -329,7 +337,16 @@ def review(weeks: int = 4, at: datetime | None = None) -> dict[str, Any]:
         vals = [r[key] for r in rows_ if r[key] is not None]
         return round(sum(vals) / len(vals), 2) if vals else None
 
-    trend = {key: {"earlier": mean(old, key), "recent": mean(new, key)} for key in ("outcomes", "hours_per_outcome", "asks_per_outcome")}
+    def cost(rows_: list[dict[str, Any]], key: str, per: str) -> float | None:
+        """Total cost over total outcomes for the weeks that have the cost: a week with hours and no outcome still counts."""
+        have = [r for r in rows_ if r[key] is not None and r[per] is not None]
+        return _ratio(float(sum(r[key] for r in have)), sum(r["outcomes"] for r in have)) if have else None
+
+    trend = {
+        "outcomes": {"earlier": mean(old, "outcomes"), "recent": mean(new, "outcomes")},
+        "hours_per_outcome": {"earlier": cost(old, "agent_hours", "agent_hours"), "recent": cost(new, "agent_hours", "agent_hours")},
+        "asks_per_outcome": {"earlier": cost(old, "asks", "agent_hours"), "recent": cost(new, "asks", "agent_hours")},
+    }
     events.emit("indie.review", weeks=weeks, outcomes=sum(w["outcomes"] for w in out_weeks), bets=len(active))
     return {"weeks": out_weeks, "bets": per_bet, "trend": trend, "goal": progress(at), "hours_source": "adapter" if use_adapter else "sessions"}
 
@@ -384,6 +401,8 @@ def rank(at: datetime | None = None) -> list[dict[str, Any]]:
                 "reason": "no income hypothesis yet: it gets no agent time",
                 "next": {"kind": "question", "do": f"owner: say how {ident} leads to income (careerbrew indie bet {ident} ..., then careerbrew indie decide {ident} activate --yes)"},
             }
+        elif b["state"] == "active" and (lack := ready(b)):
+            row |= {"order": 3, "reason": f"it lacks {', '.join(lack)}: it gets no agent time", "next": {"kind": "question", "do": f"owner: complete the bet (careerbrew indie bet {ident} ...)"}}
         elif b["state"] != "active":
             row |= {"order": 4, "reason": f"{b['state']} by the owner", "next": {"kind": "none", "do": f"nothing until the owner decides again (careerbrew indie decide {ident} persevere --yes)"}}
         elif held(ident, b, rows):
@@ -428,7 +447,8 @@ def plan(at: datetime | None = None) -> dict[str, Any]:
     at = at or calendar.now()
     found = scan()
     ranked = rank(at)
-    with_next = sum(1 for r in ranked if r.get("next", {}).get("do"))
+    with_next = sum(1 for r in ranked if r["next"]["kind"] != "none")
+    with_task = sum(1 for r in ranked if r["next"]["kind"] == "task")
     out = {
         "day": at.date().isoformat(),
         "goal": progress(at),
@@ -436,7 +456,7 @@ def plan(at: datetime | None = None) -> dict[str, Any]:
         "bets": ranked,
         "sessions": [r["bet"] for r in ranked if r["slot"]],
         "questions": [r["bet"] for r in ranked if r["next"]["kind"] in ("question", "decide")],
-        "coverage": {"repos": len(ranked), "with_next_action": with_next},
+        "coverage": {"repos": len(ranked), "with_next_action": with_next, "with_task": with_task},
         "added": found["added"],
         "contract": CONTRACT,
         "flow": [
@@ -454,10 +474,12 @@ def plan(at: datetime | None = None) -> dict[str, Any]:
 def end(hours: dict[str, float] | None = None, at: datetime | None = None) -> list[dict[str, Any]]:
     """Record today's agent time and owner asks per bet from the day's project sessions (`--hours bet=H` overrides the clock)."""
     from .work import sessions
+    from .workday import questions
 
     at = at or calendar.now()
     today = at.date().isoformat()
     mine = bets()
+    asked = [q.get("step") for q in questions.records(at.date())]  # every ask of the day, answered or open
     out = []
     seen: set[str] = set()
     for s in sessions.listing(include_ended=True):
@@ -466,7 +488,7 @@ def end(hours: dict[str, float] | None = None, at: datetime | None = None) -> li
         seen.add(s["project"])
         stop = datetime.fromisoformat(s["ended"]) if s["ended"] else at
         took = min(MAX_SESSION_HOURS, max(0.0, (stop - datetime.fromisoformat(s["started"])).total_seconds() / 3600))
-        out.append(log_day(s["project"], (hours or {}).get(s["project"], took), s["questions"], today, s["id"]))
+        out.append(log_day(s["project"], (hours or {}).get(s["project"], took), asked.count(sessions.step_of(s["id"])), today, s["id"]))
     for ident, h in (hours or {}).items():
         if ident not in seen:
             out.append(log_day(ident, h, 0, today))

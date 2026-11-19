@@ -124,6 +124,9 @@ def test_no_data_is_never_a_keep(monkeypatch):
     assert peers.measure("work", "step_fail_rate", 14) is None
     assert peers.verdict("work", "step_fail_rate", None, 0.1) == "NO-DATA" and peers.verdict("indie", "outcomes_per_week", 2.0, 2.5) == "KEEP"
     assert peers.verdict("indie", "outcomes_per_week", 2.0, 1.5) == "REVERT"
+    assert peers.verdict("work", "step_fail_rate", 0, 0.3) == "REVERT" and peers.verdict("work", "step_fail_rate", 0, 0) == "NEUTRAL"  # from zero, any failure is worse
+    assert peers.verdict("indie", "outcomes_per_week", 0, 2.0) == "KEEP"
+    assert peers.lesson_line({"verdict": "NO-DATA", "lesson": "L-indie-1", "side": "work", "metric": "step_fail_rate", "baseline": None, "value": None, "change": "x"}) == ""
     _runs(monkeypatch, failed=1, median=None)
     assert peers.measure("work", "step_minutes", 14) is None and peers.measure("work", "step_blocked_rate", 14) == 0.1
 

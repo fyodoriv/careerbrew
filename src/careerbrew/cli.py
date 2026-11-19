@@ -4063,13 +4063,13 @@ def _indie(a: argparse.Namespace, indie: Any, report: Any, runs: Any) -> int:
             "state": b["state"],
             "kind": b.get("kind", ""),
             "lacks": indie.ready(b),
-            "success": b.get("success"),
-            "pivot": b.get("pivot"),
+            "has_success": b.get("success") is not None,
+            "has_pivot": b.get("pivot") is not None,
             "higher_is_better": b.get("higher_is_better", True),
             "has_measure": bool(b.get("measure")),
         }
         if show:
-            out |= {k: b.get(k, "") for k in ("hypothesis", "metric", "measure", "path")}
+            out |= {k: b.get(k, "") for k in ("hypothesis", "metric", "measure", "path", "success", "pivot")}
         if a.json:
             print(json.dumps(out))
         else:
@@ -4095,9 +4095,9 @@ def _indie(a: argparse.Namespace, indie: Any, report: Any, runs: Any) -> int:
     if sub == "measure":
         r = indie.measure(a.id, a.value)
         if a.json:
-            print(json.dumps(r))
+            print(json.dumps(r if may_show_business() else {k: v for k, v in r.items() if k != "value"}))
         else:
-            say(f"bet {a.id}: {r['status']} ({r['value']})" + ("; held until the owner decides" if indie.held(a.id, indie.bet(a.id)) else ""))
+            say(f"bet {a.id}: {r['status']}" + (f" ({r['value']})" if may_show_business() else "") + ("; held until the owner decides" if indie.held(a.id, indie.bet(a.id)) else ""))
         return 0
     if sub == "review":
         got = indie.review(a.weeks)
