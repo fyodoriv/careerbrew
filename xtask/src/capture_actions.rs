@@ -18,8 +18,7 @@ const HISTORICAL_REFERENCE: &str =
     include_str!("../tests/fixtures/capture/actions-reference-v1.json");
 const HISTORICAL_REFERENCE_SHA256: &str =
     "99cc30068c2264989d166acc38f114494b6252d0a4860a32506af25a53ccbba0";
-const REFERENCE: &str =
-    include_str!("../tests/fixtures/capture/actions-reference-indie-v5.json");
+const REFERENCE: &str = include_str!("../tests/fixtures/capture/actions-reference-indie-v5.json");
 const OBSERVER: &str = include_str!("../tests/fixtures/capture/observer/sitecustomize.py");
 const REFERENCE_SHA256: &str = "342e0a4c7445c846781576f67b348317a7f47ab955d596f3f6bf6f417c5f55c3";
 const LIMIT: u64 = 4 * 1024 * 1024;

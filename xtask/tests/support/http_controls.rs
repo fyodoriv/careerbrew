@@ -24,10 +24,8 @@ mod capture_http {
                 .unwrap()
                 != HISTORICAL_REFERENCE.as_bytes()
             || shared::digest(HISTORICAL_REFERENCE.as_bytes()) != HISTORICAL_REFERENCE_SHA256
-            || std::fs::read(
-                root.join("xtask/tests/fixtures/capture/http-reference-indie-v5.json"),
-            )
-            .unwrap()
+            || std::fs::read(root.join("xtask/tests/fixtures/capture/http-reference-indie-v5.json"))
+                .unwrap()
                 != REFERENCE.as_bytes()
             || shared::digest(REFERENCE.as_bytes()) != REFERENCE_SHA256
         {
