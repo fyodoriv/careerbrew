@@ -1,4 +1,6 @@
 path,disposition,task,reason
+tests/unit/test_access_validate.py,port,rust-04,Deny-by-default refusal controls for malformed records; tests port with the capability
+tests/unit/test_approvals_validate.py,port,rust-04,Deny-by-default refusal controls for malformed records; tests port with the capability
 tests/unit/test_eval_case_loading.py,port,rust-27,Fixed real eval-loader duplicate-key and document-boundary regression controls
 .cargo/config.toml,keep-native,rust-00,Native migration workspace source or build configuration
 Cargo.lock,keep-native,rust-00,Native migration workspace source or build configuration
@@ -424,6 +426,8 @@ tests/e2e/web_seed.py,port,rust-27,Port each assertion/helper with its domain sl
 tests/fixtures/notifier/fake-notifier.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/fixtures/plugin-acme/bin/tickets.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/fixtures/voice/fake-stt.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/oracles/rust04.py,port,rust-04,The rust-04 Python vector oracle; retire with the Python migration oracle
+tests/oracles/rust04_vectors.py,port,rust-04,The rust-04 vector generator; retire with the Python migration oracle
 tests/safety/test_issue_327_native.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/safety/test_issue_327_native_cleanup.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/__init__.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -798,6 +802,8 @@ xtask/src/capture_actions.rs,keep-native,rust-00,Native observed action catalog 
 xtask/src/inventory.rs,keep-native,rust-00,Native tracked inventory verifier
 xtask/src/sites.rs,keep-native,rust-00,Native embedded-site and entry-point discovery
 xtask/src/sites_tests.rs,keep-native,rust-00,Controls for embedded-site and entry-point discovery
+xtask/src/leak_check.rs,keep-native,rust-00,rust-27b slice 1: native repo leak scan engine over supplied terms; no production dispatch
+xtask/tests/leak_check.rs,keep-native,rust-00,Synthetic canary controls for the native leak scan
 xtask/src/main.rs,keep-native,rust-00,Native migration workspace source or build configuration
 xtask/src/toolchain_identity.rs,keep-native,rust-00,Native read-only toolchain identity probe
 xtask/src/trial_plan.rs,keep-native,rust-00,Native paired trial ordering for the migration harness
@@ -949,6 +955,10 @@ crates/depvec/tests/cli.rs,keep-native,rust-00,rust-01 dependency vector binary 
 xtask/src/depvec.rs,keep-native,rust-00,rust-01 dependency vector verify with planted wrong-vector controls
 xtask/tests/depvec.rs,keep-native,rust-00,rust-01 verify controls against the Python vector oracle with a planted wrong vector
 xtask/tests/fixtures/depvec/driver.py,port,rust-27,Retire the rust-01 Python dependency vector oracle with the Python migration oracle
+xtask/src/vecdriver.rs,keep-native,rust-00,rust-04a vector-driver kind: one generated vector file for both drivers with planted-defect controls
+xtask/tests/vecdriver.rs,keep-native,rust-00,rust-04a vector-check controls: positive run and three planted defects
+xtask/tests/fixtures/vecdriver/driver.py,port,rust-27,Retire the rust-04a synthetic vector driver control with the Python migration oracle
+xtask/tests/fixtures/vecdriver/generator.py,port,rust-27,Retire the rust-04a synthetic vector generator control with the Python migration oracle
 crates/purevec/src/clock.rs,keep-native,rust-00,rust-02 clock vector set: calendar.py clock helpers and config._tz with injected zones
 crates/purevec/src/hash.rs,keep-native,rust-00,rust-02 hash vector set: the changes._h input hash primitive that rust-24 reuses
 crates/purevec/src/lib.rs,keep-native,rust-00,rust-02 pure value vector registry and runner
@@ -968,3 +978,4 @@ xtask/tests/fixtures/purevec/driver.py,port,rust-27,Retire the rust-02 Python pu
 xtask/tests/fixtures/purevec/settings.json,port,rust-27,Retire the rust-02 settings vectors with the Python migration oracle
 tests/unit/test_rust05b_storage_hardening.py,port,rust-05,Port rust-05b storage hardening controls for temp files and key and settings and append locks
 tests/unit/test_rust05a_provider_seams.py,port,rust-05,Port rust-05a key and settings and event seam controls
+tests/unit/test_rust07a_shapes.py,port,rust-07,Fixed refusals for malformed plugin policy and manifest shapes

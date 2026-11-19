@@ -577,7 +577,7 @@ def cmd_approvals_guidance(_a: argparse.Namespace) -> int:
 def cmd_approvals_list(_a: argparse.Namespace) -> int:
     from . import approvals
 
-    for item in approvals.load()[-20:]:
+    for item in approvals._records()[-20:]:
         say(f"{item['id']}  {item['status']:<9} {item['title']}")
     return 0
 
@@ -4924,7 +4924,9 @@ def _native_route(argv: list[str]) -> int | None:
 
     sys.stdout.flush()
     try:  # careerbrew-native buffers its whole output until exit, so capturing both streams delays nothing
-        done = subprocess.run([str(binary), *argv], capture_output=True, check=False)
+        # The binary cannot find this package's repo, so it gets it here for the default `private/` data root.
+        child_env = {**os.environ, "CAREERBREW_NATIVE_REPO": str(paths.REPO_ROOT)}
+        done = subprocess.run([str(binary), *argv], capture_output=True, check=False, env=child_env)
     except KeyboardInterrupt:
         return 130  # Ctrl-C reached the child too; exit as a shell would, with no traceback
     except OSError:  # present and executable, but it cannot start (wrong architecture, bad interpreter)

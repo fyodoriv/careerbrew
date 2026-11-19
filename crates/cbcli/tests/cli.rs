@@ -334,3 +334,62 @@ fn an_unset_home_with_events_on_goes_to_python_and_writes_nothing() {
     assert!(result.stdout.is_empty());
     assert!(files(cwd.path()).is_empty());
 }
+
+#[test]
+fn an_unset_home_with_the_repo_writes_under_its_private_folder() {
+    let repo = tempfile::tempdir().unwrap();
+    let result = Command::new(BIN)
+        .args(["actions", "--json"])
+        .env_clear()
+        .env("COLUMNS", "80")
+        .env("CAREERBREW_NATIVE_REPO", repo.path())
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(0));
+    assert_eq!(files(repo.path()), ["private/logs/events.jsonl"]);
+    let mode = std::fs::metadata(repo.path().join("private")).unwrap();
+    use std::os::unix::fs::PermissionsExt;
+    assert_eq!(mode.permissions().mode() & 0o777, 0o700);
+}
+
+#[test]
+fn an_empty_home_exits_64_even_with_the_repo() {
+    let repo = tempfile::tempdir().unwrap();
+    let result = Command::new(BIN)
+        .args(["actions", "--json"])
+        .env_clear()
+        .env("COLUMNS", "80")
+        .env("CAREERBREW_HOME", " ")
+        .env("CAREERBREW_NATIVE_REPO", repo.path())
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(64));
+    assert!(files(repo.path()).is_empty());
+}
+
+#[test]
+fn a_tilde_home_expands_as_python_does() {
+    let user = tempfile::tempdir().unwrap();
+    let result = Command::new(BIN)
+        .args(["actions", "--json"])
+        .env_clear()
+        .env("COLUMNS", "80")
+        .env("HOME", format!("{}/", user.path().display()))
+        .env("CAREERBREW_HOME", "~/data")
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(0));
+    assert_eq!(files(user.path()), ["data/logs/events.jsonl"]);
+}
+
+#[test]
+fn expand_user_matches_posixpath() {
+    use careerbrew_cli::events::expand_user;
+    let home = || Some("/h/".to_owned());
+    assert_eq!(expand_user("/x", None).as_deref(), Some("/x"));
+    assert_eq!(expand_user("~", home()).as_deref(), Some("/h"));
+    assert_eq!(expand_user("~/a", home()).as_deref(), Some("/h/a"));
+    assert_eq!(expand_user("~", Some("/".to_owned())).as_deref(), Some("/"));
+    assert_eq!(expand_user("~other/a", home()), None);
+    assert_eq!(expand_user("~/a", None), None);
+}
