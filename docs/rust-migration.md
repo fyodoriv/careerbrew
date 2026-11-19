@@ -922,9 +922,28 @@ Done 2026-11-18, on macOS, with the four sets of #149. Records stay local.
     an input of Python's `privacy.redact` (`sensitive-terms.txt`,
     `profile.yaml`, `plugins.lock.json`). With events on it appends Python's
     content-free `cli.run` row after a successful `actions`; it never sends
-    telemetry ([decision 0010](decisions/0010-native-pilot-hooks.md)). No
-    route sends a command to it yet (`config/native-routes.txt` is all
-    `python`); the route prelude and activation are later PRs.
+    telemetry ([decision 0010](decisions/0010-native-pilot-hooks.md)).
+  - The route prelude exists, default Python. `cli.main()` with no argv (the
+    console script only; `actions.run()` and tests pass argv) calls
+    `_native_route` before it builds the parser. In order: `CAREERBREW_NATIVE=off`
+    keeps Python (the kill switch); a bare run or any leading flag keeps
+    Python; `-h/--help` routes only with `COLUMNS=80`; the action is the
+    two-word `<cmd>.<sub>` route key when the table has it, else `<cmd>`;
+    `CAREERBREW_ROUTE_<ACTION>=native|python` (upper case, other characters
+    `_`) wins over the table, for rollback; the binary is
+    `CAREERBREW_NATIVE_BIN` or `target/release/careerbrew-native`. A missing
+    or non-executable binary, or one that cannot start, logs
+    `cli.native_fallback`, and exit 64 logs `cli.native_unsupported`; both
+    then run Python. The binary runs as a child (not `exec`), so exit 64 can
+    fall back; its stdout and stderr are held (the binary buffers both until
+    exit anyway) and shown only when it did not refuse, so a refusal never
+    duplicates output. A signal exits 128 + N, Ctrl-C exits 130. The binary
+    writes its own `cli.run` row, so the prelude adds none. The prelude reads env and the plaintext route file
+    only. All routes are still `python`, so nothing changes until the
+    activation PR flips `actions`. Tests: `tests/unit/test_native_route.py`;
+    story US-111 (`tests/e2e/us-111-native-actions.sh`: python, native and
+    rollback print byte-identical `actions --json`). Measured cost on a
+    Python-routed command: about 0.07 ms per call in process.
 - **Verify scope:** the pilot binary serves no HTTP, no data and no
   role-checked command; `server.py` stays Python. So `rust-03` declares
   `http_contract`, `data_contract` and `role_contract` false, and verify lists
@@ -1509,7 +1528,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
 | `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
-| `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | none: no route sends a command to it yet |
+| `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | opt-in route from `cli.main` (`CAREERBREW_ROUTE_<ACTION>=native`); every action defaults to Python. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
 | `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`calendar`, `code-parse`, `fernet`, `fsrs`, `json-yaml` and `runtime` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
 | `experiments/hash/` | `careerbrew-hash-experiment` | the pure `changes._h` hash for a supported synthetic JSON subset. It refuses values outside that subset. | none: component parity only |
 
