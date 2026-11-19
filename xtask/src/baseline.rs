@@ -61,7 +61,8 @@ pub const STEPS: &[Step] = &[
         cases: &[],
         candidate: Some("target/debug/careerbrew-purevec"),
         // A vector step never reaches the CLI contracts (`verify` hands it to
-        // `depvec`), so these flags have no effect on its verdict.
+        // `depvec`), and `decide` gives a vector step no declared scope, so
+        // these flags have no effect on its verdict.
         http_contract: false,
         data_contract: true,
         role_contract: true,
