@@ -232,6 +232,7 @@ def settings(op, data):
     written = []
     config._file = lambda: dict(stored)
     config.store = types.SimpleNamespace(write_yaml=lambda _path, value: written.append(value))
+    config.config_io = types.SimpleNamespace(read_settings=lambda: dict(stored), write_settings=written.append)
     config.events = types.SimpleNamespace(emit=lambda *_a, **_k: None)
     config.paths = types.SimpleNamespace(data_root=lambda: PurePosixPath("synthetic"))
     config._settings_lock = contextlib.nullcontext  # the file lock is IO (rust-05), not value logic
