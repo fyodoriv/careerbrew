@@ -41,6 +41,14 @@ def test_every_reader_refuses_instead_of_raising_key_error(records, message):
             call()
 
 
+@pytest.mark.parametrize(("records", "message"), BAD)
+def test_a_request_refuses_a_malformed_file_before_it_writes(records, message):
+    store.write_json(approvals._path(), records)
+    with pytest.raises(approvals.ApprovalRecordError, match=f"^{message}$"):
+        approvals.request("a new ask")
+    assert store.read_json(approvals._path(), None) == records
+
+
 def test_the_cli_prints_the_fixed_message_and_exits_nonzero(capsys):
     store.write_json(approvals._path(), [{**OK, "status": CANARY}])
     assert main(["approvals", "show", "a1"]) == 2
