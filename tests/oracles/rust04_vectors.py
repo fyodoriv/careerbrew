@@ -191,15 +191,15 @@ def _public_scrub() -> list[dict[str, Any]]:
         "token": "key " + "AKIA" + "ABCDEFGHIJKLMNOP" + " leaked",  # built at runtime so gitleaks never sees a key-shaped literal
         "long-token": "token " + "a1" * 20 + " here",
         "sha": "commit 1a2b3c4d5e6f landed",
-        "ipv4": "server 10.0.0.12:8080 was down",
-        "ipv6": "host [fe80::1]:443 ok",
+        "ipv4": "server " + ".".join(["10", "0", "0", "12"]) + ":8080 was down",  # joined at runtime: no address literal in the tree
+        "ipv6": "host [" + "fe80" + "::1]:443 ok",  # joined at runtime
         "windows": "saved to C:\\Users\\x\\file.txt",
         "posix": "edited ~/notes/a.md and ./b.txt",
         "go-link": "see go/plan-doc",
         "hostname": "on db1.internal.example.net now",
         "domain": "visit status.dev",
         "ticket": "closed ZBR-7 and zebra-42",
-        "phone": "call +1 555-123-4567",
+        "phone": "call +1 " + "-".join(["555", "123", "4567"]),  # joined at runtime
         "address": "at 12 Maple Street",
         "office": "room 4B floor 2",
         "employee": "badge id 12345",
