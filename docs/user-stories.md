@@ -2087,7 +2087,7 @@ See [Agent hosts](agent-hosts.md) for runtime, deployment and regression details
 - **Mode**: platform
 - **As** a careerbrew user, **I want** each action routed to Python or to the native `careerbrew-native` binary one line at a time, with a rollback that needs no code change, **so that** a faster native path can ship without changing what any command prints.
 - **Acceptance criteria**:
-  - Given the committed `config/native-routes.txt` (every action `python`), when I run `careerbrew actions --json`, then Python answers and the native binary never runs.
+  - Given the committed `config/native-routes.txt` (`actions native` since rust-03 activated; every other action `python`), when I run `careerbrew actions --json`, then `careerbrew-native` answers.
   - Given `actions` routed native (the route line, or `CAREERBREW_ROUTE_ACTIONS=native`), when I run `careerbrew actions --json`, then `careerbrew-native` answers with the same bytes as Python.
   - Given a rollback (`CAREERBREW_NATIVE=off`, `CAREERBREW_ROUTE_ACTIONS=python`, or a missing binary), when I run the same command, then Python answers with the same bytes; a missing binary logs `cli.native_fallback`.
   - Given the native binary refuses the argv (exit 64), when the command runs, then Python runs it and `cli.native_unsupported` is logged.

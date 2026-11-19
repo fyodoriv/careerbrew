@@ -51,11 +51,21 @@ def route(home, tmp_path, monkeypatch):
     return Route()
 
 
-def test_the_committed_route_file_routes_every_action_to_python():
-    """Default python: with the committed table, behavior is the same as before the prelude."""
+def test_the_committed_route_file_routes_only_actions_native():
+    """rust-03 activated: `actions` is native by default; every other action stays python."""
     routes = cli._native_routes()
-    assert routes and set(routes.values()) == {"python"}
+    assert routes["actions"] == "native"
+    assert {v for k, v in routes.items() if k != "actions"} == {"python"}
     assert cli.NATIVE_ROUTES == ROOT / "config" / "native-routes.txt"
+
+
+def test_the_child_gets_the_repo_for_the_default_data_root(route, tmp_path):
+    """careerbrew-native cannot find this package's repo itself; the console script passes it."""
+    route.set("actions native\n")
+    seen = tmp_path / "repo.txt"
+    route.fake.write_text(f'#!/bin/sh\nprintf "%s" "$CAREERBREW_NATIVE_REPO" > "{seen}"\n', encoding="utf-8")
+    assert cli._native_route(["actions", "--json"]) == 0
+    assert seen.read_text(encoding="utf-8") == str(ROOT)
 
 
 def test_a_python_route_does_not_run_the_binary(route):
