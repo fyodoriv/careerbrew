@@ -53,7 +53,7 @@
 //! cannot see yet. A candidate that cannot run, times out or prints output
 //! that is not UTF-8 or too large fails its case. A step with no Rust
 //! candidate is refused, never passed.
-use crate::{baseline, capture_actions, capture_http, decide, depvec, normalize};
+use crate::{baseline, capture_actions, capture_http, decide, depvec, normalize, vecdriver};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -924,6 +924,36 @@ pub fn record(
 ) -> Result<Value, String> {
     if test_scope.is_some_and(|scope| !TEST_SCOPES.contains(&scope)) {
         return Err("--test-scope must be full or allow-python".into());
+    }
+    // A vector-driver step (rust-04): one generated file feeds both drivers.
+    if let Some(step) = vecdriver::step(id) {
+        if test_scope.is_some() || test_oracle.is_some() || plant_write.is_some() {
+            return Err(
+                "--test-scope, --test-oracle and --test-plant-home-write do not apply to a vector-driver step"
+                    .into(),
+            );
+        }
+        let binary = candidate.map_or_else(|| root.join(step.candidate), Path::to_path_buf);
+        let mut record = vecdriver::record(
+            root,
+            python,
+            Path::new(step.generator),
+            Path::new(step.driver),
+            vecdriver::Candidate::Binary(&binary),
+            if wrong.is_some() {
+                vecdriver::Plant::ChangeByte
+            } else {
+                vecdriver::Plant::None
+            },
+            vecdriver::Scope {
+                only: Some(step.sets),
+                plant_set: wrong,
+            },
+        )?;
+        record["schema"] = json!(SCHEMA);
+        record["step"] = json!(step.id);
+        record["planted_wrong_vector"] = json!(wrong);
+        return Ok(record);
     }
     // A vector step (rust-01, rust-02) has no CLI contract: it compares vectors.
     if let Some(step) = depvec::step(id) {

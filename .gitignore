@@ -181,6 +181,7 @@ __pycache__/
 !/xtask/tests/verify.rs
 !/xtask/tests/depvec.rs
 !/xtask/tests/vecdriver.rs
+!/xtask/tests/rust04_verify.rs
 !/xtask/tests/purevec.rs
 !/xtask/tests/leak_check.rs
 !/xtask/tests/fixtures/

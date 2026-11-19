@@ -110,10 +110,10 @@ pub const STEPS: &[Step] = &[
     },
     Step {
         // rust-04 is a vector step (privacy, policy and approval decisions).
-        // Only its Python oracle is registered: `--all` runs every set over
-        // the generator's vectors in one isolated process. No Rust candidate
-        // yet, so `verify` and `measure` refuse the step; the vector-driver
-        // harness (rust-04a) wires the scratch vector file.
+        // Only its Python oracle is registered here: `--all` runs every set
+        // over the generator's vectors in one isolated process. `verify`
+        // routes the step to the vector-driver kind (`vecdriver::RUST_04`);
+        // `measure` refuses it while this row has no candidate.
         id: "rust-04",
         oracle: &["-I", "-B", "tests/oracles/rust04.py", "--all"],
         cases: &[],
