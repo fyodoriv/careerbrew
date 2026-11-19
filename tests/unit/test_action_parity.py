@@ -48,19 +48,20 @@ def test_web_app_lists_every_action(home):
     assert {a["name"] for a in server.actions_view()["actions"]} == _cli_leaves()
 
 
-def test_the_catalog_and_a_web_run_build_the_cli_parser_once_each(home, monkeypatch):
+def test_the_catalog_builds_no_parser_and_a_web_run_builds_it_once(home, monkeypatch):
     # The catalog looked up each action's help in a new parser: 133 builds, about 1 s of CPU
     # for the Actions view and for each run from the web app, over 5 s at load ~85 (us-35).
+    # Since rust-03 the catalog reads the generated registry (test_action_registry.py) and builds none.
     from careerbrew import cli
 
     real, built = cli.build_parser, []
     monkeypatch.setattr(cli, "build_parser", lambda: built.append(1) or real())
     cat = {a["name"]: a for a in actions.catalog()}
-    assert len(built) == 1
+    assert len(built) == 0
     assert cat["config.show"]["help"] == "every setting, its value, and where it comes from", "help still comes from the subcommand"
     built.clear()
     assert actions.run("config.show", {})["exit"] == 0
-    assert len(built) == 2, "one for the catalog, one for the command"
+    assert len(built) == 1, "one for the command; the catalog reads the registry"
 
 
 SAFE_SKIP = {"day.watch"}  # needs an argument; covered by test_day.py

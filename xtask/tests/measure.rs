@@ -171,7 +171,10 @@ fn decide_consumes_the_measure_record_with_a_baseline_record() {
             "side_effect": 0, "missing_writes": 0, "duplicate_writes": 0,
         },
         "unobserved_violations": [],
-        "missing_contracts": [],
+        // rust-03's declared scope: verify lists these, decide requires it.
+        "missing_contracts": ["http", "data", "role"],
+        "test_scope": null,
+        "python_denied": "env",
     });
     std::fs::write(&verify, serde_json::to_vec(&record).unwrap()).unwrap();
     let out = scratch.path().join("decide.json");
@@ -217,14 +220,6 @@ fn decide_consumes_the_measure_record_with_a_baseline_record() {
             regime["candidate_cpu_us"][0]
         );
     }
-}
-
-#[test]
-fn step_without_a_rust_candidate_is_refused() {
-    let scratch = tempfile::tempdir().unwrap();
-    let out = scratch.path().join("measure.json");
-    let result = measure("rust-03", &out, "1").output().unwrap();
-    refused(result, "step rust-03 has no Rust candidate yet", &out);
 }
 
 #[test]
@@ -407,12 +402,18 @@ fn planted(body: &str, wide_floor: bool) -> (Value, Value) {
     let scratch = tempfile::tempdir().unwrap();
     // `verify` also runs the DATA, role and HTTP contracts: serve them with
     // the Python drivers and CLI, as `http_then` in tests/verify.rs does.
+    // Its CLI cases pass arguments: the candidate lifts rust-03's
+    // environment-only Python denial (`unset PYTHONHOME`, the gap
+    // `verify::NO_PYTHON_HOME` documents) and answers each case with the
+    // Python CLI. `measure` runs it with no arguments: the planted body.
     let py = python().display().to_string();
     let drivers = root().join("xtask/tests/fixtures/capture");
     let http = format!(
         "if [ \"$1\" = '--careerbrew-data-contract' ]; then shift; exec '{py}' -B -S '{}' \"$@\"; fi\n\
          if [ \"$1\" = jobs ]; then exec '{py}' -B -m careerbrew \"$@\"; fi\n\
-         if [ \"$1\" = '--careerbrew-http-contract' ]; then exec '{py}' -B '{}'; fi\n{body}",
+         if [ \"$1\" = '--careerbrew-http-contract' ]; then exec '{py}' -B '{}'; fi\n\
+         unset PYTHONHOME\n\
+         if [ $# -gt 0 ]; then exec '{py}' -B -m careerbrew \"$@\"; fi\n{body}",
         drivers.join("data_driver.py").display(),
         drivers.join("http_driver.py").display(),
     );
@@ -438,6 +439,9 @@ fn planted(body: &str, wide_floor: bool) -> (Value, Value) {
             .arg(&verify)
             .arg("--test-candidate")
             .arg(&candidate)
+            // The planted candidates run the Python oracle, and rust-03
+            // denies Python to its candidate by default.
+            .args(["--test-scope", "allow-python"])
             .env_remove("CAREERBREW_HOME")
             .output()
             .unwrap(),

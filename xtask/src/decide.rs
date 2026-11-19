@@ -15,8 +15,12 @@
 //!   `checks` list of `{id, passed}`, a `violations` map of counts and an
 //!   `unobserved_violations` list of violation names verify cannot see yet
 //!   (each one keeps Python: an unobserved count is never a zero), and a
-//!   `missing_contracts` list of contracts verify did not check (each one
-//!   keeps Python too).
+//!   `missing_contracts` list of contracts verify did not check. That list
+//!   must equal the step's declared scope (`baseline::Step::scoped_out`): a
+//!   missing contract the step does not scope out keeps Python
+//!   (`verify-contract-missing`), and a scoped-out contract the record does
+//!   not list keeps Python too (`verify-contract-scope-mismatch`: the record
+//!   was made under another scope).
 //! - measure: `careerbrew-migration-measure-v1` with `step` and a nonempty
 //!   `regimes` list of `{cache_state, pair_ids, cached, oracle_cpu_us,
 //!   oracle_tree_max_rss_bytes, candidate_cpu_us,
@@ -46,13 +50,15 @@ pub const VIOLATIONS: &[&str] = &[
     "duplicate_writes",
 ];
 
-/// The decide, noise floor and limit sources built into this binary, as
+/// The decide, noise floor, limit and step registry sources built into this binary, as
 /// one hash, so a record shows which rules produced its verdict.
 fn sources_sha256() -> String {
     let sources = json!({
         "xtask/src/decide.rs": crate::capture_actions::digest(include_bytes!("decide.rs")),
         "xtask/src/noise_floor.rs": crate::capture_actions::digest(include_bytes!("noise_floor.rs")),
         "xtask/src/baseline_verdict.rs": crate::capture_actions::digest(include_bytes!("baseline_verdict.rs")),
+        // The step registry: `decide` reads each step's declared contract scope.
+        "xtask/src/baseline.rs": crate::capture_actions::digest(include_bytes!("baseline.rs")),
     });
     crate::capture_actions::digest(sources.to_string().as_bytes())
 }
@@ -98,7 +104,14 @@ pub fn verdict(
     measure: &Value,
     test_floor: Option<&Value>,
 ) -> Result<Value, String> {
-    baseline::step(step)?;
+    let registered = baseline::step(step)?;
+    // A vector step's record comes from `depvec`, which runs no CLI contract
+    // and lists none as missing, so it declares no scope.
+    let declared = if crate::depvec::step(step).is_some() {
+        Vec::new()
+    } else {
+        registered.scoped_out()
+    };
     header(base, "baseline", baseline::SCHEMA, step)?;
     let os = base["os"]
         .as_str()
@@ -208,8 +221,20 @@ pub fn verdict(
     if !unobserved.is_empty() {
         reasons.insert("verify-violation-unobserved");
     }
-    if !missing_contracts.is_empty() {
+    // A test-only scope (`--test-scope`) never activates, and a `no_python`
+    // step needs a record that ran its candidate with Python denied.
+    if !verify["test_scope"].is_null() {
+        reasons.insert("verify-test-scope");
+    }
+    if registered.no_python && verify["python_denied"].as_str() != Some("env") {
+        reasons.insert("verify-python-not-denied");
+    }
+    let listed: BTreeSet<&str> = missing_contracts.iter().filter_map(Value::as_str).collect();
+    if listed.iter().any(|name| !declared.contains(name)) {
         reasons.insert("verify-contract-missing");
+    }
+    if declared.iter().any(|name| !listed.contains(name)) {
+        reasons.insert("verify-contract-scope-mismatch");
     }
     let mut states = BTreeSet::new();
     let mut summary = Vec::new();
@@ -392,7 +417,9 @@ pub mod controls {
             "schema": VERIFY_SCHEMA, "step": "rust-03",
             "checks": [{"id": "actions-json", "passed": true}],
             "violations": violations,
-            "unobserved_violations": [], "missing_contracts": [],
+            "unobserved_violations": [],
+            "missing_contracts": baseline::step("rust-03").expect("registered").scoped_out(),
+            "test_scope": null, "python_denied": "env",
         })
     }
 
@@ -465,6 +492,28 @@ pub mod controls {
         #[should_panic(expected = "planted rss-regressed accepted")]
         fn big_rss_control_fails_an_accepting_harness() {
             big_rss_holds(always_activate);
+        }
+
+        /// A vector step's verify record lists no missing contracts and
+        /// carries no `test_scope` or `python_denied`; it must still activate.
+        #[test]
+        fn a_vector_step_record_activates() {
+            let mut base = base();
+            base["step"] = json!("rust-02");
+            let mut verify = verify();
+            verify["step"] = json!("rust-02");
+            verify["missing_contracts"] = json!([]);
+            let record = verify.as_object_mut().unwrap();
+            record.remove("test_scope");
+            record.remove("python_denied");
+            let mut measure = measure(100_000, 50_000_000);
+            measure["step"] = json!("rust-02");
+            let floor = json!({
+                "cpu_floor_us": 0, "cpu_absolute_us": 0,
+                "rss_floor_bytes": 0, "rss_absolute_bytes": 0,
+            });
+            let record = verdict("rust-02", &base, &verify, &measure, Some(&floor)).unwrap();
+            assert_eq!(record["decision"], "activate", "{record}");
         }
     }
 }

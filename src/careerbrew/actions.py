@@ -5,6 +5,9 @@ exists; nothing has to be listed twice. Agents discover actions with `careerbrew
 and run them as CLI commands. The web app lists them (`GET /api/actions`) and runs one with
 `POST /api/actions/<name>` through `run()`, which calls the same CLI handler in-process.
 
+The rows live in a generated file (`REGISTRY`, written by `scripts/gen-registry.py` from the parser
+walk in `catalog_from_parser`), so the CLI, the web app, and the native pilot read one list.
+
 A few actions need a terminal (a hidden secret prompt, an interactive session, an editor); they
 are listed with that reason and a hint instead of a form. Actions that change or send something
 hard to undo need `confirm`. `tests/unit/test_action_parity.py` fails when any CLI command misses
@@ -22,8 +25,10 @@ from __future__ import annotations
 import argparse
 import contextvars
 import io
+import json
 import sys
 import threading
+from pathlib import Path
 from typing import Any
 
 TERMINAL_ONLY = {
@@ -183,7 +188,28 @@ def _arg(a: argparse.Action) -> dict[str, Any] | None:
     }
 
 
+# The generated action registry (rust-03): scripts/gen-registry.py writes it from the parser walk
+# below, and tests/unit/test_action_registry.py fails when it drifts. `careerbrew actions`, the web
+# app's Actions view, and the native pilot binary all read this one file.
+REGISTRY = Path(__file__).resolve().parents[2] / "crates" / "cbcli" / "registry" / "registry.json"
+
+
 def catalog() -> list[dict[str, Any]]:
+    """Every action, read from the generated registry (no parser build).
+
+    A tree without the registry file (a copy of `src/` alone, as the Rust capture tests make)
+    walks the parser instead: the same rows, by the parity test. The `registry` gate step fails
+    when the committed file is missing or stale, so the repo never ships without it.
+    """
+    try:
+        text = REGISTRY.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return catalog_from_parser()
+    return json.loads(text)["rows"]
+
+
+def catalog_from_parser() -> list[dict[str, Any]]:
+    """The registry rows, walked from the CLI parser: the generator's source and the parity test's oracle."""
     from .cli import build_parser
 
     out = []

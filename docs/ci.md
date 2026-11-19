@@ -22,7 +22,7 @@ Each part runs `scripts/setup.sh`, then `scripts/check.sh` with
 
 | Part | `CHECK_STEPS` | Usual time (macOS) |
 |---|---|---|
-| `checks` | `docs` to `tasks`, `format`, `lint`, `types`, `unit`, `public-cards`, `card-code`, the four `web-*` steps | about 10 min |
+| `checks` | `docs` to `tasks`, `format`, `lint`, `types`, `unit`, `registry`, `public-cards`, `card-code`, the four `web-*` steps | about 10 min |
 | `native` | `exercises` and the four Rust steps | about 10 min |
 | `e2e-1` | `e2e` with `E2E_SHARD=1/2` | about 13 min |
 | `e2e-2` | `e2e` with `E2E_SHARD=2/2` | about 9 min |
