@@ -976,3 +976,4 @@ xtask/tests/fixtures/purevec/driver.py,port,rust-27,Retire the rust-02 Python pu
 xtask/tests/fixtures/purevec/settings.json,port,rust-27,Retire the rust-02 settings vectors with the Python migration oracle
 tests/unit/test_rust05b_storage_hardening.py,port,rust-05,Port rust-05b storage hardening controls for temp files and key and settings and append locks
 tests/unit/test_rust07a_shapes.py,port,rust-07,Fixed refusals for malformed plugin policy and manifest shapes
+tests/unit/test_rust07b_pure.py,port,rust-07,Pure plugin and machine and sign-in decisions over supplied facts

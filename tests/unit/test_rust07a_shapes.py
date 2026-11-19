@@ -82,3 +82,9 @@ def test_rust07a_valid_shapes_still_pass(home, tmp_path):
     )
     assert plugins.validate_manifest(data, tmp_path) is data
     assert plugins.validate_manifest(_manifest(requires=None, provides=None, policy=None), tmp_path)
+
+
+@pytest.mark.parametrize("value", [0, 0.1])
+def test_an_unquoted_numeric_requires_is_accepted_like_before(tmp_path, value):
+    data = _manifest(requires=value)
+    assert plugins.validate_manifest(data, tmp_path) is data

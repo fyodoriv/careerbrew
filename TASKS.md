@@ -155,6 +155,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: any contract disagreement, privacy violation or missing/duplicate write, or CPU/RSS ratio >1.10 B, blocks rollout. Rework the adapter or dependency, register the new approach and remeasure; keep the last verified handler. Preparation fails on any accepted planted defect or unsupported required contract.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
 
+- [ ] Rust migration: rust-07b split pure plugin and machine decisions from IO
+  - **ID**: rust-07b
+  - **Details**: Part of rust-07. Preparation, no Rust, no behaviour change except the symlink refusal now names the first symlink in sorted order. Pure functions over supplied facts: `plugins.validate_manifest_data` (facts from `manifest_facts`), `plugins.merge_policy`, `plugins.refresh_order`, `machine.readiness_rows`, `machine.cloud_service`, `machine.per_user`, `machine.guard_decision`, `machine.suggest_decision`, `msauth.classify_poll`, `msauth.classify_refresh`; the old names call them. Progress: done in code and unit tests; not yet split: `mcp_check.check_rows`.
+  - **Files**: src/careerbrew/plugins.py; src/careerbrew/machine.py; src/careerbrew/msauth.py; tests/unit/test_rust07b_pure.py
+  - **Hypothesis**: every rust-07 decision the oracle needs runs with no data root, network or subprocess: 10 of 10 pure functions callable on synthetic facts, with 0 changes to existing plugin, machine and sign-in test results.
+  - **Measurement**: `uv run pytest tests/unit/test_rust07b_pure.py tests/unit/test_plugin_commands.py tests/unit/test_vault_plugins.py tests/unit/test_corporate_ready.py tests/unit/test_rust07a_shapes.py -q` on the hosted checks of the pull request.
+  - **Success**: all new pure tests pass and every existing listed test stays green.
+  - **Pivot**: any existing test needs a changed assertion other than symlink order: revert that split and re-register.
+  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration).
+
 - [ ] Rust migration: rust-07a Python deny-by-default for plugin policy and manifest shapes
   - **ID**: rust-07a
   - **Details**: Part of rust-07. Preparation, no Rust. `plugins.validate_manifest` refuses malformed `policy` lists and flags, `export_to_personal`, `provides`, `requires`, `sensitive_terms`, `detect.env` and `detect.paths`, and a name with a trailing newline (`fullmatch`), each with a fixed message that holds no input. Valid manifests behave as before. Own patch release. Not yet covered: an already installed manifest is not re-checked in `installed()`.

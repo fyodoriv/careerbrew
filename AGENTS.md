@@ -243,6 +243,12 @@ PM draft facts must survive GitHub/gh collection, evidence, watcher rows, result
 and log details. Version same-id rows when draft/state facts change. A closed PR
 without explicit merge evidence must not get a delivery tag.
 
+rust-07b pure decisions (`plugins.validate_manifest_data`, `merge_policy`,
+`refresh_order`, `machine.readiness_rows`, `cloud_service`, `guard_decision`,
+`suggest_decision`, `msauth.classify_*`) take supplied facts only. Add a new
+file, environment or network read to the IO wrapper, never to the pure function
+(`test_rust07b_pure.py`).
+
 Keep open asks at the end of the Next step priority order. Use the feed's open
 queue and keep titles and links out of restricted CLI output and watcher suggestions.
 
