@@ -1100,6 +1100,29 @@ Each listed test file maps to vectors: `test_privacy_index.py`,
   entry removed; the `<` removed from the mention lookbehind; the receipt
   validator accepts an unknown status.
 
+#### Vector-driver harness (rust-04a)
+
+`cargo xtask migration vector-check` is the vector-driver kind
+(`xtask/src/vecdriver.rs`). It runs the tracked generator once
+(`python -I <generator> <file>`) into a scratch file of
+`{"sets": {"<set>": [{"id", "op", "input"}]}}`, then gives that same path to
+both drivers (`<driver> <set> <file>`, answer shape as in the rust-01 vector
+framework). It hashes the file before and after; a driver that changes it is
+refused. Each driver first answers `unicode-version`; a mismatch records one
+failed `unicode-version` case and runs no vector case. Cases are
+`<set>:<id>`, compared with the shared `depvec::compare`.
+
+- Exit 0 when every case passes, 1 when a case fails, 2 on a refusal
+  (missing driver, generator failure, unreadable or malformed vector file).
+- Planted controls (`--test-plant`): `remove-case`, `change-byte` and
+  `unicode-mismatch`. Each fails and names its case
+  (`xtask/tests/vecdriver.rs`, with the synthetic fixtures in
+  `xtask/tests/fixtures/vecdriver/`). `migration self-test` runs 4 more
+  compare controls.
+- `vecdriver::STEPS` is empty. `rust-04c` registers `rust-04` with its
+  generator and oracle and routes `baseline`, `verify` and `measure` to
+  this kind; `rust-04d` adds the `policy-vectors` candidate.
+
 #### Unicode version check
 
 The verify record stores Python's `unicodedata.unidata_version` and the

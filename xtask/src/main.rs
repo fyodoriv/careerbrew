@@ -16,6 +16,7 @@ mod resources;
 mod sites;
 mod toolchain_identity;
 mod trial_plan;
+mod vecdriver;
 mod verify;
 
 use std::process::ExitCode;
@@ -26,7 +27,8 @@ fn main() -> ExitCode {
         let passed = baseline_verdict::controls::run()
             + trial_plan::controls::run()
             + decide::controls::run()
-            + depvec::controls::run();
+            + depvec::controls::run()
+            + vecdriver::controls::run();
         println!("migration self-test: {passed} controls passed");
         return ExitCode::SUCCESS;
     }
@@ -125,6 +127,9 @@ fn main() -> ExitCode {
     }
     if args.len() >= 2 && args[0] == "migration" && args[1] == "measure" {
         return measure_command(&args[2..]);
+    }
+    if args.len() >= 2 && args[0] == "migration" && args[1] == "vector-check" {
+        return vector_check_command(&args[2..]);
     }
     if args.len() >= 2 && args[0] == "migration" && args[1] == "verify" {
         return verify_command(&args[2..]);
@@ -298,6 +303,7 @@ fn main() -> ExitCode {
     eprintln!("       cargo xtask migration measure --step <id> --python <absolute-path> --out <new-file> [--pairs <n>] [--test-allow-few-pairs] [--test-candidate <absolute-path>]");
     eprintln!("       cargo xtask migration decide --step <id> --baseline <file> --verify <file> --measure <file> --out <new-file> [--test-noise-floor <absolute-file>]");
     eprintln!("       cargo xtask migration noise-floor --baseline <absolute-file>");
+    eprintln!("       cargo xtask migration vector-check --python <absolute-path> --generator <repo-path> --driver <repo-path> (--candidate <absolute-path> | --test-candidate-script <repo-path>) --out <new-file> [--test-plant <remove-case|change-byte|unicode-mismatch>]");
     eprintln!("       cargo xtask migration verify --step <id> --python <absolute-path> --out <new-file> [--test-candidate <absolute-path>] [--test-oracle <absolute-path>] [--test-wrong-vector <set>] [--test-plant-home-write <file-name>] [--test-scope <full|allow-python>]");
     eprintln!("       cargo xtask migration toolchain-identity --rustc <absolute-path>");
     eprintln!(
@@ -672,6 +678,102 @@ fn verify_command(rest: &[std::ffi::OsString]) -> ExitCode {
         Err(reason) => {
             eprintln!("migration verify: {reason}");
             ExitCode::FAILURE
+        }
+    }
+}
+
+/// `migration vector-check`: the vector-driver kind (`rust-04a`). One
+/// generated vector file feeds the Python and the Rust driver. Exit 0 when
+/// every case matches, 1 when a case fails, 2 on a refusal.
+fn vector_check_command(rest: &[std::ffi::OsString]) -> ExitCode {
+    let mut slots: [Option<std::ffi::OsString>; 7] = Default::default();
+    for pair in rest.chunks(2) {
+        let [flag, value] = pair else {
+            eprintln!("migration vector-check: every flag needs a value");
+            return ExitCode::from(2);
+        };
+        let index = match flag.to_str() {
+            Some("--python") => 0,
+            Some("--generator") => 1,
+            Some("--driver") => 2,
+            Some("--candidate") => 3,
+            // Test-only: run a Python script as the Rust side.
+            Some("--test-candidate-script") => 4,
+            Some("--out") => 5,
+            // Test-only: plant a defect in the Rust answer.
+            Some("--test-plant") => 6,
+            _ => {
+                eprintln!("migration vector-check: unknown flag");
+                return ExitCode::from(2);
+            }
+        };
+        if slots[index].replace(value.clone()).is_some() {
+            eprintln!("migration vector-check: a flag is repeated");
+            return ExitCode::from(2);
+        }
+    }
+    let [Some(python), Some(generator), Some(driver), binary, script, Some(output), plant] = slots
+    else {
+        eprintln!("migration vector-check: --python, --generator, --driver and --out are required");
+        return ExitCode::from(2);
+    };
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let script = script.map(|script| root.join(script));
+    let candidate = match (&binary, &script) {
+        (Some(binary), None) => vecdriver::Candidate::Binary(std::path::Path::new(binary)),
+        (None, Some(script)) => vecdriver::Candidate::PythonScript(script),
+        _ => {
+            eprintln!("migration vector-check: give one of --candidate or --test-candidate-script");
+            return ExitCode::from(2);
+        }
+    };
+    let plant = match vecdriver::Plant::parse(plant.as_deref().and_then(std::ffi::OsStr::to_str)) {
+        Ok(plant) => plant,
+        Err(reason) => {
+            eprintln!("migration vector-check: {reason}");
+            return ExitCode::from(2);
+        }
+    };
+    let output = std::path::PathBuf::from(output);
+    let result = vecdriver::record(
+        root,
+        std::path::Path::new(&python),
+        std::path::Path::new(&generator),
+        std::path::Path::new(&driver),
+        candidate,
+        plant,
+    )
+    .and_then(|record| vecdriver::write_new(&output, &record).map(|()| record));
+    match result {
+        Ok(record) => {
+            let failed = record["failed_cases"]
+                .as_array()
+                .map(|cases| {
+                    cases
+                        .iter()
+                        .filter_map(|case| case.as_str())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                })
+                .unwrap_or_default();
+            println!(
+                "migration vector-check: cases={} passed={} failed={}",
+                record["case_count"],
+                record["passed_count"],
+                if failed.is_empty() { "none" } else { &failed },
+            );
+            if record["passed"] == true {
+                ExitCode::SUCCESS
+            } else {
+                eprintln!("migration vector-check: case(s) differ: {failed}");
+                ExitCode::FAILURE
+            }
+        }
+        Err(reason) => {
+            eprintln!("migration vector-check: {reason}");
+            ExitCode::from(2)
         }
     }
 }
