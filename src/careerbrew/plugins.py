@@ -546,7 +546,7 @@ def _check_shapes(data: dict[str, Any], terms_inside: bool) -> None:
     """Deny-by-default shape checks (rust-07a). Messages are fixed: they never echo input."""
     req = data.get("requires")
     if req not in (None, ""):
-        text = req if isinstance(req, str) else ""
+        text = str(req) if isinstance(req, (str, int, float)) and not isinstance(req, bool) else ""
         if not re.search(r"[0-9]", text) or any(c.isdigit() and not c.isascii() for c in text):
             raise PluginError("requires must name a version with ASCII digits, e.g. >=0.1.0")
     provides = data.get("provides")

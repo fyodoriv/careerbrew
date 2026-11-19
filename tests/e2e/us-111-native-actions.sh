@@ -14,23 +14,22 @@ wrapper="$SCRATCH/bin/careerbrew-native"
 printf '#!/bin/sh\necho ran >> "%s"\nexec "%s" "$@"\n' "$SCRATCH/native-ran" "$native" > "$wrapper"
 chmod +x "$wrapper"
 
-# 1. Python (the committed route table: every action python).
-grep -qx "actions python" "$ROOT/config/native-routes.txt" || fail "the committed route for actions is not python"
-cb actions --json > "$SCRATCH/python.json"
-[ ! -e "$SCRATCH/native-ran" ] || fail "the default route ran the native binary"
+# 1. Python: the env override rolls actions back to Python.
+grep -qx "actions native" "$ROOT/config/native-routes.txt" || fail "the committed route for actions is not native"
+CAREERBREW_ROUTE_ACTIONS=python CAREERBREW_NATIVE_BIN="$wrapper" cb actions --json > "$SCRATCH/python.json"
+[ ! -e "$SCRATCH/native-ran" ] || fail "the python override ran the native binary"
 [ "$(wc -c < "$SCRATCH/python.json")" -gt 1000 ] || fail "python actions --json printed too little"
 
-# 2. Native: the env override routes actions to careerbrew-native.
-CAREERBREW_ROUTE_ACTIONS=native CAREERBREW_NATIVE_BIN="$wrapper" cb actions --json > "$SCRATCH/native.json"
-[ "$(wc -l < "$SCRATCH/native-ran")" -eq 1 ] || fail "the native route did not run careerbrew-native once"
+# 2. Native: the committed route table sends actions to careerbrew-native.
+CAREERBREW_NATIVE_BIN="$wrapper" cb actions --json > "$SCRATCH/native.json"
+[ "$(wc -l < "$SCRATCH/native-ran")" -eq 1 ] || fail "the default route did not run careerbrew-native once"
 cmp -s "$SCRATCH/python.json" "$SCRATCH/native.json" || fail "native actions --json differs from the python route"
 
-# 3. Rollback: the kill switch, a python override, and a missing binary each print the same bytes from Python.
-CAREERBREW_ROUTE_ACTIONS=native CAREERBREW_NATIVE=off CAREERBREW_NATIVE_BIN="$wrapper" cb actions --json > "$SCRATCH/off.json"
-CAREERBREW_ROUTE_ACTIONS=python CAREERBREW_NATIVE_BIN="$wrapper" cb actions --json > "$SCRATCH/override.json"
+# 3. Rollback: the kill switch and a missing binary each print the same bytes from Python.
+CAREERBREW_NATIVE=off CAREERBREW_NATIVE_BIN="$wrapper" cb actions --json > "$SCRATCH/off.json"
 [ "$(wc -l < "$SCRATCH/native-ran")" -eq 1 ] || fail "a rollback still ran careerbrew-native"
-CAREERBREW_ROUTE_ACTIONS=native CAREERBREW_NATIVE_BIN="$SCRATCH/no-such-binary" cb actions --json > "$SCRATCH/missing.json"
-for mode in off override missing; do
+CAREERBREW_NATIVE_BIN="$SCRATCH/no-such-binary" cb actions --json > "$SCRATCH/missing.json"
+for mode in off missing; do
   cmp -s "$SCRATCH/python.json" "$SCRATCH/$mode.json" || fail "rollback mode $mode differs from the python route"
 done
 event_seen cli.native_fallback

@@ -139,6 +139,7 @@ __pycache__/
 !/xtask/src/baseline.rs
 !/xtask/src/verify.rs
 !/xtask/src/depvec.rs
+!/xtask/src/vecdriver.rs
 !/xtask/src/noise_floor.rs
 !/xtask/src/normalize.rs
 !/xtask/src/baseline_verdict.rs
@@ -149,6 +150,7 @@ __pycache__/
 !/xtask/src/toolchain_identity.rs
 !/xtask/src/trial_plan.rs
 !/xtask/src/capture_actions.rs
+!/xtask/src/leak_check.rs
 !/xtask/tests/
 /xtask/tests/*
 !/xtask/tests/activation_manifest.rs
@@ -160,7 +162,9 @@ __pycache__/
 !/xtask/tests/measure.rs
 !/xtask/tests/verify.rs
 !/xtask/tests/depvec.rs
+!/xtask/tests/vecdriver.rs
 !/xtask/tests/purevec.rs
+!/xtask/tests/leak_check.rs
 !/xtask/tests/fixtures/
 /xtask/tests/fixtures/*
 !/xtask/tests/fixtures/depvec/
@@ -172,6 +176,10 @@ __pycache__/
 !/xtask/tests/fixtures/depvec/fernet.json
 !/xtask/tests/fixtures/depvec/fsrs.json
 !/xtask/tests/fixtures/depvec/runtime.json
+!/xtask/tests/fixtures/vecdriver/
+/xtask/tests/fixtures/vecdriver/*
+!/xtask/tests/fixtures/vecdriver/driver.py
+!/xtask/tests/fixtures/vecdriver/generator.py
 !/xtask/tests/fixtures/purevec/
 /xtask/tests/fixtures/purevec/*
 !/xtask/tests/fixtures/purevec/clock.json

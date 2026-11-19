@@ -111,10 +111,20 @@ jobs:
         run: |
           PATH="$RUNNER_TEMP/bin:$PATH" CAREERBREW_BIN_DIR="$RUNNER_TEMP/bin" scripts/setup.sh
 
+      # A hung apt or download once held a gate part for its whole 60-minute
+      # limit. Each try gets 10 minutes; a failed or stuck first try runs once more.
       - name: Playwright browser (Chromium)
+        id: browser
         working-directory: web
+        timeout-minutes: 10
+        continue-on-error: true
         run: npx playwright install --with-deps chromium
 
+      - name: Playwright browser (Chromium), second try
+        if: steps.browser.outcome != 'success'
+        working-directory: web
+        timeout-minutes: 10
+        run: npx playwright install --with-deps chromium
       - name: Gate part (scripts/check.sh)
         env:
           CHECK_STEPS: ${{ inputs.steps }}

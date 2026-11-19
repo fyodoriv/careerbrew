@@ -24,6 +24,10 @@ The agent explains the plan, asks one round of questions (use or contribute, the
 - Learn a codebase or a topic so it sticks, with spaced reviews and retests.
 - Keep your career data private: careerbrew itself keeps your data on your machine and encrypts its data records. A few files are plaintext by design, and a few opt-in features send data out; [privacy](docs/privacy.md) lists each one. What an agent reads with its own tools goes to that agent's provider ([privacy](docs/privacy.md)).
 
+## Sponsor
+
+If careerbrew saves you time, you can [sponsor its author on GitHub](https://github.com/sponsors/fyodoriv). It keeps the work going.
+
 ## Features
 
 - **Job hunt:** job board scan, your criteria, a Want score you teach by rating, tiers (dream, target, practice), and a season strategy.
