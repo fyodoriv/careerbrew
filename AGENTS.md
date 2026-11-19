@@ -66,6 +66,7 @@ Run every command from the repo root.
 | Verify one migration step's Rust candidate against its Python oracle (stdout and exit code per case, fresh synthetic home per side; writes a content-free JSON record with pass or fail per case) | `heavy-run cargo xtask migration verify --step rust-03 --python "$PWD/.venv/bin/python" --out "$PWD/.metrics/verify-rust-03.json"`; a step with no Rust candidate yet is refused (exit 1); a differing case names itself and exits 1; each step declares which contracts it checks (`http_contract`, `data_contract`, `role_contract`, `registry_projection`, `no_python` in `xtask/src/baseline.rs`), and `decide` requires its `missing_contracts` to equal that scope |
 | Propose a migration step's noise floor from one baseline record (prints JSON, writes nothing; register it in `xtask/src/noise_floor.rs`) | `cargo xtask migration noise-floor --baseline <absolute-file>` |
 | Fixed Linux observer preparation | `cargo xtask migration observer-probe --image <frozen-image-id>`; follow the fixed observer protocol, retain receipts locally, and obtain release before actual execution |
+| Regenerate the action registry and the native route table after a CLI change (a command, an argument, a help string, or a terminal-only, confirm or agent note) | `uv run python scripts/gen-registry.py` (the `registry` gate step runs it with `--check`) |
 | Speed report | `scripts/metrics.sh` |
 | README Proof numbers (after a green gate; writes `docs/proof/metrics.json`, then the README section) | `scripts/metrics.sh proof` |
 | Capability coverage (runs each distinct story once per report; cross-run reuse is unqualified) | `scripts/metrics.sh capability-coverage` |
@@ -91,6 +92,7 @@ Run every command from the repo root.
 
 | I want to… | Change | Update this doc too |
 |---|---|---|
+| Add or change a CLI command, an argument, its help, or an action note (`TERMINAL_ONLY`, `CONFIRM`, `AGENT_NOTES`) | `src/careerbrew/cli.py` or `actions.py`, then `uv run python scripts/gen-registry.py` to rewrite `crates/cbcli/registry/registry.json` and `config/native-routes.txt` (`tests/unit/test_action_registry.py`; a changed `actions --json` also needs a successor reference pair, see Gotchas 2026-11-15) | `docs/rust-migration.md` (rust-03) if the registry shape changes |
 | Add a feature | the code, a story in `docs/user-stories.md`, and its tests in `tests/e2e/` | `README.md` if users see it |
 | Add a career workflow (a report, an update, a standup) | a CLI action, a skill in `skills/`, or a command in `commands/` here; never agentbrew config (see `## What careerbrew owns`) | `README.md` if users see it |
 | Add a log event or metric | the code | `docs/observability.md` event or metric table |

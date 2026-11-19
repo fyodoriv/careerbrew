@@ -884,6 +884,31 @@ Done 2026-11-18, on macOS, with the four sets of #149. Records stay local.
   Python dispatch with per-command routes.
 - **Gate:** 100% of pilot CLI contracts agree; 0 action-registry discrepancies;
   the pilot runs with Python unavailable.
+- **Progress:**
+  - The registry exists. `scripts/gen-registry.py` walks the argparse tree
+    (still the source until `rust-26`) and writes one committed file,
+    `crates/cbcli/registry/registry.json`: `meta` (Python minor version, help
+    width, row count), `notes` (the terminal-only, confirm, yes-from-confirm and
+    agent-note maps), `rows` (the exact `careerbrew actions --json` rows) and
+    `help` (each parser path's `--help` text, rendered at a pinned 80 columns
+    on the pinned Python). It also writes `config/native-routes.txt`, one
+    `<action> <python|native>` line per action, all `python` today; a
+    regeneration keeps each existing route.
+  - `actions.catalog()` reads that file, so `careerbrew actions`, the web app's
+    Actions view and `actions.run()` read one list, and the catalog builds no
+    parser. The parser walk stays as `actions.catalog_from_parser()`, the
+    generator's source and the parity test's oracle.
+  - Python `--help` still comes from argparse: that is the one second path, and
+    the parity test binds it to the stored help text. `rust-26` flips the
+    direction, so the registry generates the parser.
+  - Parity: `tests/unit/test_action_registry.py` (committed files equal a fresh
+    export; 240 of 240 rows equal the parser walk; the rows print byte-equal to
+    the actions reference `capture_actions.rs` points at; every action has its
+    help text and a route line; the Python minor version matches
+    `.python-version`). The gate step `registry` runs
+    `scripts/gen-registry.py --check` and prints the fix line.
+  - `careerbrew actions --json` output did not change, so the frozen capture
+    references stay as they are.
 - **Verify scope:** the pilot binary serves no HTTP, no data and no
   role-checked command; `server.py` stays Python. So `rust-03` declares
   `http_contract`, `data_contract` and `role_contract` false, and verify lists
@@ -2049,6 +2074,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 
 - `src/careerbrew/` (2): `actions.py`, `agent_workflows.py`
 - CLI handlers it ports out of `cli.py` (1): `cmd_actions`
+- Generated files it adds (not code, so not in the inventory): `crates/cbcli/registry/registry.json`, `config/native-routes.txt`. Its generator `scripts/gen-registry.py` is owned by `rust-26`, which retires it. The registry is a capture source input (`capture_actions::sources()`), so capture, baseline and measure records hash it; the source-copy probe count moved from 139 to 140.
 - Assertions it ports (1 test file, the files themselves are listed under `rust-27`): `test_every_action_has_an_e2e.py`
 
 #### rust-04: Port privacy, policy and approval enforcement (3 files)

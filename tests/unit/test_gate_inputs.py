@@ -123,7 +123,7 @@ def _code_files() -> list[str]:
 def test_some_heavy_steps_leave_out_notes_and_unit_reads_everything():
     left = _left_out()
     assert {"TASKS.md", "RECURRING.md", "docs/learnings"} <= left.get("e2e", set()), left
-    assert "exercises" in left and "web-build" in left, left
+    assert "exercises" in left and "web-build" in left and "registry" in left, left
     # A conflict marker in any tracked file fails test_no_conflict_markers.py, so unit reads every file.
     assert "unit" not in left, left
     for step in ("docs", "learnings", "leaks", "tasks", "secrets"):

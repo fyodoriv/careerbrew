@@ -43,7 +43,7 @@ jobs:
       matrix:
         part:
           - name: checks
-            steps: docs learnings leaks sources stories secrets tasks format lint types unit public-cards card-code web-types web-lint web-unit web-build
+            steps: docs learnings leaks sources stories secrets tasks format lint types unit registry public-cards card-code web-types web-lint web-unit web-build
           - name: native
             steps: exercises rust-fmt rust-clippy rust-test rust-inventory
           - name: e2e-1
@@ -70,7 +70,7 @@ jobs:
       matrix:
         part:
           - name: checks
-            steps: docs learnings leaks sources stories secrets tasks format lint types unit public-cards card-code web-types web-lint web-unit web-build
+            steps: docs learnings leaks sources stories secrets tasks format lint types unit registry public-cards card-code web-types web-lint web-unit web-build
           - name: native
             steps: exercises rust-fmt rust-clippy rust-test rust-inventory
           - name: e2e-1
