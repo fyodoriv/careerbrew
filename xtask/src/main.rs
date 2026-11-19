@@ -288,8 +288,8 @@ fn main() -> ExitCode {
             };
         }
     }
-    eprintln!("usage: cargo xtask leak-check [--staged] [--repo <dir>] --terms-file <file>");
-    eprintln!("       cargo xtask migration self-test");
+    eprintln!("usage: cargo xtask migration self-test");
+    eprintln!("       cargo xtask leak-check [--staged] [--repo <dir>] --terms-file <file>");
     eprintln!("       cargo xtask migration inventory --check");
     eprintln!("       cargo xtask migration inventory --embedded-check");
     eprintln!("       cargo xtask migration inventory --sites-check");
