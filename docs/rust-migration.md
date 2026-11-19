@@ -1166,6 +1166,23 @@ failed `unicode-version` case and runs no vector case. Cases are
 - Controls (`crates/policy/tests/controls.rs`): removing any load-bearing `EXTRA_CASES` group fails exactly its case, `extra-cases-<index>`.
 - Not wired yet: `vecdriver::STEPS` is still empty and the oracle has no `unicode-version` probe, so `vector-check` and `verify --step rust-04` cannot run the candidate yet.
 
+#### Canary outputs (rust-04e, PR 1 of 4)
+
+- `crates/policy/src/outputs.rs` ports `assert_clean`, `redact` and
+  `_names_private_path`. `policy-vectors` now also answers `assert-redact`
+  and `private-path`.
+- `assert_clean` refuses with `PrivacyError` and the count, the place and
+  term ids only. `redact` returns the input unchanged when no term matches;
+  otherwise it normalizes once and replaces each term's matches in term
+  order on the text so far, like `re.sub`.
+- `_names_private_path` follows `(?<![\w.-])private/([\w.-]+)` with
+  `finditer` steps; `\w` and `\s` use the Python 3.12 tables.
+- Vectors map `test_redact_and_assert_clean` (`test_plugins_privacy.py`)
+  and the path tests of `test_privacy_scan_file.py`. `test_privacy_index.py`
+  covers the `scan_repo` index reads, which moved to `rust-27`; no vector.
+- Byte compare (one-off script, both drivers on one generated file): every
+  set the crate answers is byte-identical with the oracle.
+
 #### Unicode version check
 
 The verify record stores Python's `unicodedata.unidata_version` and the
@@ -1735,7 +1752,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
 | `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
-| `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `allowlists`, `assert-no-echo` | none: component parity only |
+| `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
 | `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`calendar`, `code-parse`, `fernet`, `fsrs`, `json-yaml` and `runtime` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
 | `experiments/hash/` | `careerbrew-hash-experiment` | the pure `changes._h` hash for a supported synthetic JSON subset. It refuses values outside that subset. | none: component parity only |

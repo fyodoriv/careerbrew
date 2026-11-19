@@ -114,6 +114,11 @@ impl Rules {
             .collect()
     }
 
+    /// Every `finditer` match of one term's pattern as char (start, end).
+    pub(crate) fn match_spans(&self, term: &str, chars: &[char]) -> Vec<(usize, usize)> {
+        self.pattern(term).find_all(chars)
+    }
+
     /// `privacy.leak_spans` over supplied terms: (term id, line, how, matched text).
     pub fn leak_spans(&self, text_in: &str, terms: &[String]) -> Vec<Span> {
         let norm: Vec<char> = text::normalize(text_in).chars().collect();

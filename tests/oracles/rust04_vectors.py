@@ -105,6 +105,13 @@ def _assert_redact() -> list[dict[str, Any]]:
         "fullwidth-clean": "\uff21\uff22\uff23 stays wide when clean",
         "fullwidth-dirty": f"\uff21\uff22\uff23 and {CANARY_SHORT}",
         "zero-width-dirty": "Plu\u200bmbo again",
+        # tests/unit/test_plugins_privacy.py::test_redact_and_assert_clean:
+        # a term and a lowercased second term; redact removes both and the
+        # refusal names ids only.
+        "unit-hello": f"Hello {CANARY_LONG} at {CANARY_PHRASE.lower()}",
+        "empty": "",
+        "repeat": f"{CANARY_SHORT}{CANARY_SHORT} {CANARY_SHORT}",
+        "multiline": f"one\n{CANARY_MID}\nthree {CANARY_LONG}",
     }
     out = []
     for k, v in texts.items():
@@ -113,6 +120,9 @@ def _assert_redact() -> list[dict[str, Any]]:
     # With no terms nothing is redacted, so these inputs hold no canary.
     out.append(_case("redact-no-terms", "redact", text=texts["fullwidth-clean"], terms=[]))
     out.append(_case("assert-no-terms", "assert-clean", text=texts["clean"], where="log", terms=[]))
+    out.append(_case("assert-unit-where", "assert-clean", text=texts["unit-hello"], where="test", terms=TERMS))
+    # Term order matters: redaction runs term by term on the replaced text.
+    out.append(_case("redact-reversed", "redact", text=texts["two"], terms=list(reversed(TERMS))))
     return out
 
 
@@ -233,6 +243,29 @@ def _private_path() -> list[dict[str, Any]]:
         "suffix": "myprivate/x",
         "start": "/private/tmp",
         "none": "nothing private here",
+        "empty": "",
+        "only-head": "private/",
+        "second-match": "/private/tmp/x and private/y",
+        # tests/unit/test_privacy_scan_file.py: each path is flagged ...
+        "unit-dot-relative": "see ./private/day/log.md",
+        "unit-home-nested": "in ~/apps/careerbrew/private/out/a.md",
+        "unit-paren": "(private/profile.yaml)",
+        "unit-backtick": "`private/work/x`",
+        "unit-placeholder": "<repo>/private/work/evidence.jsonl",
+        "unit-env": "${CAREERBREW_HOME}/private/x",
+        "unit-absolute": "/private/work/evidence.jsonl",
+        "unit-placeholder-tmp": "<repo>/private/tmp/x",
+        "unit-env-var": "$HOME/private/var/x",
+        "unit-rel-draft": "the error names private/work/evidence.jsonl",
+        # ... and these lines are not.
+        "unit-word": "careerbrew never reads `private/`.",
+        "unit-tmp-log": "The log was at /private/tmp/run.log.",
+        "unit-var-start": "/private/var/folders/x",
+        "unit-etc-paren": "(/private/etc/hosts)",
+        "unit-suffix": "myprivate/x",
+        "unit-all-lines": "careerbrew never reads `private/`.\nThe log was at /private/tmp/run.log.\n/private/var/folders/x\n(/private/etc/hosts)\nmyprivate/x\n",
+        "unicode-word-before": "\u00e9private/x",
+        "unicode-space-before": "a\u2003/private/tmp/x",
     }
     return [_case(f"path-{k}", "names-private-path", text=v) for k, v in texts.items()]
 

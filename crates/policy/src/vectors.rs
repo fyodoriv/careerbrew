@@ -1,20 +1,23 @@
 //! The rust-04 vector sets this crate answers, in the oracle's answer shape
 //! (`tests/oracles/rust04.py`): `canary-core`, `canary-match`, `leak-spans`,
-//! `allowlists` and `assert-no-echo`. The `policy-vectors` binary reads the
+//! `assert-redact`, `allowlists`, `private-path` and `assert-no-echo`. The `policy-vectors` binary reads the
 //! file; this module only maps parsed cases to outputs.
 
 use crate::allow::{self, PyError};
 use crate::canary::{self, Rules};
+use crate::outputs;
 use crate::tables;
 use crate::text;
 use serde_json::Value;
 
-/// The sets this crate answers. `rust-04e` adds the rest.
+/// The sets this crate answers. The other `rust-04e` PRs add the rest.
 pub const SETS: &[&str] = &[
     "canary-core",
     "canary-match",
     "leak-spans",
+    "assert-redact",
     "allowlists",
+    "private-path",
     "assert-no-echo",
 ];
 
@@ -191,6 +194,24 @@ fn leak_spans(rules: &Rules, case: &Value) -> Result<Out, PyError> {
     ))
 }
 
+fn assert_redact(rules: &Rules, case: &Value) -> Result<Out, PyError> {
+    let op = string(case, "op")?;
+    let text_in = string(case, "text")?;
+    if op == "assert-clean" {
+        let place = string(case, "where")?;
+        let terms = strings(case, "terms")?;
+        outputs::assert_clean(rules, text_in, place, &terms)?;
+        return Ok(Out::str("clean"));
+    }
+    let terms = strings(case, "terms")?;
+    Ok(Out::Str(rules.redact(text_in, &terms)))
+}
+
+fn private_path(case: &Value) -> Result<Out, PyError> {
+    let text_in = string(case, "text")?;
+    Ok(Out::Bool(outputs::names_private_path(text_in)))
+}
+
 fn allowlists(case: &Value) -> Result<Out, PyError> {
     let op = string(case, "op")?;
     Ok(match op {
@@ -260,7 +281,9 @@ pub fn run_set(
             "canary-core" => canary_core(case),
             "canary-match" => canary_match(rules, case),
             "leak-spans" => leak_spans(rules, case),
+            "assert-redact" => assert_redact(rules, case),
             "allowlists" => allowlists(case),
+            "private-path" => private_path(case),
             "assert-no-echo" => no_echo(case),
             other => return Err(Refusal::UnknownSet(other.to_owned())),
         };

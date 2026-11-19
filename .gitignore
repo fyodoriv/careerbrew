@@ -112,6 +112,7 @@ __pycache__/
 !/crates/policy/src/allow.rs
 !/crates/policy/src/canary.rs
 !/crates/policy/src/lib.rs
+!/crates/policy/src/outputs.rs
 !/crates/policy/src/tables.rs
 !/crates/policy/src/text.rs
 !/crates/policy/src/vectors.rs

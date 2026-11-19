@@ -3,7 +3,9 @@
 //! Pure decisions from `src/careerbrew/privacy.py` over supplied inputs: the
 //! canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`,
 //! `leak_spans`, `_match_kind`), `sensitive_terms`' filter rules and the
-//! allowlists (`_identifier_shaped`, `public_suspects` and their sets).
+//! allowlists (`_identifier_shaped`, `public_suspects` and their sets), and
+//! the canary outputs (`assert_clean` with ids only, `redact`,
+//! `_names_private_path`; rust-04e).
 //!
 //! No IO: no files, environment, processes, network, clock or randomness.
 //! The gate step `rust-policy-io` (`scripts/policy-no-io.py`) refuses any of
@@ -12,9 +14,11 @@
 
 pub mod allow;
 pub mod canary;
+pub mod outputs;
 pub mod tables;
 pub mod text;
 pub mod vectors;
 
 pub use canary::{find_leaks, leak_spans, term_id, term_pattern_source, Rules, Span};
+pub use outputs::{assert_clean, names_private_path, redact};
 pub use text::normalize;
