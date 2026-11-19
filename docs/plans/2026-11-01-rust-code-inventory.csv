@@ -945,8 +945,13 @@ crates/depvec/tests/cli.rs,keep-native,rust-00,rust-01 dependency vector binary 
 xtask/src/depvec.rs,keep-native,rust-00,rust-01 dependency vector verify with planted wrong-vector controls
 xtask/tests/depvec.rs,keep-native,rust-00,rust-01 verify controls against the Python vector oracle with a planted wrong vector
 xtask/tests/fixtures/depvec/driver.py,port,rust-27,Retire the rust-01 Python dependency vector oracle with the Python migration oracle
-crates/purevec/src/lib.rs,keep-native,rust-00,rust-02 pure value vector registry and runner (no sets yet)
+crates/purevec/src/clock.rs,keep-native,rust-00,rust-02 clock vector set: calendar.py clock helpers and config._tz with injected zones
+crates/purevec/src/hash.rs,keep-native,rust-00,rust-02 hash vector set: the changes._h input hash primitive that rust-24 reuses
+crates/purevec/src/lib.rs,keep-native,rust-00,rust-02 pure value vector registry and runner
 crates/purevec/src/main.rs,keep-native,rust-00,rust-02 pure value vector candidate binary for migration verify and measure
+crates/purevec/src/paths.rs,keep-native,rust-00,rust-02 paths vector set: CAREERBREW_HOME refusal and path values over an injected environment
+crates/purevec/src/settings.rs,keep-native,rust-00,rust-02 settings vector set: config validators DEFAULTS and pure precedence
 crates/purevec/tests/cli.rs,keep-native,rust-00,rust-02 pure value vector binary controls
 xtask/tests/purevec.rs,keep-native,rust-00,rust-02 vector step controls: four commands accept it and a planted home write is counted
 xtask/tests/fixtures/purevec/driver.py,port,rust-27,Retire the rust-02 Python pure value vector oracle with the Python migration oracle
+xtask/tests/fixtures/purevec/settings.json,port,rust-27,Retire the rust-02 settings vectors with the Python migration oracle

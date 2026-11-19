@@ -8,8 +8,9 @@ repository can do any step from this page and the task block.
 - **Status:** a plan. No Rust code runs in production today. No speed or memory
   gain is claimed. See [Current state](#current-state) and
   [State of rust-00](#state-of-rust-00).
-- **Next task:** `rust-02` (pure settings, paths, clocks and hashes). `rust-00`
-  and `rust-01` are done (2026-11-18); their follow-ups are tasks in `TASKS.md`.
+- **Next task:** `rust-03` (native CLI and one read-only pilot). `rust-00`,
+  `rust-01` and `rust-02` are done (2026-11-18); their follow-ups are tasks in
+  `TASKS.md`.
 - **How to read it:** the [goal](#goal-and-vision) and [decision](#decision-and-rejected-alternatives),
   then the [measurement protocol](#measurement-protocol-for-every-step), then
   [build order versus production activation](#build-order-versus-production-activation),
@@ -84,7 +85,7 @@ support contract.
 | The API timing tool reports timings, with no hard latency limits | `scripts/api-timing.py` | fact; cold and warm API calls, and the change-version probe |
 | Exercise checks run Python solutions and scale generators | `src/careerbrew/tutor/exercises.py` (`validate`, `run`, `_child`); `knowledge/exercises/*.yaml` | fact; the normal `exercises` gate step |
 | Card-code checks use `compile()` and an embedded Node and esbuild call | `scripts/check-card-code.py` | fact; the normal card-code gate step |
-| `cargo xtask migration measure --pairs` runs paired cold and warm trials | [Current state](#current-state) | built; `rust-02` has the first registered candidate, a stub with no vector sets yet |
+| `cargo xtask migration measure --pairs` runs paired cold and warm trials | [Current state](#current-state) | built; `rust-02` has the first registered candidate, with four vector sets (clock, hash, paths, settings) |
 | No before and after Rust speed or memory result exists | each step records its own baseline | verify per step |
 
 Pending changes and new modules count from their final landed versions. An old
@@ -373,7 +374,7 @@ Anchor: Tarjan 1972, *Depth-First Search and Linear Graph Algorithms*
 
 ### Lanes and order
 
-- `rust-00` and `rust-01` are done; `rust-02` is ready now. Each task's **Blocked** line is a hard gate.
+- `rust-00`, `rust-01` and `rust-02` are done; `rust-03` is ready now. Each task's **Blocked** line is a hard gate.
 - After the shared storage and policy steps, independent domain lanes may run
   in parallel. They must not share mutable fixture homes.
 - Each domain step ports its own CLI handlers and test assertions, and routes
@@ -705,8 +706,10 @@ like `rust-01` (row `RUST_02` in `xtask/src/depvec.rs`). The DATA and role
 contracts do not apply: the vectors make no writes and use no roles.
 
 - **Vector set:** a fixture `xtask/tests/fixtures/purevec/<set>.json`, in the
-  rust-01 shape. There are no sets yet; the setting, path, clock and hash
-  sets come one per pull request.
+  rust-01 shape. Four sets, 411 vectors: `clock` (95), `hash` (57), `paths`
+  (69) and `settings` (190), each described below. Each set adds one module
+  in `crates/purevec/src` and one line in each `SETS` registry (one entry
+  per line, sorted by name).
 - **Oracle:** `xtask/tests/fixtures/purevec/driver.py <set> <file>`, or
   `--all` (prints the set names) for `baseline` and `measure`.
 - **Candidate:** `careerbrew-purevec <set> <file>` or `--all`
@@ -715,7 +718,7 @@ contracts do not apply: the vectors make no writes and use no roles.
   also covers the driver and the five Python inputs), a `measure` candidate
   (`target/debug/careerbrew-purevec --all`) and `unmeasured` noise floors
   for macOS and Linux. All four commands accept `--step rust-02`.
-- **No sets yet:** verify records one failed case, `no-vector-sets`, so a
+- **No sets:** verify records one failed case, `no-vector-sets`, so a
   record with 0 vectors never passes.
 - **Real-home writes:** verify snapshots the caller's real homes
   (the repo's `private/` folder, careerbrew's default data folder, and a
@@ -734,10 +737,131 @@ contracts do not apply: the vectors make no writes and use no roles.
   `work/feed/.lock`), so a run that overlaps one fails `real-home-writes`
   although neither side wrote. Stop the watcher before a verify run, and
   rerun once before you trust a failure of that case.
+- **Set `clock`** (95 vectors, `clock.json`): the clock helpers of
+  `calendar.py` (`_day_bounds`, `_aware`, `now`, `now_utc`, `system_tz`)
+  and `config._tz`, with the zone, the pinned `CAREERBREW_NOW` and the wall
+  clock injected by each vector (`crates/purevec/src/clock.rs`). It covers
+  23 h, 25 h and 30-minute DST days (New York, Berlin, Lord Howe), zones
+  whose midnight falls in the gap (Santiago, Havana), Kolkata and UTC; the
+  real and the Python wall span of each day (Python reports 24 h for both);
+  fold=0 in a gap (the wall time is kept, with the offset before) and in an
+  overlap; `timedelta` sums across transitions (the `parse_ics` +1 h default
+  end, a day, hours, negative and carried values); the `fromisoformat` forms
+  `Z`, `+05:30`, `+0530`, naive, date only, hour only, a space separator,
+  fractional seconds (`.` or `,`, after the hour, minute or second), an
+  hour-only offset `+05`, full-width digits (refused by both) and invalid
+  values; non-ASCII zone names for `config._tz` and `TZ`; an empty `CAREERBREW_NOW` counts as
+  unset. Zone data: the oracle empties the tz path, so it reads the
+  `tzdata` package from `uv.lock` (2026.5, IANA 2026e); the candidate uses
+  `chrono-tz` 0.10.4 (IANA 2025b compiled in). Both are recorded in the
+  fixture's `zone_data`; all 95 vectors agree in spite of the skew. Known
+  gaps: `local_tz` (the `settings.yaml` read) and the `/etc/localtime`
+  lookup of `system_tz` stay Python (rust-05), and the candidate refuses an
+  empty `TZ` (or a bare `:`) instead of guessing; `fromisoformat` forms the
+  candidate refuses (week dates, compact dates and times, offsets with
+  seconds, more than 6 fraction digits); zone names that differ only by
+  letter case (a case-insensitive disk lets Python load them). The four
+  owner test files the plan names hold no clock assertions, so none were
+  ported. `crates/purevec/tests/cli.rs` fails on a wall-clock read
+  (`Utc::now`, `Local::now`, `SystemTime::now`) in vector code.
+- **Set `paths` (69 vectors):** `careerbrew.paths` with `os.environ`
+  replaced by the vector's `env` map, through `mock.patch.dict` on the
+  oracle side and an injected map in `crates/purevec/src/paths.rs`. No side
+  creates or changes a folder (`data_root(create=False)`; `mkdir` and
+  `chmod` are rust-05). Ops: `data-root` (the folder pathlib prints: unset
+  reads `<repo>/private`, a value is used unstripped, `~` expands with the
+  map's `HOME`, the path is never resolved, and a relative value stays
+  relative), `data-root-refusal` (the exact refusal text when the value
+  holds only Python `str.isspace` characters, including U+001C to U+001F,
+  U+0085, U+00A0 and U+3000; null otherwise), `extra-knowledge` (false only
+  for exactly `0`) and `config-dir` (`<repo>/config`). The repo root prints
+  as `<repo>`, so no output holds a machine path. Python anchor:
+  `test_empty_careerbrew_home_is_an_error_not_the_real_data`
+  (`tests/unit/test_regrade_notion.py`). Known gaps: `~user` reads the
+  account database in Python, so the candidate refuses it (the vectors use
+  only a missing user, which both sides refuse); a `~` value with no `HOME`
+  in the map also reads the account database and is refused; `sub` and
+  `require_outside_data_root` touch the file system and stay for rust-05.
 - **Measure is per process:** both sides run every set with `--all`, so a
   ratio covers the whole step, not one slice. Each slice PR re-runs
   `baseline` (its source hash changes). The verdict is component parity
   only; it is not a user-facing speed claim.
+
+Set `hash`: the `changes._h` input hash primitive that rust-24 reuses
+(`crates/purevec/src/hash.rs`, `input_hash`). 57 vectors, op `input-hash`,
+each output `[serialized text, 16 hex digest]`. The digest is the `sha2`
+crate; the text is Python's `json.dumps(sort_keys=True, default=str)`
+layout. The input is a typed value (the `canon.rs` form plus `tuple` and
+`path`), so ints, floats, big ints and non-string keys stay apart. The
+vectors cover YAML-typed leaves (the callers hash promo ladders and company
+fields loaded from YAML): empty and nested maps, ASCII escapes, controls
+(`\u007f` is escaped, not raw), BMP and astral text (surrogate pairs), int,
+bool, float and `None` keys in Python's numeric order, exact int against
+float keys, equal keys merged (`True` and `1`: first key, last value),
+float `repr` (`1e+16`, `1e-05`, `-0.0`, `NaN`, `Infinity`, `5e-324`), ints
+past i64 and at Python's 4300-digit limit, tuples, dates, datetimes and
+paths through `default=str`, and five refusals (str against int keys,
+`None` against str keys, a date key, a tuple key, a 4301-digit int).
+Planted control: `a_planted_wrong_hash_vector_fails_its_case`
+(`xtask/tests/purevec.rs`). Known gaps, no vectors: `NaN` keys (Python
+sorts them in an order the candidate refuses), lone surrogates, `bytes`,
+`set` and `Decimal` leaves, ints written with `_` or spaces, a changed
+`PYTHONINTMAXSTRDIGITS`, recursion past Python's limit, and date or
+datetime text that is not in canonical `isoformat` form. `experiments/hash`
+stays: `tests/unit/test_rust_hash_experiment.py` still builds and checks
+it, so retiring it is its own change.
+
+Set `settings` (`crates/purevec/src/settings.rs`, 190 vectors): the pure
+value logic of `config.py` over an in-memory settings map. Ops: `set` (the
+`set_value` validators, the `unknown setting ...; known: ...` KeyError text
+and the `<key>: <message>` re-raise, and the written map), `effective`
+(precedence: a stored value of any type wins, a stored `None` stays `None`,
+an absent key falls back to its default, unknown keys follow in order with
+help `not a known setting (kept as is)`, and `DEFAULTS` in insertion order
+with the 8 `time_baseline_*` keys), `get` (its own KeyError text) and `unset`
+(a stored `None` is never removed). It covers the 13 self-contained
+validators and the `timezone`, `stt_model` and `pm_send_via` lambdas with
+hand-written matchers that follow Python's `re` on `str` (`\d` is any
+Unicode decimal digit, `\s` is `str.isspace()`) and Python's `int()`
+(Unicode digits, underscores, whitespace). It also ports the
+`tests/e2e/us-64-fast-views.sh` settings checks (a bad `web_cache_seconds`
+names the range, a bad `web_tab_cache` names the values); the other three
+owner test files (`test_contributing.py`, `test_eval_case_loading.py`,
+`test_issue_335_337.py`) hold no settings or validator assertion. The oracle
+replaces config's file read, write and event with in-memory stand-ins, so no
+vector touches a home. Known gaps:
+- `work_steps`, `work_checkouts` and `work_signin_probe` call workday
+  modules that do I/O, and `standup_tz` (`_tz`) reads tzdata: `set` answers
+  `{"refused": "delegated"}` on both sides. `_tz` comes with the clock set;
+  the workday validators need `rust-07` or later.
+- The settings file read and write (`_file`, `store.write_yaml`) and the
+  `config.set` event are `rust-05`.
+- `int()` over 4,300 digits raises Python's digit-limit error; the
+  candidate gives the range error.
+- The digit table and the `repr()` non-printable table are Unicode
+  15.0.0, the oracle Python's version.
+
+#### rust-02 close-out
+
+Done 2026-11-18, on macOS, with the four sets of #149. Records stay local.
+
+- **verify:** 411 of 411 vectors pass; 0 real-home writes; 0 violations.
+- **baseline (Python oracle, 30 runs):** CPU p50 108 ms, p95 113 ms; tree
+  RSS p50 40.1 MB, p95 40.6 MB.
+- **measure (30 pairs, CPU p95 / tree RSS p95):** cold: oracle 393 ms /
+  45.4 MB, candidate 2.6 ms / 3.4 MB. Warm: oracle 89 ms / 37.1 MB,
+  candidate 2.5 ms / 3.4 MB.
+- **decide:** `activate`, no reasons. The noise floor is `unmeasured` on
+  macOS, so the 1.10 ratio applied to every case.
+- **What `activate` means here:** component parity only. No command routes
+  to native code: `rust-02` owns no CLI command, and the config capability
+  switches only with `rust-05` settings IO (see the activation manifest
+  splits). Production dispatch waits for `rust-04`, `rust-05` and `rust-07`.
+- **Known gaps:** the empty `TZ` (or bare `:`) refusal, `local_tz` and the
+  `system_tz` disk lookup stay Python until `rust-05`; `sub`,
+  `require_outside_data_root`, `~user` and a `~` with no `HOME` stay Python;
+  the `fromisoformat` forms and case-only zone names listed in set `clock`;
+  noise floors are `unmeasured` on both OSes; no Linux run yet.
 
 ### rust-03: Introduce the native CLI and one read-only pilot
 
@@ -1330,10 +1454,11 @@ the commands in each row before you rely on it.
 
 **Summary:** the Rust code is measurement preparation and two disconnected
 component experiments. No CLI command, HTTP route or watcher calls Rust. The
-app runs on Python. No step has a merged decide result. `rust-00` and `rust-01` are done (2026-11-18): six
-dependency vector sets (`calendar`, `code-parse`, `fernet`, `fsrs`,
-`json-yaml`, `runtime`) agree with the Python oracle on every vector, and
-each set's planted wrong vector fails. The next task is `rust-02`.
+app runs on Python. `rust-00`, `rust-01` and `rust-02` are done (2026-11-18). For
+`rust-01`, six dependency vector sets (`calendar`, `code-parse`, `fernet`,
+`fsrs`, `json-yaml`, `runtime`) agree with the Python oracle on every vector,
+and each set's planted wrong vector fails. For `rust-02`, see
+[rust-02 close-out](#rust-02-close-out). The next task is `rust-03`.
 
 ### Crates (`ls crates xtask experiments`, `Cargo.toml`)
 
@@ -1341,7 +1466,7 @@ each set's planted wrong vector fails. The next task is `rust-02`.
 | --- | --- | --- | --- |
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
 | `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
-| `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: no vector sets yet; `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only |
+| `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`calendar`, `code-parse`, `fernet`, `fsrs`, `json-yaml` and `runtime` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
 | `experiments/hash/` | `careerbrew-hash-experiment` | the pure `changes._h` hash for a supported synthetic JSON subset. It refuses values outside that subset. | none: component parity only |
 
@@ -1378,7 +1503,7 @@ The tool has no `--help`. A wrong argument prints the usage and exits 2.
 | `cargo xtask migration decide --step <id> --baseline <absolute-file> --verify <absolute-file> --measure <absolute-file> --out <absolute-new-file>` | reads one step's baseline record (`careerbrew-migration-baseline-v1`), a verify record (`careerbrew-migration-verify-v1`: `step`, a nonempty `checks` list of `{id, passed}`, and a `violations` map with the counts `contract`, `privacy`, `authorization`, `role`, `side_effect`, `missing_writes`, `duplicate_writes`, an `unobserved_violations` list of those names, and a `missing_contracts` list of contracts verify did not check) and a measure record (`careerbrew-migration-measure-v1`: `step`, a `regimes` list of `{cache_state, pair_ids, cached, candidate_cpu_us, candidate_tree_max_rss_bytes}`, cache state cold or warm; both regimes must be present). The three input paths must be absolute. The baseline's `meets_protocol_minimum` must agree with its sample count (30 or more), and its `cache_state` must be the baseline regime; otherwise the record is refused. It writes a content-free `careerbrew-migration-decide-v1` record: `activate`, or `keep-python` with fixed reason ids (`baseline-below-protocol-minimum`, `baseline-dirty-tree`, `regime-missing`, `verify-check-failed`, `verify-violation`, `verify-violation-unobserved` (a violation kind verify could not observe), `verify-contract-missing` (a contract verify did not check; none today), `too-few-unique-pairs`, `cached-sample`, `cpu-regressed`, `rss-regressed`). CPU compares the candidate p95 with the baseline `cpu_us_p95`; memory compares the candidate maximum with the baseline sample maximum; exactly 110% passes (activates). The baseline's `os` (`macos` or `linux`; another is refused) picks the step's entry in the noise floor registry (`xtask/src/noise_floor.rs`): below a measured floor the candidate must be at or under its ceiling, at or above it the ratio applies; an `unmeasured` entry (`rust-02` and `rust-03` on both OSes today) uses the ratio for every case. The measure record's `os` must equal the baseline's (a missing or other OS is refused). The record adds `noise_floor` (`measured`, `unmeasured` or `test-override`), `noise_floor_os`, `test_noise_floor`, `noise_floor_limits` (the four limits it used; all 0 for `unmeasured`), `noise_floor_method` and `noise_floor_record` (the registry entry's method and source record; null unless `measured`), and `sources_sha256` (`decide.rs`, `noise_floor.rs` and `baseline_verdict.rs` as built into the binary). Test-only: `--test-noise-floor <absolute-file>` (`{cpu_floor_us, cpu_absolute_us, rss_floor_bytes, rss_absolute_bytes}`; a missing field is refused). Exit 0 activates, 1 keeps Python, 2 refuses a malformed record, a wrong schema, a step mismatch, an unknown step, a relative input path or an existing `--out` and writes nothing. The verify shape is what `migration verify` writes; the measure shape is minimal. |
 | `cargo xtask migration noise-floor --baseline <absolute-file>` | proposes a noise floor from one baseline record (30 or more samples, `runs` equal to the sample count, clean tree, the baseline `cache_state`, OS `macos` or `linux`) and prints content-free JSON: step, OS, sample count, method, `cpu_floor_us`, `cpu_absolute_us`, `rss_floor_bytes`, `rss_absolute_bytes`. Floor = 10 x (nearest-rank p95 - p5) of `tree_cpu_us` or `tree_max_rss_bytes`; ceiling = floor x 1.10. It writes nothing; registering a floor is a reviewed edit of `xtask/src/noise_floor.rs`. Exit 2 refuses a relative path, a wrong schema, an unknown step or OS, a record below the protocol minimum, from a dirty tree, with another cache state or with a run count that differs from its samples. |
 
-| `cargo xtask migration measure --step <id> --python <absolute-path> --out <absolute-new-file> [--pairs <n>]` | step 4 of the protocol (`xtask/src/measure.rs`). For each cache regime, cold then warm, it runs N pairs (default 30) of the step's Python oracle and its Rust candidate through the process-tree collector (`resources::measure_in`). The trial planner fixes which side runs first: at 30 pairs or more `measure` calls `trial_plan::plan` (with its own 30-pair refusal and one shared `MIN_PAIRS`); a test-flag run below 30 uses the same `trial_plan::order` rule. Cold odd pairs and warm even pairs start with the oracle. Each side of each pair gets a fresh synthetic home and starts in the repo root. **Cold:** no warm-up run, and each oracle run gets its own empty `PYTHONPYCACHEPREFIX`, so Python compiles every module from source. Cold changes only the Python side: for the Rust candidate, cold differs from warm only by the missing warm-up run, and the OS page cache is still warm from earlier runs, so a candidate's cold sample is not a cold start. **Warm:** one discarded warm-up run per side first; the oracle warm-up (without `-B`) fills one regime-owned `PYTHONPYCACHEPREFIX`, and the samples read it with `-B`. The two regimes never share a bytecode folder. Every sample is a real execution, so `cached` is 0. The record (`careerbrew-migration-measure-v1`) holds step, `oracle_command`, `candidate_command`, `candidate_sha256`, `test_override`, OS, arch, Rust and Python versions, source revision, `source_tree_dirty`, `sources_sha256` (also covers `measure.rs` and `trial_plan.rs`), `fixtures_sha256`, `meets_protocol_minimum`, `pairs`, and a `regimes` list of `{cache_state, pair_ids, cached, first, orders, oracle_cpu_us, oracle_tree_max_rss_bytes, oracle_wall_us, candidate_cpu_us, candidate_tree_max_rss_bytes, candidate_wall_us, summary}` (one value per pair; `orders` logs the side order each pair actually ran in, and `first` is its first entry; `summary` has p50 and p95 per side). `decide` reads it without a schema change and judges each regime's candidate samples against that regime's oracle samples. It refuses a step with no Rust candidate (`step rust-NN has no Rust candidate yet`; only `rust-02` has one, a stub with no vector sets), an unknown step, 0 pairs, fewer than 30 pairs without `--test-allow-few-pairs`, a relative `--python` or `--out`, a run that does not exit 0, a set but empty `CAREERBREW_HOME`, an existing output, and a source, fixture or candidate executable change during the runs (only the executable file is hashed). The interim `--runs` mode is gone: `--runs` exits 2 with `--runs is replaced by --pairs`. Test-only: `--test-candidate <absolute-path>` measures that executable (no arguments) instead of the registry; it is refused without `--test-allow-few-pairs`, and its record always has `meets_protocol_minimum: false`. |
+| `cargo xtask migration measure --step <id> --python <absolute-path> --out <absolute-new-file> [--pairs <n>]` | step 4 of the protocol (`xtask/src/measure.rs`). For each cache regime, cold then warm, it runs N pairs (default 30) of the step's Python oracle and its Rust candidate through the process-tree collector (`resources::measure_in`). The trial planner fixes which side runs first: at 30 pairs or more `measure` calls `trial_plan::plan` (with its own 30-pair refusal and one shared `MIN_PAIRS`); a test-flag run below 30 uses the same `trial_plan::order` rule. Cold odd pairs and warm even pairs start with the oracle. Each side of each pair gets a fresh synthetic home and starts in the repo root. **Cold:** no warm-up run, and each oracle run gets its own empty `PYTHONPYCACHEPREFIX`, so Python compiles every module from source. Cold changes only the Python side: for the Rust candidate, cold differs from warm only by the missing warm-up run, and the OS page cache is still warm from earlier runs, so a candidate's cold sample is not a cold start. **Warm:** one discarded warm-up run per side first; the oracle warm-up (without `-B`) fills one regime-owned `PYTHONPYCACHEPREFIX`, and the samples read it with `-B`. The two regimes never share a bytecode folder. Every sample is a real execution, so `cached` is 0. The record (`careerbrew-migration-measure-v1`) holds step, `oracle_command`, `candidate_command`, `candidate_sha256`, `test_override`, OS, arch, Rust and Python versions, source revision, `source_tree_dirty`, `sources_sha256` (also covers `measure.rs` and `trial_plan.rs`), `fixtures_sha256`, `meets_protocol_minimum`, `pairs`, and a `regimes` list of `{cache_state, pair_ids, cached, first, orders, oracle_cpu_us, oracle_tree_max_rss_bytes, oracle_wall_us, candidate_cpu_us, candidate_tree_max_rss_bytes, candidate_wall_us, summary}` (one value per pair; `orders` logs the side order each pair actually ran in, and `first` is its first entry; `summary` has p50 and p95 per side). `decide` reads it without a schema change and judges each regime's candidate samples against that regime's oracle samples. It refuses a step with no Rust candidate (`step rust-NN has no Rust candidate yet`; only `rust-02` has one, with four vector sets: clock, hash, paths, settings), an unknown step, 0 pairs, fewer than 30 pairs without `--test-allow-few-pairs`, a relative `--python` or `--out`, a run that does not exit 0, a set but empty `CAREERBREW_HOME`, an existing output, and a source, fixture or candidate executable change during the runs (only the executable file is hashed). The interim `--runs` mode is gone: `--runs` exits 2 with `--runs is replaced by --pairs`. Test-only: `--test-candidate <absolute-path>` measures that executable (no arguments) instead of the registry; it is refused without `--test-allow-few-pairs`, and its record always has `meets_protocol_minimum: false`. |
 | `cargo xtask migration verify --step <id> --python <absolute-path> --out <absolute-new-file>` | runs each of the step's registered cases on the Python oracle (`<python> -B -m careerbrew <args>`) and on the step's Rust candidate (`<candidate> <args>`). Each side of each case gets a fresh synthetic home and starts in the repo root. It compares five contracts. CLI: stdout and the exit code, byte for byte, after the case's registered normalization rules (`xtask/src/normalize.rs`; the record lists them per case as `normalization`, and the stdout hashes are of the normalized text). One rule today: `synthetic-home` (the side's `CAREERBREW_HOME`, raw and canonical, reads `<home>`). A stdout that still holds a local path after the rules (the repo root, the side's scratch folder, and the caller's `HOME` when it is set; with `HOME` unset only the first two are checked) refuses verify with no record and exit 1 (`case <id> prints a local path with no registered normalization rule; verify refused`). Side-effect entries are keyed by their path inside each side's own synthetic home, so they need no path rule; the HTTP comparison uses the `capture-http` header normalization. Side effects: the entries each side adds, changes or removes in its synthetic home against a setup snapshot taken before it runs (path, mode, content hash), counted as extra, missing or changed. This compares final state, not a write trace: a rewrite with the same bytes, or a write that is later removed, is not seen (`side_effects_observed: "final-state"` for the CLI and HTTP cases; the DATA cases trace writes per phase, below). HTTP (steps marked `http_contract`; `rust-03` is): the 21 `capture-http` fixture cases sent over a real socket to the oracle (`http_driver.py`) and to the candidate started as `<candidate> --careerbrew-http-contract` (it reads the capture control file, publishes `ready.json` with its pid, host `127.0.0.1` and port, and stops on the `stop` file); status, normalized headers and body must match, and the live oracle must still match the frozen `capture-http` reference or verify refuses. The HTTP side effects are one more case, `http:side-effects`, so a difference there names a failed case. A candidate server that exits stops the requests at once and leaves the rest unanswered. DATA: the `capture-data` corpus (10 cases, 19 phases, `docs/plans/2026-11-05-rust-data-fixture-v1.json`) runs in order in one fresh synthetic home per side (the cases build on each other). The oracle is the Python data driver (`<python> -B -S data_driver.py <trial> <case> <role>`); it runs twice, in two fresh homes, and verify refuses when the two runs differ or a phase fails. The candidate runs as `<candidate> --careerbrew-data-contract <trial> <case> <role>` with the same environment (`CAREERBREW_DATA_FIXTURE`, `CAREERBREW_DATA_OWNED`, `CAREERBREW_DATA_REPORT`, `CAREERBREW_CAPTURE_ROOT`) and writes the same phase report. Each phase's API calls (function, purpose, target, argument hash, returned value) must match. A write trace snapshots the home after each phase (mode, inode, mtime; `protocol/` left out): a path the candidate writes in more phases than the oracle is a `duplicate_writes` count (`writes_traced: "per-phase"`; two writes inside one phase count as one; a write the candidate makes in another phase than the oracle, in the same number of phases, is not counted, and with the same bytes no other check sees it). File contents are left out of the DATA side effects (rule `data-ciphertext`: each home has its own key); the reader phases prove the content. One case per corpus case, `data:<id>`. Role: the Python oracle makes a fresh home a corporate machine (`machine set corporate`), then each side runs `jobs list`; the oracle must refuse it (nonzero exit) or verify refuses. A candidate with another exit code, stdout or writes fails `role:jobs-list`. The DATA and role contracts run for every step: there is no per-step flag like `http_contract`, so every candidate must answer `--careerbrew-data-contract` and refuse `jobs list` on a corporate machine. That fits `rust-03`; a later step that owns neither behavior adds a per-step flag first. It writes a content-free JSON record: step, source revision, `source_tree_dirty`, `sources_sha256` (the capture sources plus `baseline.rs`, `verify.rs`, `normalize.rs`, `capture_http.rs`, the HTTP fixtures, driver and reference, and the DATA driver `data_driver.py` and fixture `2026-11-05-rust-data-fixture-v1.json`), `test_candidate` (true when `--test-candidate` chose the candidate), `test_oracle` (true when `--test-oracle` replaced the CLI oracle) and `candidate_sha256` (hashed before and after the runs; a change refuses the record), `contracts`, `case_count`, `passed_count`, `failed_cases`, and per case its id, `kind` (`cli`, `http`, `http-side-effect`, `data` or `role`) and pass or fail: a CLI case adds `candidate_ran`, `exit_matches`, `stdout_matches`, `normalization`, both stdout hashes, `writes_match` and the `extra_writes`, `missing_writes` and `changed_writes` counts with both write-set hashes; an HTTP case adds `candidate_answered`, `status_matches`, `headers_match`, `body_matches` and both body hashes; a data case adds `phases`, `candidate_phases_ran`, `calls_match`, `normalization`, both call hashes, the write counts with `duplicate_writes`, `canary_leaked` and both write-set hashes; the role case adds `candidate_ran`, `oracle_refused`, `exit_matches`, `stdout_matches` and the write counts. It is also `decide`'s verify input: `checks` (one `{id, passed}` per case), `violations` (`contract`: failed CLI or HTTP cases and data cases whose calls differ; `privacy`: channels that hold the synthetic HTTP canary, and data cases in which a file starts to hold the corpus canary (a leak counts once, in the case that made it); `authorization`: a 401 or 403 case answered with another status, another body, or no answer; `role`: a failed role case; `side_effect`: extra or changed entries; `missing_writes`: missing entries; `duplicate_writes`: extra per-phase writes of a data path) and `unobserved_violations` and `missing_contracts`, both empty now (each kind has its planted-defect control in `xtask/tests/verify.rs`). A candidate that cannot start, times out, or prints output that is not UTF-8 or is too large fails its case (`candidate_ran: false`). Exit 0 only when every case matches and every count is 0; a differing case writes the record, names the case and exits 1. It refuses an unknown step, a step with no Rust candidate yet (`step rust-NN has no Rust candidate yet; verify refused`), a CLI oracle case that does not exit 0 (the role oracle must exit nonzero instead), a relative `--python` or `--out`, a set but empty `CAREERBREW_HOME`, an existing output, and a source change during the run. The test-only flag `--test-candidate <absolute-path>` points at a candidate before a port registers one; the test-only flag `--test-oracle <absolute-path>` runs a script in place of the Python oracle for the CLI cases (the HTTP, DATA and role oracles stay Python). Registered cases: `rust-03` `actions-json` (`actions --json`), the 21 HTTP cases (`http:<name>`), `http:side-effects`, `data:1` to `data:10` and `role:jobs-list` (34 cases); no candidate yet. Not yet covered: the native tests, the step's user stories, denying Python to the native run, writes inside one phase, and a same-count write moved to another phase. A vector step (`rust-01`, `rust-02`) skips all of this and compares vectors instead (see the rust-01 and rust-02 vector framework sections); `--test-wrong-vector <set>` and `--test-plant-home-write <file-name>` apply only there. |
 
 **Built:** the paired, cold and warm `measure --pairs` runs of step 4. No
