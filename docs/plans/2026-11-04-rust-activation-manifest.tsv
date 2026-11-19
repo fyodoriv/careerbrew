@@ -20,8 +20,8 @@ node	machine.info	rust-07	src/careerbrew/machine.py	89
 node	machine.role	rust-07	src/careerbrew/machine.py	93
 node	machine.suggest	rust-07	src/careerbrew/machine.py	182
 node	plugins._lock	rust-07	src/careerbrew/plugins.py	186
-node	plugins.effective_policy	rust-07	src/careerbrew/plugins.py	476
-node	plugins.installed	rust-07	src/careerbrew/plugins.py	431
+node	plugins.effective_policy	rust-07	src/careerbrew/plugins.py	477
+node	plugins.installed	rust-07	src/careerbrew/plugins.py	432
 node	server.Handler._guard	rust-25	src/careerbrew/server.py	1033
 node	store.read_json	rust-05	src/careerbrew/store.py	90
 node	store.read_text	rust-05	src/careerbrew/store.py	38

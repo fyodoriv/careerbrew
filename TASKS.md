@@ -155,6 +155,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: any contract disagreement, privacy violation or missing/duplicate write, or CPU/RSS ratio >1.10 B, blocks rollout. Rework the adapter or dependency, register the new approach and remeasure; keep the last verified handler. Preparation fails on any accepted planted defect or unsupported required contract.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
 
+- [ ] Rust migration: rust-07a Python deny-by-default for plugin policy and manifest shapes
+  - **ID**: rust-07a
+  - **Details**: Part of rust-07. Preparation, no Rust. `plugins.validate_manifest` refuses malformed `policy` lists and flags, `export_to_personal`, `provides`, `requires`, `sensitive_terms`, `detect.env` and `detect.paths`, and a name with a trailing newline (`fullmatch`), each with a fixed message that holds no input. Valid manifests behave as before. Own patch release. Not yet covered: an already installed manifest is not re-checked in `installed()`.
+  - **Files**: src/careerbrew/plugins.py; tests/unit/test_rust07a_shapes.py; docs/plugins.md
+  - **Hypothesis**: malformed shapes that today split into characters, read "false" as true, or crash become 0 accepted out of 14 planted cases, with 0 echoed canaries and 0 changes for valid manifests.
+  - **Measurement**: `uv run pytest tests/unit/test_rust07a_shapes.py tests/unit/test_plugin_commands.py tests/unit/test_vault_plugins.py -q` on the hosted checks of the pull request.
+  - **Success**: 14 of 14 refusals match their fixed text; 0 canary hits; existing plugin tests stay green.
+  - **Pivot**: any valid fixture plugin refused, or any refusal that echoes input: drop the check and re-register.
+  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration).
+
 - [ ] Rust migration: Port HTTP sources, calendar and mail
   - **ID**: rust-08
   - **Blocked**: prerequisite: rust-04f, rust-05, rust-07 must land and pass its acceptance gates first
