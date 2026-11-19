@@ -64,7 +64,7 @@ def request(title: str, detail: str = "", by: str = "agent") -> dict[str, Any]:
     if not title:
         raise ValueError("an approval request needs a title")
     item = {"id": uuid.uuid4().hex[:8], "title": title[:200], "detail": detail.strip()[:4000], "by": by[:60], "at": calendar.now_utc().isoformat(timespec="seconds"), "status": "pending", "note": ""}
-    store.write_json(_path(), [*_records(), item])
+    store.write_json(_path(), [*validate_records(load()), item])
     events.emit("approvals.request", status="pending")
     return item
 
