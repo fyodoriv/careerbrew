@@ -23,8 +23,40 @@ def _path() -> Path:
     return paths.sub("approvals.json")
 
 
+STATUSES = ("pending", "approved", "rejected")
+
+
+class ApprovalRecordError(ValueError):
+    """A malformed approvals file. The message names the shape and the record index, never record text."""
+
+
+def validate_records(records: Any) -> list[dict[str, Any]]:
+    """Refuse every malformed record shape (deny by default); return the records unchanged when valid."""
+    if not isinstance(records, list):
+        raise ApprovalRecordError("approvals file: not a list")
+    seen: set[str] = set()
+    for i, a in enumerate(records):
+        if not isinstance(a, dict):
+            raise ApprovalRecordError(f"approvals record {i}: not an object")
+        for key in ("id", "status", "title", "at"):
+            if not isinstance(a.get(key), str):
+                raise ApprovalRecordError(f"approvals record {i}: missing {key}")
+            if key == "status" and a["status"] not in STATUSES:
+                raise ApprovalRecordError(f"approvals record {i}: unknown status")
+        if a["status"] != "pending" and not isinstance(a.get("decided_at"), str):
+            raise ApprovalRecordError(f"approvals record {i}: decided without decided_at")
+        if a["id"] in seen:
+            raise ApprovalRecordError(f"approvals record {i}: duplicate id")
+        seen.add(a["id"])
+    return records
+
+
 def load() -> list[dict[str, Any]]:
     return store.read_json(_path(), []) or []
+
+
+def _records() -> list[dict[str, Any]]:
+    return validate_records(load())
 
 
 def request(title: str, detail: str = "", by: str = "agent") -> dict[str, Any]:
@@ -38,13 +70,13 @@ def request(title: str, detail: str = "", by: str = "agent") -> dict[str, Any]:
 
 
 def pending() -> list[dict[str, Any]]:
-    return [a for a in load() if a["status"] == "pending"]
+    return [a for a in _records() if a["status"] == "pending"]
 
 
 def decide(item_id: str, decision: str, note: str = "") -> dict[str, Any]:
     if decision not in ("approved", "rejected"):
         raise ValueError("decision must be approved or rejected")
-    items = load()
+    items = _records()
     for a in items:
         if a["id"] == item_id:
             if a["status"] != "pending":
@@ -61,13 +93,13 @@ GUIDANCE_MAX = 10
 
 def guidance(limit: int = GUIDANCE_MAX) -> list[dict[str, str]]:
     """The owner's notes on decided requests, newest first: what agents should do differently next time."""
-    rows = [a for a in load() if a.get("status") in ("approved", "rejected") and a.get("note")]
+    rows = [a for a in _records() if a.get("status") in ("approved", "rejected") and a.get("note")]
     rows.sort(key=lambda a: str(a.get("decided_at") or a.get("at") or ""), reverse=True)
     return [{"status": a["status"], "title": a["title"], "note": a["note"], "at": str(a.get("decided_at") or "")} for a in rows[:limit]]
 
 
 def get(item_id: str) -> dict[str, Any]:
-    for a in load():
+    for a in _records():
         if a["id"] == item_id:
             return a
     raise KeyError(f"unknown approval {item_id}")

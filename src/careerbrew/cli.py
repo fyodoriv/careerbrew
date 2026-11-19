@@ -577,7 +577,7 @@ def cmd_approvals_guidance(_a: argparse.Namespace) -> int:
 def cmd_approvals_list(_a: argparse.Namespace) -> int:
     from . import approvals
 
-    for item in approvals.load()[-20:]:
+    for item in approvals._records()[-20:]:
         say(f"{item['id']}  {item['status']:<9} {item['title']}")
     return 0
 
