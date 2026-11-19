@@ -987,6 +987,103 @@ Done 2026-11-18, on macOS, with the four sets of #149. Records stay local.
 - **Gate:** 0 canary leaks, unauthorized reads, or role or approval bypasses
   across all positive and negative fixtures.
 
+#### Sub-steps (2026-11-19)
+
+rust-04 ships as six tasks in `TASKS.md`. Preparation tasks may land
+before `rust-03`. Candidate tasks wait for `rust-02` and `rust-03`.
+
+| Task | Kind | What it does |
+|---|---|---|
+| `rust-04a` | preparation | Vector-driver harness: a driver kind in `baseline`, `verify` and `measure`; one scratch vector file per run; positive control, planted defects and refusals. |
+| `rust-04b` | preparation | Python deny-by-default: `approvals.validate_records` and `access.validate_directory`, failing tests first. A behaviour change, so its own patch release. |
+| `rust-04c` | preparation | Python oracle `tests/oracles/rust04.py`, the vector generator, and `baseline-rust-04.json` committed with the prediction. |
+| `rust-04d` | candidate | `crates/policy` core: forbid-IO gate, canary engine, `filter_terms`, allowlists; sets `canary-*` and `allowlists`. |
+| `rust-04e` | candidate | Four independent PRs: canary outputs; `public-scrub` alone; approvals; access. |
+| `rust-04f` | candidate | 30-pair measure, decide record, "Current state", crate row (production use: none), inventory and source map refresh. |
+
+`activate` is a component verdict only. `scripts/rust-shipped-crates.txt`
+stays unchanged until the `rust-05` and `rust-07` closure is native.
+
+#### Ownership split
+
+The crate `crates/policy` does no IO. A gate step rejects `std::fs`,
+`std::env`, `std::process`, `std::net`, `SystemTime` and RNG in it. The
+caller supplies terms, records, the directory, `now` and `id`.
+
+| Function or concern | Owner step |
+|---|---|
+| Pure decisions in `privacy.py`, `approvals.py`, `work/access.py` | `rust-04` |
+| `approvals.load`, `write_json`, `events.emit` | `rust-05` |
+| `privacy._read_terms`, `sensitive_terms` file and plugin resolution | `rust-07` |
+| `scan_repo` git plumbing, `_staged_entries`, `_visual_snapshot_png` (moved out of rust-04) | `rust-27` or `rust-27b` |
+| `_owner_terminal` (moved out of rust-04) | the CLI or goals step |
+
+The fold and match engine lives once, in `crates/policy`. The rust-27b
+leak check depends on it after a rebase. No forked copy.
+
+#### CLI handler table
+
+`src/careerbrew/cli.py` calls `privacy.`, `approvals.` and `access.` at 13
+sites. Each row is either ported (calls the policy crate) or deferred.
+
+| # | Handler | Call | Status | Reason |
+|---|---|---|---|---|
+| 1 | `say` | `privacy.redact` | ported | pure redaction over supplied terms; term loading stays with `rust-07` |
+| 2 | `cmd_approvals_request` | `approvals.request` | ported (decision) | `request_item` builds the record; the save is deferred to `rust-05` |
+| 3 | `cmd_approvals_request` | `approvals.guidance(5)` | ported | pure over supplied records |
+| 4 | `cmd_approvals_guidance` | `approvals.guidance()` | ported | pure over supplied records |
+| 5 | `cmd_approvals_list` | `approvals.load` | deferred to `rust-05` | reads the encrypted store |
+| 6 | `cmd_approvals_show` | `approvals.get` | ported | pure lookup over validated records |
+| 7 | `cmd_approvals_decide` | `approvals.decide` | ported (decision) | `decide_items` keeps Python's check order; the write is deferred to `rust-05` |
+| 8 | `cmd_privacy_scan` | `privacy.scan_files` | ported (decision) | matching is ported; file reads and data-root paths are deferred to `rust-05` and `rust-07` |
+| 9 | `cmd_privacy_scan` | `privacy.scan_repo` | deferred to `rust-27b` | git plumbing; it calls the shared engine after the rebase |
+| 10 | `cmd_draft_route` | `access.route` | ported | insertion order kept |
+| 11 | `cmd_draft_route` | `access.load` | deferred to `rust-05` | reads the directory file; `validate_directory` is ported |
+| 12 | `cmd_draft_judge` | `access.judge` | ported | pure over supplied directory |
+| 13 | `cmd_draft_judge` | `access.load` | deferred to `rust-05` | reads the directory file; `validate_directory` is ported |
+
+The `privacy.PrivacyError` catch in `main` is an exception class, not a
+call. The native error keeps the same message and exit code.
+
+Each listed test file maps to vectors: `test_privacy_index.py`,
+`test_privacy_scan_file.py` (decision parts), `test_plugins_privacy.py`
+(decision parts), and the approvals and access tests.
+
+#### Vector contract
+
+- One generator makes the vectors. xtask runs it once per run into a
+  scratch file and passes the same file to both drivers. Only the
+  generator is tracked.
+- Python driver: `python -I tests/oracles/rust04.py <set> <file>`. Rust
+  driver: the `policy-vectors` binary. Both print with the same
+  `json.dumps` settings the CLI uses.
+- Sets: `canary-core`, `canary-match`, `leak-spans`, `assert-redact`,
+  `allowlists`, `public-scrub`, `private-path`, `approvals`,
+  `receipt-validate`, `access`, `assert-no-echo`.
+- Canaries are synthetic. No output may hold term text (`assert-no-echo`).
+- A malformed record gets a fixed, content-free refusal in Python first
+  (`rust-04b`). Rust matches those bytes and exit codes. A panic or a
+  different refusal is a failure. The out-of-contract table is empty.
+- Planted defects, each must fail and name its case: one `EXTRA_CASES`
+  entry removed; the `<` removed from the mention lookbehind; the receipt
+  validator accepts an unknown status.
+
+#### Unicode version check
+
+The verify record stores Python's `unicodedata.unidata_version` and the
+Rust table version. When they differ, verify refuses before any case runs.
+Case folding and word splits depend on this table.
+
+#### Traps to remember
+
+- Python `str.split()` and Rust `split_whitespace` differ on some Unicode
+  spaces. Port the Python rule, not the Rust default.
+- `re.IGNORECASE` is not full Unicode case folding. Match Python's rule.
+- An approval id can appear twice with the first copy already decided.
+  Keep Python's lookup order, and cover it in `receipt-validate`.
+- Vectors come from one generator, never two. Two generators can agree
+  with each other and both miss a case.
+
 ### rust-05: Port encrypted storage and transaction locks
 
 - **Depends on:** `rust-01`, `rust-02`, `rust-04`.
