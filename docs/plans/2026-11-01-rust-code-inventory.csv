@@ -987,5 +987,4 @@ crates/policy/tests/controls.rs,keep-native,rust-00,rust-04d controls: planted E
 crates/policy/gen_tables.py,port,rust-27,Generates the policy crate Unicode tables from CPython; retire with the Python migration oracle
 scripts/policy-no-io.py,port,rust-27,Gate step rust-policy-io: refuses IO in the policy crate library; retire remaining harness here
 tests/unit/test_policy_no_io.py,port,rust-27,Guard: the policy crate IO gate passes the crate and refuses planted IO uses
-||||||| f7e83d77
 tests/unit/test_rust07b_pure.py,port,rust-07,Pure plugin and machine and sign-in decisions over supplied facts
