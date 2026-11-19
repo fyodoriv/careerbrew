@@ -186,7 +186,12 @@ fn a_non_utf8_tracked_name_is_scanned_like_python() {
     use std::os::unix::ffi::OsStrExt;
     let r = repo();
     let name = std::ffi::OsStr::from_bytes(b"n\xffame.md");
-    std::fs::write(r.path().join(name), format!("{CANARY}\n")).unwrap();
+    // APFS refuses a name that is not UTF-8 (EILSEQ), so no repo on macOS can
+    // track one; the Linux runners still cover this case.
+    match std::fs::write(r.path().join(name), format!("{CANARY}\n")) {
+        Err(e) if cfg!(target_os = "macos") && e.raw_os_error() == Some(92) => return,
+        other => other.unwrap(),
+    }
     let ok = Command::new("git")
         .arg("-C")
         .arg(r.path())
