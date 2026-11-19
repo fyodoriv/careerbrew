@@ -796,6 +796,8 @@ xtask/src/capture_actions.rs,keep-native,rust-00,Native observed action catalog 
 xtask/src/inventory.rs,keep-native,rust-00,Native tracked inventory verifier
 xtask/src/sites.rs,keep-native,rust-00,Native embedded-site and entry-point discovery
 xtask/src/sites_tests.rs,keep-native,rust-00,Controls for embedded-site and entry-point discovery
+xtask/src/leak_check.rs,keep-native,rust-00,rust-27b slice 1: native repo leak scan engine over supplied terms; no production dispatch
+xtask/tests/leak_check.rs,keep-native,rust-00,Synthetic canary controls for the native leak scan
 xtask/src/main.rs,keep-native,rust-00,Native migration workspace source or build configuration
 xtask/src/toolchain_identity.rs,keep-native,rust-00,Native read-only toolchain identity probe
 xtask/src/trial_plan.rs,keep-native,rust-00,Native paired trial ordering for the migration harness

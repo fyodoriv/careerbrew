@@ -1636,7 +1636,8 @@ and each set's planted wrong vector fails. For `rust-02`, see
   `clippy` and `rustfmt`).
 - `.cargo/config.toml` defines `cargo xtask` as
   `run --locked --offline --package careerbrew-xtask --`.
-- Pinned crates: `serde`, `serde_json`, `sha2`, `tempfile`, `libc` (xtask);
+- Pinned crates: `serde`, `serde_json`, `sha2`, `tempfile`, `libc`,
+  `unicode-normalization` (xtask);
   `fernet` 0.2.2, `base64` (vault). Licences are in
   [public-readiness-licences.md](proof/public-readiness-licences.md).
 
@@ -1646,6 +1647,7 @@ The tool has no `--help`. A wrong argument prints the usage and exits 2.
 
 | Command | What it does |
 | --- | --- |
+| `cargo xtask leak-check [--staged] [--repo <dir>] --terms-file <file>` | rust-27b slice 1 (`xtask/src/leak_check.rs`): the native port of the repo scan behind `scripts/leak-check.sh` (`privacy.scan_repo` and the `cmd_privacy_scan` output). Same inputs (staged blobs from the cached raw diff, then tracked working files unless `--staged`), the same `private/` path rule, term matching (NFKC, zero-width removal, separators and leetspeak for terms of 5+ characters), the same `LEAK` and summary lines with term ids only, and exit 0 clean or 1 on a finding; 2 is a usage or terms-file error. Differences, so the wrapper still runs Python: terms come from a plaintext file, not the encrypted data root, profile and plugins (rust-04, rust-05, rust-07); a staged visual snapshot PNG is `scan-incomplete` (its validated pixel scan is a later slice); no `--file` or `--show`. Tests: `xtask/tests/leak_check.rs`. |
 | `cargo xtask migration self-test` | runs the 8 paired-verdict controls, the 6 trial-planner controls, the 3 planted slow-path decide controls and the 7 vector-step controls (5 compare, a planted home write, the step registry), all on synthetic data |
 | `cargo xtask migration inventory --check` | checks that every tracked direct code path in the staged Git index has exactly one row in the [code inventory](plans/2026-11-01-rust-code-inventory.csv), then runs the `--sites-check` below |
 | `cargo xtask migration inventory --sites-check` | discovers embedded code and generated entry points in the staged Git index and checks each against the [embedded sites](plans/2026-11-17-rust-embedded-sites.csv); an unassigned site, a row whose site is gone, a repeated row or a bad task is refused |
@@ -1681,7 +1683,8 @@ step has a registered Rust candidate yet, so no real record exists.
 - Integration tests in `xtask/tests/`: `activation_manifest`, `capture_actions`,
   `baseline`, `capture_data`, `capture_data_cli`, `capture_http`, `decide`, `i01_fixture`,
   `observer_deadline`, `observer_owner`, `observer_parser`,
-  `observer_transport`, `resources`, `store_supervisor`, `verify`.
+  `observer_transport`, `resources`, `store_supervisor`, `verify`,
+  `leak_check`.
 - Python cross-checks in `tests/unit/`: `test_rust_vault_interop.py`,
   `test_rust_vault_base64_parity.py`, `test_rust_hash_experiment.py`,
   `test_rust_readiness.py`, `test_doctor_rust_deps.py`,
