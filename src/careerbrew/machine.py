@@ -180,16 +180,30 @@ def set_role(new: str, label: str = "") -> dict[str, Any]:
 
 
 def suggest() -> str | None:
-    for p in plugins.installed():
-        det = p["manifest"].get("detect") or {}
-        if any(os.environ.get(e) for e in det.get("env", [])) or any(Path(x).expanduser().exists() for x in det.get("paths", [])):
+    detects = [p["manifest"].get("detect") or {} for p in plugins.installed()]
+    existing = {x for det in detects for x in det.get("paths", []) if Path(x).expanduser().exists()}
+    return suggest_decision(detects, os.environ, existing)
+
+
+def suggest_decision(detects: list[dict[str, Any]], env: Any, existing_paths: set[str]) -> str | None:
+    """Pure (rust-07b): "corporate" when any plugin's detect env var is set or detect path exists."""
+    for det in detects:
+        if any(env.get(e) for e in det.get("env", [])) or any(x in existing_paths for x in det.get("paths", [])):
             return "corporate"
     return None
 
 
 def guard(command_group: str) -> None:
-    if command_group in PERSONAL_ONLY and role() == "corporate":
-        raise RoleError(f"`{command_group}` is personal-only and this machine's role is corporate. Run it on your personal machine (job-hunt data never goes on employer hardware).")
+    refusal = guard_decision(command_group, role()) if command_group in PERSONAL_ONLY else None
+    if refusal:
+        raise RoleError(refusal)
+
+
+def guard_decision(command_group: str, machine_role: str) -> str | None:
+    """Pure (rust-07b): the refusal text for a personal-only command on a corporate machine, else None."""
+    if command_group in PERSONAL_ONLY and machine_role == "corporate":
+        return f"`{command_group}` is personal-only and this machine's role is corporate. Run it on your personal machine (job-hunt data never goes on employer hardware)."
+    return None
 
 
 CLOUD_DIRS = ("Dropbox", "Google Drive", "OneDrive", "Box", "pCloud Drive", "Sync")
@@ -212,15 +226,23 @@ def cloud_synced(path: Path) -> str:
     p = Path(path).expanduser().resolve()
     if not p.is_relative_to(home):
         return ""
-    parts = p.relative_to(home).parts
+    icloud = home / "Library" / "Mobile Documents" / "com~apple~CloudDocs"
+    return cloud_service(p.relative_to(home).parts, {d for d in ("Desktop", "Documents") if (icloud / d).is_dir()})
+
+
+def cloud_service(rel_parts: tuple[str, ...], icloud_dirs: set[str]) -> str:
+    """Pure (rust-07b): the cloud service for a path's parts under the home folder, or "".
+
+    `icloud_dirs` holds "Desktop" and "Documents" when iCloud syncs them.
+    """
+    parts = tuple(rel_parts)
     if parts[:2] == ("Library", "Mobile Documents"):
         return "iCloud Drive"
     if parts[:2] == ("Library", "CloudStorage") and len(parts) > 2:
         return parts[2].split("-")[0]
     if parts and (parts[0] in CLOUD_DIRS or parts[0].startswith("OneDrive")):
         return parts[0]
-    icloud = home / "Library" / "Mobile Documents" / "com~apple~CloudDocs"
-    if parts and parts[0] in ("Desktop", "Documents") and (icloud / parts[0]).is_dir():
+    if parts and parts[0] in ("Desktop", "Documents") and parts[0] in icloud_dirs:
         return "iCloud Desktop & Documents"
     return ""
 
@@ -238,6 +260,9 @@ EVIDENCE_KEYS = ("sources", "connectors")
 
 def _per_user(item: Any) -> bool:
     return isinstance(item, dict) and (any(k in item for k in PER_USER_KEYS) or str(item.get("path", "")).startswith(("/Users/", "/home/", "~")))
+
+
+per_user = _per_user  # public pure name (rust-07b)
 
 
 def per_user_values_in_plugins() -> list[str]:
@@ -366,54 +391,78 @@ def readiness() -> list[dict[str, Any]]:
     from .work import promo
 
     root = paths.data_root()
+    facts: dict[str, Any] = {"role": role()}
+    prof = root / "profile.yaml"
+    text = store.read_text(prof, "") or ""
+    facts["profile_exists"] = prof.exists()
+    facts["job_hunt_fields"] = has_job_hunt_fields(text)
+    prof_data = store.read_yaml(prof, {}) or {} if prof.exists() else {}
+    facts["profile_name"] = prof_data.get("name")
+    facts["profile_employer"] = prof_data.get("employer")
+    # a folder with no data file holds no job-hunt data: `paths.sub` makes parents on a read too (issue #183)
+    facts["personal_data"] = any(_data_files(root / d) for d in PERSONAL_DIRS)
+    installed = plugins.installed()
+    facts["installed"] = bool(installed)
+    facts["verified"] = bool(installed) and all(ok for _, ok in plugins.verify())
+    generic = {k: v for k, v in (store.read_yaml(paths.REPO_ROOT / "knowledge" / "ladders" / "generic-swe.yaml", {}) or {}).items() if k not in ("id", "name")}
+    plugin_ladders = [v for v in promo.ladders().values() if str(v.get("origin", "")).startswith("plugin:")]
+    facts["real_ladder"] = any({k: x for k, x in v.items() if k not in ("id", "name", "origin")} != generic for v in plugin_ladders)
+    settings = store.read_yaml(root / "settings.yaml", {}) or {}
+    active = promo.ladders().get(str(settings.get("ladder", "generic-swe"))) or {}
+    facts["active_origin"] = str(active.get("origin", ""))
+    facts["target_level"] = str(settings.get("target_level", "senior"))
+    facts["active_levels"] = active.get("levels", [])
+    facts["cloud"] = cloud_synced(root)
+    from . import backup
+
+    facts["synced_targets"] = [str(t) for t in backup.configured_targets() if cloud_synced(t)]
+    facts["shared"] = per_user_values_in_plugins()
+    terms = plugin_terms()
+    facts["terms_count"] = len(terms)
+    # Only the plugins' terms: a personal name or a common-word employer can appear in the repo by chance.
+    rep = privacy.scan_repo(terms=terms)
+    facts["scan_ok"] = rep.ok
+    facts["files_scanned"] = rep.files_scanned
+    facts["scan_files"] = sorted({path for path, _ in rep.findings})
+    return readiness_rows(facts)
+
+
+def readiness_rows(facts: dict[str, Any]) -> list[dict[str, Any]]:
+    """Pure (rust-07b): the readiness rows from probed facts; `readiness()` gathers them."""
     rows: list[dict[str, Any]] = []
 
     def row(ok: bool, check: str, fix: str) -> None:
         rows.append({"ok": bool(ok), "check": check, "fix": "" if ok else fix})
 
-    row(role() == "corporate", "machine role is corporate", "careerbrew machine set corporate --label <name>")
-    prof = root / "profile.yaml"
-    text = store.read_text(prof, "") or ""
-    row(prof.exists() and not has_job_hunt_fields(text), "profile.yaml exists and has no job-hunt fields", "careerbrew init, then delete job-hunt fields from profile.yaml")
-    prof_data = store.read_yaml(prof, {}) or {} if prof.exists() else {}
+    row(facts["role"] == "corporate", "machine role is corporate", "careerbrew machine set corporate --label <name>")
+    row(facts["profile_exists"] and not facts["job_hunt_fields"], "profile.yaml exists and has no job-hunt fields", "careerbrew init, then delete job-hunt fields from profile.yaml")
     row(
-        prof_data.get("name") not in (None, "", "Your Name") and prof_data.get("employer") not in (None, "", "Your Employer"),
+        facts["profile_name"] not in (None, "", "Your Name") and facts["profile_employer"] not in (None, "", "Your Employer"),
         "profile.yaml has your real name and company (both become leak terms)",
         "set name and employer with `careerbrew data set profile.yaml --name '<name>' --employer '<employer>'`",
     )
-    # a folder with no data file holds no job-hunt data: `paths.sub` makes parents on a read too (issue #183)
-    row(not any(_data_files(root / d) for d in PERSONAL_DIRS), "no job-hunt folders on this machine", "careerbrew machine set corporate (it removes untouched examples and refuses real job-hunt data)")
-    installed = plugins.installed()
-    row(bool(installed), "a company plugin is installed", "careerbrew plugin new <company> --connect jira,github,slack (see docs/corporate-machine.md)")
-    row(bool(installed) and all(ok for _, ok in plugins.verify()), "installed plugins match their lock hashes", "careerbrew plugin refresh")
-    generic = {k: v for k, v in (store.read_yaml(paths.REPO_ROOT / "knowledge" / "ladders" / "generic-swe.yaml", {}) or {}).items() if k not in ("id", "name")}
-    plugin_ladders = [v for v in promo.ladders().values() if str(v.get("origin", "")).startswith("plugin:")]
+    row(not facts["personal_data"], "no job-hunt folders on this machine", "careerbrew machine set corporate (it removes untouched examples and refuses real job-hunt data)")
+    row(facts["installed"], "a company plugin is installed", "careerbrew plugin new <company> --connect jira,github,slack (see docs/corporate-machine.md)")
+    row(facts["verified"], "installed plugins match their lock hashes", "careerbrew plugin refresh")
     row(
-        any({k: x for k, x in v.items() if k not in ("id", "name", "origin")} != generic for v in plugin_ladders),
+        facts["real_ladder"],
         "a plugin ladder holds real criteria (not the generic copy)",
         "edit ladders/*.yaml in the plugin with the company's promotion criteria (promo-research skill), then careerbrew plugin refresh",
     )
-    settings = store.read_yaml(root / "settings.yaml", {}) or {}
-    active = promo.ladders().get(str(settings.get("ladder", "generic-swe"))) or {}
-    row(str(active.get("origin", "")).startswith("plugin:"), "the active ladder comes from a plugin", "set `ladder: <org>-eng` with `careerbrew data edit settings.yaml` (plugin new does this)")
-    level = str(settings.get("target_level", "senior"))
-    row(level in [str(x) for x in active.get("levels", [])], f"target_level {level!r} is a level of the active ladder", f"set target_level with `careerbrew data edit settings.yaml` to one of {active.get('levels', [])}")
-    cloud = cloud_synced(root)
+    row(facts["active_origin"].startswith("plugin:"), "the active ladder comes from a plugin", "set `ladder: <org>-eng` with `careerbrew data edit settings.yaml` (plugin new does this)")
+    level = facts["target_level"]
+    levels = facts["active_levels"]
+    row(level in [str(x) for x in levels], f"target_level {level!r} is a level of the active ladder", f"set target_level with `careerbrew data edit settings.yaml` to one of {levels}")
+    cloud = facts["cloud"]
     row(not cloud, f"the data folder is not uploaded by a cloud service{f' (found: {cloud})' if cloud else ''}", "move it out of synced folders: set CAREERBREW_HOME to ~/careerbrew-data and move the folder there")
-    from . import backup
-
-    synced = [str(t) for t in backup.configured_targets() if cloud_synced(t)]
-    row(not synced, "no backup target is in a cloud-synced folder", "set backup_targets with `careerbrew data edit settings.yaml` to a local or company-managed folder")
-    shared = per_user_values_in_plugins()
+    row(not facts["synced_targets"], "no backup target is in a cloud-synced folder", "set backup_targets with `careerbrew data edit settings.yaml` to a local or company-managed folder")
+    shared = facts["shared"]
     row(
         not shared,
         PER_USER_CHECK,
         f"move them out of {', '.join(shared[:3])} into your private files, as they are, with `careerbrew machine split-plugin-evidence`; a coworker gets their own with `careerbrew machine new-user`",
     )
-    terms = plugin_terms()
-    row(len(terms) >= 2, "sensitive terms list the company plus its codenames", "add project codenames, customers, and internal hosts to the plugin's sensitive-terms.txt, then careerbrew plugin refresh")
-    # Only the plugins' terms: a personal name or a common-word employer can appear in the repo by chance.
-    rep = privacy.scan_repo(terms=terms)
-    files = sorted({path for path, _ in rep.findings})
-    row(rep.ok, f"the careerbrew repo has no company terms ({rep.files_scanned} files scanned)", f"move company content out of: {', '.join(files[:5])}; it belongs in the plugin")
+    row(facts["terms_count"] >= 2, "sensitive terms list the company plus its codenames", "add project codenames, customers, and internal hosts to the plugin's sensitive-terms.txt, then careerbrew plugin refresh")
+    files = facts["scan_files"]
+    row(facts["scan_ok"], f"the careerbrew repo has no company terms ({facts['files_scanned']} files scanned)", f"move company content out of: {', '.join(files[:5])}; it belongs in the plugin")
     return rows
