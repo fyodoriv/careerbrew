@@ -29,7 +29,7 @@ MALFORMED = [
     ({"policy": {"require_encrypted_backup": "yes-CANARY"}}, "policy.require_encrypted_backup must be true or false"),
     ({"policy": {"export_to_personal": "CANARY"}}, "policy.export_to_personal must be one of ['none', 'aggregates', 'redacted', 'full']"),
     ({"provides": ["CANARY"]}, "provides must be a mapping of resource kind to paths"),
-    ({"requires": ">=CANARY"}, "requires must name a version with ASCII digits, e.g. >=0.1.0"),
+    ({"requires": ">=LETTERS"}, "requires must name a version with ASCII digits, e.g. >=0.1.0"),
     ({"requires": ">=١.٢"}, "requires must name a version with ASCII digits, e.g. >=0.1.0"),
     ({"sensitive_terms": ["CANARY"]}, "sensitive_terms must be a relative file path inside the plugin folder"),
     ({"sensitive_terms": "../CANARY.txt"}, "sensitive_terms must be a relative file path inside the plugin folder"),
@@ -42,10 +42,11 @@ MALFORMED = [
 @pytest.mark.parametrize(("extra", "message"), MALFORMED)
 def test_rust07a_malformed_shape_is_refused_with_a_fixed_message(home, tmp_path, extra, message):
     canary = _canary()
+    letters = "".join(c for c in canary if c.isalpha()) or "zq"  # a requires value with no digits
 
     def plant(value):
         if isinstance(value, str):
-            return value.replace("CANARY", canary)
+            return value.replace("CANARY", canary).replace("LETTERS", letters)
         if isinstance(value, list):
             return [plant(v) for v in value]
         if isinstance(value, dict):
@@ -56,6 +57,7 @@ def test_rust07a_malformed_shape_is_refused_with_a_fixed_message(home, tmp_path,
         plugins.validate_manifest(_manifest(**plant(extra)), tmp_path)
     assert str(err.value) == message
     assert canary not in str(err.value)
+    assert letters not in str(err.value)
 
 
 def test_rust07a_name_with_a_trailing_newline_is_refused(home, tmp_path):
