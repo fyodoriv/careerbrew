@@ -137,4 +137,8 @@ def test_a_sublinear_tree_exercise_builds_each_scaling_tree_once(monkeypatch):
 
     ns: dict = {"TreeNode": TreeNode}
     exec(ex["scale"]["generator"], ns)
-    assert ns["make"](1000)[0] is ns["make"](1000)[0]
+    a, b = ns["make"](1000)[0], ns["make"](1000)[0]
+    assert a.left is b.left, "the tree below the root is built once per size"
+    # Review of the fix: one shared root let a solution save its answer on the root (or by id(root)) after one
+    # O(n) walk, so every timed call cost O(1) and passed O(log n). Each call needs its own root object.
+    assert a is not b, "each call must get a new root, or a per-root cache fools the timing check"

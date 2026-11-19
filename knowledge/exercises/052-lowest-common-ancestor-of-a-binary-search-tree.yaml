@@ -95,7 +95,9 @@ tests:
 scale:
   # The walk only reads the tree, and one call takes microseconds, so the timer repeats it up to 50 times
   # per size. Building 50 fresh 100,000-node trees per timing run took most of 40 s of CPU; build each size once.
-  generator: "_trees = {}\ndef make(n):\n    def b(lo, hi):\n        if lo > hi:\n            return None\n        m = (lo + hi) // 2\n        return TreeNode(m, b(lo, m - 1), b(m + 1, hi))\n    if n not in _trees:\n        _trees[n] = b(1, n)\n    return [_trees[n], 1, 2]\n"
+  # Each call still gets a new root node, so a solution that saves its answer on the root (an attribute, or a
+  # dict keyed by id(root)) pays its full walk on every timed call. A cache keyed by a child node is not caught.
+  generator: "_trees = {}\ndef make(n):\n    def b(lo, hi):\n        if lo > hi:\n            return None\n        m = (lo + hi) // 2\n        return TreeNode(m, b(lo, m - 1), b(m + 1, hi))\n    if n not in _trees:\n        _trees[n] = b(1, n)\n    t = _trees[n]\n    return [TreeNode(t.val, t.left, t.right), 1, 2]\n"
   sizes:
   - 10000
   - 100000
