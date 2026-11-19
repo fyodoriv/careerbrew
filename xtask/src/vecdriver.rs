@@ -14,8 +14,10 @@
 //!   `{"set", "results": [{"id", "output"}]}` (the `depvec` answer shape).
 //!
 //! Each vector is one case, `<set>:<id>`, compared with the shared
-//! `depvec::compare`. The vector file's hash is taken before and after the
-//! drivers run; a driver that changes it is refused. Test-only plants
+//! `depvec::compare`. The vector file's hash is taken after the generator
+//! and again after every driver run; a driver that changes it is refused,
+//! and the record counts these checks. The generator, the Python driver and
+//! the test candidate script must be files inside the repo root. Test-only plants
 //! (`Plant`) change the Rust answer after it is read, and each must fail
 //! naming its case.
 use crate::{capture_actions, depvec};
@@ -65,6 +67,16 @@ pub enum Plant {
 }
 
 impl Plant {
+    /// The name the record stores.
+    pub fn name(self) -> &'static str {
+        match self {
+            Plant::None => "none",
+            Plant::RemoveCase => "remove-case",
+            Plant::ChangeByte => "change-byte",
+            Plant::UnicodeMismatch => "unicode-mismatch",
+        }
+    }
+
     pub fn parse(name: Option<&str>) -> Result<Plant, String> {
         match name {
             None => Ok(Plant::None),
@@ -95,23 +107,88 @@ pub(crate) fn parse_sets(text: &str) -> Result<Vec<(String, Vec<Value>)>, String
     Ok(out)
 }
 
-/// The output with one byte changed: the first ASCII letter or digit of its
-/// JSON text moves to the next one. Falls back to wrapping the output when
-/// the changed text does not parse.
-pub(crate) fn change_byte(output: &Value) -> Value {
-    let mut bytes = output.to_string().into_bytes();
-    if let Some(byte) = bytes.iter_mut().find(|b| b.is_ascii_alphanumeric()) {
-        *byte = match *byte {
-            b'9' => b'0',
-            b'z' => b'a',
-            b'Z' => b'A',
-            other => other + 1,
-        };
+fn bump(byte: &mut u8) {
+    *byte = match *byte {
+        b'9' => b'0',
+        b'z' => b'a',
+        b'Z' => b'A',
+        other => other + 1,
+    };
+}
+
+/// Changes one byte of the first leaf value (never an object key): the
+/// first ASCII letter or digit of a string or number moves to the next one;
+/// a string with none gains one byte; a bool flips; null becomes 0.
+/// Returns false when there is no leaf (an empty object or array).
+fn change_leaf(value: &mut Value) -> bool {
+    match value {
+        Value::Object(map) => map.values_mut().any(change_leaf),
+        Value::Array(items) => items.iter_mut().any(change_leaf),
+        Value::String(text) => {
+            let mut bytes = std::mem::take(text).into_bytes();
+            match bytes.iter_mut().find(|b| b.is_ascii_alphanumeric()) {
+                Some(byte) => bump(byte),
+                None => bytes.push(b'x'),
+            }
+            // Only an ASCII byte changed, so the text stays UTF-8.
+            *text = String::from_utf8(bytes).unwrap_or_default();
+            true
+        }
+        Value::Number(number) => {
+            let mut bytes = number.to_string().into_bytes();
+            if let Some(byte) = bytes.iter_mut().find(|b| b.is_ascii_digit()) {
+                bump(byte);
+            }
+            match serde_json::from_slice(&bytes) {
+                Ok(changed) => *value = changed,
+                Err(_) => *value = json!(0),
+            }
+            true
+        }
+        Value::Bool(flag) => {
+            *flag = !*flag;
+            true
+        }
+        Value::Null => {
+            *value = json!(0);
+            true
+        }
     }
-    serde_json::from_slice(&bytes)
-        .ok()
-        .filter(|changed| changed != output)
-        .unwrap_or_else(|| json!({ (depvec::PLANTED): output }))
+}
+
+/// The output with one byte of its first value changed (keys stay as they
+/// are). Falls back to wrapping the output when it holds no value.
+pub(crate) fn change_byte(output: &Value) -> Value {
+    let mut changed = output.clone();
+    if change_leaf(&mut changed) && changed != *output {
+        changed
+    } else {
+        json!({ (depvec::PLANTED): output })
+    }
+}
+
+/// `relative` resolved inside `root`: canonical, a file, and under the
+/// canonical root. The message never echoes the path.
+pub(crate) fn confine(root: &Path, relative: &Path) -> Result<std::path::PathBuf, String> {
+    const REFUSAL: &str =
+        "--generator, --driver and --test-candidate-script must name files inside the repo; refused";
+    let root = root.canonicalize().map_err(|_| REFUSAL)?;
+    let path = root.join(relative).canonicalize().map_err(|_| REFUSAL)?;
+    if !path.starts_with(&root) || !path.is_file() {
+        return Err(REFUSAL.into());
+    }
+    Ok(path)
+}
+
+/// Checks `--out` before anything runs: absolute and not yet there.
+pub fn check_out(path: &Path) -> Result<(), String> {
+    if !path.is_absolute() {
+        return Err("--out must be an absolute path".into());
+    }
+    if path.symlink_metadata().is_ok() {
+        return Err("--out must name a new file".into());
+    }
+    Ok(())
 }
 
 /// Applies a result plant to the Rust answer of one set.
@@ -168,6 +245,9 @@ struct Sides<'a> {
     driver: &'a Path,
     candidate: Candidate<'a>,
     runs: usize,
+    vector_file: &'a Path,
+    vector_sha256: String,
+    hash_checks: usize,
 }
 
 impl Sides<'_> {
@@ -176,23 +256,38 @@ impl Sides<'_> {
         self.scratch.join(format!("{label}-{}", self.runs))
     }
 
+    /// The vector file must still hash as the generator wrote it.
+    fn recheck(&mut self) -> Result<(), String> {
+        let now =
+            std::fs::read(self.vector_file).map_err(|_| "the vector file vanished; refused")?;
+        if capture_actions::digest(&now) != self.vector_sha256 {
+            return Err("a driver changed the vector file; refused".into());
+        }
+        self.hash_checks += 1;
+        Ok(())
+    }
+
     fn oracle(&mut self, args: &[&std::ffi::OsStr]) -> Result<(Option<i32>, String), String> {
         let home = self.home("python");
         let mut full = vec![std::ffi::OsStr::new("-I"), self.driver.as_os_str()];
         full.extend_from_slice(args);
-        run_side(self.root, &home, self.python, &full)
+        let answer = run_side(self.root, &home, self.python, &full)?;
+        self.recheck()?;
+        Ok(answer)
     }
 
     fn candidate(&mut self, args: &[&std::ffi::OsStr]) -> Result<(Option<i32>, String), String> {
         let home = self.home("rust");
-        match self.candidate {
-            Candidate::Binary(program) => run_side(self.root, &home, program, args),
+        let answer = match self.candidate {
+            Candidate::Binary(program) => run_side(self.root, &home, program, args)?,
             Candidate::PythonScript(script) => {
                 let mut full = vec![std::ffi::OsStr::new("-I"), script.as_os_str()];
                 full.extend_from_slice(args);
-                run_side(self.root, &home, self.python, &full)
+                run_side(self.root, &home, self.python, &full)?
             }
-        }
+        };
+        self.recheck()?;
+        Ok(answer)
     }
 }
 
@@ -207,7 +302,8 @@ fn version((exit, stdout): (Option<i32>, String), side: &str) -> Result<String, 
 }
 
 /// Runs one vector-driver check and returns its record. `generator` and
-/// `driver` are paths relative to `root`; `python` must be absolute.
+/// `driver` (and a test candidate script) are paths inside `root`;
+/// `python` must be absolute.
 pub fn record(
     root: &Path,
     python: &Path,
@@ -224,13 +320,16 @@ pub fn record(
             return Err("the Rust driver is missing; build it first".into());
         }
     }
-    let generator = root.join(generator);
-    let driver = root.join(driver);
-    for path in [&generator, &driver] {
-        if !path.is_file() {
-            return Err("the generator or the Python driver is missing".into());
+    let generator = confine(root, generator)?;
+    let driver = confine(root, driver)?;
+    let script;
+    let (candidate, candidate_kind) = match candidate {
+        Candidate::Binary(path) => (Candidate::Binary(path), "rust-binary"),
+        Candidate::PythonScript(path) => {
+            script = confine(root, path)?;
+            (Candidate::PythonScript(&script), "python-test-script")
         }
-    }
+    };
     let scratch = tempfile::tempdir().map_err(|_| "cannot make a scratch folder")?;
     let vector_file = scratch.path().join("vectors.json");
     let (exit, _) = run_side(
@@ -258,6 +357,9 @@ pub fn record(
         driver: &driver,
         candidate,
         runs: 0,
+        vector_file: &vector_file,
+        vector_sha256: vector_sha256.clone(),
+        hash_checks: 0,
     };
     let probe = [std::ffi::OsStr::new("unicode-version")];
     let python_unicode = version(sides.oracle(&probe)?, "Python")?;
@@ -289,10 +391,7 @@ pub fn record(
             cases.extend(depvec::compare(set, vectors, &oracle, candidate.as_ref())?);
         }
     }
-    let after = std::fs::read(&vector_file).map_err(|_| "the vector file vanished; refused")?;
-    if capture_actions::digest(&after) != vector_sha256 {
-        return Err("a driver changed the vector file; refused".into());
-    }
+    let hash_checks = sides.hash_checks;
     let failed: Vec<Value> = cases
         .iter()
         .filter(|case| case["passed"] != true)
@@ -301,7 +400,10 @@ pub fn record(
     Ok(json!({
         "kind": "vector-driver",
         "vector_file_sha256": vector_sha256,
-        "same_vector_file": true,
+        // Every driver run was followed by a hash check of the one vector
+        // file against the generator's hash; this counts them.
+        "vector_file_hash_checks": hash_checks,
+        "candidate": {"kind": candidate_kind, "plant": plant.name()},
         "unicode": {"python": python_unicode, "rust": rust_unicode},
         "sets": sets.iter().map(|(name, _)| name.clone()).collect::<Vec<_>>(),
         "case_count": cases.len(),
@@ -377,8 +479,14 @@ pub mod controls {
     fn a_changed_byte_fails_by_name() {
         assert_eq!(failed(Plant::ChangeByte), ["s:a"]);
         let changed = change_byte(&json!({"ok": "x"}));
-        assert_ne!(changed, json!({"ok": "x"}));
+        assert_eq!(
+            changed,
+            json!({"ok": "y"}),
+            "the value changes, not the key"
+        );
         assert_eq!(change_byte(&json!(9)), json!(0));
+        assert_eq!(change_byte(&json!({"ok": ""})), json!({"ok": "x"}));
+        assert_eq!(change_byte(&json!({"ok": ["a b"]})), json!({"ok": ["b b"]}));
     }
 
     fn a_unicode_mismatch_is_one_named_case() {

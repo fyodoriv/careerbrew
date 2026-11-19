@@ -60,7 +60,11 @@ fn one_generated_file_feeds_both_drivers_and_every_case_passes() {
     assert!(output.status.success(), "{output:?}");
     let record = read(&out);
     assert_eq!(record["kind"], "vector-driver");
-    assert_eq!(record["same_vector_file"], true);
+    assert!(record.get("same_vector_file").is_none());
+    // 2 Unicode probes plus 2 sets, each run on both sides.
+    assert_eq!(record["vector_file_hash_checks"], 6);
+    assert_eq!(record["candidate"]["kind"], "python-test-script");
+    assert_eq!(record["candidate"]["plant"], "none");
     assert_eq!(record["case_count"], 5);
     assert_eq!(record["sets"], serde_json::json!(["fold", "split"]));
     assert_eq!(record["unicode"]["python"], record["unicode"]["rust"]);
@@ -79,6 +83,7 @@ fn a_changed_output_byte_fails_naming_it() {
     let (output, record) = planted("change-byte");
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(failed(&record), ["fold:ascii"]);
+    assert_eq!(record["candidate"]["plant"], "change-byte");
 }
 
 #[test]
@@ -97,4 +102,75 @@ fn a_missing_rust_driver_is_refused() {
     let output = check(&out, &["--candidate", missing.to_str().unwrap()]);
     assert_eq!(output.status.code(), Some(2));
     assert!(!out.exists(), "a refusal writes no record");
+}
+
+fn refused_without_echo(out: &Path, extra: &[&str], secret: &str) {
+    let output = check(out, extra);
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert!(!out.exists(), "a refusal writes no record");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("inside the repo"), "{stderr}");
+    assert!(!stderr.contains(secret), "the path must not be echoed");
+}
+
+#[test]
+fn a_candidate_script_outside_the_repo_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let outside = dir.path().join("outside-canary.py");
+    std::fs::write(&outside, "print('x')\n").unwrap();
+    let out = dir.path().join("record.json");
+    refused_without_echo(
+        &out,
+        &["--test-candidate-script", outside.to_str().unwrap()],
+        "outside-canary",
+    );
+}
+
+#[test]
+fn a_dot_dot_escape_from_the_repo_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let outside = dir.path().join("escape-canary.py");
+    std::fs::write(&outside, "print('x')\n").unwrap();
+    // Climb from the repo root to "/" with "..", then down to the file.
+    let depth = root().components().count() - 1;
+    let escape = format!(
+        "{}{}",
+        "../".repeat(depth),
+        outside.strip_prefix("/").unwrap().display()
+    );
+    let out = dir.path().join("record.json");
+    refused_without_echo(&out, &["--test-candidate-script", &escape], "escape-canary");
+}
+
+#[test]
+fn an_existing_out_file_is_refused_before_the_generator_runs() {
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("record.json");
+    std::fs::write(&out, "keep").unwrap();
+    // A missing generator would refuse too; a candidate outside the repo
+    // would too. --out is checked first, so its own message shows.
+    let output = Command::new(XTASK)
+        .args(["migration", "vector-check", "--python"])
+        .arg(root().join(".venv/bin/python"))
+        .args([
+            "--generator",
+            "absent-generator.py",
+            "--driver",
+            DRIVER,
+            "--out",
+        ])
+        .arg(&out)
+        .args(["--test-candidate-script", DRIVER])
+        .env_remove("CAREERBREW_HOME")
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("--out must name a new file"));
+    assert_eq!(std::fs::read_to_string(&out).unwrap(), "keep");
+    let relative = check(
+        Path::new("record.json"),
+        &["--test-candidate-script", DRIVER],
+    );
+    assert_eq!(relative.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&relative.stderr).contains("--out must be an absolute path"));
 }
