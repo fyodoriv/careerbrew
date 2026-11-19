@@ -965,3 +965,4 @@ xtask/tests/purevec.rs,keep-native,rust-00,rust-02 vector step controls: four co
 xtask/tests/fixtures/purevec/driver.py,port,rust-27,Retire the rust-02 Python pure value vector oracle with the Python migration oracle
 xtask/tests/fixtures/purevec/settings.json,port,rust-27,Retire the rust-02 settings vectors with the Python migration oracle
 tests/unit/test_rust07a_shapes.py,port,rust-07,Fixed refusals for malformed plugin policy and manifest shapes
+tests/unit/test_rust07b_pure.py,port,rust-07,Pure plugin and machine and sign-in decisions over supplied facts
