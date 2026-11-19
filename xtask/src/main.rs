@@ -720,7 +720,12 @@ fn vector_check_command(rest: &[std::ffi::OsString]) -> ExitCode {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap();
-    let script = script.map(|script| root.join(script));
+    let output = std::path::PathBuf::from(output);
+    if let Err(reason) = vecdriver::check_out(&output) {
+        eprintln!("migration vector-check: {reason}");
+        return ExitCode::from(2);
+    }
+    let script = script.map(std::path::PathBuf::from);
     let candidate = match (&binary, &script) {
         (Some(binary), None) => vecdriver::Candidate::Binary(std::path::Path::new(binary)),
         (None, Some(script)) => vecdriver::Candidate::PythonScript(script),
@@ -736,7 +741,6 @@ fn vector_check_command(rest: &[std::ffi::OsString]) -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    let output = std::path::PathBuf::from(output);
     let result = vecdriver::record(
         root,
         std::path::Path::new(&python),

@@ -108,6 +108,31 @@ pub const STEPS: &[Step] = &[
             "config/native-routes.txt",
         ],
     },
+    Step {
+        // rust-04 is a vector step (privacy, policy and approval decisions).
+        // Only its Python oracle is registered: `--all` runs every set over
+        // the generator's vectors in one isolated process. No Rust candidate
+        // yet, so `verify` and `measure` refuse the step; the vector-driver
+        // harness (rust-04a) wires the scratch vector file.
+        id: "rust-04",
+        oracle: &["-I", "-B", "tests/oracles/rust04.py", "--all"],
+        cases: &[],
+        candidate: None,
+        // As for rust-02: a vector step reaches no CLI contract.
+        http_contract: false,
+        data_contract: true,
+        role_contract: true,
+        registry_projection: false,
+        no_python: false,
+        env: &[],
+        sources: &[
+            "tests/oracles/rust04.py",
+            "tests/oracles/rust04_vectors.py",
+            "src/careerbrew/privacy.py",
+            "src/careerbrew/approvals.py",
+            "src/careerbrew/work/access.py",
+        ],
+    },
 ];
 
 /// rust-03's CLI cases: the `actions` listing in both forms and its filters,

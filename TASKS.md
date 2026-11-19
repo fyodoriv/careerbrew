@@ -112,6 +112,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: any disagreement, leak or ratio above 1.10 blocks rollout; keep the last verified handler, rework, register and remeasure.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
 
+- [ ] Rust migration: Harden Python storage writes before the rust-05 port
+  - **ID**: rust-05b
+  - **Details**: Part of rust-05. Preparation, own patch release. Unique temp name and cleanup in `vault._rewrite`; temp cleanup when `store.write_text` fails to replace; `backup.load_key` creates with `O_CREAT|O_EXCL` at mode 0600 and re-reads on `EEXIST`; `.settings.yaml.lock` around `config.set_value`/`unset`; plaintext `store.append_jsonl` takes the lock `upsert_jsonl` takes. The approvals lock is rust-05b2 (after the rust-04 approvals edits merge). See `docs/rust-migration.md` step `rust-05`, "Sub-step `rust-05b`".
+  - **Files**: src/careerbrew/store.py; vault.py; backup.py; config.py; tests/unit/test_rust05b_storage_hardening.py
+  - **Hypothesis**: the 8 hardening tests move from 8 failing to 8 passing, and lost settings writes, leftover temp files and wrong-mode or overwritten keys drop from possible to 0, with no other test changing state.
+  - **Measurement**: `uv run pytest tests/unit/test_rust05b_storage_hardening.py -q` on hosted CI (`gh pr checks <pr>`), plus the full hosted gate.
+  - **Success**: 8 of 8 pass on `gate (ubuntu-24.04)` and `gate (macos-15)`; the rest of the gate stays green.
+  - **Pivot**: any hardening test still fails after two fixes, or a fix breaks another story: revert that item and file it as its own sub-step.
+  - **Anchor**: Pillai et al. 2014, "All File Systems Are Not Created Equal" (OSDI; crash consistency of atomic replace); Munafò et al. 2017 (pre-registration).
+
 - [ ] Rust migration: Port encrypted storage and transaction locks
   - **ID**: rust-05
   - **Blocked**: prerequisite: rust-04f must land and pass its acceptance gates first

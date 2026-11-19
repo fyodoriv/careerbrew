@@ -1107,21 +1107,55 @@ Each listed test file maps to vectors: `test_privacy_index.py`,
 (`python -I <generator> <file>`) into a scratch file of
 `{"sets": {"<set>": [{"id", "op", "input"}]}}`, then gives that same path to
 both drivers (`<driver> <set> <file>`, answer shape as in the rust-01 vector
-framework). It hashes the file before and after; a driver that changes it is
-refused. Each driver first answers `unicode-version`; a mismatch records one
+framework). It hashes the file after the generator writes it and again after
+every driver run; a driver that changes it is refused, and the record counts
+these checks (`vector_file_hash_checks`). The record also names the
+candidate that ran (`candidate.kind`: `rust-binary` or `python-test-script`)
+and the plant (`candidate.plant`, `none` on a real run). Each driver first answers `unicode-version`; a mismatch records one
 failed `unicode-version` case and runs no vector case. Cases are
 `<set>:<id>`, compared with the shared `depvec::compare`.
 
 - Exit 0 when every case passes, 1 when a case fails, 2 on a refusal
-  (missing driver, generator failure, unreadable or malformed vector file).
-- Planted controls (`--test-plant`): `remove-case`, `change-byte` and
-  `unicode-mismatch`. Each fails and names its case
+  (missing driver, generator failure, unreadable or malformed vector file,
+  an `--out` that is relative or already exists, checked before the
+  generator runs).
+- `--generator`, `--driver` and `--test-candidate-script` must resolve
+  (after `..` and symlinks) to files inside the repo root; any other path is
+  refused with a fixed message that does not echo it.
+- On a set run, a candidate that exits non-zero or prints JSON that is not
+  a valid answer is not a refusal: each case of that set fails (exit 1). A
+  bad Python oracle answer, or no Unicode version from either side, is a
+  refusal.
+- Planted controls (`--test-plant`): `remove-case`, `change-byte` (one byte of the first
+  case's output value, never a key) and `unicode-mismatch`. Each fails and names its case
   (`xtask/tests/vecdriver.rs`, with the synthetic fixtures in
   `xtask/tests/fixtures/vecdriver/`). `migration self-test` runs 4 more
   compare controls.
 - `vecdriver::STEPS` is empty. `rust-04c` registers `rust-04` with its
   generator and oracle and routes `baseline`, `verify` and `measure` to
   this kind; `rust-04d` adds the `policy-vectors` candidate.
+
+#### Oracle and generator (rust-04c)
+
+- Generator: `python -I tests/oracles/rust04_vectors.py <new-file>` writes
+  every set's cases and the synthetic canary terms. It refuses an existing
+  file. It reads no clock, randomness or data folder.
+- Oracle: `python -I tests/oracles/rust04.py <set> <file>` prints one line,
+  `{"set", "unidata_version", "results": [{"id", "output": {"ok": ...} |
+  {"error": {"class", "message"}}}]}`. `--all [<file>]` runs every set (from
+  the generator in memory when no file is given) and prints only set names,
+  the case count, the Unicode version and a SHA-256 of the results.
+- The real functions run on supplied data. For one case at a time the
+  oracle replaces the approvals store, events, clock and id, and the data
+  root and plugin list behind `sensitive_terms`.
+- No term text in any output: matched text is a length, a term pattern is a
+  hash, a filtered term is its `term_id`. Every output is checked against
+  every term pattern; a hit exits 3 and names the case only.
+- Until `rust-04b` lands, `validate-records` and `validate-directory` cases
+  report `{"validator": "absent"}`.
+- `cargo xtask migration baseline --step rust-04` runs the oracle with
+  `--all`. The step has no Rust candidate yet, so `verify` and `measure`
+  refuse it.
 
 #### Unicode version check
 
@@ -1163,6 +1197,18 @@ Case folding and word splits depend on this table.
   mixed-writer operations; 0 plaintext secret exits or file-mode regressions.
   Production dispatch waits for the closure in the
   [worked example](#build-order-versus-production-activation).
+- **Sub-step `rust-05b` (Python hardening, done first):** the Python oracle
+  now holds the contract the Rust port must match.
+  - `vault._rewrite` uses a temp name unique to each writer and removes it
+    when the swap fails; `store.write_text` removes its temp file too.
+  - `backup.load_key` creates a new key with `O_CREAT | O_EXCL` at mode
+    `0600`. A first run that loses the race reads the other run's key.
+  - `config.set_value` and `config.unset` hold `.settings.yaml.lock` (data
+    root) across read, change and write.
+  - A plaintext `store.append_jsonl` takes the same `.<name>.lock` that
+    `upsert_jsonl` takes.
+  - Tests: `tests/unit/test_rust05b_storage_hardening.py`. The approvals lock
+    is `rust-05b2`, after the `rust-04` approvals edits merge.
 
 ### rust-06: Port backup, restore and cross-machine sync
 
