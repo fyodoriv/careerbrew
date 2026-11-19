@@ -105,7 +105,13 @@ pub fn verdict(
     test_floor: Option<&Value>,
 ) -> Result<Value, String> {
     let registered = baseline::step(step)?;
-    let declared = registered.scoped_out();
+    // A vector step's record comes from `depvec`, which runs no CLI contract
+    // and lists none as missing, so it declares no scope.
+    let declared = if crate::depvec::step(step).is_some() {
+        Vec::new()
+    } else {
+        registered.scoped_out()
+    };
     header(base, "baseline", baseline::SCHEMA, step)?;
     let os = base["os"]
         .as_str()
@@ -486,6 +492,28 @@ pub mod controls {
         #[should_panic(expected = "planted rss-regressed accepted")]
         fn big_rss_control_fails_an_accepting_harness() {
             big_rss_holds(always_activate);
+        }
+
+        /// A vector step's verify record lists no missing contracts and
+        /// carries no `test_scope` or `python_denied`; it must still activate.
+        #[test]
+        fn a_vector_step_record_activates() {
+            let mut base = base();
+            base["step"] = json!("rust-02");
+            let mut verify = verify();
+            verify["step"] = json!("rust-02");
+            verify["missing_contracts"] = json!([]);
+            let record = verify.as_object_mut().unwrap();
+            record.remove("test_scope");
+            record.remove("python_denied");
+            let mut measure = measure(100_000, 50_000_000);
+            measure["step"] = json!("rust-02");
+            let floor = json!({
+                "cpu_floor_us": 0, "cpu_absolute_us": 0,
+                "rss_floor_bytes": 0, "rss_absolute_bytes": 0,
+            });
+            let record = verdict("rust-02", &base, &verify, &measure, Some(&floor)).unwrap();
+            assert_eq!(record["decision"], "activate", "{record}");
         }
     }
 }
