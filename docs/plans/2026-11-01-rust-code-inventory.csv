@@ -1,4 +1,6 @@
 path,disposition,task,reason
+tests/unit/test_access_validate.py,port,rust-04,Deny-by-default refusal controls for malformed records; tests port with the capability
+tests/unit/test_approvals_validate.py,port,rust-04,Deny-by-default refusal controls for malformed records; tests port with the capability
 tests/unit/test_eval_case_loading.py,port,rust-27,Fixed real eval-loader duplicate-key and document-boundary regression controls
 .cargo/config.toml,keep-native,rust-00,Native migration workspace source or build configuration
 Cargo.lock,keep-native,rust-00,Native migration workspace source or build configuration

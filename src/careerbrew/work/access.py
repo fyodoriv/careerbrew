@@ -28,9 +28,38 @@ def load(path: Path) -> dict[str, Any]:
         d = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as e:
         raise AccessError(f"could not read the directory file: {e.__class__.__name__}") from None
-    if not isinstance(d, dict) or not isinstance(d.get("channels"), list):
-        raise AccessError("the directory file needs a `channels` list")
-    d.setdefault("threads", [])
+    if isinstance(d, dict):
+        d.setdefault("threads", [])
+    return validate_directory(d)
+
+
+def _strings(v: Any) -> bool:
+    return isinstance(v, list) and all(isinstance(x, str) for x in v)
+
+
+def validate_directory(d: Any) -> dict[str, Any]:
+    """Refuse every malformed directory shape (deny by default). Messages name the shape and index, never text."""
+    if not isinstance(d, dict):
+        raise AccessError("directory: not an object")
+    if not isinstance(d.get("channels"), list):
+        raise AccessError("directory: channels is not a list")
+    if "threads" in d and not isinstance(d["threads"], list):
+        raise AccessError("directory: threads is not a list")
+    seen: set[str] = set()
+    for i, c in enumerate(d["channels"]):
+        if not isinstance(c, dict):
+            raise AccessError(f"directory channel {i}: not an object")
+        if not isinstance(c.get("id"), str):
+            raise AccessError(f"directory channel {i}: missing id")
+        for key in ("owns", "members"):
+            if key in c and not _strings(c[key]):
+                raise AccessError(f"directory channel {i}: {key} is not a list of strings")
+        if c["id"] in seen:
+            raise AccessError(f"directory channel {i}: duplicate id")
+        seen.add(c["id"])
+    for i, t in enumerate(d.get("threads", [])):
+        if not isinstance(t, dict):
+            raise AccessError(f"directory thread {i}: not an object")
     return d
 
 
@@ -61,6 +90,7 @@ def existing(channel: dict[str, Any], topic: str, directory: dict[str, Any]) -> 
 
 def route(text: str, directory: dict[str, Any], teammate: str = "") -> dict[str, Any]:
     """Where the ask goes. action: `none` (no access ask), `unknown` (no channel owns it), `link` (a thread exists), or `open`."""
+    validate_directory(directory)
     if not blocker(text):
         return {"action": "none", "reason": "not an access ask"}
     c, topic = owner(text, directory)
@@ -83,6 +113,7 @@ def mentions(text: str) -> list[str]:
 
 def judge(draft: str, channel_id: str, directory: dict[str, Any], new_thread: bool = False) -> list[str]:
     """Every reason the draft may not be saved in this channel; empty means it passes. Reasons hold ids, never draft text."""
+    validate_directory(directory)
     c = next((c for c in directory["channels"] if c.get("id") == channel_id), None)
     if not c:
         return [f"channel {channel_id} is not in the directory"]
