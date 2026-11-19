@@ -898,8 +898,11 @@ fn a_planted_wrong_catalog_fails_the_registry_projection() {
     assert_eq!(projection["exit_zero"], true);
     assert_eq!(projection["body_matches"], false);
     assert_eq!(projection["passed"], false);
-    // All 14 CLI cases print `[]` too, so each fails as well.
-    assert_eq!(value["violations"]["contract"], 15);
+    // The CLI cases print `[]` too, so each fails except `actions-none-json`,
+    // whose Python output is `[]`: 13 CLI cases plus the projection.
+    assert_eq!(value["cases"][5]["case"], "actions-none-json");
+    assert_eq!(value["cases"][5]["passed"], true);
+    assert_eq!(value["violations"]["contract"], 14);
 }
 
 #[test]
