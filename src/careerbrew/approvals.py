@@ -76,7 +76,7 @@ def pending() -> list[dict[str, Any]]:
 def decide(item_id: str, decision: str, note: str = "") -> dict[str, Any]:
     if decision not in ("approved", "rejected"):
         raise ValueError("decision must be approved or rejected")
-    items = _records()
+    items = validate_records(load())
     for a in items:
         if a["id"] == item_id:
             if a["status"] != "pending":

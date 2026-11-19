@@ -1,7 +1,7 @@
 activation-manifest-v1	e18041d	partial
-node	approvals.decide	rust-05	src/careerbrew/approvals.py	44
-node	approvals.load	rust-05	src/careerbrew/approvals.py	26
-node	approvals.request	rust-05	src/careerbrew/approvals.py	30
+node	approvals.decide	rust-05	src/careerbrew/approvals.py	76
+node	approvals.load	rust-05	src/careerbrew/approvals.py	54
+node	approvals.request	rust-05	src/careerbrew/approvals.py	62
 node	backup.key_path	rust-05	src/careerbrew/backup.py	31
 node	backup.load_key	rust-05	src/careerbrew/backup.py	36
 node	calendar.local_tz	rust-02	src/careerbrew/calendar.py	43
@@ -42,13 +42,13 @@ cross	config.unset	store.write_yaml	296	store.write_yaml(
 cross	vault._fernet	backup.load_key	44	backup.load_key(create=True)
 cross	vault._key	backup.key_path	50	backup.key_path()
 cross	vault.open_bytes	backup.key_path	103	backup.key_path()
-cross	approvals.load	store.read_json	27	store.read_json(
-cross	approvals.request	store.write_json	35	store.write_json(
-cross	approvals.request	events.emit	36	events.emit("approvals.request"
-cross	approvals.request	calendar.now_utc	34	calendar.now_utc()
-cross	approvals.decide	store.write_json	53	store.write_json(
-cross	approvals.decide	events.emit	54	events.emit("approvals.decide"
-cross	approvals.decide	calendar.now_utc	52	calendar.now_utc()
+cross	approvals.load	store.read_json	55	store.read_json(
+cross	approvals.request	store.write_json	67	store.write_json(
+cross	approvals.request	events.emit	68	events.emit("approvals.request"
+cross	approvals.request	calendar.now_utc	66	calendar.now_utc()
+cross	approvals.decide	store.write_json	85	store.write_json(
+cross	approvals.decide	events.emit	86	events.emit("approvals.decide"
+cross	approvals.decide	calendar.now_utc	84	calendar.now_utc()
 cross	cli.main	machine.guard	4837	machine.guard(args.cmd)
 cross	cli.may_show_business	plugins.effective_policy	57	plugins.effective_policy()
 cross	server.Handler._guard	machine.role	1037	machine.role()
@@ -69,8 +69,8 @@ local	vault.decode	vault.open_bytes	112	open_bytes(raw, create_key=create_key)
 local	vault.seal_bytes	vault._key	86	_key()
 local	vault.open_bytes	vault._key	94	_key()
 local	backup.load_key	backup.key_path	37	key_path()
-local	approvals.request	approvals.load	35	load()
-local	approvals.decide	approvals.load	47	load()
+local	approvals.request	approvals.load	67	load()
+local	approvals.decide	approvals.load	79	load()
 local	machine.guard	machine.role	191	role()
 local	machine.role	machine.info	94	info()
 local	plugins.effective_policy	plugins.installed	491	installed()
