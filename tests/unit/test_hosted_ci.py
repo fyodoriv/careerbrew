@@ -38,12 +38,11 @@ def test_no_playwright_config_lets_playwright_fetch_into_the_checkout():
 
 def test_every_playwright_browser_install_has_a_time_limit_and_retries():
     # A hung `playwright install --with-deps` held a gate part for its whole
-    # 60-minute job limit (2026-11-19). Each install must bound every try.
+    # 60-minute job limit (2026-11-19). Each try is bounded, and a failed or
+    # stuck first try runs once more.
     for name in ("gate-part.yml", "visual-pictures.yml"):
         text = (ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
-        assert "npx playwright install --with-deps chromium" in text, name
-        for line in text.splitlines():
-            if "npx playwright install" in line:
-                assert "alarm 600" in line, f"{name}: {line.strip()}"
-        assert "for try in 1 2 3" in text, name
-        assert "timeout-minutes: 32" in text, name
+        assert text.count("run: npx playwright install --with-deps chromium") == 2, name
+        assert text.count("timeout-minutes: 10") >= 2, name
+        assert "continue-on-error: true" in text, name
+        assert "if: steps.browser.outcome != 'success'" in text, name
