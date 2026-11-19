@@ -15,7 +15,7 @@ from cryptography.fernet import Fernet
 from careerbrew import backup, vault
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE_SHA = "9d23e54fa94472ffd60950649f880d80a37132d7ea875b7e053ea647cc44096c"
+SOURCE_SHA = "7bb21d65ddff8833ab8ec6496bd9034cc73bb1fa55cfd9193d14b762783a57ea"
 KEY = base64.urlsafe_b64encode(bytes(range(32)))
 WRONG_KEY = base64.urlsafe_b64encode(bytes(range(1, 33)))
 PAYLOADS = [b"", b"CBV1", b"CBV1X", "é😀".encode(), bytes(range(256)), *[b"x" * n for n in (15, 16, 17, 31, 32, 33)], b"z" * 4096]

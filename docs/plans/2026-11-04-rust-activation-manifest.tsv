@@ -9,11 +9,11 @@ node	calendar.now	rust-02	src/careerbrew/calendar.py	48
 node	calendar.now_utc	rust-02	src/careerbrew/calendar.py	57
 node	cli.main	rust-26	src/careerbrew/cli.py	4826
 node	cli.may_show_business	rust-26	src/careerbrew/cli.py	56
-node	config._file	rust-05	src/careerbrew/config.py	262
-node	config.effective	rust-05	src/careerbrew/config.py	272
-node	config.get	rust-05	src/careerbrew/config.py	266
-node	config.set_value	rust-05	src/careerbrew/config.py	279
-node	config.unset	rust-05	src/careerbrew/config.py	293
+node	config._file	rust-05	src/careerbrew/config.py	265
+node	config.effective	rust-05	src/careerbrew/config.py	275
+node	config.get	rust-05	src/careerbrew/config.py	269
+node	config.set_value	rust-05	src/careerbrew/config.py	282
+node	config.unset	rust-05	src/careerbrew/config.py	297
 node	events.emit	rust-05	src/careerbrew/events.py	46
 node	machine.guard	rust-07	src/careerbrew/machine.py	190
 node	machine.info	rust-07	src/careerbrew/machine.py	89
@@ -23,22 +23,22 @@ node	plugins._lock	rust-07	src/careerbrew/plugins.py	186
 node	plugins.effective_policy	rust-07	src/careerbrew/plugins.py	477
 node	plugins.installed	rust-07	src/careerbrew/plugins.py	432
 node	server.Handler._guard	rust-25	src/careerbrew/server.py	1033
-node	store.read_json	rust-05	src/careerbrew/store.py	90
+node	store.read_json	rust-05	src/careerbrew/store.py	94
 node	store.read_text	rust-05	src/careerbrew/store.py	38
-node	store.read_yaml	rust-05	src/careerbrew/store.py	78
-node	store.write_json	rust-05	src/careerbrew/store.py	99
+node	store.read_yaml	rust-05	src/careerbrew/store.py	82
+node	store.write_json	rust-05	src/careerbrew/store.py	103
 node	store.write_text	rust-05	src/careerbrew/store.py	56
-node	store.write_yaml	rust-05	src/careerbrew/store.py	86
+node	store.write_yaml	rust-05	src/careerbrew/store.py	90
 node	vault._fernet	rust-05	src/careerbrew/vault.py	41
 node	vault._key	rust-05	src/careerbrew/vault.py	47
 node	vault.decode	rust-05	src/careerbrew/vault.py	111
 node	vault.encode	rust-05	src/careerbrew/vault.py	106
 node	vault.open_bytes	rust-05	src/careerbrew/vault.py	89
 node	vault.seal_bytes	rust-05	src/careerbrew/vault.py	85
-cross	config._file	store.read_yaml	263	store.read_yaml(
-cross	config.set_value	store.write_yaml	288	store.write_yaml(
-cross	config.set_value	events.emit	289	events.emit("config.set"
-cross	config.unset	store.write_yaml	296	store.write_yaml(
+cross	config._file	store.read_yaml	266	store.read_yaml(
+cross	config.set_value	store.write_yaml	292	store.write_yaml(
+cross	config.set_value	events.emit	293	events.emit("config.set"
+cross	config.unset	store.write_yaml	301	store.write_yaml(
 cross	vault._fernet	backup.load_key	44	backup.load_key(create=True)
 cross	vault._key	backup.key_path	50	backup.key_path()
 cross	vault.open_bytes	backup.key_path	103	backup.key_path()
@@ -57,12 +57,12 @@ cross	machine.suggest	plugins.installed	183	plugins.installed()
 cross	plugins._lock	store.read_json	187	store.read_json(
 cross	plugins.installed	store.read_yaml	437	store.read_yaml(
 cross	store.read_text	vault.decode	41	vault.decode(
-cross	store.write_text	vault.encode	59	vault.encode(
+cross	store.write_text	vault.encode	60	vault.encode(
 cross	calendar.local_tz	store.read_yaml	44	store.read_yaml(
-local	config.get	config._file	269	_file()
-local	config.effective	config._file	273	_file()
-local	config.set_value	config._file	286	_file()
-local	config.unset	config._file	294	_file()
+local	config.get	config._file	272	_file()
+local	config.effective	config._file	276	_file()
+local	config.set_value	config._file	290	_file()
+local	config.unset	config._file	299	_file()
 local	vault._key	vault._fernet	55	_fernet(str(path))
 local	vault.encode	vault.seal_bytes	108	seal_bytes(raw)
 local	vault.decode	vault.open_bytes	112	open_bytes(raw, create_key=create_key)
@@ -75,13 +75,13 @@ local	machine.guard	machine.role	191	role()
 local	machine.role	machine.info	94	info()
 local	plugins.effective_policy	plugins.installed	492	installed()
 local	plugins.installed	plugins._lock	434	_lock()
-local	store.read_yaml	store.read_text	79	read_text(path)
-local	store.write_yaml	store.write_text	87	write_text(path,
-local	store.read_json	store.read_text	91	read_text(path)
-local	store.write_json	store.write_text	100	write_text(path,
+local	store.read_yaml	store.read_text	83	read_text(path)
+local	store.write_yaml	store.write_text	91	write_text(path,
+local	store.read_json	store.read_text	95	read_text(path)
+local	store.write_json	store.write_text	104	write_text(path,
 local	calendar.now_utc	calendar.now	59	now()
 local	calendar.now	calendar.local_tz	54	local_tz()
-unresolved	config.set_value	283	DEFAULTS[key][1](raw)	setting registry selects a validator
+unresolved	config.set_value	286	DEFAULTS[key][1](raw)	setting registry selects a validator
 unresolved	cli.main	4840	args.fn(args)	parser selects the command implementation
 unresolved	vault._fernet	40	@lru_cache(maxsize=4)	module cache controls whether key loading executes
 unresolved	cli.may_show_business	57	sys.stdout.isatty() or _owner_ui()	terminal and request context control whether plugin policy runs

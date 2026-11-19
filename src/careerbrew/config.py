@@ -8,8 +8,11 @@ change a setting the same way a person does. `config unset <key>` returns to the
 
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import json
 import re
+from collections.abc import Iterator
 from typing import Any
 
 from . import events, paths, store
@@ -283,14 +286,29 @@ def set_value(key: str, raw: str) -> Any:
         value = DEFAULTS[key][1](raw)
     except ValueError as e:
         raise ValueError(f"{key}: {e}") from None
-    data = _file()
-    data[key] = value
-    store.write_yaml(paths.data_root() / "settings.yaml", data)
+    with _settings_lock():
+        data = _file()
+        data[key] = value
+        store.write_yaml(paths.data_root() / "settings.yaml", data)
     events.emit("config.set", status="ok")
     return value
 
 
 def unset(key: str) -> None:
-    data = _file()
-    if data.pop(key, None) is not None:
-        store.write_yaml(paths.data_root() / "settings.yaml", data)
+    with _settings_lock():
+        data = _file()
+        if data.pop(key, None) is not None:
+            store.write_yaml(paths.data_root() / "settings.yaml", data)
+
+
+@contextlib.contextmanager
+def _settings_lock() -> Iterator[None]:
+    """rust-05b: an flock on `.settings.yaml.lock`, held across each read-modify-write of settings.yaml.
+
+    Lifecycle: per call; released when the block ends. Two writers then never lose each other's setting.
+    """
+    root = paths.data_root()
+    root.mkdir(parents=True, exist_ok=True)
+    with (root / ".settings.yaml.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield

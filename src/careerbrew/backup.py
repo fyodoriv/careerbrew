@@ -46,9 +46,27 @@ def load_key(create: bool = True) -> bytes:
         raise vault.VaultError("backup key missing but encrypted data exists (fix: restore the key from your password manager)")
     path.parent.mkdir(parents=True, exist_ok=True)
     key = Fernet.generate_key()
-    path.write_bytes(key)
-    path.chmod(0o600)
+    # rust-05b: create the file only if absent, at mode 0600 from the start; a first run that loses the race reads the winner's key.
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        return _read_existing_key(path)
+    with os.fdopen(fd, "wb") as fh:
+        fh.write(key)
+    os.chmod(path, 0o600)
     return key
+
+
+def _read_existing_key(path: Path) -> bytes:
+    """Read a key another process just created; wait briefly while its writer finishes."""
+    import time
+
+    for _ in range(50):
+        key = path.read_bytes().strip()
+        if key:
+            return key
+        time.sleep(0.01)
+    raise OSError(f"backup key at {path} is empty (fix: restore it from your password manager)")
 
 
 def icloud_dir() -> Path:
