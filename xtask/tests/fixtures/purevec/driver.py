@@ -11,6 +11,7 @@ one line in SETS. A set must not write outside the synthetic home verify
 gives it.
 """
 
+import contextlib
 import datetime
 import json
 import os
@@ -233,6 +234,7 @@ def settings(op, data):
     config.store = types.SimpleNamespace(write_yaml=lambda _path, value: written.append(value))
     config.events = types.SimpleNamespace(emit=lambda *_a, **_k: None)
     config.paths = types.SimpleNamespace(data_root=lambda: PurePosixPath("synthetic"))
+    config._settings_lock = contextlib.nullcontext  # the file lock is IO (rust-05), not value logic
     key = data.get("key")
     try:
         if op == "effective":
