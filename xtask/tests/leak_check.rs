@@ -227,3 +227,18 @@ fn a_terms_file_split_by_a_lone_carriage_return_reads_each_term() {
     assert_eq!(out.status.code(), Some(1));
     assert!(stdout(&out).contains("LEAK  a.md:1: t-"));
 }
+
+#[test]
+fn a_working_file_with_carriage_returns_reads_like_python_read_text() {
+    let r = repo();
+    // A lone CR splits the canary; Python's read_text turns it into a newline.
+    commit(r.path(), "crlf.md", b"one\r\ntwo zqxcan\raryterm\r\n");
+    let out = scan(r.path(), &[]);
+    assert_eq!(out.status.code(), Some(1));
+    let text = stdout(&out);
+    assert!(text.contains("LEAK  crlf.md:2: "), "{text}");
+    assert!(
+        text.contains("(working: letters spread over 2 lines, likely a false match)"),
+        "{text}"
+    );
+}
