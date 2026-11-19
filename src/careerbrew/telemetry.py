@@ -92,7 +92,8 @@ EVENT_NAMES = frozenset(
     work.project work.promise work.promo work.review_ask work.review_ask.check work.session work.standup
     work.standup.notes work.standup.rows work.task work.team workday.end workday.loop workday.morning workday.question
     workday.recheck workday.start workday.timeout workday.update workday.verify notify.check careerbrew.install careerbrew.week careerbrew.upgrade web.view
-    web.act cli.native_fallback cli.native_unsupported""".split()
+    web.act cli.native_fallback cli.native_unsupported indie.scan indie.decide indie.measure indie.end indie.review
+    indie.run peer.status peer.experiment""".split()
 )
 STATUSES = frozenset(
     """ok error fail failed refused new done pass open kept held gap ended added written wrap-up waiting upcoming text

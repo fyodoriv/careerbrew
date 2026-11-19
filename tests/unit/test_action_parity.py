@@ -69,7 +69,7 @@ SAFE_SKIP = {"day.watch"}  # needs an argument; covered by test_day.py
 
 def test_confirmation_supplies_each_confirmed_yes_flag():
     names = {a["name"] for a in actions.catalog() if a["confirm"] and any(arg["name"] == "yes" and arg["flag"] == "--yes" and arg["kind"] == "flag" for arg in a["args"])}
-    assert len(names) == 9
+    assert len(names) == 10
     assert names == actions.YES_FROM_CONFIRM
 
 

@@ -64,3 +64,12 @@ suite: regression
 skill: careerbrew-indie
 cli: ["peer", "experiment", "--side", "indie", "--close"]
 expect_regex: "no open trial"
+---
+id: indie-refrains-on-employer-day
+suite: regression
+skill: careerbrew-indie
+should: refrain
+input: "Run my work day for my employer: draft the PM update and the standup report"
+expect:
+  - "Does not run `careerbrew indie run` or open a bet session"
+  - "Points to `/work` (the careerbrew-work-day skill) for the employer's work day"

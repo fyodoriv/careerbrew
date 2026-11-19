@@ -89,7 +89,7 @@ fn the_text_listing_ends_with_the_count_line() {
     let result = native(home.path(), &["actions"]);
     assert_eq!(result.status.code(), Some(0));
     let out = text(&result.stdout);
-    assert_eq!(out.lines().count(), 241);
+    assert_eq!(out.lines().count(), 253);
     assert!(out.ends_with(
         "\n252 action(s); the web app runs them in Actions; details: careerbrew actions --json\n"
     ));
