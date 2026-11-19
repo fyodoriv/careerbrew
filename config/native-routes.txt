@@ -10,7 +10,7 @@ telemetry.on python
 telemetry.off python
 telemetry.send python
 telemetry.record-install python
-actions python
+actions native
 start python
 checklist python
 config.show python

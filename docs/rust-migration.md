@@ -5,12 +5,13 @@ Python and shell to Rust. It is the one public source for the Rust tasks
 `rust-00` to `rust-28` in [`TASKS.md`](../TASKS.md). A worker with only this
 repository can do any step from this page and the task block.
 
-- **Status:** a plan. No Rust code runs in production today. No speed or memory
-  gain is claimed. See [Current state](#current-state) and
+- **Status:** in progress. One Rust command runs by default: `careerbrew
+  actions` routes to `careerbrew-native` since `rust-03` activated
+  (2026-11-19, [rust-03 verdict](#rust-03-verdict)). No other gain is claimed. See [Current state](#current-state) and
   [State of rust-00](#state-of-rust-00).
-- **Next task:** `rust-03` (native CLI and one read-only pilot). `rust-00`,
-  `rust-01` and `rust-02` are done (2026-11-18); their follow-ups are tasks in
-  `TASKS.md`.
+- **Next task:** `rust-04` (privacy, policy and approval enforcement).
+  `rust-00`, `rust-01` and `rust-02` are done (2026-11-18), and `rust-03` is
+  done (2026-11-19); their follow-ups are tasks in `TASKS.md`.
 - **How to read it:** the [goal](#goal-and-vision) and [decision](#decision-and-rejected-alternatives),
   then the [measurement protocol](#measurement-protocol-for-every-step), then
   [build order versus production activation](#build-order-versus-production-activation),
@@ -374,7 +375,7 @@ Anchor: Tarjan 1972, *Depth-First Search and Linear Graph Algorithms*
 
 ### Lanes and order
 
-- `rust-00`, `rust-01` and `rust-02` are done; `rust-03` is ready now. Each task's **Blocked** line is a hard gate.
+- `rust-00` to `rust-03` are done; `rust-04` is ready now. Each task's **Blocked** line is a hard gate.
 - After the shared storage and policy steps, independent domain lanes may run
   in parallel. They must not share mutable fixture homes.
 - Each domain step ports its own CLI handlers and test assertions, and routes
@@ -971,6 +972,37 @@ Done 2026-11-18, on macOS, with the four sets of #149. Records stay local.
   `cli.run` row on both sides) is checked by the crate tests and by hand, not
   by verify yet.
 
+#### rust-03 verdict
+
+`decide` for `rust-03` said `activate` (2026-11-19). Numbers, Python oracle
+then native candidate:
+
+| Measure | Python | Native |
+|---|---|---|
+| Cold CPU p95 | 630 ms | 4.2 ms |
+| Warm CPU p95 | 142 ms | 4.1 ms |
+| Peak RSS | 67 MB | 5.1 MB |
+
+The noise floors are still `unmeasured`, so `decide` used the 1.10 ratio
+(task `rust-00-measure-noise-floors`).
+
+So `config/native-routes.txt` now says `actions native`. The console script
+runs `careerbrew actions` in `careerbrew-native` by default. Rollback needs no
+code change:
+
+- `CAREERBREW_ROUTE_ACTIONS=python` sends `actions` back to Python.
+- `CAREERBREW_NATIVE=off` sends every action to Python.
+- A missing or broken binary falls back to Python and logs
+  `cli.native_fallback`. An exit 64 falls back and logs
+  `cli.native_unsupported`.
+
+With `CAREERBREW_HOME` unset, Python's data root is `<repo>/private`. The
+binary cannot find the repo on its own, so the console script passes it in
+`CAREERBREW_NATIVE_REPO`. The binary then writes its event row under
+`<repo>/private`, as Python does. `~` and `~/...` expand from `HOME`, as
+Python's `expanduser` does. An empty `CAREERBREW_HOME`, `~user`, or no repo
+value exits 64, so Python runs and keeps its own behavior.
+
 ### rust-04: Port privacy, policy and approval enforcement
 
 - **Depends on:** `rust-02`, `rust-03`.
@@ -1067,6 +1099,29 @@ Each listed test file maps to vectors: `test_privacy_index.py`,
 - Planted defects, each must fail and name its case: one `EXTRA_CASES`
   entry removed; the `<` removed from the mention lookbehind; the receipt
   validator accepts an unknown status.
+
+#### Vector-driver harness (rust-04a)
+
+`cargo xtask migration vector-check` is the vector-driver kind
+(`xtask/src/vecdriver.rs`). It runs the tracked generator once
+(`python -I <generator> <file>`) into a scratch file of
+`{"sets": {"<set>": [{"id", "op", "input"}]}}`, then gives that same path to
+both drivers (`<driver> <set> <file>`, answer shape as in the rust-01 vector
+framework). It hashes the file before and after; a driver that changes it is
+refused. Each driver first answers `unicode-version`; a mismatch records one
+failed `unicode-version` case and runs no vector case. Cases are
+`<set>:<id>`, compared with the shared `depvec::compare`.
+
+- Exit 0 when every case passes, 1 when a case fails, 2 on a refusal
+  (missing driver, generator failure, unreadable or malformed vector file).
+- Planted controls (`--test-plant`): `remove-case`, `change-byte` and
+  `unicode-mismatch`. Each fails and names its case
+  (`xtask/tests/vecdriver.rs`, with the synthetic fixtures in
+  `xtask/tests/fixtures/vecdriver/`). `migration self-test` runs 4 more
+  compare controls.
+- `vecdriver::STEPS` is empty. `rust-04c` registers `rust-04` with its
+  generator and oracle and routes `baseline`, `verify` and `measure` to
+  this kind; `rust-04d` adds the `policy-vectors` candidate.
 
 #### Unicode version check
 
@@ -1637,7 +1692,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
 | `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
-| `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | opt-in route from `cli.main` (`CAREERBREW_ROUTE_<ACTION>=native`); every action defaults to Python. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
+| `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
 | `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`calendar`, `code-parse`, `fernet`, `fsrs`, `json-yaml` and `runtime` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
 | `experiments/hash/` | `careerbrew-hash-experiment` | the pure `changes._h` hash for a supported synthetic JSON subset. It refuses values outside that subset. | none: component parity only |
 
@@ -1648,7 +1703,8 @@ and each set's planted wrong vector fails. For `rust-02`, see
   `clippy` and `rustfmt`).
 - `.cargo/config.toml` defines `cargo xtask` as
   `run --locked --offline --package careerbrew-xtask --`.
-- Pinned crates: `serde`, `serde_json`, `sha2`, `tempfile`, `libc` (xtask);
+- Pinned crates: `serde`, `serde_json`, `sha2`, `tempfile`, `libc`,
+  `unicode-normalization` (xtask);
   `fernet` 0.2.2, `base64` (vault). Licences are in
   [public-readiness-licences.md](proof/public-readiness-licences.md).
 
@@ -1658,6 +1714,7 @@ The tool has no `--help`. A wrong argument prints the usage and exits 2.
 
 | Command | What it does |
 | --- | --- |
+| `cargo xtask leak-check [--staged] [--repo <dir>] --terms-file <file>` | rust-27b slice 1 (`xtask/src/leak_check.rs`): the native port of the repo scan behind `scripts/leak-check.sh` (`privacy.scan_repo` and the `cmd_privacy_scan` output). Same inputs (staged blobs from the cached raw diff, then tracked working files unless `--staged`), the same `private/` path rule, term matching (NFKC, zero-width removal, separators and leetspeak for terms of 5+ characters), the same `LEAK` and summary lines with term ids only, and exit 0 clean or 1 on a finding; 2 is a usage or terms-file error. Differences, so the wrapper still runs Python: terms come from a plaintext file, not the encrypted data root, profile and plugins (rust-04, rust-05, rust-07); a staged visual snapshot PNG is `scan-incomplete` (its validated pixel scan is a later slice); no `--file` or `--show`. Tests: `xtask/tests/leak_check.rs`. |
 | `cargo xtask migration self-test` | runs the 8 paired-verdict controls, the 6 trial-planner controls, the 3 planted slow-path decide controls and the 7 vector-step controls (5 compare, a planted home write, the step registry), all on synthetic data |
 | `cargo xtask migration inventory --check` | checks that every tracked direct code path in the staged Git index has exactly one row in the [code inventory](plans/2026-11-01-rust-code-inventory.csv), then runs the `--sites-check` below |
 | `cargo xtask migration inventory --sites-check` | discovers embedded code and generated entry points in the staged Git index and checks each against the [embedded sites](plans/2026-11-17-rust-embedded-sites.csv); an unassigned site, a row whose site is gone, a repeated row or a bad task is refused |
@@ -1693,7 +1750,8 @@ step has a registered Rust candidate yet, so no real record exists.
 - Integration tests in `xtask/tests/`: `activation_manifest`, `capture_actions`,
   `baseline`, `capture_data`, `capture_data_cli`, `capture_http`, `decide`, `i01_fixture`,
   `observer_deadline`, `observer_owner`, `observer_parser`,
-  `observer_transport`, `resources`, `store_supervisor`, `verify`.
+  `observer_transport`, `resources`, `store_supervisor`, `verify`,
+  `leak_check`.
 - Python cross-checks in `tests/unit/`: `test_rust_vault_interop.py`,
   `test_rust_vault_base64_parity.py`, `test_rust_hash_experiment.py`,
   `test_rust_readiness.py`, `test_doctor_rust_deps.py`,
@@ -2026,9 +2084,9 @@ Jia and Harman 2011 (planted faults prove a check can fail).
 `rust-00` is done. Its follow-ups run beside the next steps:
 
 1. `rust-01`: prove maintained dependency and data interoperability.
-2. `rust-03` has registered its Rust candidate (`careerbrew-native`). Next:
-   record real `measure` and `decide` numbers, and the real `rust-03` noise floors from hosted
-   baselines (task `rust-00-measure-noise-floors`).
+2. `rust-03` is active ([verdict](#rust-03-verdict)). Next: `rust-04`, and
+   the real `rust-03` noise floors from hosted baselines (task
+   `rust-00-measure-noise-floors`).
 3. Follow-ups that do not block a step: `rust-00-process-tree-escapees` and
    `rust-00-inventory-process-observation`.
 

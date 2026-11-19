@@ -208,11 +208,12 @@ def validate_manifest(data: Any, root: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise PluginError(f"{MANIFEST} must be a mapping")
     name = data.get("name")
-    if not isinstance(name, str) or not _NAME.match(name):
+    if not isinstance(name, str) or not _NAME.fullmatch(name):
         raise PluginError("plugin name must match ^[a-z][a-z0-9-]{1,39}$ (fix: set `name:` in the manifest)")
     if "version" not in data:
         raise PluginError("plugin manifest needs `version:`")
-    req = str(data.get("requires", "")).lstrip(">= ")
+    _check_shapes(data, root)
+    req = str(data.get("requires") or "").lstrip(">= ")
     if req and _version_tuple(__version__) < _version_tuple(req):
         raise PluginError(f"plugin needs careerbrew >= {req}; this is {__version__} (fix: update careerbrew)")
     provides = data.get("provides", {}) or {}
@@ -522,3 +523,46 @@ def detect() -> list[tuple[str, list[str]]]:
         fired = [f"env:{e}" for e in det.get("env", []) if os.environ.get(e)]
         out.append((p["name"], fired))
     return out
+
+
+_LIST_POLICY = ("allowed_routes", "allowed_connectors", "allowed_hosts", "secret_backends", "backup_targets")
+_BOOL_POLICY = ("agent_may_read_business", "require_encrypted_backup", "public_metrics")
+_EXPORT_LEVELS = ("none", "aggregates", "redacted", "full")
+
+
+def _str_list(value: Any) -> bool:
+    return isinstance(value, list) and all(isinstance(x, str) for x in value)
+
+
+def _check_shapes(data: dict[str, Any], root: Path) -> None:
+    """Deny-by-default shape checks (rust-07a). Messages are fixed: they never echo input."""
+    req = data.get("requires")
+    if req not in (None, ""):
+        text = req if isinstance(req, str) else ""
+        if not re.search(r"[0-9]", text) or any(c.isdigit() and not c.isascii() for c in text):
+            raise PluginError("requires must name a version with ASCII digits, e.g. >=0.1.0")
+    provides = data.get("provides")
+    if provides is not None and not isinstance(provides, dict):
+        raise PluginError("provides must be a mapping of resource kind to paths")
+    policy = data.get("policy")
+    if isinstance(policy, dict):
+        for key in _LIST_POLICY:
+            if key in policy and not _str_list(policy[key]):
+                raise PluginError(f"policy.{key} must be a list of strings")
+        for key in _BOOL_POLICY:
+            if key in policy and not isinstance(policy[key], bool):
+                raise PluginError(f"policy.{key} must be true or false")
+        if "export_to_personal" in policy and policy["export_to_personal"] not in _EXPORT_LEVELS:
+            raise PluginError(f"policy.export_to_personal must be one of {list(_EXPORT_LEVELS)}")
+    terms = data.get("sensitive_terms")
+    if terms is not None:
+        bad = not isinstance(terms, str) or not terms or Path(terms).is_absolute() or ".." in Path(terms).parts
+        if bad or not (root / terms).resolve().is_relative_to(root.resolve()):
+            raise PluginError("sensitive_terms must be a relative file path inside the plugin folder")
+    det = data.get("detect")
+    if det is not None:
+        if not isinstance(det, dict):
+            raise PluginError("detect must be a mapping with env and paths lists")
+        for key in ("env", "paths"):
+            if key in det and not _str_list(det[key]):
+                raise PluginError(f"detect.{key} must be a list of strings")
