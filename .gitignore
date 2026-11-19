@@ -237,6 +237,7 @@ __pycache__/
 
 !/docs/plans/2026-11-05-rust-data-fault-schema.json
 !/docs/plans/2026-11-17-rust-embedded-sites.csv
+!/docs/plans/rust-inventory.d/
 
 !/xtask/src/observer_probe.rs
 !/xtask/src/observer_probe/
