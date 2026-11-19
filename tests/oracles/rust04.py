@@ -201,6 +201,7 @@ def _approvals_call(case: dict[str, Any]) -> Any:
     new_id = case.get("new_id", "00000000")
     hooks = {
         "load": lambda: records,
+        "_path": lambda: "approvals.json",
         "store": types.SimpleNamespace(write_json=lambda path, value: written.append(json.loads(json.dumps(value)))),
         "events": types.SimpleNamespace(emit=lambda *args, **kwargs: None),
         "calendar": types.SimpleNamespace(now_utc=lambda: now),

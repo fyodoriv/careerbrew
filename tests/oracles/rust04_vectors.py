@@ -2,7 +2,7 @@
 
 Usage: python -I rust04_vectors.py <new-vectors-file>
 
-It writes one JSON file, {"schema": ..., "sets": {<set>: [<case>, ...]}}, that
+It writes one JSON file, {"schema": ..., "terms": [...], "sets": {<set>: [<case>, ...]}}, that
 both drivers read (the Python oracle `rust04.py` and, later, the Rust
 `policy-vectors` binary). It refuses an existing file. Every value is
 synthetic and fixed: no clock, no randomness, no data folder, no company or
