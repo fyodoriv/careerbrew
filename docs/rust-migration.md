@@ -1922,7 +1922,7 @@ The tool has no `--help`. A wrong argument prints the usage and exits 2.
 | `cargo xtask migration capture-actions --python <absolute-path> --out <new-file>` | runs `python -B -m careerbrew actions --json` twice in fresh synthetic homes and compares stdout, stderr, exit, schema and writes |
 | `cargo xtask migration capture-http --python <absolute-path> --out <new-file>` | runs two fresh synthetic server processes over a frozen HTTP corpus (21 request cases) |
 | `cargo xtask migration capture-data --python <absolute-path> --out <new-file>` | runs a ten-case write and read corpus twice and compares typed values, encrypted boundaries and declared writes |
-| `cargo xtask migration resources --cmd <absolute-path> [args]` | runs one owned child, reaps it with `wait4`, and prints JSON: outcome (exit code or signal), user and system CPU time, peak RSS raw and in bytes. The process exit code is not the child's exit code: 0 means the child exited cleanly with 0; 1 means it was killed by a signal or exited nonzero; 2 is a usage error (a relative path); 3 is a measurement error (spawn, `wait4` or `getrusage` failed), printed as a JSON `error` object. On Linux, `rss_may_include_parent` marks a child peak at or below the measuring process's own peak. macOS and Linux only; another OS is refused. Process-group descendants are counted in the `tree_*` fields; descendants that leave the group are not (task `rust-00-process-tree-escapees`). |
+| `cargo xtask migration resources --cmd <absolute-path> [args]` | runs one owned child, reaps it with `wait4`, and prints JSON: outcome (exit code or signal), user and system CPU time, peak RSS raw and in bytes. The process exit code is not the child's exit code: 0 means the child exited cleanly with 0; 1 means it was killed by a signal or exited nonzero; 2 is a usage error (a relative path); 3 is a measurement error (spawn, `wait4` or `getrusage` failed), printed as a JSON `error` object. On Linux, `rss_may_include_parent` marks a child peak at or below the measuring process's own peak. macOS and Linux only; another OS is refused. Process-group descendants are counted in the `tree_*` fields. On Linux with a delegated cgroup v2, tree CPU also counts descendants that leave the group (`tree_method` `cgroup-v2-cpu+subreaper-wait4`); without delegation they are not (see "Escapees: cgroup v2 CPU scope"). |
 | `cargo xtask migration observer-probe --image <immutable-id> [--out <new-directory> [--freeze-only\|--fault-controls-only]]` | the fixed Linux process-observer probe in an owned, network-disabled container |
 
 | `cargo xtask migration baseline --step <id> --python <absolute-path> --out <absolute-new-file> [--runs <n>]` | runs the step's registered Python oracle N times (default 30) through the process-tree collector. Each run gets a fresh synthetic home. The oracle starts in the repo root. It writes a content-free JSON record: step, command, OS, arch, Rust and Python versions, source revision, `source_tree_dirty` (from `git status --porcelain`), a hash of the relevant sources (the capture sources plus `baseline.rs` and `resources.rs`), `fixtures_sha256` (`tests/fixtures/http`), `cache_state` (`warm-imports-fresh-synthetic-home`: imports and OS caches are warm, only the data folder is fresh), `meets_protocol_minimum`, raw samples (tree CPU user and system time, tree peak RSS, wall time, `parent_max_rss_bytes`, `rss_may_include_parent`) and p50 and p95. It refuses an unknown step, fewer than 30 runs (the test-only flag `--test-allow-few-runs` allows them and records `meets_protocol_minimum: false`), a relative `--python` or `--out`, an oracle run that does not exit 0, a set but empty `CAREERBREW_HOME`, an existing output, and a source or fixture change during the runs. Registered steps: `rust-02` (`xtask/tests/fixtures/purevec/driver.py --all`, a vector step; its source hash also covers the driver and its Python inputs) and `rust-03` (`careerbrew actions --json`; its source hash also covers the `crates/cbcli` sources, the registry, `scripts/gen-registry.py` and `config/native-routes.txt`). A step's extra environment (`Step::env`; `rust-03`: `COLUMNS=80`, `LINES=24`) is set on every baseline and measure run and on verify's CLI and registry projection runs (not its HTTP, DATA or role runs), on both sides, and is bound into the source hash as `step-env` (a step with none keeps its hash inputs). |
@@ -2023,9 +2023,12 @@ are **component parity only** and switch nothing:
   built the image. Raw receipts stay local and are not in the repository.
 - Whole-process-tree resource collection is calibrated on one hosted run
   (44099007218: macOS 0.996x, Linux 0.972x; a second run is pending; see "Process-tree resource accounting"
-  below). It counts descendants that stay in the child's process group; a
-  descendant that calls `setsid` or `setpgid` is not counted (task
-  `rust-00-process-tree-escapees`).
+  below). It counts descendants that stay in the child's process group. A
+  descendant that calls `setsid` or `setpgid` is counted for CPU only on
+  Linux, and only when the measuring process can create a cgroup v2 under its
+  own (task `rust-00-process-tree-escapees`: code done, hosted proof
+  pending; see "Escapees: cgroup v2 CPU scope" below). macOS still misses
+  it, and no OS counts its peak RSS.
 - One full local gate on the old draft failed one owned-process cleanup test
   (all others passed). Its cause was never found. A later fast gate passed
   without explaining it. The hosted gate on `main` is green today; treat any
@@ -2156,6 +2159,41 @@ Review gaps closed (PR 113 review):
   Unsupported targets report `tree_rss_metric` `unsupported`.
   Control: `a_member_whose_parent_left_the_group_is_counted` (fixture mode
   `split 500 burn 300`).
+
+### Escapees: cgroup v2 CPU scope (pre-registered 2026-11-20)
+
+Registered before the hosted run. Scope: Linux tree CPU only.
+
+- **Method:** before the spawn, the measuring process creates
+  `careerbrew-measure-<pid>-<n>` under its own cgroup (from
+  `/proc/self/cgroup`, line `0::`). The child writes `0` to its
+  `cgroup.procs` between fork and exec. If the cgroup cannot be created or
+  joined, the child never ran and the call spawns again without it (the old
+  method; `tree_method` stays `subreaper-wait4`). With the cgroup, after the
+  group is reaped the call waits for `populated 0` in `cgroup.events`, reaps
+  each pid it saw in `cgroup.procs`, reads `user_usec` and `system_usec`
+  from `cpu.stat`, subtracts the child's own CPU, and keeps the larger of
+  that and the group sum. Then it removes the empty cgroup. `tree_method` is
+  `cgroup-v2-cpu+subreaper-wait4`. Peak RSS stays per process: `memory.peak`
+  needs the memory controller, and a cgroup that holds processes cannot
+  enable it for its children. A descendant that never exits keeps the call
+  waiting, as before.
+- **Hypothesis:** a grandchild that calls `setsid` and burns 300 ms of CPU
+  is counted within 0.75x to 1.5x, where the group method reports about 0.
+- **Measurement:** `cargo test -p careerbrew-xtask --test resources` on
+  hosted `gate (ubuntu-24.04)`, control
+  `a_descendant_that_calls_setsid_is_counted_by_the_cgroup` (fixture mode
+  `escape burn 300`). It records `escapee ...: method=... escaped_cpu_us=...
+  supported=...` in the resources record.
+- **Success:** `supported=true` and 225,000 to 450,000 us, with all other
+  controls passing.
+- **Pivot:** if the hosted record says `supported=false` (no delegated
+  cgroup), mark escapee accounting unsupported on hosted runners, keep the
+  fallback, and stop.
+- **Anchor:** Linux cgroup v2 (`cgroup.procs`, `cgroup.events`, `cpu.stat`);
+  Kalibera and Jones 2013 (ISMM).
+
+Observed: pending (no hosted run yet).
 
 ### Noise floors and normalization rules (pre-registered 2026-11-17)
 

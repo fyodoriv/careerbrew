@@ -7,6 +7,9 @@
 //! 100 ms and exits; `detach <ms> <mode> <args>...` starts a member in that
 //! mode (still in the group), calls `setsid` to leave the group, sleeps
 //! `<ms>` and exits without waiting for the member.
+//! `escape <mode> <args>...` starts a grandchild that calls `setsid` before
+//! it runs that mode, and exits at once without waiting for it.
+use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -45,6 +48,24 @@ fn main() {
                 .stderr(Stdio::null())
                 .spawn()
                 .expect("grandchild");
+        }
+        ["escape", rest @ ..] if !rest.is_empty() => {
+            let mut command = Command::new(std::env::current_exe().expect("own path"));
+            command
+                .args(rest)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null());
+            // SAFETY: setsid is async-signal-safe; it leaves the process group.
+            unsafe {
+                command.pre_exec(|| {
+                    if libc::setsid() < 0 {
+                        return Err(std::io::Error::last_os_error());
+                    }
+                    Ok(())
+                })
+            };
+            command.spawn().expect("grandchild");
         }
         ["split", millis, rest @ ..] if !rest.is_empty() => {
             Command::new(std::env::current_exe().expect("own path"))

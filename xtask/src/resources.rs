@@ -9,8 +9,15 @@
 //! parent exits and the member comes back to the subreaper. If that parent
 //! never exits (a daemon), the call polls every 2 ms and never returns.
 //! The parent that left the group is reaped (no zombie stays) but not counted.
-//! Each call owns its child and process group for the call's lifetime and
-//! keeps no state between calls. The Linux subreaper flag is process-scope
+//! On Linux with cgroup v2, each call also tries to start the child in its own
+//! new cgroup under the measuring process's cgroup. When that works, the tree
+//! CPU fields take the larger of the group sum and the cgroup's `cpu.stat`,
+//! so a descendant that leaves the group (`setsid`) is counted too, and the
+//! call waits until the cgroup is empty. When the cgroup cannot be created or
+//! joined (no delegation), the call falls back to the group method alone, and
+//! `tree_method` says which method ran. Peak RSS stays per process.
+//! Each call owns its child, process group and cgroup for the call's lifetime
+//! and keeps no state between calls. The Linux subreaper flag is process-scope
 //! state of the measuring process: it is set once and stays set.
 use std::os::unix::process::CommandExt;
 use std::path::Path;
@@ -177,6 +184,8 @@ struct Tree {
 
 #[cfg(target_os = "linux")]
 const TREE_METHOD: &str = "subreaper-wait4";
+#[cfg(target_os = "linux")]
+const TREE_METHOD_CGROUP: &str = "cgroup-v2-cpu+subreaper-wait4";
 #[cfg(target_os = "macos")]
 const TREE_METHOD: &str = "sampled-proc-pid-rusage";
 #[cfg(not(any(target_os = "macos", target_os = "linux")))]
@@ -315,6 +324,136 @@ fn reap_strays(pgid: libc::pid_t) {
     }
 }
 
+/// Linux: one cgroup v2 scope per call, a child of this process's cgroup.
+/// It counts the CPU of every process started in it, also one that left the
+/// process group. Memory needs the memory controller, which a cgroup that
+/// holds processes cannot delegate, so only `cpu.stat` is read.
+#[cfg(target_os = "linux")]
+mod cgroup {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStringExt;
+    use std::path::{Path, PathBuf};
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    const ROOT: &str = "/sys/fs/cgroup";
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+
+    pub struct Scope {
+        dir: PathBuf,
+        procs: CString,
+    }
+
+    impl Scope {
+        /// `None` when cgroup v2 is not mounted at `/sys/fs/cgroup` or this
+        /// process may not create a cgroup under its own.
+        pub fn create() -> Option<Scope> {
+            if !Path::new(ROOT).join("cgroup.controllers").is_file() {
+                return None;
+            }
+            let text = std::fs::read_to_string("/proc/self/cgroup").ok()?;
+            let own = text.lines().find_map(|line| line.strip_prefix("0::"))?;
+            let n = NEXT.fetch_add(1, Ordering::Relaxed);
+            let dir = Path::new(ROOT)
+                .join(own.trim_start_matches('/'))
+                .join(format!("careerbrew-measure-{}-{n}", std::process::id()));
+            std::fs::create_dir(&dir).ok()?;
+            let path = dir.join("cgroup.procs").into_os_string().into_vec();
+            match CString::new(path) {
+                Ok(procs) => Some(Scope { dir, procs }),
+                Err(_) => {
+                    let _ = std::fs::remove_dir(&dir);
+                    None
+                }
+            }
+        }
+
+        /// The path the child writes `0` to, after fork and before exec.
+        pub fn procs(&self) -> CString {
+            self.procs.clone()
+        }
+
+        /// Wait until no process is left in the scope. Return every pid
+        /// seen in it while waiting, so the caller reaps only those.
+        pub fn wait_empty(&self) -> Result<Vec<libc::pid_t>, String> {
+            let events = self.dir.join("cgroup.events");
+            let procs = self.dir.join("cgroup.procs");
+            let mut seen = Vec::new();
+            loop {
+                if let Ok(text) = std::fs::read_to_string(&procs) {
+                    for pid in text.lines().filter_map(|line| line.trim().parse().ok()) {
+                        if !seen.contains(&pid) {
+                            seen.push(pid);
+                        }
+                    }
+                }
+                let text = std::fs::read_to_string(&events)
+                    .map_err(|error| format!("read cgroup.events failed: {}", error.kind()))?;
+                if text.lines().any(|line| line.trim() == "populated 0") {
+                    return Ok(seen);
+                }
+                std::thread::sleep(std::time::Duration::from_millis(2));
+            }
+        }
+
+        /// User and system CPU of every process that ran in the scope.
+        pub fn cpu(&self) -> Result<(u64, u64), String> {
+            let text = std::fs::read_to_string(self.dir.join("cpu.stat"))
+                .map_err(|error| format!("read cpu.stat failed: {}", error.kind()))?;
+            parse_cpu_stat(&text)
+        }
+    }
+
+    impl Drop for Scope {
+        fn drop(&mut self) {
+            // An empty cgroup is removed with rmdir; a busy one stays.
+            let _ = std::fs::remove_dir(&self.dir);
+        }
+    }
+
+    /// Write `0` (this process) to `procs`. Runs between fork and exec, so it
+    /// only calls `open`, `write` and `close`.
+    pub fn join(procs: &CString) -> std::io::Result<()> {
+        // SAFETY: async-signal-safe calls on a valid C string and buffer.
+        unsafe {
+            let fd = libc::open(procs.as_ptr(), libc::O_WRONLY | libc::O_CLOEXEC);
+            if fd < 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            let wrote = libc::write(fd, b"0".as_ptr().cast(), 1);
+            let error = std::io::Error::last_os_error();
+            libc::close(fd);
+            if wrote != 1 {
+                return Err(error);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn parse_cpu_stat(text: &str) -> Result<(u64, u64), String> {
+        let value = |name: &str| {
+            text.lines()
+                .find_map(|line| line.strip_prefix(name)?.strip_prefix(' '))
+                .and_then(|value| value.trim().parse::<u64>().ok())
+                .ok_or_else(|| format!("cpu.stat has no {name}"))
+        };
+        Ok((value("user_usec")?, value("system_usec")?))
+    }
+}
+
+/// Linux: reap, without blocking, each pid seen in the cgroup that is an
+/// exited child of ours (a descendant that left the group came back to the
+/// subreaper). Only these pids, so another call's child is never reaped.
+#[cfg(target_os = "linux")]
+fn reap_seen(pids: &[libc::pid_t]) {
+    for &pid in pids {
+        let mut status: libc::c_int = 0;
+        // SAFETY: reaps `pid` only if it is an exited child of ours.
+        while unsafe { libc::waitpid(pid, &mut status, libc::WNOHANG) } < 0
+            && std::io::Error::last_os_error().raw_os_error() == Some(libc::EINTR)
+        {}
+    }
+}
+
 /// macOS: a descendant's peak, as `TREE_RSS_METRIC` names it.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 fn descendant_peak(phys_footprint: u64, resident_size: u64) -> u64 {
@@ -423,21 +562,45 @@ pub fn measure_in(
     let parent_max_rss_bytes = unit.to_bytes(own.ru_maxrss.max(0) as u64);
     prepare_tree()?;
     let started = Instant::now();
-    let mut command = Command::new(program);
-    if let Some(environment) = environment {
-        command.env_clear().envs(environment);
-    }
-    if let Some(folder) = current_dir {
-        command.current_dir(folder);
-    }
-    let child = command
-        .args(args)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .process_group(0)
-        .spawn()
-        .map_err(|error| format!("spawn failed: {}", error.kind()))?;
+    let build = || {
+        let mut command = Command::new(program);
+        if let Some(environment) = environment {
+            command.env_clear().envs(environment);
+        }
+        if let Some(folder) = current_dir {
+            command.current_dir(folder);
+        }
+        command
+            .args(args)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .process_group(0);
+        command
+    };
+    #[cfg(target_os = "linux")]
+    let mut scope = cgroup::Scope::create();
+    #[cfg(target_os = "linux")]
+    let spawned = match scope.as_ref().map(cgroup::Scope::procs) {
+        Some(procs) => {
+            let mut command = build();
+            // SAFETY: the hook only calls async-signal-safe functions.
+            unsafe { command.pre_exec(move || cgroup::join(&procs)) };
+            match command.spawn() {
+                Ok(child) => Ok(child),
+                // The child could not join the cgroup and never ran:
+                // fall back to the group method alone.
+                Err(_) => {
+                    scope = None;
+                    build().spawn()
+                }
+            }
+        }
+        None => build().spawn(),
+    };
+    #[cfg(not(target_os = "linux"))]
+    let spawned = build().spawn();
+    let child = spawned.map_err(|error| format!("spawn failed: {}", error.kind()))?;
     let pid = child.id() as libc::pid_t;
     #[cfg(target_os = "macos")]
     let (status, usage, tree) = {
@@ -457,8 +620,27 @@ pub fn measure_in(
     #[cfg(target_os = "linux")]
     let (status, usage, tree) = {
         let (status, usage) = reap(pid, 0)?.ok_or("wait4 returned no child")?;
-        (status, usage, collect_tree(pid, unit)?)
+        let mut tree = collect_tree(pid, unit)?;
+        if let Some(found) = &scope {
+            let seen = found.wait_empty()?;
+            reap_seen(&seen);
+            let (user, system) = found.cpu()?;
+            // The cgroup counts the child too; the tree fields add it later.
+            let user = user.saturating_sub(micros(usage.ru_utime));
+            let system = system.saturating_sub(micros(usage.ru_stime));
+            tree.user_cpu_us = tree.user_cpu_us.max(user);
+            tree.system_cpu_us = tree.system_cpu_us.max(system);
+        }
+        (status, usage, tree)
     };
+    #[cfg(target_os = "linux")]
+    let tree_method = if scope.is_some() {
+        TREE_METHOD_CGROUP
+    } else {
+        TREE_METHOD
+    };
+    #[cfg(not(target_os = "linux"))]
+    let tree_method = TREE_METHOD;
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     let (status, usage, tree) = {
         let (status, usage) = reap(pid, 0)?.ok_or("wait4 returned no child")?;
@@ -493,7 +675,7 @@ pub fn measure_in(
         tree_user_cpu_us: user_cpu_us.saturating_add(tree.user_cpu_us),
         tree_system_cpu_us: system_cpu_us.saturating_add(tree.system_cpu_us),
         tree_max_rss_bytes: max_rss_bytes.max(tree.max_rss_bytes),
-        tree_method: TREE_METHOD,
+        tree_method,
     })
 }
 
@@ -518,6 +700,14 @@ pub fn check_calibration(
 #[cfg(test)]
 mod peak_tests {
     use super::descendant_peak;
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn cpu_stat_user_and_system_are_read_and_a_missing_field_is_refused() {
+        let text = "usage_usec 30\nuser_usec 20\nsystem_usec 10\n";
+        assert_eq!(super::cgroup::parse_cpu_stat(text), Ok((20, 10)));
+        assert!(super::cgroup::parse_cpu_stat("usage_usec 30\n").is_err());
+    }
 
     #[test]
     fn the_descendant_peak_is_the_larger_of_footprint_and_resident() {

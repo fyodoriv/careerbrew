@@ -273,3 +273,28 @@ fn a_member_whose_parent_left_the_group_is_counted() {
         "member left behind by a setsid parent not counted: {value}"
     );
 }
+
+/// Task rust-00-process-tree-escapees (Linux only): a grandchild that calls
+/// `setsid` leaves the group, so the group method never sees it. With a
+/// delegated cgroup v2 scope its 300 ms burn is counted within 0.75x to 1.5x.
+/// Without one the run falls back and records the gap as unsupported.
+#[cfg(target_os = "linux")]
+#[test]
+fn a_descendant_that_calls_setsid_is_counted_by_the_cgroup() {
+    let value = cli_json(&["escape", "burn", "300"]);
+    let method = value["tree_method"].as_str().unwrap_or("").to_string();
+    let child = field(&value, "user_cpu_us") + field(&value, "system_cpu_us");
+    let tree = field(&value, "tree_user_cpu_us") + field(&value, "tree_system_cpu_us");
+    let escaped = tree.saturating_sub(child);
+    let supported = method.starts_with("cgroup-v2");
+    record(format!(
+        "escapee {}: method={method} escaped_cpu_us={escaped} supported={supported}",
+        value["os"]
+    ));
+    if supported {
+        assert!(
+            (225_000..=450_000).contains(&escaped),
+            "setsid descendant CPU outside 225..=450 ms: {value}"
+        );
+    }
+}
