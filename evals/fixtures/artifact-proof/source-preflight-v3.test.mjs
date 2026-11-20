@@ -174,6 +174,7 @@ for (const row of classification.rows) test(`corpus:${row.caseId}`, () => {
     arms.push({ arm, results });
   }
   assert.equal(hash(canonical(item)), row.originalCaseSha256);
+  assert.ok(checks.length > 0, `registered case executed zero arms: ${row.caseId}`);
   records.push({ kind: 'corpus', id: row.caseId, inputSha256: row.originalCaseSha256, expected: { sourceDisposition: row.sourceDisposition, reason: row.sourceReason }, arms });
   // Collect every declared arm before judging; a first bad arm cannot hide another.
   for (const check of checks) {
@@ -225,6 +226,38 @@ for (const item of faults) test(`owner:${item.id}`, async () => {
   records.push({ kind: 'owner-port', id: item.id, inputSha256: hash(canonical(item.input)), expected: item.expected, observed });
   assert.equal(snapshot(raw), before);
   verify(observed, item.expected);
+});
+
+function resultPorts(fields = {}) {
+  let thunk;
+  return {
+    create(build) { thunk = build; return {}; },
+    result() { return { kind: 'result', elapsedMs: 0, outputBytes: 0, ...fields, value: thunk() }; },
+    close() { return { terminal: 'reaped' }; },
+  };
+}
+const ownerResultInput = recipeDelivery(recipes.find((recipe) => recipe.id === 'html-entity-url'));
+test('owner-result: bounded valid success stays eligible', () => {
+  const observed = semanticSourceReceipt(decideSourceOwner(ownerResultInput, resultPorts()));
+  assert.equal(observed.sourceEligible, true);
+  assert.equal(observed.reason, null);
+  assert.equal(observed.sourceOwnerTerminal, 'port-reports-reaped');
+});
+for (const [id, fields] of [
+  ['elapsed-missing', { elapsedMs: undefined }],
+  ['elapsed-nonfinite', { elapsedMs: NaN }],
+  ['elapsed-negative', { elapsedMs: -1 }],
+  ['elapsed-fractional', { elapsedMs: 0.5 }],
+  ['output-missing', { outputBytes: undefined }],
+  ['output-nonfinite', { outputBytes: NaN }],
+  ['output-negative', { outputBytes: -1 }],
+  ['output-fractional', { outputBytes: 0.5 }],
+]) test(`owner-result: ${id} refuses malformed success`, () => {
+  const observed = semanticSourceReceipt(decideSourceOwner(ownerResultInput, resultPorts(fields)));
+  assert.equal(observed.sourceEligible, false);
+  assert.equal(observed.reason, 'source-preflight-unavailable');
+  assert.equal(observed.failedStage, 'source-owner');
+  assert.equal(observed.sourceOwnerTerminal, 'port-reports-reaped');
 });
 after(() => {
   if (records.length !== 133) return;

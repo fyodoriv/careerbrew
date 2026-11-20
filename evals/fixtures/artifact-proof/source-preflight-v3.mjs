@@ -327,10 +327,12 @@ export function decideSourceOwner(rawDelivery, ports) {
   if (!primary) {
     try {
       const event = ports.result(token);
-      if (event.kind === 'deadline' || event.elapsedMs >= fixedLimits.sourceDeadlineMs) primary = new SourceRefusal('source-preflight-unavailable', 'source-deadline');
-      else if (event.kind === 'exit' || !Number.isFinite(event.elapsedMs)) primary = new SourceRefusal('source-preflight-unavailable', 'source-owner');
-      else if (event.outputBytes > policy.sourceWorker.maxOutputBytes) primary = new SourceRefusal('source-preflight-unavailable', 'source-output-bound');
+      if (event.kind === 'deadline') primary = new SourceRefusal('source-preflight-unavailable', 'source-deadline');
+      else if (event.kind === 'exit') primary = new SourceRefusal('source-preflight-unavailable', 'source-owner');
       else if (event.kind !== 'result' || !built || event.value !== built) primary = new SourceRefusal('source-preflight-unavailable', 'source-owner');
+      else if (!Number.isInteger(event.elapsedMs) || event.elapsedMs < 0 || !Number.isInteger(event.outputBytes) || event.outputBytes < 0) primary = new SourceRefusal('source-preflight-unavailable', 'source-owner');
+      else if (event.elapsedMs >= fixedLimits.sourceDeadlineMs) primary = new SourceRefusal('source-preflight-unavailable', 'source-deadline');
+      else if (event.outputBytes > policy.sourceWorker.maxOutputBytes) primary = new SourceRefusal('source-preflight-unavailable', 'source-output-bound');
     } catch { primary = new SourceRefusal('source-preflight-unavailable', 'source-owner'); }
     try { terminal = ports.close(token).terminal === 'reaped' ? 'port-reports-reaped' : 'unknown'; }
     catch { terminal = 'unknown'; }

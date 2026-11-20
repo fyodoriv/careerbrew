@@ -1,5 +1,5 @@
 {
-  "corpusSha256": "499ced2ab6be789a6b8eb741bf0855c73904d5fa9b79934f090c0daa4cc804ac",
+  "corpusSha256": "872011047bc09d99c03d3f5e4f376c64297207da6d8fd6842c072fa387065ee1",
   "status": "prospective source-only expectations; NOT results",
   "rows": [
     {
@@ -514,7 +514,9 @@
       "group": 9,
       "caseId": "admission-delivery-omitted",
       "originalCaseSha256": "fcff792007f768c51c4ecf8bf862897dea82eef2e0e9a09fcf696f5c34c36821",
-      "inputArms": [],
+      "inputArms": [
+        "delivery"
+      ],
       "sourceDisposition": "expected-source-refusal",
       "sourceReason": "delivery-record-unavailable",
       "artifactContextsCreated": 0,
@@ -524,7 +526,9 @@
       "group": 9,
       "caseId": "admission-delivery-null",
       "originalCaseSha256": "0fe4a90652536ff344cfe0d3dd0276d11404c6e3dd88cfe3786aeb82d7107cf0",
-      "inputArms": [],
+      "inputArms": [
+        "delivery"
+      ],
       "sourceDisposition": "expected-source-refusal",
       "sourceReason": "delivery-record-unavailable",
       "artifactContextsCreated": 0,

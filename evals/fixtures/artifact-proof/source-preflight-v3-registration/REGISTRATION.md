@@ -203,3 +203,20 @@ https://raw.githubusercontent.com/csstree/csstree/v3.2.1/lib/syntax/node/StyleSh
 policy.refusalStagePairs replaces prose slash/OR values with finite exact
 reason/failedStage/cause records. Each existing source case still fixes exactly
 one failedStage; unknown pairs reject, never use a generic error escape.
+
+## Review repair registration — 2026-11-20
+
+Independent source review preceded this repair and found no repaired execution
+result yet. Correct the corpus-level SHA to the independently measured current
+corpus bytes without changing any individual case hash or expectation. Both raw
+admission rows now name their `delivery` arm, and a zero-execution registration
+fails instead of producing a vacuous receipt. The 57 + 70 + 6 semantic-record
+denominator remains unchanged.
+
+Additional owner-result contract controls do not enter that denominator. One
+valid result with finite nonnegative integer `elapsedMs` and `outputBytes` must
+remain eligible. Missing, nonfinite, negative or fractional values in either
+field must refuse with `source-owner`; an over-limit integer retains
+`source-output-bound`. No timeout or cleanup assertion changes. Hosted checks
+and a fresh independent diff review decide delivery; no local test run is
+authorized for this repair.

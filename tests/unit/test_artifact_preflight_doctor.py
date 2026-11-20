@@ -58,13 +58,19 @@ def test_optional_doctor_block_calls_checker_only_when_enabled(tmp_path, enabled
 @pytest.mark.parametrize("version", [None, "v20.19.0", "v24.0.0", "v25.0.0", "not-a-version"])
 def test_opt_in_rejects_missing_or_unsupported_node(tmp_path, version):
     fixture_tools(tmp_path)
-    assert checker().check(tmp_path, version) == "node-version"
+    assert checker().check(tmp_path, version, "12.2.1") == "node-version"
+
+
+@pytest.mark.parametrize("version", [None, "12.2.0", "12.2.2", "not-a-version"])
+def test_opt_in_rejects_missing_or_unsupported_npm(tmp_path, version):
+    fixture_tools(tmp_path)
+    assert checker().check(tmp_path, "v24.21.0", version) == "npm-version"
 
 
 @pytest.mark.parametrize("version", ["v24.15.0", "v24.21.0"])
 def test_opt_in_accepts_exact_isolated_manifests(tmp_path, version):
     fixture_tools(tmp_path)
-    assert checker().check(tmp_path, version) is None
+    assert checker().check(tmp_path, version, "12.2.1") is None
 
 
 @pytest.mark.parametrize("fault", ["missing", "wrong-version", "symlink-modules", "symlink-package", "lock-mismatch", "unexpected-dependency"])
@@ -88,4 +94,4 @@ def test_opt_in_refuses_incomplete_or_shared_tools(tmp_path, fault):
         manifest = json.loads((tools / "package.json").read_text())
         manifest["devDependencies"]["unexpected"] = "1.0.0"
         (tools / "package.json").write_text(json.dumps(manifest))
-    assert checker().check(tmp_path, "v24.21.0") is not None
+    assert checker().check(tmp_path, "v24.21.0", "12.2.1") is not None

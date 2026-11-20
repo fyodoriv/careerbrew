@@ -12,10 +12,12 @@ PACKAGES = {"parse5": "8.1.0", "css-tree": "3.2.1", "data-urls": "8.0.0"}
 LOCK_SHA256 = "de942aeed26ffd7b98780192cf89bc2c36addd1588533bbd1284c8e2041d501a"
 
 
-def check(root: Path, version: str | None) -> str | None:
+def check(root: Path, version: str | None, npm_version: str | None) -> str | None:
     match = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)", version or "")
     if not match or tuple(map(int, match.groups())) < (24, 15, 0) or int(match[1]) != 24:
         return "node-version"
+    if npm_version != "12.2.1":
+        return "npm-version"
     tools = root / "evals/fixtures/artifact-proof/source-preflight-v3-tools"
     try:
         for path in (tools, tools / "package.json", tools / "package-lock.json", tools / "node_modules"):
@@ -58,19 +60,24 @@ def check(root: Path, version: str | None) -> str | None:
     return None
 
 
+def command_version(command: str | None) -> str | None:
+    if not command:
+        return None
+    try:
+        result = subprocess.run([command, "--version"], capture_output=True, text=True, timeout=5, check=False)
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return None
+
+
 def main() -> int:
-    node = shutil.which("node")
-    version = None
-    if node:
-        try:
-            result = subprocess.run([node, "--version"], capture_output=True, text=True, timeout=5, check=False)
-            if result.returncode == 0:
-                version = result.stdout.strip()
-        except (OSError, subprocess.SubprocessError):
-            pass
-    reason = check(Path(__file__).resolve().parent.parent, version)
+    version = command_version(shutil.which("node"))
+    npm_version = command_version(shutil.which("npm"))
+    reason = check(Path(__file__).resolve().parent.parent, version, npm_version)
     if reason:
-        print(f"FAIL artifact preflight tooling ({reason}) -> fix: select Node 24.15+ below 25 and install the reviewed isolated tools lock with npm ci --ignore-scripts")
+        print(f"FAIL artifact preflight tooling ({reason}) -> fix: select Node 24.15+ below 25 and npm 12.2.1, then install the reviewed isolated tools lock with npm ci --ignore-scripts")
         return 1
     print("ok artifact preflight tooling manifests (no parser import or source qualification)")
     return 0

@@ -86,3 +86,14 @@ The 133-case harness keeps its reviewed execution guard. The separate permanent
 pair needs only the declared optional Node 24 tools and its explicit command.
 No real worker, filesystem bundle loader, header, browser, actor, toy reader or
 57-case native transport qualification is implemented or released here.
+
+## Review repair — 2026-11-20
+
+Independent review found that the public fixture rename changed the corpus-level
+hash, two raw admission rows executed zero arms, and owner-result metadata could
+be absent or malformed without refusal. The registered repair corrects those
+pins and controls, validates both result counters as nonnegative integers, and
+adds one bounded success control outside the original 133-record denominator.
+The earlier 133-case receipts remain historical and do not qualify this repaired
+tree. No local test run was taken; hosted checks and fresh independent review
+are required before delivery.

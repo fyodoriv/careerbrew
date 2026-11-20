@@ -272,6 +272,7 @@ __pycache__/
 !/docs/plans/2026-11-17-rust-embedded-sites.csv
 !/docs/plans/rust-inventory.d/
 !/docs/plans/rust-inventory.d/rust-27b-check-docs.csv
+!/docs/plans/rust-inventory.d/rust-27-pr63-artifact-proof.csv
 
 !/xtask/src/observer_probe.rs
 !/xtask/src/observer_probe/
