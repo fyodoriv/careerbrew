@@ -26,9 +26,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::process::Command;
 
-#[allow(dead_code)]
-/// One registered vector-driver step. None yet: `rust-04c` registers
-/// `rust-04` with its generator and oracle; `rust-04d` adds its candidate.
+/// One registered vector-driver step. `migration verify --step <id>` runs it.
 pub struct DriverStep {
     pub id: &'static str,
     /// The tracked generator, relative to the repo root.
@@ -37,12 +35,24 @@ pub struct DriverStep {
     pub driver: &'static str,
     /// The Rust driver binary, relative to the repo root.
     pub candidate: &'static str,
+    /// The sets the candidate covers so far; the generator's other sets are
+    /// left out of the record.
+    pub sets: &'static [&'static str],
 }
 
-pub const STEPS: &[DriverStep] = &[];
+/// rust-04: the `policy-vectors` candidate over the four core sets
+/// (`rust-04d`); the other oracle sets join as their Rust code lands.
+pub const RUST_04: DriverStep = DriverStep {
+    id: "rust-04",
+    generator: "tests/oracles/rust04_vectors.py",
+    driver: "tests/oracles/rust04.py",
+    candidate: "target/debug/policy-vectors",
+    sets: &["canary-core", "canary-match", "leak-spans", "allowlists"],
+};
+
+pub const STEPS: &[DriverStep] = &[RUST_04];
 
 /// The vector-driver step with this id, if it is one.
-#[allow(dead_code)]
 pub fn step(id: &str) -> Option<&'static DriverStep> {
     STEPS.iter().find(|step| step.id == id)
 }
@@ -54,7 +64,8 @@ pub enum Candidate<'a> {
     PythonScript(&'a Path),
 }
 
-/// A test-only planted defect in the Rust answer of the first set.
+/// A test-only planted defect in the Rust answer of one set (the first,
+/// unless the caller names one).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Plant {
     None,
@@ -301,6 +312,15 @@ fn version((exit, stdout): (Option<i32>, String), side: &str) -> Result<String, 
     Ok(version.to_owned())
 }
 
+/// Which sets run and where a plant goes. `only` keeps just those sets of the
+/// generated file (all must be there); `plant_set` names the set a plant
+/// changes (default: the first set that runs).
+#[derive(Default, Clone, Copy)]
+pub struct Scope<'a> {
+    pub only: Option<&'a [&'a str]>,
+    pub plant_set: Option<&'a str>,
+}
+
 /// Runs one vector-driver check and returns its record. `generator` and
 /// `driver` (and a test candidate script) are paths inside `root`;
 /// `python` must be absolute.
@@ -311,6 +331,7 @@ pub fn record(
     driver: &Path,
     candidate: Candidate,
     plant: Plant,
+    scope: Scope,
 ) -> Result<Value, String> {
     if !python.is_absolute() {
         return Err("--python must be an absolute path".into());
@@ -348,7 +369,23 @@ pub fn record(
     let bytes = std::fs::read(&vector_file).map_err(|_| "cannot read the generated vector file")?;
     let vector_sha256 = capture_actions::digest(&bytes);
     let text = String::from_utf8(bytes).map_err(|_| "the generated vector file is not UTF-8")?;
-    let sets = parse_sets(&text)?;
+    let mut sets = parse_sets(&text)?;
+    if let Some(only) = scope.only {
+        if only
+            .iter()
+            .any(|name| !sets.iter().any(|(set, _)| set == name))
+        {
+            return Err("the generated vector file lacks a registered set; refused".into());
+        }
+        sets.retain(|(set, _)| only.contains(&set.as_str()));
+    }
+    let plant_set = match scope.plant_set {
+        Some(name) if !sets.iter().any(|(set, _)| set == name) => {
+            return Err("--test-wrong-vector names no vector set of this step".into());
+        }
+        Some(name) => name.to_owned(),
+        None => sets.first().map(|(set, _)| set.clone()).unwrap_or_default(),
+    };
 
     let mut sides = Sides {
         root,
@@ -373,7 +410,7 @@ pub fn record(
         // Refused before any vector case runs.
         cases.push(case);
     } else {
-        for (index, (set, vectors)) in sets.iter().enumerate() {
+        for (set, vectors) in &sets {
             let args = [std::ffi::OsStr::new(set), vector_file.as_os_str()];
             let (exit, stdout) = sides.oracle(&args)?;
             let oracle = depvec::results(set, &stdout)
@@ -383,7 +420,7 @@ pub fn record(
                 })?;
             let (exit, stdout) = sides.candidate(&args)?;
             let mut candidate = depvec::results(set, &stdout).filter(|_| exit == Some(0));
-            if index == 0 {
+            if *set == plant_set {
                 if let Some(answer) = candidate.as_mut() {
                     plant_results(plant, vectors, answer);
                 }

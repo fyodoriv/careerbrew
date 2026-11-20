@@ -205,6 +205,7 @@ src/careerbrew/checkup.py,port,rust-24,Runtime capability; tests port with the c
 src/careerbrew/checkup_runs.py,port,rust-24,Runtime capability; tests port with the capability
 src/careerbrew/cli.py,port,rust-26,Runtime capability; tests port with the capability
 src/careerbrew/config.py,port,rust-02,Pure schema rust-02; encrypted IO and event primitive rust-05
+src/careerbrew/config_io.py,port,rust-05,Settings file read and write extracted rust-05a for the native storage port
 src/careerbrew/connectors.py,port,rust-08,Runtime capability; tests port with the capability
 src/careerbrew/day/__init__.py,port,rust-17,Runtime capability; tests port with the capability
 src/careerbrew/day/done_elsewhere.py,port,rust-17,Runtime capability; tests port with the capability
@@ -232,6 +233,7 @@ src/careerbrew/learn/__init__.py,port,rust-12,Runtime capability; tests port wit
 src/careerbrew/learn/project.py,port,rust-12,Runtime capability; tests port with the capability
 src/careerbrew/learn/replay.py,port,rust-12,Runtime capability; tests port with the capability
 src/careerbrew/learn/tour.py,port,rust-12,Runtime capability; tests port with the capability
+src/careerbrew/keyfile.py,port,rust-05,Data key path and load provider extracted rust-05a from backup
 src/careerbrew/machine.py,port,rust-07,Runtime capability; tests port with the capability
 src/careerbrew/mail.py,port,rust-08,Runtime capability; tests port with the capability
 src/careerbrew/metrics_share.py,port,rust-24,Runtime capability; tests port with the capability
@@ -806,6 +808,8 @@ xtask/src/sites.rs,keep-native,rust-00,Native embedded-site and entry-point disc
 xtask/src/sites_tests.rs,keep-native,rust-00,Controls for embedded-site and entry-point discovery
 xtask/src/leak_check.rs,keep-native,rust-00,rust-27b slice 1: native repo leak scan engine over supplied terms; no production dispatch
 xtask/tests/leak_check.rs,keep-native,rust-00,Synthetic canary controls for the native leak scan
+xtask/src/input_key.rs,keep-native,rust-00,rust-27 slice 2: native gate cache key of scripts/input-key.sh; no production dispatch
+xtask/tests/input_key.rs,keep-native,rust-00,Parity controls for the native gate cache key against the script in synthetic repos
 xtask/src/main.rs,keep-native,rust-00,Native migration workspace source or build configuration
 xtask/src/toolchain_identity.rs,keep-native,rust-00,Native read-only toolchain identity probe
 xtask/src/trial_plan.rs,keep-native,rust-00,Native paired trial ordering for the migration harness
@@ -890,6 +894,7 @@ tests/e2e/us-110-pm-promise-outcomes.sh,port,rust-27,Port each assertion/helper 
 tests/e2e/us-111-native-actions.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/e2e/us-112-indie-day.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/e2e/us-113-peer-improvement.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-114-bet-options.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_browser_test_receipts.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_e2e_cache_runtime.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_389_baseline.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -962,6 +967,7 @@ xtask/tests/depvec.rs,keep-native,rust-00,rust-01 verify controls against the Py
 xtask/tests/fixtures/depvec/driver.py,port,rust-27,Retire the rust-01 Python dependency vector oracle with the Python migration oracle
 xtask/src/vecdriver.rs,keep-native,rust-00,rust-04a vector-driver kind: one generated vector file for both drivers with planted-defect controls
 xtask/tests/vecdriver.rs,keep-native,rust-00,rust-04a vector-check controls: positive run and three planted defects
+xtask/tests/rust04_verify.rs,keep-native,rust-00,rust-04d verify controls: policy-vectors passes the four core sets and a planted wrong vector fails by name
 xtask/tests/fixtures/vecdriver/driver.py,port,rust-27,Retire the rust-04a synthetic vector driver control with the Python migration oracle
 xtask/tests/fixtures/vecdriver/generator.py,port,rust-27,Retire the rust-04a synthetic vector generator control with the Python migration oracle
 crates/purevec/src/clock.rs,keep-native,rust-00,rust-02 clock vector set: calendar.py clock helpers and config._tz with injected zones
@@ -982,6 +988,7 @@ xtask/tests/purevec.rs,keep-native,rust-00,rust-02 vector step controls: four co
 xtask/tests/fixtures/purevec/driver.py,port,rust-27,Retire the rust-02 Python pure value vector oracle with the Python migration oracle
 xtask/tests/fixtures/purevec/settings.json,port,rust-27,Retire the rust-02 settings vectors with the Python migration oracle
 tests/unit/test_rust05b_storage_hardening.py,port,rust-05,Port rust-05b storage hardening controls for temp files and key and settings and append locks
+tests/unit/test_rust05a_provider_seams.py,port,rust-05,Port rust-05a key and settings and event seam controls
 tests/unit/test_rust07a_shapes.py,port,rust-07,Fixed refusals for malformed plugin policy and manifest shapes
 crates/policy/src/lib.rs,keep-native,rust-00,rust-04d policy core: pure privacy decisions over supplied inputs with no IO
 crates/policy/src/outputs.rs,keep-native,rust-00,rust-04e canary outputs: assert_clean with ids only and redact and _names_private_path

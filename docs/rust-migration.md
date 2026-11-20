@@ -330,7 +330,7 @@ checks them.
 
 | File | Rows cover | Controls |
 | --- | --- | --- |
-| [activation manifest](plans/2026-11-04-rust-activation-manifest.tsv) | the config, vault, approvals and role rows of the table: 24 cross-module call sites (config 4, vault 3, approvals 7, role and bridges 10) and 22 local bridge calls | 6 |
+| [activation manifest](plans/2026-11-04-rust-activation-manifest.tsv) | the config, vault, approvals and role rows of the table: 28 cross-module call sites (config 4, settings IO 2, key provider 2, vault 3, approvals 7, role and bridges 10) and 23 local bridge calls | 6 |
 | [activation providers](plans/2026-11-04-rust-activation-providers.tsv) | the changes, job strategy and tutor gap, and teacher and exercise rows: 50 more cross-module sites (22, 11 and 17) and 29 local rows | 13 in all |
 | [activation workday](plans/2026-11-04-rust-activation-workday.tsv) | work-day start, end, clock and the background watcher: 60 more cross-module sites and 22 local rows, 7 runtime boundaries | 20 in all |
 
@@ -1131,9 +1131,13 @@ failed `unicode-version` case and runs no vector case. Cases are
   (`xtask/tests/vecdriver.rs`, with the synthetic fixtures in
   `xtask/tests/fixtures/vecdriver/`). `migration self-test` runs 4 more
   compare controls.
-- `vecdriver::STEPS` is empty. `rust-04c` registers `rust-04` with its
-  generator and oracle and routes `baseline`, `verify` and `measure` to
-  this kind; `rust-04d` adds the `policy-vectors` candidate.
+- `vecdriver::STEPS` registers `rust-04` (`rust-04d`): generator
+  `tests/oracles/rust04_vectors.py`, oracle `tests/oracles/rust04.py`,
+  candidate `target/debug/policy-vectors`, and the sets the candidate covers
+  (`canary-core`, `canary-match`, `leak-spans`, `allowlists`). `verify`
+  routes the step to this kind and keeps only those sets of the generated
+  file; a registered set the file lacks is refused. `baseline` still runs
+  the oracle's `--all`; `measure` still refuses the step.
 
 #### Oracle and generator (rust-04c)
 
@@ -1154,8 +1158,17 @@ failed `unicode-version` case and runs no vector case. Cases are
 - Until `rust-04b` lands, `validate-records` and `validate-directory` cases
   report `{"validator": "absent"}`.
 - `cargo xtask migration baseline --step rust-04` runs the oracle with
-  `--all`. The step has no Rust candidate yet, so `verify` and `measure`
-  refuse it.
+  `--all`. `verify` runs the vector-driver kind (`rust-04d`); `measure`
+  still refuses the step.
+
+#### Policy crate core (rust-04d)
+
+- `crates/policy` holds the canary engine and allowlists. `policy-vectors <set> <file>` prints the oracle's answer line in `json.dumps` form; an output that holds term text exits 3 and names the case only.
+- Python `str` and `re` rules come from generated tables (`crates/policy/gen_tables.py` writes `src/tables.rs`): `isalnum`, `isalpha`, `isdigit`, `\d`, `isspace`, simple and full lowercase, and `EXTRA_CASES`. NFKC uses `unicode-normalization` (Unicode 18) but cuts the text at each char unassigned in Python's 15.0; the normalization stability policy makes that exact. Known gap: the final-sigma context reads Rust's own Unicode data.
+- `filter_terms` keeps the first-seen order for terms of equal length. Python's order there follows the string hash seed, so the vectors avoid ties.
+- Gate step `rust-policy-io` refuses `std::fs`, `std::env`, `std::process`, `std::net`, `std::io`, `std::os`, `std::time`, `std::thread`, `SystemTime`, `Instant`, RNG names, `unsafe`, print macros and impure dependencies in the library (not `src/bin/`). Test: `tests/unit/test_policy_no_io.py`.
+- Controls (`crates/policy/tests/controls.rs`): removing any load-bearing `EXTRA_CASES` group fails exactly its case, `extra-cases-<index>`.
+- Wired: the oracle answers `python -I tests/oracles/rust04.py unicode-version` (`15.0.0` on Python 3.12, as the Rust tables), and `cargo xtask migration verify --step rust-04 --python "$PWD/.venv/bin/python" --out <new-file>` runs `policy-vectors` over the four core sets. The record adds `step`, `schema` and `planted_wrong_vector`; `--test-wrong-vector <set>` changes one byte of that set's first answer and must fail naming it (`xtask/tests/rust04_verify.rs`). `--test-oracle`, `--test-scope` and `--test-plant-home-write` are refused for this kind.
 
 #### Policy crate core (rust-04d)
 
@@ -1282,14 +1295,25 @@ Case folding and word splits depend on this table.
     crash and interruption boundaries.
   - Port whole transactions together. Never hold a parent lock while a child
     takes it again.
-- **Inputs:** `src/careerbrew/store.py`, `vault.py`, `secrets.py`, `backup.py`
-  (key provider), `config.py` (IO), `events.py` (emit primitive), `approvals.py`
+- **Inputs:** `src/careerbrew/store.py`, `vault.py`, `secrets.py`, `keyfile.py`
+  (key provider), `config_io.py` (settings IO), `events.py` (emit primitive), `approvals.py`
   (receipt IO); the disconnected `crates/vault` codec.
 - **Outputs:** the native storage engine and key provider.
 - **Gate:** 100% old and new round trips; 0 lost or duplicate writes in 1,000
   mixed-writer operations; 0 plaintext secret exits or file-mode regressions.
   Production dispatch waits for the closure in the
   [worked example](#build-order-versus-production-activation).
+- **Sub-step `rust-05a` (Python provider split, no behaviour change):**
+  the seams the native port takes over now live in their own modules.
+  - `keyfile.py` holds `key_path` and `load_key` (path, mode `0600`,
+    missing-key refusal). `backup.key_path` and `backup.load_key` stay as
+    thin names, so callers and test patches keep working.
+  - `config_io.py` holds `read_settings` and `write_settings` for
+    `settings.yaml`. `config` keeps the schema, validators and the settings
+    lock.
+  - `events.emit` is `events.record` (the clean row) then `events.write_row`
+    (the append). The `ts` stamp stays on the wall clock.
+  - Tests: `tests/unit/test_rust05a_provider_seams.py`.
 - **Sub-step `rust-05b` (Python hardening, done first):** the Python oracle
   now holds the contract the Rust port must match.
   - `vault._rewrite` uses a temp name unique to each writer and removes it
@@ -1848,6 +1872,7 @@ The tool has no `--help`. A wrong argument prints the usage and exits 2.
 | Command | What it does |
 | --- | --- |
 | `cargo xtask leak-check [--staged] [--repo <dir>] --terms-file <file>` | rust-27b slice 1 (`xtask/src/leak_check.rs`): the native port of the repo scan behind `scripts/leak-check.sh` (`privacy.scan_repo` and the `cmd_privacy_scan` output). Same inputs (staged blobs from the cached raw diff, then tracked working files unless `--staged`), the same `private/` path rule, term matching (NFKC, zero-width removal, separators and leetspeak for terms of 5+ characters), the same `LEAK` and summary lines with term ids only, and exit 0 clean or 1 on a finding; 2 is a usage or terms-file error. Differences, so the wrapper still runs Python: terms come from a plaintext file, not the encrypted data root, profile and plugins (rust-04, rust-05, rust-07); a staged visual snapshot PNG is `scan-incomplete` (its validated pixel scan is a later slice); no `--file` or `--show`. Tests: `xtask/tests/leak_check.rs`. |
+| `cargo xtask input-key [--repo <dir>] [--] [pathspec...]` | rust-27 slice 2 (`xtask/src/input_key.rs`): the native port of `scripts/input-key.sh`, the gate step cache key. The same steps: refuse a folder outside a checkout, drop the variables `git rev-parse --local-env-vars` names, copy the index with its mtime, record modified and untracked non-ignored files with `update-index --info-only`, then print the first 16 hex characters of a SHA-1 over `git ls-files -s` (with pathspecs: the pathspecs one per line first, then the matching files). Exit 0 with the key, 1 with no output on any git error, 2 on usage. `--repo` replaces the script's own checkout. Gaps, so the wrapper still runs the script: the script's last pipeline can print a key and exit nonzero when the final `ls-files` fails, while the native command prints nothing; a pathspec starting with `--repo` or `--` must follow a `--`; a leading `--` is a separator natively, while the script hashes it as a pathspec line and passes it to git (`scripts/check.sh` never passes one; pinned by `a_leading_double_dash_is_a_separator_only_natively`). The default repo is the build checkout (`CARGO_MANIFEST_DIR/..`), so a copied binary needs `--repo`. Tests: `xtask/tests/input_key.rs`. |
 | `cargo xtask migration self-test` | runs the 8 paired-verdict controls, the 6 trial-planner controls, the 3 planted slow-path decide controls and the 7 vector-step controls (5 compare, a planted home write, the step registry), all on synthetic data |
 | `cargo xtask migration inventory --check` | checks that every tracked direct code path in the staged Git index has exactly one row in the [code inventory](plans/2026-11-01-rust-code-inventory.csv) plus every staged fragment in [`plans/rust-inventory.d/`](plans/rust-inventory.d/README.md) (sorted by name, no header; a path in two files is refused), then runs the `--sites-check` below |
 | `cargo xtask migration inventory --sites-check` | discovers embedded code and generated entry points in the staged Git index and checks each against the [embedded sites](plans/2026-11-17-rust-embedded-sites.csv); an unassigned site, a row whose site is gone, a repeated row or a bad task is refused |
@@ -1884,7 +1909,7 @@ step has a registered Rust candidate yet, so no real record exists.
   `baseline`, `capture_data`, `capture_data_cli`, `capture_http`, `decide`, `i01_fixture`,
   `observer_deadline`, `observer_owner`, `observer_parser`,
   `observer_transport`, `resources`, `store_supervisor`, `verify`,
-  `leak_check`.
+  `leak_check`, `input_key`.
 - Python cross-checks in `tests/unit/`: `test_rust_vault_interop.py`,
   `test_rust_vault_base64_parity.py`, `test_rust_hash_experiment.py`,
   `test_rust_readiness.py`, `test_doctor_rust_deps.py`,
@@ -1924,7 +1949,7 @@ draft pull request are not on the public repository.
 | Planted slow path (`decide::controls`) | 3 of 3 self-test controls (3x CPU holds with `cpu-regressed`, 2x RSS holds with `rss-regressed`, equal cost activates); each slow control fails an always-activate harness, and the equal-cost control fails an always-hold harness; 3 end-to-end controls on real `rust-03` records (slow CPU and 512 MiB candidates pass `verify`, and `decide` holds them; an equal-cost candidate gets no resource reason). See "Planted slow-path controls" | `cargo xtask migration self-test`; `cargo test -p careerbrew-xtask --test measure --test decide` |
 | Direct-path inventory | 0 unassigned tracked direct paths; 4 negative controls (removed, duplicated, untracked row, broken CSV field) refused; runs in the normal gate | `cargo xtask migration inventory --check` |
 | Embedded anchors | the reviewed sites match staged source; a missing or repeated anchor is refused | `cargo xtask migration inventory --embedded-check` |
-| Embedded sites and entry points | 190 discovered sites assigned (123 embedded lines, 26 agent skills, 17 workflow runs, 8 npm scripts, 7 agent commands, 4 lefthook runs, 3 git hooks, 1 agent hook, 1 console script); 13 controls (each kind found and prose skipped, full pass, unassigned planted site, removed site, duplicate row and bad task, unlisted real interpreter forms, tool flags skipped, a repeated identical line, YAML run blocks, skill directories and flow lists, malformed entry-point files, non-UTF-8 files, list rows as manifest rows) in `xtask/src/sites_tests.rs`; runs in the normal gate inside `inventory --check` | `cargo xtask migration inventory --sites-check` |
+| Embedded sites and entry points | 191 discovered sites assigned (123 embedded lines, 27 agent skills, 17 workflow runs, 8 npm scripts, 7 agent commands, 4 lefthook runs, 3 git hooks, 1 agent hook, 1 console script); 13 controls (each kind found and prose skipped, full pass, unassigned planted site, removed site, duplicate row and bad task, unlisted real interpreter forms, tool flags skipped, a repeated identical line, YAML run blocks, skill directories and flow lists, malformed entry-point files, non-UTF-8 files, list rows as manifest rows) in `xtask/src/sites_tests.rs`; runs in the normal gate inside `inventory --check` | `cargo xtask migration inventory --sites-check` |
 | Toolchain identity probe | 7 cases (valid, release mismatch, malformed identity, missing driver, outside symlink, exact token, bounded scan) | `cargo test -p careerbrew-xtask toolchain_identity` |
 | Action contract capture | 7 integration controls | `cargo test -p careerbrew-xtask --test capture_actions` |
 | HTTP contract capture | 13 control groups; 21 request cases in each of two fresh processes | `cargo test -p careerbrew-xtask --test capture_http` |
@@ -2362,7 +2387,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 | [`rust-02`](#rust-02-port-pure-setting-schemas-paths-clocks-and-hashes) | 3 | 1 | 4 |
 | [`rust-03`](#rust-03-introduce-the-native-cli-and-one-read-only-pilot) | 2 | 1 | 1 |
 | [`rust-04`](#rust-04-port-privacy-policy-and-approval-enforcement) | 3 | 8 | 4 |
-| [`rust-05`](#rust-05-port-encrypted-storage-and-transaction-locks) | 3 | 2 | 1 |
+| [`rust-05`](#rust-05-port-encrypted-storage-and-transaction-locks) | 5 | 2 | 1 |
 | [`rust-06`](#rust-06-port-backup-restore-and-cross-machine-sync) | 2 | 7 | 6 |
 | [`rust-07`](#rust-07-port-plugin-machine-and-account-setup) | 22 | 11 | 9 |
 | [`rust-08`](#rust-08-port-http-sources-calendar-and-mail) | 58 | 1 | 5 |
@@ -2386,7 +2411,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 | [`rust-26`](#rust-26-complete-native-cli-coverage-and-default-entry-point) | 12 | 0 | 0 |
 | [`rust-27`](#rust-27-port-developer-tools-test-harnesses-installers-and-release-checks) | 477 | 0 | 68 |
 | [`rust-28`](#rust-28-retire-the-old-implementation-and-verify-fresh-machine-releases) | 4 | 0 | 0 |
-| **All steps** | **958 of 958** | **168 of 168** | **374 of 374** |
+| **All steps** | **960 of 960** | **168 of 168** | **374 of 374** |
 
 #### rust-00: Build the baseline harness and complete code inventory (72 files)
 
@@ -2425,7 +2450,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 - `src/careerbrew/` (2): `actions.py`, `agent_workflows.py`
 - CLI handlers it ports out of `cli.py` (1): `cmd_actions`
 - Native crate it adds (`keep-native` in the inventory): `crates/cbcli/src/` (`lib.rs`, `main.rs`, `registry.rs`, `render.rs`, `help.rs`, `events.rs`) and `crates/cbcli/tests/cli.rs`.
-- Generated files it adds (not code, so not in the inventory): `crates/cbcli/registry/registry.json`, `config/native-routes.txt`. Its generator `scripts/gen-registry.py` is owned by `rust-26`, which retires it. The registry is a capture source input (`capture_actions::sources()`), so capture, baseline and measure records hash it; the source-copy probe count moved from 139 to 140.
+- Generated files it adds (not code, so not in the inventory): `crates/cbcli/registry/registry.json`, `config/native-routes.txt`. Its generator `scripts/gen-registry.py` is owned by `rust-26`, which retires it. The registry is a capture source input (`capture_actions::sources()`), so capture, baseline and measure records hash it; the source-copy probe count moved from 139 to 140 (and to 142 when `rust-05a` added `keyfile.py` and `config_io.py`).
 - Assertions it ports (1 test file, the files themselves are listed under `rust-27`): `test_every_action_has_an_e2e.py`
 
 #### rust-04: Port privacy, policy and approval enforcement (3 files)
@@ -2435,9 +2460,9 @@ row stays, but it means the **dispatcher**, not the handlers:
 - CLI handlers it ports out of `cli.py` (8): `cmd_approvals_decide`, `cmd_approvals_guidance`, `cmd_approvals_list`, `cmd_approvals_request`, `cmd_approvals_show`, `cmd_draft_judge`, `cmd_draft_route`, `cmd_privacy_scan`
 - Assertions it ports (4 test files, the files themselves are listed under `rust-27`): `test_issue_314.py`, `test_privacy_index.py`, `test_privacy_scan_file.py`, `test_public_scrub.py`
 
-#### rust-05: Port encrypted storage and transaction locks (3 files)
+#### rust-05: Port encrypted storage and transaction locks (5 files)
 
-- `src/careerbrew/` (3): `secrets.py`, `store.py`, `vault.py`
+- `src/careerbrew/` (5): `config_io.py`, `keyfile.py`, `secrets.py`, `store.py`, `vault.py`
 - CLI handlers it ports out of `cli.py` (2): `cmd_data_edit`, `cmd_secret_set`
 - Assertions it ports (1 test file, the files themselves are listed under `rust-27`): `test_issue_366.py`
 

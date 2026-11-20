@@ -145,3 +145,20 @@ def test_bad_input_names_the_story(capsys):
     assert cli.main(["peer", "experiment", "--side", "indie", "--start", "A long enough change", "--metric", "step_fail_rate"]) == 2
     assert cli.main(["peer", "experiment", "--start", "A long enough change"]) == 2
     assert capsys.readouterr().out.count("breaks US-113") == 3
+
+
+def test_hours_per_outcome_counts_only_the_outcomes_of_recorded_bet_days(monkeypatch):
+    from datetime import datetime
+
+    from careerbrew import indie
+
+    bet = {"state": "active", "path": str(ROOT)}
+    monkeypatch.setattr(indie, "bets", lambda: {"alpha": bet})
+    times = [datetime.fromisoformat("2026-11-18T09:00+00:00"), datetime.fromisoformat("2026-11-19T09:00+00:00"), datetime.fromisoformat("2026-11-10T09:00+00:00")]
+    monkeypatch.setattr(indie, "outcome_times", lambda b, since: times)
+    monkeypatch.setattr(indie, "day_rows", lambda: [{"bet": "alpha", "day": "2026-11-19", "hours": 1.5, "asks": 3}])
+    assert peers.measure("indie", "hours_per_outcome", 14) == 1.5  # one outcome on the recorded day, not all three
+    assert peers.measure("indie", "asks_per_outcome", 14) == 3.0
+    assert peers.measure("indie", "outcomes_per_week", 14) == 1.5  # every outcome still counts here
+    monkeypatch.setattr(indie, "day_rows", lambda: [{"bet": "alpha", "day": "2026-11-17", "hours": 1.5, "asks": 0}])
+    assert peers.measure("indie", "hours_per_outcome", 14) is None  # hours with no outcome that day: no data, not zero

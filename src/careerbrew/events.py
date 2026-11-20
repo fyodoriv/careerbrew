@@ -46,9 +46,18 @@ def stamp() -> str:
 def emit(event: str, **fields: Any) -> None:
     if os.environ.get("CAREERBREW_EVENTS", "on") == "off":
         return
-    record = {"ts": stamp(), "v": _version(), **clean({"event": event, **fields})}
+    write_row(record(event, **fields))
+
+
+def record(event: str, **fields: Any) -> dict[str, Any]:
+    """rust-05a: the row `emit` writes: the stamp, the version, then only the clean fields."""
+    return {"ts": stamp(), "v": _version(), **clean({"event": event, **fields})}
+
+
+def write_row(row: dict[str, Any]) -> None:
+    """rust-05a: append one row to the event log as one sorted JSON line (the IO half of `emit`)."""
     with log_path().open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(record, sort_keys=True) + "\n")
+        fh.write(json.dumps(row, sort_keys=True) + "\n")
 
 
 def _version() -> str:

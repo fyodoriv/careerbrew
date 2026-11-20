@@ -22,51 +22,19 @@ from pathlib import Path
 
 from cryptography.fernet import Fernet, InvalidToken
 
-from . import events, paths, plugins, store
+from . import events, keyfile, paths, plugins, store
 
 EXCLUDE_DIRS = {"cache", ".staging"}
 KEEP = 10
 
 
 def key_path() -> Path:
-    env = os.environ.get("CAREERBREW_KEY_FILE")
-    return Path(env).expanduser() if env else Path.home() / ".config" / "careerbrew" / "backup.key"
+    """rust-05a: the key provider lives in `keyfile`; this name stays for existing callers."""
+    return keyfile.key_path()
 
 
 def load_key(create: bool = True) -> bytes:
-    path = key_path()
-    paths.require_outside_data_root(path, "backup key")
-    if path.exists():
-        return path.read_bytes().strip()
-    if not create:
-        raise FileNotFoundError(f"backup key missing at {path} (fix: restore it from your password manager)")
-    from . import vault
-
-    if vault._has_sealed_data():
-        raise vault.VaultError("backup key missing but encrypted data exists (fix: restore the key from your password manager)")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    key = Fernet.generate_key()
-    # rust-05b: create the file only if absent, at mode 0600 from the start; a first run that loses the race reads the winner's key.
-    try:
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    except FileExistsError:
-        return _read_existing_key(path)
-    with os.fdopen(fd, "wb") as fh:
-        fh.write(key)
-    os.chmod(path, 0o600)
-    return key
-
-
-def _read_existing_key(path: Path) -> bytes:
-    """Read a key another process just created; wait briefly while its writer finishes."""
-    import time
-
-    for _ in range(50):
-        key = path.read_bytes().strip()
-        if key:
-            return key
-        time.sleep(0.01)
-    raise OSError(f"backup key at {path} is empty (fix: restore it from your password manager)")
+    return keyfile.load_key(create, key_path())
 
 
 def icloud_dir() -> Path:
