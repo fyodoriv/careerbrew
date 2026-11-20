@@ -481,14 +481,17 @@ def end(hours: dict[str, float] | None = None, at: datetime | None = None) -> li
     mine = bets()
     asked = [q.get("step") for q in questions.records(at.date())]  # every ask of the day, answered or open
     out = []
-    seen: set[str] = set()
+    seen: dict[str, dict[str, Any]] = {}
     for s in sessions.listing(include_ended=True):
-        if s["project"] not in mine or s["day"] != today or s["project"] in seen:
+        if s["project"] not in mine or s["day"] != today:
             continue
-        seen.add(s["project"])
         stop = datetime.fromisoformat(s["ended"]) if s["ended"] else at
         took = min(MAX_SESSION_HOURS, max(0.0, (stop - datetime.fromisoformat(s["started"])).total_seconds() / 3600))
-        out.append(log_day(s["project"], (hours or {}).get(s["project"], took), asked.count(sessions.step_of(s["id"])), today, s["id"]))
+        tot = seen.setdefault(s["project"], {"hours": 0.0, "asks": 0, "session": s["id"]})  # a bet's second session of the day adds to its first
+        tot["hours"] += took
+        tot["asks"] += asked.count(sessions.step_of(s["id"]))
+    for ident, tot in seen.items():
+        out.append(log_day(ident, (hours or {}).get(ident, min(MAX_SESSION_HOURS, tot["hours"])), tot["asks"], today, tot["session"]))
     for ident, h in (hours or {}).items():
         if ident not in seen:
             out.append(log_day(ident, h, 0, today))
