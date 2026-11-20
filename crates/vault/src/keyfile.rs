@@ -210,7 +210,7 @@ mod tests {
 
     #[test]
     fn key_path_defaults_and_expands_the_env_value() {
-        let home = Path::new("/home/synthetic");
+        let home = Path::new("/synthetic-home");
         let default = home.join(".config/careerbrew/backup.key");
         assert_eq!(key_path(None, home), default);
         assert_eq!(key_path(Some(""), home), default);
