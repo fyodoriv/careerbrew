@@ -168,7 +168,12 @@ expect "$out" "1 passed" "PM cut editor clears the flag before saving"
 cd "$ROOT"
 geometry_log="$SCRATCH/comfort-geometry.log"
 if ! bash tests/safety/run_issue_373_ui.sh geometry > "$geometry_log" 2>&1; then
-  cat "$geometry_log"; fail "crowded target and plan-tag geometry"
+  cat "$geometry_log"
+  geometry_root="$(head -1 "$geometry_log" | cut -d' ' -f4-)"
+  for stream in stdout stderr; do
+    [ ! -f "$geometry_root/playwright.$stream" ] || cat "$geometry_root/playwright.$stream"
+  done
+  fail "crowded target and plan-tag geometry"
 fi
 geometry_root="$(head -1 "$geometry_log" | cut -d' ' -f4-)"
 expect "$(cat "$geometry_root/playwright.stdout")" "8 passed" "crowded geometry: targets and tags in four modes"
