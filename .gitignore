@@ -176,6 +176,7 @@ __pycache__/
 !/xtask/src/leak_check.rs
 !/xtask/src/input_key.rs
 !/xtask/src/check_docs.rs
+!/xtask/src/exec_map.rs
 !/xtask/tests/
 /xtask/tests/*
 !/xtask/tests/activation_manifest.rs

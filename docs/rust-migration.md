@@ -2046,7 +2046,13 @@ are **component parity only** and switch nothing:
   collector those steps use.
 - Embedded-code discovery is done (`inventory --sites-check`). Process
   observation of what a run really starts is open (task
-  `rust-00-inventory-process-observation`).
+  `rust-00-inventory-process-observation`). Slice 1 (2026-11-20) adds the
+  comparison step: `cargo xtask migration inventory --exec-check <trace-file>
+  --root <dir>` reads one absolute exec target per line, counts a target under
+  `--root` that is an inventory row as assigned and one outside it as external,
+  and prints every other target as unassigned (exit 1; refused input exit 2).
+  A relative target or one with a `.` or `..` part counts as unassigned. Not
+  yet done: extracting the targets from an observer trace of the gate stories.
 
 ### Owned-child resource accounting (pre-registered 2026-11-16)
 

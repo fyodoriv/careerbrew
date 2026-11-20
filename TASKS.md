@@ -439,6 +439,7 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Success**: 0 unassigned exec targets on the traced stories, and the planted control is reported.
   - **Pivot**: if tracing the stories costs more than 3x the gate's time, trace a fixed sample of stories and record that the observation is partial.
   - **Anchor**: Linux `strace` exec tracing; Basili, Caldiera & Rombach 1994 (GQM).
+  - **Progress**: slice 1 done: `cargo xtask migration inventory --exec-check <trace-file> --root <dir>` (`xtask/src/exec_map.rs`) maps exec targets to inventory rows and reports the planted unlisted script. Left: extract `execve` targets from an observer trace of the gate stories, run it, and record the unassigned count.
 
 - [ ] `rust-00`: count descendants that leave the process group
   - **ID**: rust-00-process-tree-escapees
