@@ -1,0 +1,79 @@
+name: noise floor
+
+# Measures the noise floor of one Rust migration step on each hosted OS
+# (task rust-00-measure-noise-floors; docs/rust-migration.md, "Noise floors and
+# normalization rules"). Each job runs the step's baseline twice on a clean
+# checkout, then `migration noise-floor` on each record, and prints the two
+# content-free proposals to the log and the job summary. Registering a floor
+# stays a reviewed edit of xtask/src/noise_floor.rs that names this run id.
+#
+# Same safety rules as ci.yml (docs/ci.md): no secret, no artifact, a read-only
+# token, the standard runners. The baseline runs in fresh synthetic homes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: "Migration step whose Python oracle is measured."
+        type: choice
+        options: [rust-03, rust-02, rust-04]
+        default: rust-03
+
+permissions:
+  contents: read
+
+concurrency:
+  group: noise-floor-${{ github.ref }}-${{ inputs.step }}
+  cancel-in-progress: true
+
+env:
+  # Never send usage data from a runner: an empty key means nothing is sent.
+  CAREERBREW_POSTHOG_KEY: ""
+  STEP: ${{ inputs.step }}
+
+jobs:
+  measure:
+    name: measure (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
+          python-version: "3.12.16"
+
+      - name: Python packages (the oracle)
+        run: uv sync --locked
+
+      - name: Rust toolchain (the pin in rust-toolchain.toml)
+        run: |
+          pin="$(sed -nE 's/^channel = "([0-9.]+)"$/\1/p' rust-toolchain.toml)"
+          [ -n "$pin" ] || { echo "no Rust pin found in rust-toolchain.toml" >&2; exit 1; }
+          rustup toolchain install "$pin" --profile minimal --no-self-update
+          dirname "$(rustup which --toolchain "$pin" rustc)" >> "$GITHUB_PATH"
+
+      - name: Build xtask before timing
+        run: cargo build -p careerbrew-xtask
+
+      - name: Two baselines and their proposed floors
+        run: |
+          out="$RUNNER_TEMP/noise-floor"
+          mkdir -p "$out"
+          for n in 1 2; do
+            cargo xtask migration baseline --step "$STEP" --python "$PWD/.venv/bin/python" --out "$out/baseline-$n.json"
+            cargo xtask migration noise-floor --baseline "$out/baseline-$n.json" > "$out/floor-$n.json"
+          done
+          {
+            echo "### noise floor: $STEP on ${{ matrix.os }} (run $GITHUB_RUN_ID, $GITHUB_SHA)"
+            echo '```json'
+            cat "$out/floor-1.json" "$out/floor-2.json"
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"

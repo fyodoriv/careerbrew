@@ -363,6 +363,7 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **ID**: rust-00-measure-noise-floors
   - **Details**: `xtask/src/noise_floor.rs` registers `rust-03` as `unmeasured` on both OSes, so `decide` uses the 1.10 ratio for every case. On a clean tree on each hosted OS, run `heavy-run --exclusive cargo xtask migration baseline --step rust-03 --python "$PWD/.venv/bin/python" --out <new-file>` twice, then `cargo xtask migration noise-floor --baseline <file>` on each record. Register the result as `Floor::Measured` with its method and record (run id, source revision), per docs/rust-migration.md "Noise floors and normalization rules".
   - **Files**: xtask/src/noise_floor.rs; docs/rust-migration.md; .github/workflows/
+  - **Progress**: 2026-11-20: `.github/workflows/noise-floor.yml` (manual) runs two baselines and two `noise-floor` proposals per hosted OS. Left: dispatch it for `rust-03` on `main`, compare each pair, register `Floor::Measured` with the run id.
   - **Hypothesis**: the two baselines per OS give CPU and RSS floors within 3x of each other, so one registered floor per OS is stable enough for `decide`.
   - **Measurement**: `cargo xtask migration noise-floor --baseline <file>` on two hosted baseline records per OS; compare `cpu_floor_us` and `rss_floor_bytes`.
   - **Success**: both pairs agree within 3x; the larger value of each pair is registered as `measured`, and `cargo test -p careerbrew-xtask --test decide` stays green.

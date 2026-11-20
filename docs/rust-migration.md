@@ -1976,6 +1976,15 @@ not part of the gate. The open items below either have their own tasks in
 `rust-00-inventory-process-observation`) or say why they block nothing; none
 blocks `rust-01`.
 
+Noise-floor runs (2026-11-20): the manual workflow
+[`noise-floor.yml`](../.github/workflows/noise-floor.yml) (`gh workflow run
+noise-floor.yml -f step=rust-03`) runs the step's baseline twice on a clean
+checkout on `ubuntu-24.04` and `macos-15`, then `migration noise-floor` on each
+record, and prints the two proposals per OS with the run id and commit in the
+job summary. No floor is registered yet: every entry stays `unmeasured` until
+a run's two proposals agree within 3x, and a local Mac run is not a source,
+because `decide` judges hosted baselines.
+
 This section is the record of the step. It replaces the old continuation notes. Those notes and the old
 draft pull request are not on the public repository.
 
@@ -2185,6 +2194,7 @@ came from. The OS is the baseline record's `os`; another OS is refused.
   meet at the floor. CPU uses `tree_cpu_us`, RSS uses `tree_max_rss_bytes`.
 - `rust-03` is `unmeasured` on both OSes. No number is invented here: the
   hosted baseline runs come first (task in `TASKS.md`).
+  The hosted runs come from `.github/workflows/noise-floor.yml`.
 
 **Normalization registry** (`xtask/src/normalize.rs`). One list of rule ids
 per step and case. Rules apply to both sides before the compare. One rule

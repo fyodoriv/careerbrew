@@ -183,6 +183,10 @@ workflow-run,.github/workflows/gate-part.yml,"run: |",rust-27
 workflow-run,.github/workflows/gate-part.yml,"run: | #2",rust-27
 workflow-run,.github/workflows/gate-part.yml,"run: | #3",rust-27
 workflow-run,.github/workflows/gate-part.yml,"run: | #4",rust-27
+workflow-run,.github/workflows/noise-floor.yml,"run: cargo build -p careerbrew-xtask",rust-27
+workflow-run,.github/workflows/noise-floor.yml,"run: uv sync --locked",rust-27
+workflow-run,.github/workflows/noise-floor.yml,"run: |",rust-27
+workflow-run,.github/workflows/noise-floor.yml,"run: | #2",rust-27
 workflow-run,.github/workflows/public-readiness.yml,"run: scripts/public-readiness.sh --released",rust-27
 workflow-run,.github/workflows/public-readiness.yml,"run: uv sync --locked",rust-27
 workflow-run,.github/workflows/public-readiness.yml,"run: |",rust-27
