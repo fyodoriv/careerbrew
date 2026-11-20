@@ -292,8 +292,8 @@ def morning(day: date | None = None) -> dict[str, Any]:
                 state, why = "closed", "the question was closed since"
             else:
                 state, why = questions.check_one(q)
-                if state == "closed":
-                    questions.close(q["id"], why, date.fromisoformat(q["day"]))
+                if state == "closed" and not questions.close(q["id"], why, date.fromisoformat(q["day"]), expected=q):
+                    state, why = "open", "the question changed during its recheck"
         elif i.get("recheck"):
             state, why = questions.check_one({"recheck": i["recheck"], "source": i.get("source") or "agent"})
         else:
