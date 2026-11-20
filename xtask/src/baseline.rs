@@ -118,7 +118,7 @@ pub const STEPS: &[Step] = &[
         id: "rust-04",
         oracle: &["-I", "-B", "tests/oracles/rust04.py", "--all"],
         cases: &[],
-        candidate: Some("target/debug/policy-vectors"),
+        candidate: Some("target/release/policy-vectors"),
         // As for rust-02: a vector step reaches no CLI contract.
         http_contract: false,
         data_contract: true,

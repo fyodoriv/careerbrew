@@ -69,7 +69,7 @@ pub const CANDIDATES: &[Candidate] = &[
     // `policy-vectors --all <file>` (the debug build `verify` uses).
     Candidate {
         step: "rust-04",
-        program: "target/debug/policy-vectors",
+        program: "target/release/policy-vectors",
         args: &["--all"],
         vectors: Some("tests/oracles/rust04_vectors.py"),
     },
@@ -555,7 +555,7 @@ mod controls {
     #[test]
     fn rust_04_measures_policy_vectors_over_a_generated_vector_file() {
         let (path, args) = candidate(Path::new("/r"), "rust-04", &Source::Registered).unwrap();
-        assert_eq!(path, Path::new("/r/target/debug/policy-vectors"));
+        assert_eq!(path, Path::new("/r/target/release/policy-vectors"));
         assert_eq!(args, ["--all"]);
         assert_eq!(
             vector_generator("rust-04", &Source::Registered),
@@ -570,7 +570,7 @@ mod controls {
         // The generator is a hashed source of the step.
         let step = baseline::step("rust-04").unwrap();
         assert!(step.sources.contains(&"tests/oracles/rust04_vectors.py"));
-        assert_eq!(step.candidate, Some("target/debug/policy-vectors"));
+        assert_eq!(step.candidate, Some("target/release/policy-vectors"));
         // measure appends the same file to these oracle args, so the oracle
         // must take `--all` last (`rust04.py --all <vectors-file>`).
         assert_eq!(step.oracle.last(), Some(&"--all"));
