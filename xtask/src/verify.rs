@@ -1199,7 +1199,10 @@ pub fn vector_contract(record: &mut Value) -> Result<(), String> {
         .iter()
         .map(|case| json!({"id": case["case"], "passed": case["passed"] == true}))
         .collect();
-    let failed = checks.iter().filter(|check| check["passed"] != true).count();
+    let failed = checks
+        .iter()
+        .filter(|check| check["passed"] != true)
+        .count();
     let violations: serde_json::Map<String, Value> = decide::VIOLATIONS
         .iter()
         .map(|name| {

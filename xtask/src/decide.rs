@@ -107,7 +107,8 @@ pub fn verdict(
     let registered = baseline::step(step)?;
     // A vector step's record comes from `depvec` or `vecdriver`, which run
     // no CLI contract and list none as missing, so it declares no scope.
-    let declared = if crate::depvec::step(step).is_some() || crate::vecdriver::step(step).is_some() {
+    let declared = if crate::depvec::step(step).is_some() || crate::vecdriver::step(step).is_some()
+    {
         Vec::new()
     } else {
         registered.scoped_out()

@@ -96,7 +96,11 @@ fn a_vector_driver_record_gets_a_verdict_with_no_scope_mismatch() {
     assert_ne!(output.status.code(), Some(2), "{output:?}");
     let record = record.expect("a verdict record");
     let reasons = record["reasons"].as_array().unwrap();
-    for reason in ["verify-contract-missing", "verify-contract-scope-mismatch", "verify-check-failed"] {
+    for reason in [
+        "verify-contract-missing",
+        "verify-contract-scope-mismatch",
+        "verify-check-failed",
+    ] {
         assert!(!reasons.iter().any(|r| r == reason), "{reasons:?}");
     }
 }
