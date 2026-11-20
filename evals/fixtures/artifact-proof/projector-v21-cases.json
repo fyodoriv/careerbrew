@@ -19,7 +19,11 @@
         { "html": "<!doctype html><html><body><div style=\"visibility:hidden\"><p>HIDDEN_BEFORE <span style=\"visibility:visible\">Restored child.</span> HIDDEN_AFTER</p></div><p>Ordinary visible.</p></body></html>", "expected": "Restored child.\n\nOrdinary visible.\n" },
         { "html": "<!doctype html><html><body><div style=\"display:none\"><p><span style=\"visibility:visible\">NOT_RESTORED</span></p></div><p>Ordinary visible.</p></body></html>", "expected": "Ordinary visible.\n" },
         { "html": "<!doctype html><html><body><p>Visible <span style=\"visibility:hidden\">HIDDEN <span style=\"visibility:visible\">restored</span> HIDDEN</span> ending.</p></body></html>", "expected": "Visible restored ending.\n" },
-        { "html": "<!doctype html><html><body><p>Visible <span style=\"opacity:0\">HIDDEN_OPACITY</span> ending.</p></body></html>", "expected": "unavailable" }
+        { "html": "<!doctype html><html><body><p>Visible <span style=\"opacity:0\">HIDDEN_OPACITY</span> ending.</p></body></html>", "expected": "unavailable" },
+        { "html": "<!doctype html><html><body><p>Ordinary visible.</p><div style=\"color:oklch(0.5 0.1 20 / 0)\">HIDDEN_OKLCH</div><p>After visible.</p></body></html>", "expected": "Ordinary visible.\n\nAfter visible.\n" },
+        { "html": "<!doctype html><html><body><p>Ordinary visible.</p><div style=\"color:color(srgb 1 0 0 / 0)\">HIDDEN_COLOR</div><p>After visible.</p></body></html>", "expected": "Ordinary visible.\n\nAfter visible.\n" },
+        { "html": "<!doctype html><html><body><p>Ordinary visible.</p><div style=\"color:oklch(0.5 0.1 20 / 1)\">OPAQUE_OKLCH</div><p>After visible.</p></body></html>", "expected": "Ordinary visible.\n\nOPAQUE_OKLCH\n\nAfter visible.\n" },
+        { "html": "<!doctype html><html><body><p>Ordinary visible.</p><div style=\"color:color(srgb 1 0 0 / 1)\">OPAQUE_COLOR</div><p>After visible.</p></body></html>", "expected": "Ordinary visible.\n\nOPAQUE_COLOR\n\nAfter visible.\n" }
       ]
     },
     {

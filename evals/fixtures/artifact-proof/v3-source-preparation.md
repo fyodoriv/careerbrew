@@ -97,3 +97,10 @@ adds one bounded success control outside the original 133-record denominator.
 The earlier 133-case receipts remain historical and do not qualify this repaired
 tree. No local test run was taken; hosted checks and fresh independent review
 are required before delivery.
+
+The final full-diff review found that zero-alpha modern text colors could pass
+the legacy-only transparency predicate. Four V2.1 controls now cover zero and
+opaque `oklch` and `color(srgb)` forms. One computed-final-alpha parser handles
+legacy, modern and percentage-zero forms. The repaired projector and its new
+case hash still need the registered harness and fresh independent review; the
+old receipts do not qualify this change.
