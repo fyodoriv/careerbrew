@@ -205,6 +205,8 @@ def _approvals_call(case: dict[str, Any]) -> Any:
     hooks = {
         "load": lambda: records,
         "_path": lambda: "approvals.json",
+        # rust-05b2 lock: the driver touches no file, so the lock is a no-op here.
+        "_locked": contextlib.nullcontext,
         "store": types.SimpleNamespace(write_json=lambda path, value: written.append(json.loads(json.dumps(value)))),
         "events": types.SimpleNamespace(emit=lambda *args, **kwargs: None),
         "calendar": types.SimpleNamespace(now_utc=lambda: now),

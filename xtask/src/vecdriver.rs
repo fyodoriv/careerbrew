@@ -48,7 +48,7 @@ pub const RUST_04: DriverStep = DriverStep {
     id: "rust-04",
     generator: "tests/oracles/rust04_vectors.py",
     driver: "tests/oracles/rust04.py",
-    candidate: "target/debug/policy-vectors",
+    candidate: "target/release/policy-vectors",
     sets: &[
         "canary-core",
         "canary-match",
