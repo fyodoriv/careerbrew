@@ -1,0 +1,314 @@
+//! The rust-04 vector sets this crate answers, in the oracle's answer shape
+//! (`tests/oracles/rust04.py`): `canary-core`, `canary-match`, `leak-spans`,
+//! `allowlists` and `assert-no-echo`. The `policy-vectors` binary reads the
+//! file; this module only maps parsed cases to outputs.
+
+use crate::allow::{self, PyError};
+use crate::canary::{self, Rules};
+use crate::tables;
+use crate::text;
+use serde_json::Value;
+
+/// The sets this crate answers. `rust-04e` adds the rest.
+pub const SETS: &[&str] = &[
+    "canary-core",
+    "canary-match",
+    "leak-spans",
+    "allowlists",
+    "assert-no-echo",
+];
+
+/// The Unicode table version every rule here follows (Python's).
+pub const UNICODE_VERSION: &str = tables::UNIDATA_VERSION;
+
+/// A JSON value with Python's key order (insertion order).
+#[derive(Clone, Debug, PartialEq)]
+pub enum Out {
+    Null,
+    Bool(bool),
+    Int(i64),
+    Str(String),
+    List(Vec<Out>),
+    Dict(Vec<(String, Out)>),
+}
+
+impl Out {
+    fn str(s: impl Into<String>) -> Out {
+        Out::Str(s.into())
+    }
+
+    fn strs(items: impl IntoIterator<Item = String>) -> Out {
+        Out::List(items.into_iter().map(Out::Str).collect())
+    }
+
+    fn dict(items: Vec<(&str, Out)>) -> Out {
+        Out::Dict(items.into_iter().map(|(k, v)| (k.to_owned(), v)).collect())
+    }
+
+    fn int(n: usize) -> Out {
+        Out::Int(i64::try_from(n).unwrap_or(i64::MAX))
+    }
+
+    /// `json.dumps(value)` (`ensure_ascii=True`) or, with `ascii` false,
+    /// `json.dumps(value, ensure_ascii=False)`.
+    pub fn dumps(&self, ascii: bool) -> String {
+        let mut out = String::new();
+        self.write(&mut out, ascii);
+        out
+    }
+
+    fn write(&self, out: &mut String, ascii: bool) {
+        match self {
+            Out::Null => out.push_str("null"),
+            Out::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
+            Out::Int(n) => out.push_str(&n.to_string()),
+            Out::Str(s) => write_str(out, s, ascii),
+            Out::List(items) => {
+                out.push('[');
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        out.push_str(", ");
+                    }
+                    item.write(out, ascii);
+                }
+                out.push(']');
+            }
+            Out::Dict(items) => {
+                out.push('{');
+                for (i, (key, value)) in items.iter().enumerate() {
+                    if i > 0 {
+                        out.push_str(", ");
+                    }
+                    write_str(out, key, ascii);
+                    out.push_str(": ");
+                    value.write(out, ascii);
+                }
+                out.push('}');
+            }
+        }
+    }
+}
+
+fn write_str(out: &mut String, s: &str, ascii: bool) {
+    out.push('"');
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            '\u{08}' => out.push_str("\\b"),
+            '\u{0c}' => out.push_str("\\f"),
+            c if (c as u32) < 0x20 || (ascii && !(' '..='~').contains(&c)) => {
+                let mut units = [0u16; 2];
+                for unit in c.encode_utf16(&mut units) {
+                    out.push_str(&format!("\\u{unit:04x}"));
+                }
+            }
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+}
+
+impl From<PyError> for Out {
+    fn from(err: PyError) -> Out {
+        Out::dict(vec![
+            ("class", Out::str(err.class)),
+            ("message", Out::Str(err.message)),
+        ])
+    }
+}
+
+fn key_error(key: &str) -> PyError {
+    PyError::new("KeyError", format!("'{key}'"))
+}
+
+fn field<'a>(case: &'a Value, key: &str) -> Result<&'a Value, PyError> {
+    case.get(key).ok_or_else(|| key_error(key))
+}
+
+/// Inputs outside the generator's shapes are out of contract; they are
+/// refused with this fixed error instead of guessing Python's message.
+fn unsupported() -> PyError {
+    PyError::new("TypeError", "unsupported input shape")
+}
+
+fn string<'a>(case: &'a Value, key: &str) -> Result<&'a str, PyError> {
+    field(case, key)?.as_str().ok_or_else(unsupported)
+}
+
+fn strings(case: &Value, key: &str) -> Result<Vec<String>, PyError> {
+    field(case, key)?
+        .as_array()
+        .ok_or_else(unsupported)?
+        .iter()
+        .map(|v| v.as_str().map(str::to_owned).ok_or_else(unsupported))
+        .collect()
+}
+
+fn canary_core(case: &Value) -> Result<Out, PyError> {
+    let op = string(case, "op")?;
+    Ok(match op {
+        "sensitivities" => Out::strs(allow::SENSITIVITIES.iter().map(|s| (*s).to_owned())),
+        "term-id" => Out::Str(canary::term_id(string(case, "term")?)),
+        "normalize" => Out::Str(text::normalize(string(case, "text")?)),
+        "term-pattern" => {
+            let source = canary::term_pattern_source(string(case, "term")?);
+            Out::dict(vec![
+                ("sha256", Out::Str(canary::sha256_hex(&source))),
+                ("flags", Out::Int(i64::from(canary::PATTERN_FLAGS))),
+            ])
+        }
+        other => return Err(PyError::new("ValueError", format!("unknown op {other}"))),
+    })
+}
+
+fn canary_match(rules: &Rules, case: &Value) -> Result<Out, PyError> {
+    let text_in = string(case, "text")?;
+    let terms = strings(case, "terms")?;
+    Ok(Out::strs(rules.find_leaks(text_in, &terms)))
+}
+
+fn leak_spans(rules: &Rules, case: &Value) -> Result<Out, PyError> {
+    let text_in = string(case, "text")?;
+    let terms = strings(case, "terms")?;
+    // The matched text is for the owner's eyes only: report its length.
+    Ok(Out::List(
+        rules
+            .leak_spans(text_in, &terms)
+            .into_iter()
+            .map(|span| {
+                Out::List(vec![
+                    Out::Str(span.term_id),
+                    Out::int(span.line),
+                    Out::Str(span.how),
+                    Out::int(text::len(&span.matched)),
+                ])
+            })
+            .collect(),
+    ))
+}
+
+fn allowlists(case: &Value) -> Result<Out, PyError> {
+    let op = string(case, "op")?;
+    Ok(match op {
+        "constants" => Out::dict(vec![
+            (
+                "template_placeholders",
+                Out::strs(allow::sorted(allow::TEMPLATE_PLACEHOLDERS)),
+            ),
+            ("tech_words", Out::strs(allow::sorted(allow::TECH_WORDS))),
+            (
+                "common_compounds",
+                Out::strs(allow::sorted(allow::COMMON_COMPOUNDS)),
+            ),
+            (
+                "common_camel",
+                Out::strs(allow::sorted(allow::COMMON_CAMEL)),
+            ),
+        ]),
+        "filter-terms" => {
+            let file = string(case, "file")?;
+            let profile = field(case, "profile")?;
+            let plugins = strings(case, "plugin_files")?;
+            let plugins: Vec<&str> = plugins.iter().map(String::as_str).collect();
+            // The oracle writes the term file only when its text is non-empty.
+            let file = (!file.is_empty()).then_some(file);
+            let terms = allow::filter_terms(file, profile, &plugins)?;
+            Out::strs(terms.iter().map(|t| canary::term_id(t)))
+        }
+        "identifier-shaped" => Out::Bool(allow::identifier_shaped(string(case, "token")?)),
+        "public-suspects" => Out::strs(allow::public_suspects(string(case, "text")?)),
+        other => return Err(PyError::new("ValueError", format!("unknown op {other}"))),
+    })
+}
+
+fn no_echo(case: &Value) -> Result<Out, PyError> {
+    let terms = field(case, "terms")?.as_array().ok_or_else(unsupported)?;
+    Ok(Out::dict(vec![
+        ("terms", Out::int(terms.len())),
+        ("checked_by", Out::str("every-other-set")),
+    ]))
+}
+
+/// A run that must stop: a set this crate does not answer, or an output
+/// that holds term text (the oracle's exit 3).
+#[derive(Debug, PartialEq, Eq)]
+pub enum Refusal {
+    UnknownSet(String),
+    Echo(String),
+    Malformed,
+}
+
+/// Each case's `{"id", "output"}` row for one set, then the no-echo check
+/// against every term of the file, like `rust04.run_set`.
+pub fn run_set(
+    rules: &Rules,
+    name: &str,
+    cases: &[Value],
+    terms: &[String],
+) -> Result<Vec<Out>, Refusal> {
+    let mut rows = Vec::new();
+    for case in cases {
+        let id = case
+            .get("id")
+            .and_then(Value::as_str)
+            .ok_or(Refusal::Malformed)?;
+        let answer = match name {
+            "canary-core" => canary_core(case),
+            "canary-match" => canary_match(rules, case),
+            "leak-spans" => leak_spans(rules, case),
+            "allowlists" => allowlists(case),
+            "assert-no-echo" => no_echo(case),
+            other => return Err(Refusal::UnknownSet(other.to_owned())),
+        };
+        let output = match answer {
+            Ok(value) => Out::dict(vec![("ok", value)]),
+            Err(err) => Out::dict(vec![("error", err.into())]),
+        };
+        rows.push((id.to_owned(), output));
+    }
+    if name != "assert-no-echo" {
+        for (id, output) in &rows {
+            let text_out = output.dumps(false);
+            if !rules.find_leaks(&text_out, terms).is_empty() {
+                return Err(Refusal::Echo(format!(
+                    "{name}/{id}: output holds term text"
+                )));
+            }
+        }
+    }
+    Ok(rows
+        .into_iter()
+        .map(|(id, output)| Out::dict(vec![("id", Out::Str(id)), ("output", output)]))
+        .collect())
+}
+
+/// The whole answer line for one set of a parsed vector file:
+/// `{"set", "unidata_version", "results"}`.
+pub fn answer(rules: &Rules, name: &str, file: &Value) -> Result<String, Refusal> {
+    let sets = file.get("sets").and_then(Value::as_object);
+    let terms = file.get("terms").and_then(Value::as_array);
+    let (Some(sets), Some(terms)) = (sets, terms) else {
+        return Err(Refusal::Malformed);
+    };
+    let terms: Vec<String> = terms
+        .iter()
+        .map(|t| t.as_str().map(str::to_owned).ok_or(Refusal::Malformed))
+        .collect::<Result<_, _>>()?;
+    let cases = sets
+        .get(name)
+        .filter(|_| SETS.contains(&name))
+        .ok_or_else(|| Refusal::UnknownSet(name.to_owned()))?
+        .as_array()
+        .ok_or(Refusal::Malformed)?;
+    let results = run_set(rules, name, cases, &terms)?;
+    Ok(Out::dict(vec![
+        ("set", Out::str(name)),
+        ("unidata_version", Out::str(UNICODE_VERSION)),
+        ("results", Out::List(results)),
+    ])
+    .dumps(true))
+}
