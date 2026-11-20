@@ -8,6 +8,7 @@ agent-command,commands/indie.md,"commands/indie.md",rust-27
 agent-command,commands/work.md,"commands/work.md",rust-27
 agent-hook,Agentfile.yaml,"command: 'f=""$HOME/apps/careerbrew/hooks/block-local-tests.sh""; [ ! -f ""$f"" ] || bash ""$f""'",rust-27
 agent-skill,skills/careerbrew-best-practices/SKILL.md,"skills/careerbrew-best-practices/SKILL.md",rust-27
+agent-skill,skills/careerbrew-bet-options/SKILL.md,"skills/careerbrew-bet-options/SKILL.md",rust-27
 agent-skill,skills/careerbrew-browser-research/SKILL.md,"skills/careerbrew-browser-research/SKILL.md",rust-27
 agent-skill,skills/careerbrew-card-explainer/SKILL.md,"skills/careerbrew-card-explainer/SKILL.md",rust-27
 agent-skill,skills/careerbrew-company-research/SKILL.md,"skills/careerbrew-company-research/SKILL.md",rust-27

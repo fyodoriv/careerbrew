@@ -2136,3 +2136,20 @@ See [Agent hosts](agent-hosts.md) for runtime, deployment and regression details
 | Case | Test | Log event |
 |---|---|---|
 | detect, trial, refuse a second trial, decline, marker | `tests/e2e/us-113-peer-improvement.sh` | `peer.status`, `peer.experiment` |
+
+## US-114: Pick a bet's hypothesis from five judged options
+
+- **Host contract**: dual-host-shared-memory
+- **Mode**: platform
+- **As** an owner who is not sure how a project leads to income, **I want** five full bet options that five independent judges all pass, **so that** I can pick or edit one in a minute and the project can get agent time.
+- **Acceptance criteria**:
+  - Given a bet with no hypothesis, when I say "I'm not sure", then the `careerbrew-bet-options` skill drafts candidates from public facts and has five judges (demand, income, measure, solo, skeptic) grade each one.
+  - Given a candidate that fails any judge after one fix round, when the options are shown, then it is not in the list, and the list is never padded.
+  - Given a shown option, when I have not picked it, then no agent saves or activates it: a saved option is still a question until I say yes, and its text never prints.
+- **Metric**: bets with a hypothesis, of the bets scanned. **Target**: every bet the owner asks options for has an owner-picked hypothesis the same day.
+- **Skill**: `skills/careerbrew-bet-options`
+- **Web views**: none
+
+| Case | Test | Log event |
+|---|---|---|
+| five judges named, no padding, the owner picks, a saved option stays a question, privacy | `tests/e2e/us-114-bet-options.sh` | `indie.decide` |

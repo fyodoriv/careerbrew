@@ -892,6 +892,7 @@ tests/e2e/us-110-pm-promise-outcomes.sh,port,rust-27,Port each assertion/helper 
 tests/e2e/us-111-native-actions.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/e2e/us-112-indie-day.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/e2e/us-113-peer-improvement.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-114-bet-options.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_browser_test_receipts.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_e2e_cache_runtime.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_389_baseline.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
