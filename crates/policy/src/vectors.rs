@@ -494,3 +494,39 @@ pub fn answer(rules: &Rules, name: &str, file: &Value) -> Result<String, Refusal
     ])
     .dumps(true))
 }
+
+/// Every set of the file in one run, like `rust04.py --all <file>`: the
+/// sorted set names, the case count and the Unicode version. It does the
+/// oracle's `--all` work (each set's answers and the no-echo check) for
+/// `migration measure`; it prints no results digest, so it is not a parity
+/// line (`verify` compares the per-set lines).
+pub fn all(rules: &Rules, file: &Value) -> Result<String, Refusal> {
+    let sets = file
+        .get("sets")
+        .and_then(Value::as_object)
+        .ok_or(Refusal::Malformed)?;
+    let terms: Vec<String> = file
+        .get("terms")
+        .and_then(Value::as_array)
+        .ok_or(Refusal::Malformed)?
+        .iter()
+        .map(|t| t.as_str().map(str::to_owned).ok_or(Refusal::Malformed))
+        .collect::<Result<_, _>>()?;
+    let mut names = Vec::new();
+    let mut cases = 0;
+    for (name, rows) in sets {
+        if !SETS.contains(&name.as_str()) {
+            return Err(Refusal::UnknownSet(name.clone()));
+        }
+        let rows = rows.as_array().ok_or(Refusal::Malformed)?;
+        cases += run_set(rules, name, rows, &terms)?.len();
+        names.push(name.clone());
+    }
+    names.sort();
+    Ok(Out::dict(vec![
+        ("sets", Out::strs(names)),
+        ("cases", Out::int(cases)),
+        ("unidata_version", Out::str(UNICODE_VERSION)),
+    ])
+    .dumps(true))
+}

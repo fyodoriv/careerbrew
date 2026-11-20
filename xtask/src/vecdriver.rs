@@ -40,14 +40,28 @@ pub struct DriverStep {
     pub sets: &'static [&'static str],
 }
 
-/// rust-04: the `policy-vectors` candidate over the four core sets
-/// (`rust-04d`); the other oracle sets join as their Rust code lands.
+/// rust-04: the `policy-vectors` candidate over every oracle set: the core
+/// sets (`rust-04d`) and the canary outputs, public scrub, approvals and
+/// access sets (`rust-04e`). The list matches `rust04.SETS` plus
+/// `assert-no-echo`, and `careerbrew_policy::vectors::SETS`.
 pub const RUST_04: DriverStep = DriverStep {
     id: "rust-04",
     generator: "tests/oracles/rust04_vectors.py",
     driver: "tests/oracles/rust04.py",
     candidate: "target/debug/policy-vectors",
-    sets: &["canary-core", "canary-match", "leak-spans", "allowlists"],
+    sets: &[
+        "canary-core",
+        "canary-match",
+        "leak-spans",
+        "assert-redact",
+        "allowlists",
+        "public-scrub",
+        "private-path",
+        "approvals",
+        "receipt-validate",
+        "access",
+        "assert-no-echo",
+    ],
 };
 
 pub const STEPS: &[DriverStep] = &[RUST_04];

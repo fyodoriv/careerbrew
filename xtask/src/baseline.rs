@@ -110,14 +110,15 @@ pub const STEPS: &[Step] = &[
     },
     Step {
         // rust-04 is a vector step (privacy, policy and approval decisions).
-        // Only its Python oracle is registered here: `--all` runs every set
-        // over the generator's vectors in one isolated process. `verify`
-        // routes the step to the vector-driver kind (`vecdriver::RUST_04`);
-        // `measure` refuses it while this row has no candidate.
+        // Its Python oracle `--all` runs every set over the generator's
+        // vectors in one isolated process. `verify` routes the step to the
+        // vector-driver kind (`vecdriver::RUST_04`); `measure` times the
+        // `policy-vectors --all <file>` candidate over a file the same
+        // generator writes (`measure::CANDIDATES`).
         id: "rust-04",
         oracle: &["-I", "-B", "tests/oracles/rust04.py", "--all"],
         cases: &[],
-        candidate: None,
+        candidate: Some("target/debug/policy-vectors"),
         // As for rust-02: a vector step reaches no CLI contract.
         http_contract: false,
         data_contract: true,

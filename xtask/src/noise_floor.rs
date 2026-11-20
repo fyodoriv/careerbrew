@@ -27,8 +27,8 @@ pub struct Entry {
     pub floor: Floor,
 }
 
-/// rust-02 and rust-03 wait for hosted baseline runs on each OS (tasks in
-/// TASKS.md).
+/// rust-02, rust-03 and rust-04 wait for hosted baseline runs on each OS
+/// (tasks in TASKS.md).
 pub const REGISTRY: &[Entry] = &[
     Entry {
         step: "rust-02",
@@ -47,6 +47,16 @@ pub const REGISTRY: &[Entry] = &[
     },
     Entry {
         step: "rust-03",
+        os: "linux",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-04",
+        os: "macos",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-04",
         os: "linux",
         floor: Floor::Unmeasured,
     },

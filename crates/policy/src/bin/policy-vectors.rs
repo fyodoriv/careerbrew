@@ -4,6 +4,9 @@
 //! - `policy-vectors unicode-version` prints the Unicode table version.
 //! - `policy-vectors <set> <vectors-file>` prints the set's answer line, in
 //!   the oracle's shape and `json.dumps` form.
+//! - `policy-vectors --all <vectors-file>` runs every set of the file in one
+//!   process and prints a summary line (sets, case count, Unicode version);
+//!   `migration measure` times it against the oracle's `--all`.
 //!
 //! Exit 2 on a usage error, an unknown set or an unreadable file; exit 3
 //! when an output holds term text (the message names the case only).
@@ -17,7 +20,9 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
     let [set, path] = args.as_slice() else {
-        eprintln!("usage: policy-vectors unicode-version | <set> <vectors-file>");
+        eprintln!(
+            "usage: policy-vectors unicode-version | <set> <vectors-file> | --all <vectors-file>"
+        );
         return ExitCode::from(2);
     };
     let Some(file) = std::fs::read_to_string(path)
@@ -27,7 +32,13 @@ fn main() -> ExitCode {
         eprintln!("policy-vectors: cannot read the vectors file");
         return ExitCode::from(2);
     };
-    match vectors::answer(&Rules::python(), set, &file) {
+    let rules = Rules::python();
+    let answer = if set == "--all" {
+        vectors::all(&rules, &file)
+    } else {
+        vectors::answer(&rules, set, &file)
+    };
+    match answer {
         Ok(line) => {
             println!("{line}");
             ExitCode::SUCCESS
