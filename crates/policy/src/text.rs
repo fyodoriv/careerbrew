@@ -23,6 +23,46 @@ fn in_ranges(table: &[(u32, u32)], c: char) -> bool {
         .is_ok()
 }
 
+/// Assigned chars that `str.isprintable` refuses under Unicode 15.0.0:
+/// categories Cc, Cf, Zs (but the space), Zl, Zp and Co. Computed with
+/// `unicodedata` 15.0.0 and checked against `str.isprintable` for every
+/// code point (0 differences).
+const NOT_PRINTABLE: &[(u32, u32)] = &[
+    (0x0000, 0x001f),
+    (0x007f, 0x00a0),
+    (0x00ad, 0x00ad),
+    (0x0600, 0x0605),
+    (0x061c, 0x061c),
+    (0x06dd, 0x06dd),
+    (0x070f, 0x070f),
+    (0x0890, 0x0891),
+    (0x08e2, 0x08e2),
+    (0x1680, 0x1680),
+    (0x180e, 0x180e),
+    (0x2000, 0x200f),
+    (0x2028, 0x202f),
+    (0x205f, 0x2064),
+    (0x2066, 0x206f),
+    (0x3000, 0x3000),
+    (0xe000, 0xf8ff),
+    (0xfeff, 0xfeff),
+    (0xfff9, 0xfffb),
+    (0x110bd, 0x110bd),
+    (0x110cd, 0x110cd),
+    (0x13430, 0x1343f),
+    (0x1bca0, 0x1bca3),
+    (0x1d173, 0x1d17a),
+    (0xe0001, 0xe0001),
+    (0xe0020, 0xe007f),
+    (0xf0000, 0xffffd),
+    (0x100000, 0x10fffd),
+];
+
+/// Python `str.isprintable` for one char.
+pub fn is_printable(c: char) -> bool {
+    in_ranges(tables::ASSIGNED, c) && !in_ranges(NOT_PRINTABLE, c)
+}
+
 /// `str.isspace` for one char (also `re` `\s`).
 pub fn is_space(c: char) -> bool {
     in_ranges(tables::SPACE, c)

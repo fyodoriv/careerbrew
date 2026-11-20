@@ -1,23 +1,32 @@
 //! The rust-04 vector sets this crate answers, in the oracle's answer shape
 //! (`tests/oracles/rust04.py`): `canary-core`, `canary-match`, `leak-spans`,
-//! `assert-redact`, `allowlists`, `private-path` and `assert-no-echo`. The `policy-vectors` binary reads the
-//! file; this module only maps parsed cases to outputs.
+//! `assert-redact`, `allowlists`, `public-scrub`, `private-path`,
+//! `approvals`, `receipt-validate`, `access` and `assert-no-echo`. The
+//! `policy-vectors` binary reads the file; this module only maps parsed
+//! cases to outputs.
 
+use crate::access;
 use crate::allow::{self, PyError};
+use crate::approvals;
 use crate::canary::{self, Rules};
 use crate::outputs;
+use crate::scrub;
 use crate::tables;
 use crate::text;
 use serde_json::Value;
 
-/// The sets this crate answers. The other `rust-04e` PRs add the rest.
+/// Every rust-04 set (docs/rust-migration.md, rust-04 "Vector contract").
 pub const SETS: &[&str] = &[
     "canary-core",
     "canary-match",
     "leak-spans",
     "assert-redact",
     "allowlists",
+    "public-scrub",
     "private-path",
+    "approvals",
+    "receipt-validate",
+    "access",
     "assert-no-echo",
 ];
 
@@ -30,12 +39,30 @@ pub enum Out {
     Null,
     Bool(bool),
     Int(i64),
+    /// A JSON number that is not an `i64`, in serde_json's text.
+    Num(String),
     Str(String),
     List(Vec<Out>),
     Dict(Vec<(String, Out)>),
 }
 
 impl Out {
+    /// A parsed JSON value, keys in the parser's order (the generator sorts them).
+    pub fn from_value(v: &Value) -> Out {
+        match v {
+            Value::Null => Out::Null,
+            Value::Bool(b) => Out::Bool(*b),
+            Value::Number(n) => n.as_i64().map_or_else(|| Out::Num(n.to_string()), Out::Int),
+            Value::String(s) => Out::Str(s.clone()),
+            Value::Array(items) => Out::List(items.iter().map(Out::from_value).collect()),
+            Value::Object(map) => Out::Dict(
+                map.iter()
+                    .map(|(k, v)| (k.clone(), Out::from_value(v)))
+                    .collect(),
+            ),
+        }
+    }
+
     fn str(s: impl Into<String>) -> Out {
         Out::Str(s.into())
     }
@@ -65,6 +92,7 @@ impl Out {
             Out::Null => out.push_str("null"),
             Out::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
             Out::Int(n) => out.push_str(&n.to_string()),
+            Out::Num(n) => out.push_str(n),
             Out::Str(s) => write_str(out, s, ascii),
             Out::List(items) => {
                 out.push('[');
@@ -246,6 +274,134 @@ fn allowlists(case: &Value) -> Result<Out, PyError> {
     })
 }
 
+fn public_scrub(rules: &Rules, case: &Value) -> Result<Out, PyError> {
+    let text_in = string(case, "text")?;
+    let terms = strings(case, "terms")?;
+    let replacement = match case.get("replacement") {
+        Some(_) => string(case, "replacement")?,
+        None => scrub::REPLACEMENT,
+    };
+    Ok(Out::Str(scrub::scrub_public(
+        rules,
+        text_in,
+        &terms,
+        replacement,
+    )?))
+}
+
+fn opt_string<'a>(case: &'a Value, key: &str, default: &'a str) -> Result<&'a str, PyError> {
+    match case.get(key) {
+        Some(_) => string(case, key),
+        None => Ok(default),
+    }
+}
+
+/// The oracle's `_approvals_call`: `{"value", "written"}` over supplied records.
+fn approvals_call(rules: &Rules, case: &Value) -> Result<Out, PyError> {
+    let records = Out::from_value(field(case, "records")?);
+    let now = opt_string(case, "now", "2026-01-01T00:00:00+00:00")?;
+    let new_id = opt_string(case, "new_id", "00000000")?;
+    let op = string(case, "op")?;
+    let (value, written) = match op {
+        "request" => {
+            let (item, saved) = approvals::request_item(
+                rules,
+                &records,
+                string(case, "title")?,
+                string(case, "detail")?,
+                string(case, "by")?,
+                now,
+                new_id,
+            )?;
+            (item, vec![Out::List(saved)])
+        }
+        "decide" => {
+            let (item, saved) = approvals::decide_items(
+                rules,
+                &records,
+                string(case, "item")?,
+                string(case, "decision")?,
+                string(case, "note")?,
+                now,
+            )?;
+            (item, vec![Out::List(saved)])
+        }
+        "pending" => (Out::List(approvals::pending(rules, &records)?), vec![]),
+        "guidance" => {
+            let limit = match case.get("limit") {
+                Some(v) => v.as_i64().ok_or_else(unsupported)?,
+                None => approvals::GUIDANCE_MAX,
+            };
+            (
+                Out::List(approvals::guidance(rules, &records, limit)?),
+                vec![],
+            )
+        }
+        "get" => (
+            approvals::get_item(rules, &records, string(case, "item")?)?,
+            vec![],
+        ),
+        "validate-records" => (
+            Out::List(approvals::validate_records(rules, &records)?),
+            vec![],
+        ),
+        other => return Err(PyError::new("ValueError", format!("unknown op {other}"))),
+    };
+    Ok(Out::dict(vec![
+        ("value", value),
+        ("written", Out::List(written)),
+    ]))
+}
+
+fn access_call(rules: &Rules, case: &Value) -> Result<Out, PyError> {
+    let op = string(case, "op")?;
+    let dir = |case: &Value| field(case, "directory").map(Out::from_value);
+    Ok(match op {
+        "blocker" => Out::Bool(access::blocker(rules, string(case, "text")?)?),
+        "owner" => {
+            let (channel, topic) = access::owner(string(case, "text")?, &dir(case)?)?;
+            let id = match channel {
+                Some(c) => access::get(&c, "id")
+                    .cloned()
+                    .ok_or_else(|| PyError::new("KeyError", "'id'"))?,
+                None => Out::Null,
+            };
+            Out::dict(vec![("channel", id), ("topic", Out::Str(topic))])
+        }
+        "route" => access::route(
+            rules,
+            string(case, "text")?,
+            &dir(case)?,
+            string(case, "teammate")?,
+        )?,
+        "topic" => access::topic(
+            string(case, "text")?,
+            &Out::from_value(field(case, "channel")?),
+        )?,
+        "existing" => access::existing(
+            &Out::from_value(field(case, "channel")?),
+            string(case, "topic")?,
+            &dir(case)?,
+        )?
+        .unwrap_or(Out::Null),
+        "mentions" => Out::strs(access::mentions(rules, string(case, "text")?)?),
+        "judge" => {
+            let new_thread = field(case, "new_thread")?
+                .as_bool()
+                .ok_or_else(unsupported)?;
+            Out::strs(access::judge(
+                rules,
+                string(case, "draft")?,
+                string(case, "channel")?,
+                &dir(case)?,
+                new_thread,
+            )?)
+        }
+        "validate-directory" => access::validate_directory(&dir(case)?)?,
+        other => return Err(PyError::new("ValueError", format!("unknown op {other}"))),
+    })
+}
+
 fn no_echo(case: &Value) -> Result<Out, PyError> {
     let terms = field(case, "terms")?.as_array().ok_or_else(unsupported)?;
     Ok(Out::dict(vec![
@@ -284,6 +440,9 @@ pub fn run_set(
             "assert-redact" => assert_redact(rules, case),
             "allowlists" => allowlists(case),
             "private-path" => private_path(case),
+            "public-scrub" => public_scrub(rules, case),
+            "approvals" | "receipt-validate" => approvals_call(rules, case),
+            "access" => access_call(rules, case),
             "assert-no-echo" => no_echo(case),
             other => return Err(Refusal::UnknownSet(other.to_owned())),
         };
