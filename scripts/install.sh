@@ -24,6 +24,9 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# After the options (a typo is not a failed install): the install's time and result, saved locally for field telemetry; they leave only after a yes (US-89).
+source scripts/telemetry-install.sh
+telemetry_install_begin
 command -v git >/dev/null || { echo "git is missing: install Xcode command line tools (xcode-select --install)" >&2; exit 1; }
 command -v uv >/dev/null || { echo "uv is missing: curl -LsSf https://astral.sh/uv/install.sh | sh" >&2; exit 1; }
 
@@ -69,6 +72,7 @@ cb plugin list
 cb machine show
 # Last: prove the CLI imports (a wrong-arch native wheel fails here, not later).
 cb --version >/dev/null || { echo "careerbrew does not start (fix: rm -rf .venv && scripts/install.sh)" >&2; exit 1; }
+telemetry_install_ok
 if [ "${role:-$(cb machine show 2>/dev/null | sed -n 's/^role: \([a-z]*\).*/\1/p' || true)}" = corporate ]; then
   echo "careerbrew installed (corporate). Next: follow docs/corporate-machine.md, then careerbrew machine ready."
 else

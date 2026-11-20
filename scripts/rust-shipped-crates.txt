@@ -1,0 +1,5 @@
+# Rust crates that run in production. setup.sh must rebuild each one after a
+# git pull, and doctor must check that the installed binary matches a fresh
+# build. See docs/rust-migration.md, "Crates".
+# tests/unit/test_rust_shipped_crates.py keeps this list and that table in step.
+crates/cbcli

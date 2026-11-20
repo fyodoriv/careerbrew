@@ -371,7 +371,7 @@ def run(declared: list[dict[str, Any]]) -> dict[str, Any]:
         fast_forwarded=sum(1 for r in results if r["status"] == "fast-forwarded"),
         not_touched=sum(1 for r in results if r["status"] in NOT_TOUCHED),
         traps=sum(1 for c in checks if needs_attention(c)),
-        signin=sign["status"],
+        signin=sign["status"].replace(" ", "-"),  # an id: `no probe` leaves as `no-probe`
     )
     return record
 

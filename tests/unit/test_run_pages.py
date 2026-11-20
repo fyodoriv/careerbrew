@@ -306,6 +306,7 @@ STUBS = {
     "open-prs.sh": "printf 'OPEN  #101 feat: run pages (branch feat/x, updated 2026-10-22)\\n      next: review, then merge when the gate is green\\n'\necho '-> finish open PRs before new work: gh pr checkout <number>'\nexit 1",
     "doctor.sh": "echo 'ok    git installed'\necho 'FAIL  gitleaks missing -> fix: brew install gitleaks'\nexit 1",
     "check.sh": "echo 'check.sh: docs cached (inputs unchanged)'\necho 'check.sh: full gate passed'",
+    "hosted-gate.sh": "echo 'hosted-gate: main 0123abcd passed (run 42, push)'",
     "metrics.sh": "echo 'step runs avg_s'\necho 'unit 3 4.0'",
     "open-work.sh": "echo none",
 }
@@ -348,7 +349,8 @@ def test_checkup_sh_writes_its_page_and_prints_the_path_and_one_summary_line(hom
     assert {d["label"] for d in s["done"]} >= {"Gate passed", "No open work", "Speed report"}
     assert "scripts/doctor.sh" in s["commands"] and s["counts"]["exit_code"] == 1
     page = Path(lines[0][6:]).read_text()
-    assert "check.sh: full gate passed" in page and "<summary>Gate (cached by input hash" in page, "each section's text is folded under Details"
+    assert "hosted-gate: main 0123abcd passed" in page and "<summary>Gate (the hosted checks on main)" in page, "each section's text is folded under Details"
+    assert "check.sh: full gate passed" not in page, "the checkup runs no full gate here: the hosted checks are the gate (docs/ci.md)"
     assert (tmp_path / "repo" / ".metrics" / "checkup.html").read_text() == page, "a copy stays at .metrics/checkup.html"
 
 
@@ -489,6 +491,29 @@ def test_checkup_sh_prints_the_sections_as_text_when_pages_are_off(home, tmp_pat
     assert r.returncode == 1 and "== Health" in r.stdout and "FAIL  gitleaks missing" in r.stdout
     assert r.stdout.rstrip().endswith("checkup: needs work (see above)") and "page:" not in r.stdout
     assert report.latest() is None
+
+
+def test_checkup_sh_shows_the_telemetry_answer_waiting_events_and_last_send(home, tmp_path):
+    """Task telemetry-tiles step 3: the checkup shows whether this machine sends, how many events wait, and the last send day."""
+    main(["config", "set", "run_pages", "false"])
+    r = _checkup_sh(_stub_repo(tmp_path), tmp_path)
+    tail = r.stdout.split("== Telemetry on this machine", 1)[-1]
+    assert "== Telemetry on this machine" in r.stdout and "telemetry:" in tail and "pending:" in tail and "last send:" in tail
+
+
+def test_the_checkup_telemetry_line_reaches_the_page_and_never_holds_the_install_id(home, tmp_path):
+    """The checkup page is not personal, so an agent may publish it: the install id (the PostHog distinct id) stays out,
+    and a checkup on a machine that never used telemetry makes no install id."""
+    r = _checkup_sh(_stub_repo(tmp_path), tmp_path)
+    assert r.returncode in (0, 1), r.stderr
+    from careerbrew import telemetry
+
+    assert not telemetry._state().get("install_id"), "a checkup must not make an install id"
+
+    page = (home / "out" / "reports" / "latest.html").read_text()
+    item = next(i for i in report.latest()["done"] + report.latest()["blockers"] if i["id"] == "telemetry")
+    assert "pending:" in (item.get("evidence") or item.get("why") or ""), item
+    assert telemetry.install_id() not in page and "install id" not in page
 
 
 # ---------- the web app and `open --report` ----------

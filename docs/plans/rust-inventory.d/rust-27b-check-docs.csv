@@ -1,0 +1,2 @@
+xtask/src/check_docs.rs,keep-native,rust-00,rust-27b slice 3: native docs drift check of scripts/check-docs.sh; no production dispatch
+xtask/tests/check_docs.rs,keep-native,rust-00,Parity controls for the native docs drift check against the script in synthetic repos

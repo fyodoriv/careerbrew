@@ -24,10 +24,8 @@ mod capture_http {
                 .unwrap()
                 != HISTORICAL_REFERENCE.as_bytes()
             || shared::digest(HISTORICAL_REFERENCE.as_bytes()) != HISTORICAL_REFERENCE_SHA256
-            || std::fs::read(
-                root.join("xtask/tests/fixtures/capture/http-reference-rules-promise-v3.json"),
-            )
-            .unwrap()
+            || std::fs::read(root.join("xtask/tests/fixtures/capture/http-reference-indie-v5.json"))
+                .unwrap()
                 != REFERENCE.as_bytes()
             || shared::digest(REFERENCE.as_bytes()) != REFERENCE_SHA256
         {
@@ -91,6 +89,10 @@ pub fn rejects_changed_reference_inputs_before_python() {
         "xtask/tests/fixtures/capture/http-reference-rules-v2.json",
         "xtask/tests/fixtures/capture/actions-reference-rules-promise-v3.json",
         "xtask/tests/fixtures/capture/http-reference-rules-promise-v3.json",
+        "xtask/tests/fixtures/capture/actions-reference-telemetry-v4.json",
+        "xtask/tests/fixtures/capture/http-reference-telemetry-v4.json",
+        "xtask/tests/fixtures/capture/actions-reference-indie-v5.json",
+        "xtask/tests/fixtures/capture/http-reference-indie-v5.json",
         "xtask/tests/fixtures/capture/actions-reference-v1.json",
         "xtask/tests/fixtures/capture/actions-reference-promise-v2.json",
         "xtask/tests/fixtures/capture/http-reference-v1.json",
@@ -212,6 +214,12 @@ pub fn rejects_real_served_source_change() {
     for name in ["pyproject.toml", "uv.lock", "Cargo.lock"] {
         std::fs::copy(root().join(name), shadow.join(name)).unwrap();
     }
+    std::fs::create_dir_all(shadow.join("crates/cbcli/registry")).unwrap();
+    std::fs::copy(
+        root().join("crates/cbcli/registry/registry.json"),
+        shadow.join("crates/cbcli/registry/registry.json"),
+    )
+    .unwrap();
     std::fs::create_dir_all(shadow.join("docs/plans")).unwrap();
     std::fs::copy(
         root().join("docs/plans/2026-11-08-promise-action-delta.json"),

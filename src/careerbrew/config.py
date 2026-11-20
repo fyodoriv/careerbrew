@@ -8,11 +8,14 @@ change a setting the same way a person does. `config unset <key>` returns to the
 
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import json
 import re
+from collections.abc import Iterator
 from typing import Any
 
-from . import events, paths, store
+from . import config_io, events, paths
 
 
 def _hhmm(v: str) -> str:
@@ -205,7 +208,7 @@ DEFAULTS: dict[str, tuple[Any, Any, str]] = {
     ),
     "pm_report_title": ("Daily update", _text, "subject and first line of the PM report"),
     "metrics_share": (False, _bool, "write a weekly numbers-only metrics file for agentbrew's metrics share (opt-in)"),
-    "telemetry": (True, _bool, "send anonymous usage counts (no content) to PostHog EU once a day; sends only when a key is set (careerbrew secret set posthog_key); DO_NOT_TRACK=1 also stops it"),
+    "telemetry_consent": ("unset", _choice("unset", "yes", "no"), "your answer about anonymous usage counts to PostHog EU: unset (nothing is sent), yes, or no; change it with careerbrew telemetry on | off"),
     "checkup_artifact_url": ("", _artifact_url, "this machine's repo health Dashboard on claude.ai: /careerbrew-checkup refreshes it from `careerbrew report public` (empty: the next checkup creates one)"),
     "pm_send_via": ("slack", lambda v: v if v in ("slack", "email") else (_ for _ in ()).throw(ValueError("use slack or email")), "how Send delivers the PM update: slack (posts it) or email (opens a draft)"),
     "pm_slack": ("", _text, "Slack channel or person for the PM update: a channel id, #channel, or a member id (U...)"),
@@ -234,6 +237,9 @@ DEFAULTS: dict[str, tuple[Any, Any, str]] = {
     "standup_proof_minutes": (60, _int(1, 1440), "how old a live proof passed with `work standup --proof` may be at each build; an older one fails its row (issue #271)"),
     "agent_quiet_minutes": (60, _int(1, 1440), "a background agent's run whose last `work agent event` is running and older than this shows as quiet in Agent activity (issue #272)"),
     "work_session_cap": (3, _int(1, 10), "most project sessions live at once on /work (`work session open`); one per project, reused all day (issue #274)"),
+    "indie_roots": ("~/apps", lambda v: v, "folders that hold your own repos, comma-separated; `careerbrew indie scan` looks two levels deep (US-112)"),
+    "indie_repos": ("", lambda v: v, "the repos that are your bets, comma-separated folder names (empty: every repo under indie_roots)"),
+    "indie_agent_time_command": ("", lambda v: v, "a command that prints JSON with `toolMs` for one repo; {project} is the bet and {days} the window (empty: hours come from the day's sessions)"),
     "work_claim_minutes": (30, _int(1, 480), "minutes a project session's claim on a shared thread or draft lasts after it was last taken (`work claim take`, issue #274)"),
     "agent_keep_days": (7, _int(1, 90), "days Agent activity keeps each background agent's events (`work agent event`, issue #272)"),
     "outlook_client_id": ("", _text, "the app registration (client ID) `careerbrew connect outlook` signs in with: your company's approved app; empty: a company plugin's connector_defaults.outlook.client_id"),
@@ -260,7 +266,7 @@ for _action in ("pm_update", "standup", "day_log", "day_plan", "evidence", "prom
 
 
 def _file() -> dict[str, Any]:
-    return store.read_yaml(paths.data_root() / "settings.yaml", {}) or {}
+    return config_io.read_settings()
 
 
 def get(key: str) -> Any:
@@ -283,14 +289,29 @@ def set_value(key: str, raw: str) -> Any:
         value = DEFAULTS[key][1](raw)
     except ValueError as e:
         raise ValueError(f"{key}: {e}") from None
-    data = _file()
-    data[key] = value
-    store.write_yaml(paths.data_root() / "settings.yaml", data)
+    with _settings_lock():
+        data = _file()
+        data[key] = value
+        config_io.write_settings(data)
     events.emit("config.set", status="ok")
     return value
 
 
 def unset(key: str) -> None:
-    data = _file()
-    if data.pop(key, None) is not None:
-        store.write_yaml(paths.data_root() / "settings.yaml", data)
+    with _settings_lock():
+        data = _file()
+        if data.pop(key, None) is not None:
+            config_io.write_settings(data)
+
+
+@contextlib.contextmanager
+def _settings_lock() -> Iterator[None]:
+    """rust-05b: an flock on `.settings.yaml.lock`, held across each read-modify-write of settings.yaml.
+
+    Lifecycle: per call; released when the block ends. Two writers then never lose each other's setting.
+    """
+    root = paths.data_root()
+    root.mkdir(parents=True, exist_ok=True)
+    with (root / ".settings.yaml.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield

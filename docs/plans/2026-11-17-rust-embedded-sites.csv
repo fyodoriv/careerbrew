@@ -1,0 +1,198 @@
+kind,path,key,task
+agent-command,commands/careerbrew-checkup.md,"commands/careerbrew-checkup.md",rust-27
+agent-command,commands/careerbrew-corporate.md,"commands/careerbrew-corporate.md",rust-27
+agent-command,commands/careerbrew-grind.md,"commands/careerbrew-grind.md",rust-27
+agent-command,commands/careerbrew-learn.md,"commands/careerbrew-learn.md",rust-27
+agent-command,commands/careerbrew.md,"commands/careerbrew.md",rust-27
+agent-command,commands/indie.md,"commands/indie.md",rust-27
+agent-command,commands/work.md,"commands/work.md",rust-27
+agent-hook,Agentfile.yaml,"command: 'f=""$HOME/apps/careerbrew/hooks/block-local-tests.sh""; [ ! -f ""$f"" ] || bash ""$f""'",rust-27
+agent-skill,skills/careerbrew-best-practices/SKILL.md,"skills/careerbrew-best-practices/SKILL.md",rust-27
+agent-skill,skills/careerbrew-bet-options/SKILL.md,"skills/careerbrew-bet-options/SKILL.md",rust-27
+agent-skill,skills/careerbrew-browser-research/SKILL.md,"skills/careerbrew-browser-research/SKILL.md",rust-27
+agent-skill,skills/careerbrew-card-explainer/SKILL.md,"skills/careerbrew-card-explainer/SKILL.md",rust-27
+agent-skill,skills/careerbrew-company-research/SKILL.md,"skills/careerbrew-company-research/SKILL.md",rust-27
+agent-skill,skills/careerbrew-corporate-plugin/SKILL.md,"skills/careerbrew-corporate-plugin/SKILL.md",rust-27
+agent-skill,skills/careerbrew-corporate-setup/SKILL.md,"skills/careerbrew-corporate-setup/SKILL.md",rust-27
+agent-skill,skills/careerbrew-day-planner/SKILL.md,"skills/careerbrew-day-planner/SKILL.md",rust-27
+agent-skill,skills/careerbrew-day-watch/SKILL.md,"skills/careerbrew-day-watch/SKILL.md",rust-27
+agent-skill,skills/careerbrew-inbox-triage/SKILL.md,"skills/careerbrew-inbox-triage/SKILL.md",rust-27
+agent-skill,skills/careerbrew-indie/SKILL.md,"skills/careerbrew-indie/SKILL.md",rust-27
+agent-skill,skills/careerbrew-interview-coach/SKILL.md,"skills/careerbrew-interview-coach/SKILL.md",rust-27
+agent-skill,skills/careerbrew-interview-drill/SKILL.md,"skills/careerbrew-interview-drill/SKILL.md",rust-27
+agent-skill,skills/careerbrew-job-hunt/SKILL.md,"skills/careerbrew-job-hunt/SKILL.md",rust-27
+agent-skill,skills/careerbrew-learn-project/SKILL.md,"skills/careerbrew-learn-project/SKILL.md",rust-27
+agent-skill,skills/careerbrew-linkedin-profile/SKILL.md,"skills/careerbrew-linkedin-profile/SKILL.md",rust-27
+agent-skill,skills/careerbrew-live-feed/SKILL.md,"skills/careerbrew-live-feed/SKILL.md",rust-27
+agent-skill,skills/careerbrew-notion-import/SKILL.md,"skills/careerbrew-notion-import/SKILL.md",rust-27
+agent-skill,skills/careerbrew-privacy-guard/SKILL.md,"skills/careerbrew-privacy-guard/SKILL.md",rust-27
+agent-skill,skills/careerbrew-project-explainer/SKILL.md,"skills/careerbrew-project-explainer/SKILL.md",rust-27
+agent-skill,skills/careerbrew-project-push/SKILL.md,"skills/careerbrew-project-push/SKILL.md",rust-27
+agent-skill,skills/careerbrew-promo-research/SKILL.md,"skills/careerbrew-promo-research/SKILL.md",rust-27
+agent-skill,skills/careerbrew-start-session/SKILL.md,"skills/careerbrew-start-session/SKILL.md",rust-27
+agent-skill,skills/careerbrew-teacher/SKILL.md,"skills/careerbrew-teacher/SKILL.md",rust-27
+agent-skill,skills/careerbrew-weekly-review/SKILL.md,"skills/careerbrew-weekly-review/SKILL.md",rust-27
+agent-skill,skills/careerbrew-work-companion/SKILL.md,"skills/careerbrew-work-companion/SKILL.md",rust-27
+agent-skill,skills/careerbrew-work-day/SKILL.md,"skills/careerbrew-work-day/SKILL.md",rust-27
+embedded,hooks/block-local-tests.sh,"# `python -c` code that names pytest counts as `pytest`. Quoted words that",rust-27
+embedded,hooks/block-local-tests.sh,"# after `bash -c`, `sh -c`, `env -S`, `eval` or `npx -c`/`npm exec -c`, a",rust-27
+embedded,hooks/block-local-tests.sh,"# xargs, find -exec, npx, npm exec, pnpm dlx, yarn, bunx, bash -c or eval.",rust-27
+embedded,hooks/block-local-tests.sh,"push @extra, unq($1); ""sh -c Q""/gse;",rust-27
+embedded,hooks/block-local-tests.sh,"python3 -c 'import json,sys",rust-27
+embedded,hooks/block-local-tests.test.sh,"""bash -c 'uv run pytest'"" ""sh -c \""scripts/check.sh fast\"""" ""eval pytest"" ""eval 'cargo test'"" \",rust-27
+embedded,hooks/block-local-tests.test.sh,"# Launchers: xargs, find -exec, npx, npm exec, pnpm dlx, yarn, bunx, uvx, bash -c, eval.",rust-27
+embedded,hooks/block-local-tests.test.sh,"# Review findings: text piped or fed into a shell, and nested bash -c.",rust-27
+embedded,hooks/block-local-tests.test.sh,"$'cat <<EOT | bash\nscripts/check.sh fast\nEOT' ""bash -c 'bash -c \""pytest\""'""; do",rust-27
+embedded,hooks/block-local-tests.test.sh,"'python -c ""import pytest; pytest.main()""'; do",rust-27
+embedded,hooks/block-local-tests.test.sh,"for c in ""echo pytest | bash"" ""printf 'pytest' | sh"" 'bash <<< ""pytest""' $'bash <<EOT\npytest\nEOT' \",rust-27
+embedded,hooks/block-local-tests.test.sh,"input=$(python3 -c 'import json,sys; print(json.dumps({""hook_event_name"":""PreToolUse"",""tool_name"":""Bash"",""tool_input"":{""command"":sys.argv[1]},""cwd"":sys.argv[2]}))' ""$2"" ""${3:-$CHECKOUT}"")",rust-27
+embedded,hooks/block-local-tests.test.sh,"msg=$(python3 -c 'import json; print(json.dumps({""tool_input"":{""command"":""pytest""}}))' \",rust-27
+embedded,scripts/batch-gate.sh,"(cd ""$wt"" && ${heavy[@]+""${heavy[@]}""} bash -c 'scripts/check.sh fast && for s in ""$@""; do [ ! -f ""$s"" ] || bash ""$s"" || exit 1; done' solo ${stories[$i]}); } >> ""$log"" 2>&1; then",rust-27
+embedded,scripts/batch-gate.sh,"info=""$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d[""state""]); print(str(d[""isDraft""]).lower()); print(d[""baseRefName""]); print(d[""headRefOid""]); print(""/"".join(d[""url""].split(""/"")[2:5]))' ""$logdir/pr-$n.json"")"" \",rust-27
+embedded,scripts/batch-gate.sh,"state=""$(gh pr view ""$n"" -R ""$slug"" --json state 2>> ""$logdir/merge-$n.log"" | python3 -c 'import json,sys; print(json.load(sys.stdin)[""state""])' 2>/dev/null)"" && [ -n ""$state"" ] && break",rust-27
+embedded,scripts/check-card-code.py,"r = subprocess.run([""node"", ""-e"", ESBUILD, str(esbuild)], input=json.dumps(js), capture_output=True, text=True, check=True)  # noqa: S603, S607",rust-27
+embedded,scripts/check.sh,"step web-build bash -c ""cd web && npm run --silent build >/dev/null""",rust-27
+embedded,scripts/check.sh,"step web-lint bash -c ""cd web && npm run --silent lint""",rust-27
+embedded,scripts/check.sh,"step web-types bash -c ""cd web && npm run --silent typecheck""",rust-27
+embedded,scripts/check.sh,"step web-unit bash -c ""cd web && npm run --silent test""",rust-27
+embedded,scripts/doctor.sh,"uv run --quiet python -c ""import careerbrew, fsrs, cryptography, yaml"" 2>/dev/null && ok ""python deps import"" || fail ""python deps missing"" ""uv sync""",rust-27
+embedded,scripts/doctor.sh,"uv run --quiet python -c ""import xdist"" 2>/dev/null && ok ""pytest-xdist installed (the gate runs unit tests in parallel)"" || fail ""pytest-xdist missing (the gate's unit step needs it)"" ""uv sync""",rust-27
+embedded,scripts/doctor.sh,"va=""$(.venv/bin/python -c 'import platform; print(platform.machine())' 2>/dev/null)""",rust-27
+embedded,scripts/e2e.sh,"xargs -0 -n 1 -P ""$jobs"" bash -c 'run_file ""$1""' _ || true",rust-27
+embedded,skills/careerbrew-work-day/SKILL.md,"8. `questions`: a step never asks the user itself. It returns each question as a record and goes on: `careerbrew day question add <step> ""<the ask>"" --option <a> --option <b> --pick <your pick> --recheck <check>`. The recheck is a command that exits 0 while the item is still open (the draft still exists, the PR is still open), or a link you check yourself. A command must fail once the item is done, and only then: `sh -c 's=$(gh pr view 12 --json state -q .state) || exit 0; case ""$s"" in MERGED|CLOSED) exit 1 ;; esac'`. Not `gh pr view 12` (it exits 0 after a merge too), and not `grep -qx OPEN` (a gh that is offline or signed out would close the item). Tell every step's subagent this rule. After the last step, run `careerbrew day question recheck --json`: it runs every recheck, drops the closed items, and lists the rest with their age. Check each `agent` item's link and close a done one with `careerbrew day question close <id>`. Then ask them all in one batched ask: what each item is, its age, what each option does, and your pick. Close each item the user answers. Open records carry over to the next morning.",rust-27
+embedded,skills/careerbrew-work-day/shell-traps.md,"| GNU sed first on PATH | `sed -i ''` fails (""can't read ''"") | edit files with the Edit tool or Python, or `perl -pi -e 's/a/b/' file` (works with both seds) |",rust-27
+embedded,skills/careerbrew-work-day/shell-traps.md,"| zsh does not split words | `for f in $F` loops once, over the whole string | loop over an array (`for f in ""${files[@]}""`), use `${=F}` in zsh, or run the line with `bash -c` |",rust-27
+embedded,src/careerbrew/day/watch.py,"args = cmd.split() if cmd else [sys.executable, ""-c"", check, str(code_dir())]",rust-17
+embedded,src/careerbrew/day/watch.py,"script = [""-e"", ""on run argv"", ""-e"", 'display notification (item 1 of argv) with title ""careerbrew""', ""-e"", ""end run""]",rust-17
+embedded,src/careerbrew/tutor/exercises.py,"[sys.executable, ""-I"", ""-c"", HARNESS],",rust-22
+embedded,src/careerbrew/workday/end.py,"found[(m[1].lower(), m[2])] = {""text"": f""PR {m[1]}#{m[2]} from {step}"", ""link"": """", ""recheck"": shlex.join([""sh"", ""-c"", OPEN_PR_IN, m[2], m[1]])}",rust-16
+embedded,src/careerbrew/workday/end.py,"found[key] = {""text"": f""PR {m[1]}#{m[2]} from {row['step']}"", ""link"": row[""link""], ""recheck"": shlex.join([""sh"", ""-c"", OPEN_PR, row[""link""]])}",rust-16
+embedded,src/careerbrew/workday/gate.py,"argv = shlex.split(command)  # no shell: a step that needs one says `sh -c '...'`",rust-16
+embedded,src/careerbrew/workday/start.py,"""safe"": ""zsh does not split $F into words: loop over an array, or `${=F}`, or run the line with bash -c"" if shell == ""zsh"" else 'quote every ""$var""; loop over arrays, not split strings',",rust-16
+embedded,src/careerbrew/workday/start.py,"rc, text = runner([""bash"", ""-c"", ""echo ${BASH_VERSINFO[0]}""])",rust-16
+embedded,src/careerbrew/workday/start.py,"rc, text = runner([""sh"", ""-c"", ""command -v python3""])",rust-16
+embedded,src/careerbrew/workday/start.py,"sed_rc, sed_path = runner([""sh"", ""-c"", ""command -v sed""]) if not gnu else (0, ""sed"")",rust-16
+embedded,src/careerbrew/workday/steps.py,"head = (head[head.index(""-c"") + 1 :] or [""""])[0].split()  # the first word of `sh -c '...'`",rust-15
+embedded,src/careerbrew/workday/steps.py,"if head and Path(head[0]).name in (""sh"", ""bash"", ""zsh"") and ""-c"" in head[1:]:",rust-15
+embedded,src/careerbrew/workday/watch.py,"argv = shlex.split(command)  # no shell: a step that needs one says `sh -c '...'`",rust-16
+embedded,tests/e2e/lib.sh,"""$ROOT/.venv/bin/python"" -c 'import sys",rust-27
+embedded,tests/e2e/lib.sh,"CAREERBREW_E2E_PORT=""$(""$ROOT/.venv/bin/python"" -c 'import socket; s = socket.socket(); s.bind((""127.0.0.1"", 0)); print(s.getsockname()[1])')""",rust-27
+embedded,tests/e2e/lib.sh,"cb config set serve_port ""$(""$ROOT/.venv/bin/python"" -c 'import socket; s = socket.socket(); s.bind((""127.0.0.1"", 0)); print(s.getsockname()[1])')"" >/dev/null",rust-27
+embedded,tests/e2e/lib.sh,"data_cat() { ""$ROOT/.venv/bin/python"" -c 'import sys; from pathlib import Path; from careerbrew import store; sys.stdout.write(store.read_text(Path(sys.argv[1])) or """")' ""$CAREERBREW_HOME/$1""; }",rust-27
+embedded,tests/e2e/lib.sh,"data_write() { ""$ROOT/.venv/bin/python"" -c 'import sys; from pathlib import Path; from careerbrew import store; store.write_text(Path(sys.argv[1]), sys.stdin.read())' ""$CAREERBREW_HOME/$1""; }",rust-27
+embedded,tests/e2e/lib.sh,"pid=""$(data_cat day/web.json 2>/dev/null | ""$ROOT/.venv/bin/python"" -c 'import json, sys; print(json.load(sys.stdin).get(""pid"", """"))' 2>/dev/null || true)""",rust-27
+embedded,tests/e2e/us-04-strategy.sh,"dups=""$(cb jobs strategy --json | python3 -c 'import json,sys; t=json.load(sys.stdin)[""tiers""]; c=[r[""company""] for v in t.values() for r in v]; print(len(c)-len(set(c)))')""",rust-27
+embedded,tests/e2e/us-05-drill.sh,"crit=""$(cb drill next --json | python3 -c 'import json,sys; print(json.load(sys.stdin)[""rubric""])')""",rust-27
+embedded,tests/e2e/us-05-drill.sh,"item=""$(cb drill next --json | python3 -c 'import json,sys; print(json.load(sys.stdin)[""id""])')""",rust-27
+embedded,tests/e2e/us-09-promo.sh,"python3 - ""$gaps"" <<'PY' || fail ""gaps sorted by priority""",rust-27
+embedded,tests/e2e/us-100-work-day-truth.sh,"- {step: /feed-proof, scope: feed, verify: ""sh -c 'echo synthetic-verify-output; exit 3'""}",rust-27
+embedded,tests/e2e/us-101-live-listening.sh,"""$ROOT/.venv/bin/python"" - ""$SCRATCH/inbox/chat.json"" <<'PYTHON'",rust-27
+embedded,tests/e2e/us-101-live-listening.sh,"""$ROOT/.venv/bin/python"" - ""$SCRATCH/inbox/chat.json"" <<'PYTHON' #2",rust-27
+embedded,tests/e2e/us-102-work-day-start.sh,"first=""$(python3 -c 'import json,sys; print(next(iter(json.load(sys.stdin))))' <<<""$plan"")""",rust-27
+embedded,tests/e2e/us-102-work-day-start.sh,"sed_warning=""$(python3 -c 'import json,sys; rows=json.load(sys.stdin)[""start_of_day""][""preflight""]; r=next(x for x in rows if x[""check""] == ""sed""); print(r[""ok""], r[""status""])' <<<""$plan"")""",rust-27
+embedded,tests/e2e/us-102-work-day-start.sh,"stages=""$(python3 -c 'import json,sys; p=json.load(sys.stdin); s={x[""step""]: x[""stage""] for x in p[""steps""]}; print(len(p[""start_of_day""][""questions""]), s[""/synthetic-review""] > s[""/synthetic-notes""])' <<<""$plan"")""",rust-27
+embedded,tests/e2e/us-102-work-day-start.sh,"uv run python - ""$CAREERBREW_CLAUDE_CONFIG"" <<'MCP_PROOF'",rust-27
+embedded,tests/e2e/us-102-work-day-start.sh,"uv run python - ""$CAREERBREW_CLAUDE_CONFIG"" <<'MCP_SETTINGS'",rust-27
+embedded,tests/e2e/us-103-work-day-watch.sh,"""$ROOT/.venv/bin/python"" -c ""import fcntl,sys,time; f=open(sys.argv[1],'a+'); fcntl.flock(f,fcntl.LOCK_EX); open(sys.argv[2],'w').close(); time.sleep(20)"" \",rust-27
+embedded,tests/e2e/us-103-work-day-watch.sh,"- {step: /repo-watch, scope: repo, cycle: ""sh -c 'echo synthetic-cycle-output; echo x >> $SCRATCH/ran'"", watch: [""file:$SCRATCH/input.txt""]}",rust-27
+embedded,tests/e2e/us-104-question-records.sh,"agent_id=""$(cb day question recheck --json | python3 -c 'import json,sys; print(json.load(sys.stdin)[""agent""][0])')""",rust-27
+embedded,tests/e2e/us-104-question-records.sh,"expect ""$(cb day question add /careerbrew 'x?' --recheck ""sh -c 'open"" 2>&1 || true)"" ""unclosed quote"" ""error case: a recheck a shell could not split""",rust-27
+embedded,tests/e2e/us-107-project-sessions.sh,"uv run python - ""$SCRATCH/sent-pm.txt"" ""$heading"" <<'PM_HEADING'",rust-27
+embedded,tests/e2e/us-107-project-sessions.sh,"uv run python - ""$SCRATCH/sent-pm.txt"" <<'PM_PROMISES'",rust-27
+embedded,tests/e2e/us-107-project-sessions.sh,"uv run python - ""$out"" <<'PM_COVERAGE'",rust-27
+embedded,tests/e2e/us-107-project-sessions.sh,"uv run python - <<'PM_HEADING_CHECK'",rust-27
+embedded,tests/e2e/us-107-project-sessions.sh,"uv run python - <<'PRIOR_HANDOFF'",rust-27
+embedded,tests/e2e/us-110-pm-promise-outcomes.sh,"""$ROOT/.venv/bin/python"" - ""$FIX/pm-promise-outcomes/skipped-workday.json"" <<'PY'",rust-27
+embedded,tests/e2e/us-110-pm-promise-outcomes.sh,"HOME=""$CAREERBREW_CLIENT_HOME"" ""$ROOT/.venv/bin/python"" - ""$FIX/pm-promise-outcomes/skipped-workday.json"" <<'PY'",rust-27
+embedded,tests/e2e/us-110-pm-promise-outcomes.sh,"cb work promise stats --days 7 --json | ""$ROOT/.venv/bin/python"" -c '",rust-27
+embedded,tests/e2e/us-110-pm-promise-outcomes.sh,"proposal=""$(printf '%s' ""$out"" | ""$ROOT/.venv/bin/python"" -c '",rust-27
+embedded,tests/e2e/us-18-prep.sh,"ids=""$(cb prep check Amazon --json | python3 -c 'import json,sys; g=json.load(sys.stdin)[""gaps""]; print("","".join(x[""id""] for x in g if not x.get(""auto"")))')""",rust-27
+embedded,tests/e2e/us-18-prep.sh,"python3 - ""$json"" <<'PY' || fail ""story bank and behavioral readiness are measured automatically""",rust-27
+embedded,tests/e2e/us-20-linkedin-import.sh,"python3 - ""$SCRATCH/export.zip"" <<'PY'",rust-27
+embedded,tests/e2e/us-23-day-watch.sh,"python3 - ""$st"" <<'PY' || fail ""cycle stays under 500 ms CPU and 120 MB""",rust-27
+embedded,tests/e2e/us-23-day-watch.sh,"uv run python - ""$SCRATCH/plugin-results"" <<'RESULT_TIMES'",rust-27
+embedded,tests/e2e/us-23-day-watch.sh,"uv run python - ""$out"" <<'RESULT_ORDER'",rust-27
+embedded,tests/e2e/us-31-changes.sh,"python3 - ""$SCRATCH/acme/ladders/acme-eng.yaml"" <<'PY'",rust-27
+embedded,tests/e2e/us-39-flashcards.sh,"id=""$(echo ""$out"" | ""$ROOT/.venv/bin/python"" -c 'import json,sys;print(json.load(sys.stdin)[0][""id""])')""",rust-27
+embedded,tests/e2e/us-40-corporate-rehearsal.sh,"""$PY"" - ""$ladder"" <<'PY'",rust-27
+embedded,tests/e2e/us-40-corporate-rehearsal.sh,"set_data() { ""$PY"" - ""$@"" <<'PY'",rust-27
+embedded,tests/e2e/us-42-connect.sh,"saved=""$(""$ROOT/.venv/bin/python"" -c 'from careerbrew import paths, store; print(store.read_text(paths.data_root() / ""work"" / ""connectors.yaml""))')""  # encrypted at rest",rust-27
+embedded,tests/e2e/us-43-data-show.sh,"""$ROOT/.venv/bin/python"" -c 'import sys; from pathlib import Path; from careerbrew import store, vault; p = Path(sys.argv[1]); d = store.read_yaml(p); assert d[""name""] == ""SYNTHETIC-USER"" and d[""employer""] == ""SYNTHETIC-EMPLOYER"" and vault.is_sealed(p.read_bytes())' ""$CAREERBREW_HOME/profile.yaml""",rust-27
+embedded,tests/e2e/us-43-data-show.sh,"snapshot() { ""$ROOT/.venv/bin/python"" -c 'import hashlib, sys",rust-27
+embedded,tests/e2e/us-43-encryption-at-rest.sh,"""$ROOT/.venv/bin/python"" -c ""from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"" > ""$SCRATCH/wrong.key""",rust-27
+embedded,tests/e2e/us-44-public-study-deck.sh,"""$ROOT/.venv/bin/python"" - ""$FIX/public-cards/out.yaml"" ""$SCRATCH/private.yaml"" ""$(printf '%s' ""$json"" | ""$ROOT/.venv/bin/python"" -c 'import json,sys; print(next(i[""source_id""] for i in json.load(sys.stdin) if ""ship"" in i[""question""]))')"" <<'PY'",rust-27
+embedded,tests/e2e/us-44-public-study-deck.sh,"printf -- '- source_id: %s\n  skip: true\n  reason: personal\n' ""$(printf '%s' ""$json"" | ""$ROOT/.venv/bin/python"" -c 'import json,sys; print(next(i[""source_id""] for i in json.load(sys.stdin) if ""ship"" in i[""question""]))')"" >> ""$SCRATCH/out.yaml""",rust-27
+embedded,tests/e2e/us-48-job-choice.sh,"python3 -c 'import json,sys; d=json.loads(sys.argv[1]); assert not any(d[""tiers""].values()) and any(d[""suggested""].values())' ""$out"" || fail ""nothing is chosen until the owner chooses""",rust-27
+embedded,tests/e2e/us-51-project-research.sh,"notes=""$(""$ROOT/.venv/bin/python"" -c 'from careerbrew import paths, store; print(store.read_text(paths.data_root() / ""work"" / ""billing-notes.md""))')""",rust-27
+embedded,tests/e2e/us-55-second-user.sh,"""$PY"" - ""$plug"" <<'PY'",rust-27
+embedded,tests/e2e/us-59-pm-update.sh,"""$ROOT/.venv/bin/python"" - <<'PY'",rust-27
+embedded,tests/e2e/us-59-pm-update.sh,"""$ROOT/.venv/bin/python"" - <<'PY' #2",rust-27
+embedded,tests/e2e/us-59-pm-update.sh,"""$ROOT/.venv/bin/python"" - <<'PY' #3",rust-27
+embedded,tests/e2e/us-59-pm-update.sh,"cb day send --via email | head -1 | ""$ROOT/.venv/bin/python"" -c 'import sys, urllib.parse as u; print(u.unquote(sys.stdin.read().split(""&body="", 1)[1]).strip())'",rust-27
+embedded,tests/e2e/us-61-work-feed.sh,"cb day send --via email | head -1 | ""$ROOT/.venv/bin/python"" -c 'import sys, urllib.parse as u; print(u.unquote(sys.stdin.read().split(""&body="", 1)[1]).strip())'",rust-27
+embedded,tests/e2e/us-65-standup-report.sh,"""$ROOT/.venv/bin/python"" - ""$page"" <<'PY'",rust-27
+embedded,tests/e2e/us-65-standup-report.sh,"""$ROOT/.venv/bin/python"" -c 'from careerbrew import store",rust-27
+embedded,tests/e2e/us-65-standup-report.sh,"python3 -c 'import json; print(json.dumps({""Order export"": ""x"" * 201}))' > ""$SCRATCH/long.json""",rust-27
+embedded,tests/e2e/us-66-llm-evals.sh,"""$ROOT/.venv/bin/python"" - ""$EVALS_LABELS"" <<'PY'",rust-27
+embedded,tests/e2e/us-66-llm-evals.sh,"crit=""$(cd ""$ROOT"" && .venv/bin/python -c 'import glob, yaml; print(sum(len(c[""expect""]) for f in glob.glob(""evals/cases/*.yaml"") for c in yaml.safe_load_all(open(f)) if c and ""cli"" not in c))')""",rust-27
+embedded,tests/e2e/us-66-llm-evals.sh,"n=""$(cd ""$ROOT"" && .venv/bin/python -c 'import glob, yaml; print(sum(1 for f in glob.glob(""evals/cases/*.yaml"") for c in yaml.safe_load_all(open(f)) if c and ""cli"" not in c))')""",rust-27
+embedded,tests/e2e/us-66-llm-evals.sh,"out=""$(""$ROOT/.venv/bin/python"" - ""$ROOT/evals/run.py"" ""$SCRATCH/eval-repo"" <<'PYCASE'",rust-27
+embedded,tests/e2e/us-66-llm-evals.sh,"prompts=""$(cd ""$ROOT"" && .venv/bin/python -c 'import glob, yaml; print(len({(c.get(""skill""), c[""input""]) for f in glob.glob(""evals/cases/*.yaml"") for c in yaml.safe_load_all(open(f)) if c and ""cli"" not in c}))')""",rust-27
+embedded,tests/e2e/us-66-llm-evals.sh,"third=""$(cd ""$ROOT"" && .venv/bin/python -c 'import glob, yaml; print([c[""id""] for f in sorted(glob.glob(""evals/cases/*.yaml"")) for c in yaml.safe_load_all(open(f)) if c and ""cli"" not in c][2])')""",rust-27
+embedded,tests/e2e/us-71-web-sign-in.sh,"tok=""$(data_cat day/web-token.json | ""$ROOT/.venv/bin/python"" -c 'import json, sys; print(json.load(sys.stdin)[""token""])')""",rust-27
+embedded,tests/e2e/us-74-inbox-for-new-users.sh,"web=""$(""$ROOT/.venv/bin/python"" -c 'from careerbrew import server; print(""\n"".join(i.get(""what"", """") for i in server.inbox_view()[""inbox""] if i[""kind""] == ""source""))')""",rust-27
+embedded,tests/e2e/us-77-project-watch.sh,"python3 -c 'import json,sys; d=json.load(sys.stdin); assert [p[""name""] for p in d]==[""billing"",""ledger""], d' <<<""$out"" || fail ""the list is valid JSON""",rust-27
+embedded,tests/e2e/us-80-learn-project.sh,"share=""$(cb learn status toy --json | ""$ROOT/.venv/bin/python"" -c 'import json,sys; print(json.load(sys.stdin)[""scheduled_share""])')""",rust-27
+embedded,tests/e2e/us-81-outlook-sign-in.sh,"""$ROOT/.venv/bin/python"" -c 'from careerbrew import paths, store; p = paths.data_root() / ""work"" / ""connectors.yaml""; d = store.read_yaml(p); d[""connectors""][0][""tenant""] = ""synthetic-expired-tenant""; store.write_yaml(p, d)'",rust-27
+embedded,tests/e2e/us-85-handoff.sh,"wid=""$(cb day handoff show --today --json | python3 -c 'import json,sys; print([i[""id""] for i in json.load(sys.stdin)[""items""] if i[""section""]==""waiting""][0])')""",rust-27
+embedded,tests/e2e/us-89-field-telemetry.sh,"""$ROOT/.venv/bin/python"" -I - ""$PORT_FILE"" ""$BODIES"" <<'PY' &",rust-27
+embedded,tests/e2e/us-89-field-telemetry.sh,"installs=""$(cb telemetry send --dry-run --json | ""$ROOT/.venv/bin/python"" -c 'import json,sys; print(sum(e[""event""]==""careerbrew.install"" for e in json.load(sys.stdin)[""body""][""batch""]))')""",rust-27
+embedded,tests/e2e/us-93-prep-readiness.sh,"python3 -c 'import json,sys; d=json.load(sys.stdin); q=d[0][""prep""][""quiz""]; assert q=={""at"":""2026-11-02T09:00:00+00:00"",""asked"":2,""missed"":0,""score"":1.0}, q' <<<""$(cb work project list --json)"" || fail ""the JSON list holds a content-free quiz result""",rust-27
+embedded,tests/e2e/us-93-prep-readiness.sh,"python3 -c 'import json,sys; t=[s[""task""] for s in json.load(sys.stdin)[""schedule""]]; assert t[:2]==[""gate:demo:links"",""gate:demo:quiz""], t' <<<""$(data_cat day/plan-2026-11-03.json)"" || fail ""the event day starts with the open gates""",rust-27
+embedded,tests/e2e/us-94-work-day.sh,"order=""$(python3 -c 'import json,sys; p=json.load(sys.stdin); print("" "".join(s[""step""]+""@""+s[""from""] for s in p[""steps""]))' <<<""$plan"")""",rust-27
+embedded,tests/e2e/us-95-standup-proofs.sh,"""$ROOT/.venv/bin/python"" -c 'from careerbrew import store",rust-27
+embedded,tests/e2e/us-96-work-day-stages.sh,"staged=""$(python3 -c 'import json,sys; p=json.load(sys.stdin); print("" "".join(s[""step""]+""@""+str(s[""stage""]) for s in p[""steps""]))' <<<""$plan"")""",rust-27
+embedded,tests/e2e/us-97-live-feed.sh,"""$ROOT/.venv/bin/python"" - ""$@"" <<'PYTHON'",rust-27
+embedded,tests/e2e/us-99-promises.sh,"name=""$(cb work promise list --json | python3 -c 'import json,sys; print(json.load(sys.stdin)[""promises""][0][""name""])')""",rust-27
+embedded,web/e2e/mcp-repair-fixture.ts,"const child = spawn(join(repo, "".venv/bin/python""), [""-B"", ""-c"", code, String(port)], { cwd: repo, env, detached: true, stdio: [""ignore"", ""pipe"", ""pipe""] });",rust-27
+embedded,web/e2e/pm-slack-fixture.ts,"const child = spawn(join(repo, "".venv/bin/python""), [""-I"", ""-B"", ""-c"", seed], {",rust-27
+embedded,web/e2e/signin.spec.ts,"const serverPid = () => Number(execFileSync(join(ROOT, "".venv/bin/python""), [""-c"", ""from careerbrew import server, store; print(store.read_json(server.web_state_path(), {})['pid'])""], { env: ENV, encoding: ""utf8"" }).trim());",rust-27
+git-hook,hooks/lefthook/pre-push/privacy.sh,"hooks/lefthook/pre-push/privacy.sh",rust-27
+git-hook,hooks/pre-commit,"hooks/pre-commit",rust-27
+git-hook,hooks/pre-push,"hooks/pre-push",rust-27
+lefthook-run,lefthook.yml,"run: command -v gitleaks >/dev/null 2>&1 || { echo ""gitleaks missing (fix - brew install gitleaks)""; exit 1; }; gitleaks git --no-banner --redact -l warn --log-opts=-20",rust-27
+lefthook-run,lefthook.yml,"run: command -v gitleaks >/dev/null 2>&1 || { echo ""gitleaks missing (fix - brew install gitleaks)""; exit 1; }; gitleaks git --staged --no-banner --redact -l warn",rust-27
+lefthook-run,lefthook.yml,"run: scripts/check-docs.sh",rust-27
+lefthook-run,lefthook.yml,"run: scripts/leak-check.sh --staged",rust-27
+npm-script,web/package.json,"build",rust-27
+npm-script,web/package.json,"dev",rust-27
+npm-script,web/package.json,"e2e",rust-27
+npm-script,web/package.json,"lint",rust-27
+npm-script,web/package.json,"test",rust-27
+npm-script,web/package.json,"typecheck",rust-27
+npm-script,web/package.json,"visual",rust-27
+npm-script,web/package.json,"visual:update",rust-27
+pyproject-script,pyproject.toml,"careerbrew",rust-26
+workflow-run,.github/workflows/ci.yml,"run: |",rust-27
+workflow-run,.github/workflows/ci.yml,"run: | #2",rust-27
+workflow-run,.github/workflows/gate-part.yml,"run: git show-ref --verify --quiet refs/heads/main || git branch main origin/main",rust-27
+workflow-run,.github/workflows/gate-part.yml,"run: npx playwright install --with-deps chromium",rust-27
+workflow-run,.github/workflows/gate-part.yml,"run: npx playwright install --with-deps chromium #2",rust-27
+workflow-run,.github/workflows/gate-part.yml,"run: scripts/check.sh",rust-27
+workflow-run,.github/workflows/gate-part.yml,"run: |",rust-27
+workflow-run,.github/workflows/gate-part.yml,"run: | #2",rust-27
+workflow-run,.github/workflows/gate-part.yml,"run: | #3",rust-27
+workflow-run,.github/workflows/gate-part.yml,"run: | #4",rust-27
+workflow-run,.github/workflows/noise-floor.yml,"run: cargo build -p careerbrew-xtask",rust-27
+workflow-run,.github/workflows/noise-floor.yml,"run: uv sync --locked",rust-27
+workflow-run,.github/workflows/noise-floor.yml,"run: |",rust-27
+workflow-run,.github/workflows/noise-floor.yml,"run: | #2",rust-27
+workflow-run,.github/workflows/public-readiness.yml,"run: scripts/public-readiness.sh --released",rust-27
+workflow-run,.github/workflows/public-readiness.yml,"run: uv sync --locked",rust-27
+workflow-run,.github/workflows/public-readiness.yml,"run: |",rust-27
+workflow-run,.github/workflows/public-readiness.yml,"run: | #2",rust-27
+workflow-run,.github/workflows/visual-pictures.yml,"run: npm ci --no-audit --no-fund && npm run build",rust-27
+workflow-run,.github/workflows/visual-pictures.yml,"run: npx playwright install --with-deps chromium",rust-27
+workflow-run,.github/workflows/visual-pictures.yml,"run: npx playwright install --with-deps chromium #2",rust-27
+workflow-run,.github/workflows/visual-pictures.yml,"run: scripts/visual-pictures.sh draw ""$UPDATE""",rust-27
+workflow-run,.github/workflows/visual-pictures.yml,"run: uv sync --locked",rust-27

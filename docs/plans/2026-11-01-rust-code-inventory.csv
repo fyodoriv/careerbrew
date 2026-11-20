@@ -1,4 +1,6 @@
 path,disposition,task,reason
+tests/unit/test_access_validate.py,port,rust-04,Deny-by-default refusal controls for malformed records; tests port with the capability
+tests/unit/test_approvals_validate.py,port,rust-04,Deny-by-default refusal controls for malformed records; tests port with the capability
 tests/unit/test_eval_case_loading.py,port,rust-27,Fixed real eval-loader duplicate-key and document-boundary regression controls
 .cargo/config.toml,keep-native,rust-00,Native migration workspace source or build configuration
 Cargo.lock,keep-native,rust-00,Native migration workspace source or build configuration
@@ -7,6 +9,8 @@ evals/run.py,port,rust-27,Port each assertion/helper with its domain slice; reti
 evals/run.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 hooks/pre-commit,port,rust-27,Executable hook/bootstrap; native tool must retain original policy and exit semantics
 hooks/pre-push,port,rust-27,Executable hook/bootstrap; native tool must retain original policy and exit semantics
+hooks/block-local-tests.sh,port,rust-27,Executable hook/bootstrap; native tool must retain original policy and exit semantics
+hooks/block-local-tests.test.sh,port,rust-27,Executable hook/bootstrap; native tool must retain original policy and exit semantics
 knowledge/exercises/001-contains-duplicate.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
 knowledge/exercises/002-valid-anagram.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
 knowledge/exercises/003-two-sum.yaml,port,rust-22,"Port executable canonical reference, verification and scaling generator fields; retain prose and optional language-specific teaching data"
@@ -166,6 +170,8 @@ scripts/check-docs.sh,port,rust-27,Port each assertion/helper with its domain sl
 scripts/check-sources.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/check-stories.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/check.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/gen-registry.py,port,rust-26,Generates the action registry from the argparse tree; retires when rust-26 makes the registry generate the parser
+scripts/hosted-gate.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/checkup.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/doctor.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/e2e.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -176,6 +182,7 @@ scripts/install.sh,port,rust-27,Port each assertion/helper with its domain slice
 scripts/leak-check.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/learnings-table.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/metrics.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/migrate-history.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/open-prs.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/open-work.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/pm-sent-coverage.py,port,rust-27,Port non-UI read-only measurement helper with exact eligibility privacy and aggregate defect controls
@@ -190,7 +197,7 @@ src/careerbrew/actions.py,port,rust-03,Runtime capability; tests port with the c
 src/careerbrew/agent_workflows.py,port,rust-03,Runtime capability; tests port with the capability
 src/careerbrew/approvals.py,port,rust-04,Runtime capability; tests port with the capability
 src/careerbrew/backup.py,port,rust-06,Key lifecycle provider extracted rust-05; archives/restore rust-06
-src/careerbrew/calendar.py,port,rust-08,Runtime capability; tests port with the capability
+src/careerbrew/calendar.py,port,rust-08,Runtime capability; tests port with the capability; pure clock helpers extracted in rust-02
 src/careerbrew/changes.py,port,rust-24,Full changes orchestration here; pure hash provider extracted in rust-02
 src/careerbrew/charts.py,port,rust-24,Runtime capability; tests port with the capability
 src/careerbrew/checklist.py,port,rust-24,Runtime capability; tests port with the capability
@@ -198,6 +205,7 @@ src/careerbrew/checkup.py,port,rust-24,Runtime capability; tests port with the c
 src/careerbrew/checkup_runs.py,port,rust-24,Runtime capability; tests port with the capability
 src/careerbrew/cli.py,port,rust-26,Runtime capability; tests port with the capability
 src/careerbrew/config.py,port,rust-02,Pure schema rust-02; encrypted IO and event primitive rust-05
+src/careerbrew/config_io.py,port,rust-05,Settings file read and write extracted rust-05a for the native storage port
 src/careerbrew/connectors.py,port,rust-08,Runtime capability; tests port with the capability
 src/careerbrew/day/__init__.py,port,rust-17,Runtime capability; tests port with the capability
 src/careerbrew/day/done_elsewhere.py,port,rust-17,Runtime capability; tests port with the capability
@@ -225,6 +233,7 @@ src/careerbrew/learn/__init__.py,port,rust-12,Runtime capability; tests port wit
 src/careerbrew/learn/project.py,port,rust-12,Runtime capability; tests port with the capability
 src/careerbrew/learn/replay.py,port,rust-12,Runtime capability; tests port with the capability
 src/careerbrew/learn/tour.py,port,rust-12,Runtime capability; tests port with the capability
+src/careerbrew/keyfile.py,port,rust-05,Data key path and load provider extracted rust-05a from backup
 src/careerbrew/machine.py,port,rust-07,Runtime capability; tests port with the capability
 src/careerbrew/mail.py,port,rust-08,Runtime capability; tests port with the capability
 src/careerbrew/metrics_share.py,port,rust-24,Runtime capability; tests port with the capability
@@ -299,6 +308,8 @@ src/careerbrew/workday/start.py,port,rust-16,Runtime capability; tests port with
 src/careerbrew/workday/status.py,port,rust-15,Runtime capability; tests port with the capability
 src/careerbrew/workday/steps.py,port,rust-15,Runtime capability; tests port with the capability
 src/careerbrew/workday/timing.py,port,rust-16,Runtime capability; tests port with the capability
+src/careerbrew/indie.py,port,rust-24,Runtime capability; tests port with the capability
+src/careerbrew/peers.py,port,rust-24,Runtime capability; tests port with the capability
 src/careerbrew/workday/watch.py,port,rust-16,Runtime capability; tests port with the capability
 src/careerbrew/workday/workflow_check.py,port,rust-07,Runtime capability; tests port with the capability
 tests/__init__.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -417,11 +428,14 @@ tests/e2e/web_seed.py,port,rust-27,Port each assertion/helper with its domain sl
 tests/fixtures/notifier/fake-notifier.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/fixtures/plugin-acme/bin/tickets.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/fixtures/voice/fake-stt.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/oracles/rust04.py,port,rust-04,The rust-04 Python vector oracle; retire with the Python migration oracle
+tests/oracles/rust04_vectors.py,port,rust-04,The rust-04 vector generator; retire with the Python migration oracle
 tests/safety/test_issue_327_native.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/safety/test_issue_327_native_cleanup.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/__init__.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/conftest.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_action_parity.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_action_registry.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_agent_skill_declaration.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_api_cache.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_batch_gate.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -455,9 +469,13 @@ tests/unit/test_focus.py,port,rust-27,Port each assertion/helper with its domain
 tests/unit/test_gate_cache.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_gate_corporate.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_gate_inputs.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_gate_parts.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_goals.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_grader_findings.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_grind_command.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_hosted_ci.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_hosted_gate.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_block_local_tests_hook.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_hot_reload.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_import_memory_questions.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_install_prompt.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -515,6 +533,8 @@ tests/unit/test_issue_270.py,port,rust-27,Port each assertion/helper with its do
 tests/unit/test_issue_271.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_272.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_274.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_indie.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_peers.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_276.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_280.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_305.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -568,6 +588,8 @@ tests/unit/test_mcp_fix.py,port,rust-27,Port each assertion/helper with its doma
 tests/unit/test_memory_sync.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_metrics_report.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_metrics_share.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_migrate_history.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_native_route.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_no_conflict_markers.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_notion_import.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_open_prs.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -782,6 +804,12 @@ xtask/Cargo.toml,keep-native,rust-00,Native migration workspace source or build 
 xtask/src/baseline_verdict.rs,keep-native,rust-00,Native migration workspace source or build configuration
 xtask/src/capture_actions.rs,keep-native,rust-00,Native observed action catalog capture
 xtask/src/inventory.rs,keep-native,rust-00,Native tracked inventory verifier
+xtask/src/sites.rs,keep-native,rust-00,Native embedded-site and entry-point discovery
+xtask/src/sites_tests.rs,keep-native,rust-00,Controls for embedded-site and entry-point discovery
+xtask/src/leak_check.rs,keep-native,rust-00,rust-27b slice 1: native repo leak scan engine over supplied terms; no production dispatch
+xtask/tests/leak_check.rs,keep-native,rust-00,Synthetic canary controls for the native leak scan
+xtask/src/input_key.rs,keep-native,rust-00,rust-27 slice 2: native gate cache key of scripts/input-key.sh; no production dispatch
+xtask/tests/input_key.rs,keep-native,rust-00,Parity controls for the native gate cache key against the script in synthetic repos
 xtask/src/main.rs,keep-native,rust-00,Native migration workspace source or build configuration
 xtask/src/toolchain_identity.rs,keep-native,rust-00,Native read-only toolchain identity probe
 xtask/src/trial_plan.rs,keep-native,rust-00,Native paired trial ordering for the migration harness
@@ -854,6 +882,8 @@ tests/unit/test_privacy_index.py,port,rust-27,Port staged privacy scan controls 
 hooks/lefthook/pre-push/privacy.sh,port,rust-27,Preserve pre-push context and strict scan
 scripts/verify-push-context.py,port,rust-27,Bound and validate pre-push context
 tests/unit/test_push_context.py,port,rust-27,Exercise native push context and strict scan
+tests/unit/test_pre_push_root_guard.py,port,rust-27,Exercise the public first-commit guard of the push context
+tests/unit/test_pre_push_secret_range.py,port,rust-27,Exercise the secret scan of every pushed commit
 tests/unit/test_gate_cache_index.py,port,rust-27,Check staged-tree and revision cache identity
 tests/unit/test_gate_cache_runtime.py,port,rust-27,Check external Rust runtime changes cannot reuse passes
 scripts/benchmark-day-start-discovery.py,port,rust-27,Measure isolated update discovery with owned synthetic checkouts
@@ -861,6 +891,10 @@ tests/unit/test_issue_426.py,port,rust-27,Check invocation-scoped update discove
 tests/unit/test_issue_423_metadata_temp.py,port,rust-27,Check owned temporary metadata publication and cleanup
 scripts/browser-test-receipts.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/e2e/us-110-pm-promise-outcomes.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-111-native-actions.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-112-indie-day.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-113-peer-improvement.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-114-bet-options.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_browser_test_receipts.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_e2e_cache_runtime.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_389_baseline.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -886,6 +920,7 @@ experiments/hash/src/main.rs,keep-native,rust-00,Disconnected synthetic Rust has
 tests/unit/test_rust_hash_experiment.py,port,rust-27,Synthetic differential controls for the disconnected Rust hash experiment
 crates/vault/src/lib.rs,keep-native,rust-00,Disconnected Rust vault codec pending interoperability and storage qualification
 crates/vault/src/main.rs,keep-native,rust-00,Synthetic-only vault compatibility test transport
+tests/unit/test_rust_shipped_crates.py,port,rust-27,Guard: a shipped crate must be on the setup rebuild list
 tests/unit/test_rust_vault_interop.py,port,rust-27,Synthetic Python and Rust vault interoperability controls
 tests/unit/test_rust_vault_base64_parity.py,port,rust-27,Synthetic Python and Rust Base64 decoder parity matrix
 xtask/tests/store_supervisor.rs,keep-native,rust-00,Synthetic store supervisor ownership and pipe controls
@@ -893,5 +928,82 @@ xtask/tests/support/store_supervisor.rs,keep-native,rust-00,Synthetic-only store
 xtask/src/bin/store_supervisor_fixture.rs,keep-native,rust-00,Synthetic fixed worker ownership fixture
 scripts/public-readiness.py,port,rust-27,Port the public-readiness surface checks with their count-only output
 scripts/public-readiness.sh,port,rust-27,Port the public-readiness entry point and its private pattern loading
+scripts/visual-pictures.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_public_readiness.py,port,rust-27,Check each planted public-readiness defect fails its surface
 tests/unit/test_redirect_host_policy.py,port,rust-27,Check a redirect obeys the host policy and keeps a token on its origin
+tests/unit/test_visual_pictures.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/telemetry-install.sh,port,rust-24,Setup's local install numbers for the telemetry capability; ports with it
+tests/unit/test_telemetry_reference_successor.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_indie_reference_successor.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_telemetry_tiles.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+scripts/release.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_version.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_owner_venv_guard.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+xtask/src/resources.rs,keep-native,rust-00,Owned-child wait4 CPU and peak RSS accounting with calibrated units
+xtask/src/bin/resource_fixture.rs,keep-native,rust-00,Synthetic allocation CPU signal orphan and setsid-split child for resource controls
+xtask/tests/resources.rs,keep-native,rust-00,Native resource calibration wrong-unit CPU and signal controls
+xtask/src/baseline.rs,keep-native,rust-00,Step registry and Python oracle baseline record over the process-tree collector
+xtask/tests/baseline.rs,keep-native,rust-00,Baseline record positive control and unknown step nonzero oracle and empty home refusals
+xtask/src/decide.rs,keep-native,rust-00,Decide verdict over baseline verify and measure records
+xtask/tests/decide.rs,keep-native,rust-00,Decide controls: activation each keep reason and each listed refusal
+xtask/src/measure.rs,keep-native,rust-00,Rust candidate registry and paired cold and warm measure record
+xtask/tests/measure.rs,keep-native,rust-00,Paired measure positive control decide end to end and refusals
+xtask/src/verify.rs,keep-native,rust-00,Differential verify of a step Rust candidate against its Python oracle with a content-free record
+xtask/tests/verify.rs,keep-native,rust-00,Verify refusals and CLI HTTP side-effect DATA and role contract controls with planted defects
+xtask/src/noise_floor.rs,keep-native,rust-00,Noise floor registry per step and OS and the noise-floor measurement from a baseline record
+xtask/src/normalize.rs,keep-native,rust-00,Per-case verify normalization rules and the unregistered local path refusal
+crates/depvec/src/lib.rs,keep-native,rust-00,rust-01 dependency vector registry and runner over maintained crates
+crates/depvec/src/main.rs,keep-native,rust-00,rust-01 dependency vector candidate binary for migration verify
+crates/depvec/src/canon.rs,keep-native,rust-00,rust-01 typed value form shared by the vector candidate and oracle
+crates/depvec/src/calendar.rs,keep-native,rust-00,rust-01 calendar vector set with icalendar rrule and chrono-tz
+crates/depvec/src/json_yaml.rs,keep-native,rust-00,rust-01 JSON and YAML vector set with serde_json and yaml-rust2
+crates/depvec/src/code_parse.rs,keep-native,rust-00,rust-01 teaching example parse vector set with ruff_python_parser and oxc
+crates/depvec/src/fernet.rs,keep-native,rust-00,rust-01 Fernet vector set with the fernet crate through the careerbrew-vault codec
+crates/depvec/src/fsrs_schedule.rs,keep-native,rust-00,rust-01 FSRS card schedule vector set with the fsrs crate
+crates/depvec/src/runtime.rs,keep-native,rust-00,rust-01 runtime vector set: HTTP fixture paths with http and flock locks and rlimit subprocess limits
+crates/depvec/tests/cli.rs,keep-native,rust-00,rust-01 dependency vector binary controls
+xtask/src/depvec.rs,keep-native,rust-00,rust-01 dependency vector verify with planted wrong-vector controls
+xtask/tests/depvec.rs,keep-native,rust-00,rust-01 verify controls against the Python vector oracle with a planted wrong vector
+xtask/tests/fixtures/depvec/driver.py,port,rust-27,Retire the rust-01 Python dependency vector oracle with the Python migration oracle
+xtask/src/vecdriver.rs,keep-native,rust-00,rust-04a vector-driver kind: one generated vector file for both drivers with planted-defect controls
+xtask/tests/vecdriver.rs,keep-native,rust-00,rust-04a vector-check controls: positive run and three planted defects
+xtask/tests/rust04_verify.rs,keep-native,rust-00,rust-04d verify controls: policy-vectors passes the four core sets and a planted wrong vector fails by name
+xtask/tests/fixtures/vecdriver/driver.py,port,rust-27,Retire the rust-04a synthetic vector driver control with the Python migration oracle
+xtask/tests/fixtures/vecdriver/generator.py,port,rust-27,Retire the rust-04a synthetic vector generator control with the Python migration oracle
+crates/purevec/src/clock.rs,keep-native,rust-00,rust-02 clock vector set: calendar.py clock helpers and config._tz with injected zones
+crates/purevec/src/hash.rs,keep-native,rust-00,rust-02 hash vector set: the changes._h input hash primitive that rust-24 reuses
+crates/purevec/src/lib.rs,keep-native,rust-00,rust-02 pure value vector registry and runner
+crates/purevec/src/main.rs,keep-native,rust-00,rust-02 pure value vector candidate binary for migration verify and measure
+crates/purevec/src/paths.rs,keep-native,rust-00,rust-02 paths vector set: CAREERBREW_HOME refusal and path values over an injected environment
+crates/purevec/src/settings.rs,keep-native,rust-00,rust-02 settings vector set: config validators DEFAULTS and pure precedence
+crates/purevec/tests/cli.rs,keep-native,rust-00,rust-02 pure value vector binary controls
+crates/cbcli/src/lib.rs,keep-native,rust-00,rust-03 native CLI pilot: actions and static help dispatch with exit 64 outside the pilot
+crates/cbcli/src/main.rs,keep-native,rust-00,rust-03 native CLI pilot binary careerbrew-native
+crates/cbcli/src/registry.rs,keep-native,rust-00,rust-03 native CLI pilot: compiled-in action registry and order-keeping JSON reader
+crates/cbcli/src/render.rs,keep-native,rust-00,rust-03 native CLI pilot: actions text listing and Python-compatible json.dumps writer
+crates/cbcli/src/help.rs,keep-native,rust-00,rust-03 native CLI pilot: static help pages at 80 columns
+crates/cbcli/src/events.rs,keep-native,rust-00,rust-03 native CLI pilot: content-free cli.run event row append
+crates/cbcli/tests/cli.rs,keep-native,rust-00,rust-03 native CLI pilot controls: reference bytes argparse errors exit 64 event row writer properties
+xtask/tests/purevec.rs,keep-native,rust-00,rust-02 vector step controls: four commands accept it and a planted home write is counted
+xtask/tests/fixtures/purevec/driver.py,port,rust-27,Retire the rust-02 Python pure value vector oracle with the Python migration oracle
+xtask/tests/fixtures/purevec/settings.json,port,rust-27,Retire the rust-02 settings vectors with the Python migration oracle
+tests/unit/test_rust05b_storage_hardening.py,port,rust-05,Port rust-05b storage hardening controls for temp files and key and settings and append locks
+tests/unit/test_rust05a_provider_seams.py,port,rust-05,Port rust-05a key and settings and event seam controls
+tests/unit/test_rust07a_shapes.py,port,rust-07,Fixed refusals for malformed plugin policy and manifest shapes
+crates/policy/src/lib.rs,keep-native,rust-00,rust-04d policy core: pure privacy decisions over supplied inputs with no IO
+crates/policy/src/outputs.rs,keep-native,rust-00,rust-04e canary outputs: assert_clean with ids only and redact and _names_private_path
+crates/policy/src/text.rs,keep-native,rust-00,rust-04d Python str rules on Python Unicode tables: lower strip split splitlines and normalize
+crates/policy/src/canary.rs,keep-native,rust-00,rust-04d canary engine: term_id term_pattern find_leaks leak_spans and _match_kind
+crates/policy/src/allow.rs,keep-native,rust-00,rust-04d allowlists: sensitive_terms filter rules _identifier_shaped and public_suspects
+crates/policy/src/vectors.rs,keep-native,rust-00,rust-04d vector sets canary-core canary-match leak-spans assert-redact allowlists private-path in the oracle answer shape
+crates/policy/src/tables.rs,keep-native,rust-00,rust-04d generated Python 3.12 Unicode tables for str predicates and re case folding
+crates/policy/src/bin/policy-vectors.rs,keep-native,rust-00,rust-04d policy-vectors driver binary: the one IO edge that reads the vector file
+crates/policy/tests/controls.rs,keep-native,rust-00,rust-04d controls: planted EXTRA_CASES removal json.dumps form and no-echo refusal
+crates/policy/gen_tables.py,port,rust-27,Generates the policy crate Unicode tables from CPython; retire with the Python migration oracle
+scripts/policy-no-io.py,port,rust-27,Gate step rust-policy-io: refuses IO in the policy crate library; retire remaining harness here
+tests/unit/test_policy_no_io.py,port,rust-27,Guard: the policy crate IO gate passes the crate and refuses planted IO uses
+crates/policy/src/pyre.rs,keep-native,rust-00,rust-04e backtracking matcher for the fixed re patterns of privacy.py and access.py on Python Unicode tables
+crates/policy/src/scrub.rs,keep-native,rust-00,rust-04e scrub_public over supplied terms with the PUBLIC_PATTERNS and dangling-word rules
+crates/policy/src/approvals.rs,keep-native,rust-00,rust-04e approval decisions: validate_records request_item decide_items pending guidance and get
+crates/policy/src/access.rs,keep-native,rust-00,rust-04e access decisions: validate_directory blocker _topic owner existing route mentions and judge
+tests/unit/test_rust07b_pure.py,port,rust-07,Pure plugin and machine and sign-in decisions over supplied facts

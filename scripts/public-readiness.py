@@ -832,12 +832,16 @@ def python_licences(tree: Tree) -> dict[str, str] | None:
                 if step not in walked:
                     walked.add(step)
                     todo.append(step)
-    installed = {dist_name(d.metadata["Name"] or ""): d for d in importlib.metadata.distributions()}
+    # One name can have several installed versions. Folder order differs by file system, so pick by version.
+    installed: dict[str, list] = {}
+    for d in importlib.metadata.distributions():
+        installed.setdefault(dist_name(d.metadata["Name"] or ""), []).append(d)
     out = {}
     for name in sorted(seen - set(roots)):
-        dist = installed.get(name)
+        locked = str(packages.get(name, {}).get("version"))
+        dist = next((d for d in installed.get(name, []) if d.version == locked), None)
         out[name] = ""
-        if dist is None or dist.version != str(packages.get(name, {}).get("version")):
+        if dist is None:
             continue
         meta = dist.metadata
         classifiers = [c.rsplit("::", 1)[-1].strip() for c in meta.get_all("Classifier") or [] if c.startswith("License ::")]
@@ -1342,6 +1346,34 @@ def ran(command: list[str], cwd: str, env: dict[str, str], seconds: int) -> bool
         return False
 
 
+STEP_ID = re.compile(r"[a-z0-9-]{1,40}")
+
+
+def failed_steps(copy: str) -> str:
+    """The gate's failed step names from its own content-free event log, as "(unit+lint)", or "".
+
+    The scratch copy is deleted after S17, so this is the only trace of which step failed. Only names
+    with the fixed step-id shape are kept: never a line a command printed.
+    """
+    names: list[str] = []
+    try:
+        # A damaged log (bad bytes, a non-object line, deep nesting) skips that line: it never breaks the run.
+        with open(os.path.join(copy, ".metrics", "events.jsonl"), encoding="utf-8", errors="replace") as f:
+            for line in f:
+                try:
+                    event = json.loads(line)
+                except (ValueError, RecursionError):
+                    continue
+                if not isinstance(event, dict):
+                    continue
+                name = event.get("name")
+                if event.get("event") == "check.step" and event.get("ok") is False and isinstance(name, str) and STEP_ID.fullmatch(name) and name not in names:
+                    names.append(name)
+    except OSError:
+        return ""
+    return f"({'+'.join(names)})" if names else ""
+
+
 def s17(tree: Tree, full: bool) -> Result:
     """Run the self-checks in a scratch copy of the release tree with a scratch HOME. Only the full run can pass."""
     limit = os.environ.get("PUBLIC_READINESS_STEP_SECONDS", "")
@@ -1370,8 +1402,9 @@ def s17(tree: Tree, full: bool) -> Result:
         setup = (["git", "init", "-q"], ["git", "add", "-A"], commit)
         if any(subprocess.run(args, cwd=copy, env=env, capture_output=True, check=False).returncode for args in setup):
             return "error", 0, "the scratch copy could not become a git repository"
-        # Each failing command by its place in the run and its script name. Never a word a command printed.
-        failed = [f"{place}:{os.path.basename(command[0])}" for place, command in enumerate(commands, 1) if not ran(command, copy, env, limit or (3600 if full else 300))]
+        # Each failing command by its place in the run and its script name, plus the gate's failed step ids.
+        # Never a word a command printed.
+        failed = [f"{place}:{os.path.basename(command[0])}{failed_steps(copy) if command[0] == 'scripts/check.sh' else ''}" for place, command in enumerate(commands, 1) if not ran(command, copy, env, limit or (3600 if full else 300))]
     if failed:
         return "fail", len(failed), f"commands={len(commands)} failed={','.join(failed)}"
     if full:

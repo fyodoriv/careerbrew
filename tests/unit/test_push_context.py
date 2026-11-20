@@ -108,7 +108,7 @@ def test_repo_wrapper_forwards_arguments_and_stdin_to_lefthook(repo, tmp_path):
     assert b"SYNTHETIC_SECRET" not in result.stdout + result.stderr
 
 
-def test_repo_wrapper_without_lefthook_keeps_context_and_both_checks(repo, tmp_path):
+def test_repo_wrapper_without_lefthook_keeps_context_scan_and_secret_check_and_runs_no_gate(repo, tmp_path):
     (repo / "hooks/lefthook/pre-push").mkdir(parents=True)
     shutil.copy(ROOT / "hooks/pre-push", repo / "hooks/pre-push")
     shutil.copy(ROOT / "hooks/lefthook/pre-push/privacy.sh", repo / "hooks/lefthook/pre-push/privacy.sh")
@@ -121,6 +121,8 @@ def test_repo_wrapper_without_lefthook_keeps_context_and_both_checks(repo, tmp_p
     assert system_git
     for name, executable in (("git", system_git), ("python3", sys.executable), ("cat", "/bin/cat"), ("bash", "/bin/bash")):
         (tools / name).symlink_to(executable)
+    (tools / "gitleaks").write_text("#!/bin/bash\necho secrets >> .secret-calls\n")
+    (tools / "gitleaks").chmod(0o755)
     env = os.environ.copy()
     env["PATH"] = str(tools)
     startup = tmp_path / "bash-startup"
@@ -129,11 +131,12 @@ def test_repo_wrapper_without_lefthook_keeps_context_and_both_checks(repo, tmp_p
     result = subprocess.run(["/bin/bash", "hooks/pre-push", "origin", URL.decode()], cwd=repo, env=env, input=row(), capture_output=True, timeout=20)
     assert result.returncode == 0, result.stderr
     assert (repo / ".scan-calls").read_text().splitlines() == ["scan"]
-    assert (repo / ".gate-calls").read_text().splitlines() == ["gate"]
+    assert (repo / ".secret-calls").read_text().splitlines() == ["secrets"]
+    assert not (repo / ".gate-calls").exists(), "a push runs no test gate: the hosted checks do (docs/ci.md)"
     assert b"SYNTHETIC_SECRET" not in result.stdout + result.stderr
 
 
-def test_native_lefthook_receives_real_synthetic_push_shapes(repo, tmp_path):
+def test_native_lefthook_receives_real_synthetic_push_shapes(repo, tmp_path, monkeypatch):
     executable = shutil.which("lefthook")
     if not executable:
         pytest.skip("lefthook is not installed")
@@ -146,6 +149,8 @@ def test_native_lefthook_receives_real_synthetic_push_shapes(repo, tmp_path):
     (repo / "file.txt").write_text("synthetic\n")
     run_git(repo, "add", ".")
     run_git(repo, "commit", "-qm", "initial")
+    # The scratch history has its own first commit (the root guard, test_pre_push_root_guard.py).
+    monkeypatch.setenv("CAREERBREW_PUBLIC_ROOT", run_git(repo, "rev-parse", "HEAD").stdout.decode().strip())
     run_git(repo, "config", "user.name", "Synthetic")
     run_git(repo, "config", "user.email", "synthetic@example.com")
     run_git(repo, "config", "commit.gpgsign", "false")
@@ -170,3 +175,4 @@ def test_native_lefthook_receives_real_synthetic_push_shapes(repo, tmp_path):
     run_git(repo, "commit", "--allow-empty", "-qm", "wrapper")
     run_git(repo, "push", "-q", "origin", "main", config=False)
     assert (repo / ".scan-calls").read_text().splitlines() == ["scan"] * 8
+    assert not (repo / ".gate-calls").exists(), "a push runs no test gate: the hosted checks do (docs/ci.md)"

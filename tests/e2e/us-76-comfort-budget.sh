@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# e2e: weight: 180  (usual seconds on a hosted runner; scripts/e2e.sh E2E_SHARD)
 # US-76: every view is comfortable to read and tap on a phone and a desktop, in light and dark: no serious axe problem,
 # no text under 14 px, no phone touch target under 44 px, no sideways scroll; the phone shell is one Menu button; the
 # everyday jobs fit their tap budget; headings show friendly days.
