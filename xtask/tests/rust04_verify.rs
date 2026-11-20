@@ -79,6 +79,13 @@ fn verify_on_rust_04_passes_over_every_oracle_set() {
     assert!(record["case_count"].as_u64().unwrap() > 11);
     // 2 Unicode probes plus 11 sets, each run on both sides.
     assert_eq!(record["vector_file_hash_checks"], 24);
+    // The contract fields `decide` reads (rust-04g): one check per case and
+    // no missing contracts, as a `depvec` step writes them.
+    let checks = record["checks"].as_array().unwrap();
+    assert_eq!(checks.len() as u64, record["case_count"].as_u64().unwrap());
+    assert!(checks.iter().all(|check| check["passed"] == true));
+    assert_eq!(record["missing_contracts"], serde_json::json!([]));
+    assert_eq!(record["violations"]["contract"], 0);
 }
 
 #[test]
