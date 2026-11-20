@@ -49,39 +49,8 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if the collector cannot be reached from the machine or the token cannot be approved within two weeks, switch the plugin to `kind: file` and let the company's own log forwarder read the file.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Splunk Docs, "Format events for HTTP Event Collector".
 
-- [ ] Rust migration: Add the shared vector-driver harness for rust-04
-  - **ID**: rust-04a
-  - **Details**: Part of rust-04 (privacy, policy and approval decisions). Follow `docs/rust-migration.md` step `rust-04`, "Sub-steps", "Ownership split" and "Vector contract". Preparation; may land before rust-03. Add a driver kind to `cargo xtask migration baseline`, `verify` and `measure`: xtask writes one scratch vector file per run and passes the same file to both drivers. Add a positive control, planted-defect controls and refusals (missing driver, unreadable vector file, Unicode version mismatch). No product code changes.
-  - **Files**: xtask/src/; xtask/tests/; docs/rust-migration.md
-  - **Hypothesis**: a vector-driver kind lets one generated vector file feed the Python and Rust drivers, so rust-04 parity is checked on identical inputs; 100% of planted defects are caught and named.
-  - **Measurement**: the hosted gate runs the new xtask tests: positive control passes; each planted defect (a removed case, a changed output byte, a Unicode version mismatch) fails and names its case.
-  - **Success**: positive control passes and 3 of 3 planted defects fail with their case named; all hosted checks green.
-  - **Pivot**: any accepted planted defect, or two drivers that read different vector files, blocks the harness; redesign the driver interface before rust-04c.
-  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
-
-- [ ] Rust migration: Python deny-by-default validators for approvals and access
-  - **ID**: rust-04b
-  - **Details**: Part of rust-04 (privacy, policy and approval decisions). Follow `docs/rust-migration.md` step `rust-04`, "Sub-steps", "Ownership split" and "Vector contract". Preparation; may land before rust-03. Add `approvals.validate_records` and `access.validate_directory`. Each malformed shape gets a fixed, content-free refusal: non-dict record, missing `id` or `status`, unknown status, non-list `members`, non-string `owns`, `threads: null`, duplicate ids. Write each failing test first. This changes behaviour, so it gets its own patch release.
-  - **Files**: src/careerbrew/approvals.py; src/careerbrew/work/access.py; tests/unit/
-  - **Hypothesis**: malformed approval or access records are refused with a fixed message instead of crashing or being accepted; crash paths on these shapes drop from 7 to 0.
-  - **Measurement**: the hosted gate runs one new unit test per malformed shape (7 shapes x 2 loaders where they apply); each fails before the change and passes after.
-  - **Success**: every listed shape refused with a fixed message that holds no record content; 0 `KeyError` or `TypeError` paths left on these shapes; hosted checks green.
-  - **Pivot**: if a refusal breaks an existing valid-record test, stop and re-register the accepted shapes before any Rust work.
-  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
-
-- [ ] Rust migration: Python oracle, vector generator and rust-04 baseline
-  - **ID**: rust-04c
-  - **Details**: Part of rust-04 (privacy, policy and approval decisions). Follow `docs/rust-migration.md` step `rust-04`, "Sub-steps", "Ownership split" and "Vector contract". Preparation; may land before rust-03 once rust-04a and rust-04b land. Add `tests/oracles/rust04.py` (run as `python -I tests/oracles/rust04.py <set> <file>`) and the tracked vector generator. Sets: `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `public-scrub`, `private-path`, `approvals`, `receipt-validate`, `access`, `assert-no-echo`. Synthetic canaries only. Commit `baseline-rust-04.json` with the prediction before any candidate code.
-  - **Files**: tests/oracles/rust04.py; xtask/src/; docs/rust-migration.md
-  - **Hypothesis**: the Python oracle answers every vector set deterministically, so the baseline B is fixed before any Rust candidate exists.
-  - **Measurement**: `heavy-run --exclusive cargo xtask migration baseline --step rust-04 --python "$PWD/.venv/bin/python" --out <new-file>`, run twice on a clean tree.
-  - **Success**: both runs give identical outputs per case; 0 term text in any output (`assert-no-echo`); baseline record committed with the prediction.
-  - **Pivot**: any nondeterministic case or echoed term blocks the baseline; fix the oracle or drop the case with a registered reason, then rerun.
-  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
-
 - [ ] Rust migration: Policy crate core: canary engine and allowlists
   - **ID**: rust-04d
-  - **Blocked**: prerequisite: rust-04c must land and pass its acceptance gates first
   - **Details**: Part of rust-04 (privacy, policy and approval decisions). Follow `docs/rust-migration.md` step `rust-04`, "Sub-steps", "Ownership split" and "Vector contract". Candidate. Add `crates/policy` (`careerbrew-policy`) with a gate step that forbids IO (`std::fs`, `std::env`, `std::process`, `std::net`, `SystemTime`, RNG). Port `term_id`, `normalize`, `term_pattern` semantics, `find_leaks`, `leak_spans`, `_match_kind`, `filter_terms` and the allowlists, plus the `policy-vectors` driver. Sets: `canary-core`, `canary-match`, `leak-spans`, `allowlists`. Afterwards rust-27b rebases to depend on this crate in a separate PR with no behaviour change. Production use: none.
   - **Files**: crates/policy/; Cargo.toml; scripts/check.sh
   - **Progress** (2026-11-19): crate, `policy-vectors` driver, generated tables, `rust-policy-io` gate step and controls on branch `feat/rust-04d-policy`. Pending: hosted CI, an oracle `unicode-version` probe and `vecdriver::STEPS` registration so `verify` can run the candidate.
@@ -113,15 +82,14 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: any disagreement, leak or ratio above 1.10 blocks rollout; keep the last verified handler, rework, register and remeasure.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
 
-- [ ] Rust migration: Harden Python storage writes before the rust-05 port
-  - **ID**: rust-05b
-  - **Details**: Part of rust-05. Preparation, own patch release. Unique temp name and cleanup in `vault._rewrite`; temp cleanup when `store.write_text` fails to replace; `backup.load_key` creates with `O_CREAT|O_EXCL` at mode 0600 and re-reads on `EEXIST`; `.settings.yaml.lock` around `config.set_value`/`unset`; plaintext `store.append_jsonl` takes the lock `upsert_jsonl` takes. The approvals lock is rust-05b2 (after the rust-04 approvals edits merge). See `docs/rust-migration.md` step `rust-05`, "Sub-step `rust-05b`".
-  - **Files**: src/careerbrew/store.py; vault.py; backup.py; config.py; tests/unit/test_rust05b_storage_hardening.py
-  - **Hypothesis**: the 8 hardening tests move from 8 failing to 8 passing, and lost settings writes, leftover temp files and wrong-mode or overwritten keys drop from possible to 0, with no other test changing state.
-  - **Measurement**: `uv run pytest tests/unit/test_rust05b_storage_hardening.py -q` on hosted CI (`gh pr checks <pr>`), plus the full hosted gate.
-  - **Success**: 8 of 8 pass on `gate (ubuntu-24.04)` and `gate (macos-15)`; the rest of the gate stays green.
-  - **Pivot**: any hardening test still fails after two fixes, or a fix breaks another story: revert that item and file it as its own sub-step.
-  - **Anchor**: Pillai et al. 2014, "All File Systems Are Not Created Equal" (OSDI; crash consistency of atomic replace); Munafò et al. 2017 (pre-registration).
+- [ ] Rust migration: Approvals lock before the rust-05 port
+  - **ID**: rust-05b2
+  - **Details**: Part of rust-05. The rest of rust-05b (landed in #165): the approvals record store takes one advisory lock around its load-change-save, like `upsert_jsonl`. Do it after the rust-04 approvals edits merge. See `docs/rust-migration.md` step `rust-05`, "Sub-step `rust-05b`".
+  - **Hypothesis**: two writers that approve different items at once both keep their decision (0 lost updates).
+  - **Measurement**: a new unit test that runs two approval writers at once on hosted CI.
+  - **Success**: both decisions kept in 50 of 50 runs of the test.
+  - **Pivot**: if a lock cannot hold across the read and the write without deadlock, keep it unlocked and record the race in the rust-05 boundary notes.
+  - **Anchor**: Kleppmann 2017, *Designing Data-Intensive Applications* ch. 7 (lost updates).
 
 - [ ] Rust migration: Port encrypted storage and transaction locks
   - **ID**: rust-05
@@ -145,6 +113,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: any contract disagreement, privacy violation or missing/duplicate write, or CPU/RSS ratio >1.10 B, blocks rollout. Rework the adapter or dependency, register the new approach and remeasure; keep the last verified handler. Preparation fails on any accepted planted defect or unsupported required contract.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
 
+- [ ] Rust migration: Leftovers of rust-07a and rust-07b
+  - **ID**: rust-07c
+  - **Details**: Part of rust-07. Two items left when rust-07a (#166) and rust-07b (#168) merged: (1) `plugins.installed()` does not re-check an already installed manifest with `validate_manifest`; (2) `mcp_check.check_rows` is not yet split into a pure function over supplied facts. No Rust.
+  - **Files**: src/careerbrew/plugins.py; src/careerbrew/mcp_check.py; tests/unit/
+  - **Hypothesis**: a malformed installed manifest is refused on load (0 accepted), and `check_rows` gives the same rows from supplied facts as before.
+  - **Measurement**: new unit tests on hosted CI: a planted malformed installed manifest, and `check_rows` fed recorded facts.
+  - **Success**: both tests pass; no existing test changes.
+  - **Pivot**: if re-checking installed manifests refuses a manifest users already have, warn instead of refuse and record it.
+  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM).
+
 - [ ] Rust migration: Port plugin, machine and account setup
   - **ID**: rust-07
   - **Blocked**: prerequisite: rust-04f, rust-05 must land and pass its acceptance gates first
@@ -155,26 +133,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Success**: 100% readiness/manifest/repair cases agree; 0 secret disclosures, silent repairs or unmanaged configuration writes. All applicable shared parity/resource gates pass; whole-repo fast/full checks remain green.
   - **Pivot**: any contract disagreement, privacy violation or missing/duplicate write, or CPU/RSS ratio >1.10 B, blocks rollout. Rework the adapter or dependency, register the new approach and remeasure; keep the last verified handler. Preparation fails on any accepted planted defect or unsupported required contract.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
-
-- [ ] Rust migration: rust-07b split pure plugin and machine decisions from IO
-  - **ID**: rust-07b
-  - **Details**: Part of rust-07. Preparation, no Rust, no behaviour change except the symlink refusal now names the first symlink in sorted order. Pure functions over supplied facts: `plugins.validate_manifest_data` (facts from `manifest_facts`), `plugins.merge_policy`, `plugins.refresh_order`, `machine.readiness_rows`, `machine.cloud_service`, `machine.per_user`, `machine.guard_decision`, `machine.suggest_decision`, `msauth.classify_poll`, `msauth.classify_refresh`; the old names call them. Progress: done in code and unit tests; not yet split: `mcp_check.check_rows`.
-  - **Files**: src/careerbrew/plugins.py; src/careerbrew/machine.py; src/careerbrew/msauth.py; tests/unit/test_rust07b_pure.py
-  - **Hypothesis**: every rust-07 decision the oracle needs runs with no data root, network or subprocess: 10 of 10 pure functions callable on synthetic facts, with 0 changes to existing plugin, machine and sign-in test results.
-  - **Measurement**: `uv run pytest tests/unit/test_rust07b_pure.py tests/unit/test_plugin_commands.py tests/unit/test_vault_plugins.py tests/unit/test_corporate_ready.py tests/unit/test_rust07a_shapes.py -q` on the hosted checks of the pull request.
-  - **Success**: all new pure tests pass and every existing listed test stays green.
-  - **Pivot**: any existing test needs a changed assertion other than symlink order: revert that split and re-register.
-  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration).
-
-- [ ] Rust migration: rust-07a Python deny-by-default for plugin policy and manifest shapes
-  - **ID**: rust-07a
-  - **Details**: Part of rust-07. Preparation, no Rust. `plugins.validate_manifest` refuses malformed `policy` lists and flags, `export_to_personal`, `provides`, `requires`, `sensitive_terms`, `detect.env` and `detect.paths`, and a name with a trailing newline (`fullmatch`), each with a fixed message that holds no input. Valid manifests behave as before. Own patch release. Not yet covered: an already installed manifest is not re-checked in `installed()`.
-  - **Files**: src/careerbrew/plugins.py; tests/unit/test_rust07a_shapes.py; docs/plugins.md
-  - **Hypothesis**: malformed shapes that today split into characters, read "false" as true, or crash become 0 accepted out of 14 planted cases, with 0 echoed canaries and 0 changes for valid manifests.
-  - **Measurement**: `uv run pytest tests/unit/test_rust07a_shapes.py tests/unit/test_plugin_commands.py tests/unit/test_vault_plugins.py -q` on the hosted checks of the pull request.
-  - **Success**: 14 of 14 refusals match their fixed text; 0 canary hits; existing plugin tests stay green.
-  - **Pivot**: any valid fixture plugin refused, or any refusal that echoes input: drop the check and re-register.
-  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration).
 
 - [ ] Rust migration: Port HTTP sources, calendar and mail
   - **ID**: rust-08
@@ -389,7 +347,7 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **ID**: rust-27
   - **Blocked**: prerequisite: rust-00 must land first to start rust-27a and rust-27b; rust-26 must land and pass its acceptance gates before the step finishes
   - **Details**: Move first-party executable checks, HTTP fixture servers, synthetic fakes, CLI story assertions, eval orchestration, batching, cache keys, setup, doctor, leak checks, metrics/proof and release packaging to Rust xtask/integration tests. Domain steps port the assertions for their own capability; this step owns only the shared harness and the assertions no domain step owns. Work in five sub-steps: rust-27a shared test harness, rust-27b developer scripts/hooks/installers, rust-27c e2e stories, rust-27d evals, rust-27e CI workflows (each with its own wait and gate in the plan). Retain browser tests in TypeScript. Inline shell in docs/hooks becomes a native command; only an explicitly inventoried minimal OS bootstrap may remain. Port the embedded Node/esbuild backend checker in check-card-code.py too; retained UI TypeScript is not an exception for this maintenance implementation. Preserve syntax validation of Python teaching examples using a maintained native parser validated against the current compile() oracle, including invalid-code controls; never silently skip those examples. Follow the measured Rust migration plan in `docs/rust-migration.md`: step `rust-27` in "Work breakdown" (its inputs, outputs and gate), "Scope", and "Measurement protocol for every step". This step also owns `evals/cases/`, `evals/rubric.md`, `evals/README.md`, `tests/fixtures/claims/` and `.github/workflows/` ("Every module has an owner step" in the same page). Split large capabilities into independently measured PRs; do not defer their tests to the final harness task. A component-only result does not enable production dispatch: the plan's full native activation closure must be measured before switching.
-  - **Progress**: rust-27b slice 1 (2026-11-18): `cargo xtask leak-check` ports the repo scan engine of `scripts/leak-check.sh` over a supplied terms file; the wrapper still runs Python until the encrypted terms source (rust-04/05/07) and the staged snapshot PNG scan are native.
+  - **Progress**: rust-27b slice 1 (2026-11-18): `cargo xtask leak-check` ports the repo scan engine of `scripts/leak-check.sh` over a supplied terms file; the wrapper still runs Python until the encrypted terms source (rust-04/05/07) and the staged snapshot PNG scan are native. Slice 2 (2026-11-19): `cargo xtask input-key` ports `scripts/input-key.sh` (gate cache key) with script parity tests in `xtask/tests/input_key.rs` (also odd file names, a linked worktree, pathspecs with no `--`, and the pinned leading-`--` gap); the script stays the entry point.
   - **Files**: scripts/; hooks/; evals/run.py; evals/run.sh; tests/unit/; tests/e2e/; lefthook.yml; INSTALL.md
   - **Hypothesis**: replacing this slice preserves 100% of its registered behavior with 0 privacy/policy/side-effect violations; native CPU-time p95 and peak RSS stay at or below 1.10 times measured baseline B. Preparation steps instead prove their harness/dependency controls before any product switch. No current speed result is claimed.
   - **Measurement**: After rust-00 creates the harness: `heavy-run --exclusive cargo xtask migration baseline --step rust-27`, `heavy-run cargo xtask migration verify --step rust-27`, `heavy-run --exclusive cargo xtask migration measure --step rust-27 --pairs 30`, then `cargo xtask migration decide --step rust-27`. Commit the baseline and prediction before implementation.
@@ -807,6 +765,27 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Success**: the tests pass; 0 early readings over 4 weeks.
   - **Pivot**: if owners clear the date to read early more than once in 4 weeks, drop the refusal and keep only a warning.
   - **Anchor**: Ries 2011 (pivot or persevere); Munafò et al. 2017 (pre-registration).
+||||||| 9b7b3e55
+
+- [ ] Indie: close two ways an agent could work out an owner number
+  - **ID**: indie-owner-number-oracles
+  - **Details**: A review of PR 175 found two indirect reads. (1) `careerbrew indie measure <bet> --value N` answers KEEP, WATCH, or PIVOT to an agent, so about 20 typed values find the bet's success and pivot lines (each one also records a false reading). (2) `careerbrew indie income --amount` and `indie goal --monthly` have no owner gate, so an agent that records a known amount reads the target from the percentage. Both are only asked of agents in `actions.AGENT_NOTES` today. Fix: require `--yes` ("the owner said so") for a typed reading, an income record, and a goal change; add them to `actions.CONFIRM`; keep the stored measure command free. A new flag changes the action catalog, so follow the frozen-reference gotcha (a successor fixture pair and both pins).
+  - **Files**: src/careerbrew/cli.py; src/careerbrew/actions.py; tests/unit/test_indie.py; skills/careerbrew-indie/SKILL.md; commands/indie.md; xtask/tests/fixtures/capture/
+  - **Hypothesis**: with the gate, an agent call with no `--yes` is refused, so the count of owner numbers an agent can work out with these three commands falls from 3 (success line, pivot line, income target) to 0.
+  - **Measurement**: `gh pr checks <pr>` (new cases in `tests/unit/test_indie.py`: each of the three calls with no `--yes` exits 2 and writes nothing).
+  - **Success**: 3 of 3 calls refused.
+  - **Pivot**: if the web Actions form cannot pass the confirm as `--yes`, refuse by caller (`may_show_business()`) instead.
+  - **Anchor**: Saltzer & Schroeder 1975 (complete mediation).
+
+- [ ] Indie: the asks trend counts an adapter week with no day record as zero asks
+  - **ID**: indie-asks-trend-adapter-week
+  - **Details**: With `indie_agent_time_command` set, a week can have agent-hours and no day rows. `indie.review` then shows that week's `asks_per_outcome` as no-data, but the trend's `cost()` counts it as 0 asks, so the trend reads lower than the weeks do. Count a week in the asks trend only when it has day rows.
+  - **Files**: src/careerbrew/indie.py; tests/unit/test_indie.py
+  - **Hypothesis**: the asks trend equals total asks over total outcomes of the weeks that have day rows; the gap to the per-week numbers falls from 1 case to 0.
+  - **Measurement**: `gh pr checks <pr>` (a new case in `tests/unit/test_indie.py` with adapter hours and one week without day rows).
+  - **Success**: the case passes.
+  - **Pivot**: none needed; a wrong trend is a bug, not an approach.
+  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM).
 
 - [ ] Indie: an income measure command for a product bet
   - **ID**: indie-income-measure

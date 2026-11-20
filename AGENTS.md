@@ -68,6 +68,7 @@ Run every command from the repo root.
 | Propose a migration step's noise floor from one baseline record (prints JSON, writes nothing; register it in `xtask/src/noise_floor.rs`) | `cargo xtask migration noise-floor --baseline <absolute-file>` |
 | Fixed Linux observer preparation | `cargo xtask migration observer-probe --image <frozen-image-id>`; follow the fixed observer protocol, retain receipts locally, and obtain release before actual execution |
 | Native repo leak scan over a synthetic terms file (rust-27b slice 1; not yet behind `scripts/leak-check.sh`) | `cargo xtask leak-check [--staged] [--repo <dir>] --terms-file <file>`; exit 0 clean, 1 finding, 2 usage; prints term ids only |
+| Native gate cache key (rust-27 slice 2; not yet behind `scripts/input-key.sh`) | `cargo xtask input-key [--repo <dir>] [--] [pathspec...]`; prints the same 16 hex characters as the script; exit 1 outside a checkout or on a git error |
 | Regenerate the action registry and the native route table after a CLI change (a command, an argument, a help string, or a terminal-only, confirm or agent note) | `uv run python scripts/gen-registry.py` (the `registry` gate step runs it with `--check`) |
 | Speed report | `scripts/metrics.sh` |
 | README Proof numbers (after a green gate; writes `docs/proof/metrics.json`, then the README section) | `scripts/metrics.sh proof` |
@@ -101,7 +102,7 @@ Run every command from the repo root.
 | Add a dependency | the manifest, plus a check in `scripts/doctor.sh` | `README.md` if setup changes |
 | Record a decision that is hard to undo | a new `docs/decisions/NNNN-*.md` | none |
 | Plan a change bigger than one PR | `docs/plans/YYYY-MM-DD-<topic>.md` | none |
-| Work on a Rust migration step (`rust-00` to `rust-28` in `TASKS.md`) | follow its step in [`docs/rust-migration.md`](docs/rust-migration.md): measurement protocol, activation rule, inputs, outputs and gate; a crate that starts to ship goes on `scripts/rust-shipped-crates.txt` (`tests/unit/test_rust_shipped_crates.py`) | that page's "Current state" and owner map; the code inventory and activation tables per its source-map refresh rule |
+| Work on a Rust migration step (`rust-00` to `rust-28` in `TASKS.md`) | follow its step in [`docs/rust-migration.md`](docs/rust-migration.md): measurement protocol, activation rule, inputs, outputs and gate; new code inventory rows go in a fragment `docs/plans/rust-inventory.d/<name>.csv` (same columns, no header), never in the main CSV, so parallel step PRs do not conflict; a crate that starts to ship goes on `scripts/rust-shipped-crates.txt` (`tests/unit/test_rust_shipped_crates.py`) | that page's "Current state" and owner map; the code inventory and activation tables per its source-map refresh rule |
 | Record what a shipped change taught us | the pull request body, under Predicted / Observed / Lesson (no new file in the learnings folder: the public tree leaves it out) | none |
 | Add or close a task | `TASKS.md` | none |
 | Add an assistant feature | `skills/<feature>/SKILL.md` and a case in `evals/cases/` | `README.md` |
