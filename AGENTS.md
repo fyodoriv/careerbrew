@@ -69,6 +69,7 @@ Run every command from the repo root.
 | Fixed Linux observer preparation | `cargo xtask migration observer-probe --image <frozen-image-id>`; follow the fixed observer protocol, retain receipts locally, and obtain release before actual execution |
 | Native repo leak scan over a synthetic terms file (rust-27b slice 1; not yet behind `scripts/leak-check.sh`) | `cargo xtask leak-check [--staged] [--repo <dir>] --terms-file <file>`; exit 0 clean, 1 finding, 2 usage; prints term ids only |
 | Native gate cache key (rust-27 slice 2; not yet behind `scripts/input-key.sh`) | `cargo xtask input-key [--repo <dir>] [--] [pathspec...]`; prints the same 16 hex characters as the script; exit 1 outside a checkout or on a git error |
+| Native docs drift check (rust-27b slice 3; not yet behind `scripts/check-docs.sh`) | `cargo xtask check-docs [--repo <dir>]`; prints the same lines and exit code as the script (0 match, 1 drift, 2 usage) |
 | Regenerate the action registry and the native route table after a CLI change (a command, an argument, a help string, or a terminal-only, confirm or agent note) | `uv run python scripts/gen-registry.py` (the `registry` gate step runs it with `--check`) |
 | Speed report | `scripts/metrics.sh` |
 | README Proof numbers (after a green gate; writes `docs/proof/metrics.json`, then the README section) | `scripts/metrics.sh proof` |

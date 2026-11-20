@@ -175,6 +175,7 @@ __pycache__/
 !/xtask/src/capture_actions.rs
 !/xtask/src/leak_check.rs
 !/xtask/src/input_key.rs
+!/xtask/src/check_docs.rs
 !/xtask/tests/
 /xtask/tests/*
 !/xtask/tests/activation_manifest.rs
@@ -191,6 +192,7 @@ __pycache__/
 !/xtask/tests/purevec.rs
 !/xtask/tests/leak_check.rs
 !/xtask/tests/input_key.rs
+!/xtask/tests/check_docs.rs
 !/xtask/tests/fixtures/
 /xtask/tests/fixtures/*
 !/xtask/tests/fixtures/depvec/
@@ -266,6 +268,7 @@ __pycache__/
 !/docs/plans/2026-11-05-rust-data-fault-schema.json
 !/docs/plans/2026-11-17-rust-embedded-sites.csv
 !/docs/plans/rust-inventory.d/
+!/docs/plans/rust-inventory.d/rust-27b-check-docs.csv
 
 !/xtask/src/observer_probe.rs
 !/xtask/src/observer_probe/
