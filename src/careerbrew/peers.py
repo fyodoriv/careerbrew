@@ -121,6 +121,9 @@ def measure(side: str, metric: str, days: int, at: datetime | None = None) -> fl
     if metric == "outcomes_per_week":
         return round(outcomes * 7 / days, 2) if live else None
     rows = [r for r in indie.day_rows() if r["bet"] in live and date.fromisoformat(r["day"]) > since.date()]
+    # Hours exist only for recorded days: count the outcomes of those bet-days, or the cost reads too low.
+    logged = {(r["bet"], r["day"]) for r in rows}
+    outcomes = sum(1 for i, b in live.items() for t in indie.outcome_times(b, since) if (i, t.date().isoformat()) in logged)
     if not rows or not outcomes:
         return None
     return round(sum(r["hours"] if metric == "hours_per_outcome" else r.get("asks", 0) for r in rows) / outcomes, 2)
