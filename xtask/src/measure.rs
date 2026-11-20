@@ -66,7 +66,7 @@ pub const CANDIDATES: &[Candidate] = &[
     },
     // rust-04: both sides run every set of one generated file, the oracle
     // as `rust04.py --all <file>` and the candidate as
-    // `policy-vectors --all <file>` (the debug build `verify` uses).
+    // `policy-vectors --all <file>` (the release build).
     Candidate {
         step: "rust-04",
         program: "target/release/policy-vectors",
