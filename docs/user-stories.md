@@ -2098,3 +2098,41 @@ See [Agent hosts](agent-hosts.md) for runtime, deployment and regression details
 | Case | Test | Log event |
 |---|---|---|
 | python, native and rollback routes print the same bytes; a refusal falls back | `tests/e2e/us-111-native-actions.sh` | `cli.native_fallback`, `cli.native_unsupported` |
+
+## US-112: Run my personal projects as income bets, with agent time on the ones that pay back
+
+- **Host contract**: dual-host-shared-memory
+- **Mode**: platform
+- **As** an owner who wants to replace a salary with income from my own software, **I want** `/indie` to treat each personal repo as a bet with a hypothesis, a metric, a success line and a pivot line, and to put agent sessions on the bets whose work pays back, **so that** every day with my agents moves me closer to that income at a lower cost per outcome.
+- **Acceptance criteria**:
+  - Given personal repos under `indie_roots`, when I run `careerbrew indie run --json`, then every repo is a bet with a rank, a reason, and a next action; a bet with no hypothesis is a question for me and gets no session.
+  - Given a bet, when an agent runs `careerbrew indie decide <bet> activate` with no `--yes` or with a field missing, then it is refused: only I activate, pause, pivot, or kill a bet.
+  - Given active bets with recorded hours, when the plan is built, then an untried bet is tried once, a bet with outcomes per agent-hour ranks first, and at most one `enabler` bet holds a session.
+  - Given a bet whose last two readings are under its pivot line, when the plan is built, then the bet is held with no session until I decide.
+  - Given an income goal and a month's income that I typed, when any command prints, then it shows a percentage of the target and never an amount or a hypothesis text.
+  - Given a day of sessions, when I run `careerbrew indie end` and `careerbrew indie review --json`, then each week shows outcomes (merged `feat`, `fix`, `perf` commits), agent-hours and asks per outcome; a week with no recorded hours is `null`, never zero.
+- **Metric**: mean agent-hours per outcome in weeks 7 to 8 of the seeded 8-week simulation, ranked plan against round-robin over 200 seeds. **Target**: 20% lower or better at the 10th percentile, and no seed worse than round-robin.
+- **Skill**: `skills/careerbrew-indie`
+- **Web views**: none
+
+| Case | Test | Log event |
+|---|---|---|
+| question not work, owner-only decisions, ranking, pivot hold, privacy, end and review | `tests/e2e/us-112-indie-day.sh` | `indie.run`, `indie.end`, `indie.measure`, `indie.review` |
+
+## US-113: `/indie` and `/work` improve each other
+
+- **Host contract**: dual-host-shared-memory
+- **Mode**: platform
+- **As** the owner of both runners, **I want** `/indie` (the founder) and `/work` (the operator) to detect each other's new lessons and source changes and to trial them on their own metrics, **so that** a gain on one side reaches the other and neither falls behind.
+- **Acceptance criteria**:
+  - Given a new numbered lesson or source commit on one side, when I run `careerbrew peer status --for <other side> --json`, then it lists the lesson as unreviewed and the commits since that side's review marker, with the next step.
+  - Given a side with an open trial, when it starts a second one or closes the first before 3 days, then the command is refused: one change at a time.
+  - Given a trial of 3 days or more, when it closes, then the verdict is KEEP, REVERT, or NEUTRAL by a 10% margin on the side's own metric, NO-DATA when there is no number, and the command prints the adopted or declined line for the side's `LESSONS.md`.
+  - Given a verdict line and a moved marker in a side's `LESSONS.md`, when status runs again, then the lesson and the commits are gone from its list.
+- **Metric**: peer lessons with no verdict, per side. **Target**: 0 after each side's review in the US-113 run.
+- **Skill**: `skills/careerbrew-indie`
+- **Web views**: none
+
+| Case | Test | Log event |
+|---|---|---|
+| detect, trial, refuse a second trial, decline, marker | `tests/e2e/us-113-peer-improvement.sh` | `peer.status`, `peer.experiment` |

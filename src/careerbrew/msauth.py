@@ -106,14 +106,13 @@ def poll(client_id: str, tenant: str, flow: dict[str, Any], sleep: Callable[[flo
             ans = http_form(_url(tenant, "token"), fields)
         except OSError:  # one network blip while the owner types the code: wait and ask again, up to the deadline
             ans = {"error": "authorization_pending"}
-        if ans.get("access_token") and ans.get("refresh_token"):
+        verdict = classify_poll(ans)
+        if verdict == "done":
             return ans
-        err = ans.get("error", "")
-        if err == "slow_down":
+        if verdict == "slow":
             interval += 5
-        elif err != "authorization_pending":
-            reason = {"authorization_declined": "you declined the sign-in", "expired_token": "the code expired", "bad_verification_code": "Microsoft did not know the code"}.get(err, f"Microsoft answered {err or 'with no token'}")
-            raise ConnectorError(f"outlook: sign-in did not finish: {reason} (fix: run `careerbrew connect outlook` again)")
+        elif verdict != "wait":
+            raise ConnectorError(verdict)
         if clock() + interval > deadline:
             raise ConnectorError("outlook: sign-in did not finish: the code expired (fix: run `careerbrew connect outlook` again)")
         sleep(interval)
@@ -155,10 +154,10 @@ def bearer(cfg: dict[str, Any]) -> str:
         ans = http_form(_url(tenant, "token"), {"grant_type": "refresh_token", "client_id": client_id, "refresh_token": secrets.resolve(ref), "scope": SCOPES})
     except OSError as e:  # no network or a 5xx: the sign-in may still be fine, so never ask to reconnect
         raise ConnectorError(f"outlook: could not reach Microsoft sign-in ({type(e).__name__}) (fix: check the network, then try again)") from None
-    if not ans.get("access_token"):
-        err = str(ans.get("error") or "")
-        if err not in ENDED:  # an app or scope refusal: a new sign-in cannot fix it, so name the code
-            raise ConnectorError(f"outlook: Microsoft refused the token ({err or 'no token'}) (fix: check outlook_client_id and outlook_tenant; the app registration must allow public client flows)")
+    verdict = classify_refresh(ans)
+    if verdict != "token":
+        if verdict != "reconnect":
+            raise ConnectorError(verdict)
         events.emit("connector.reconnect", source_kind="outlook", status="expired")
         _set_reconnect(True)
         raise ReconnectNeeded(f"outlook: the sign-in expired ({RECONNECT})")
@@ -171,3 +170,27 @@ def bearer(cfg: dict[str, Any]) -> str:
     _ACCESS[ref] = (str(ans["access_token"]), time.monotonic() + max(0.0, float(ans.get("expires_in") or 3600) - EARLY_S))
     _set_reconnect(False)
     return str(ans["access_token"])
+
+
+def classify_poll(ans: dict[str, Any]) -> str:
+    """Pure (rust-07b): a device-code token answer is "done", "wait", "slow", or the refusal text."""
+    if ans.get("access_token") and ans.get("refresh_token"):
+        return "done"
+    err = ans.get("error", "")
+    if err == "slow_down":
+        return "slow"
+    if err == "authorization_pending":
+        return "wait"
+    reason = {"authorization_declined": "you declined the sign-in", "expired_token": "the code expired", "bad_verification_code": "Microsoft did not know the code"}.get(err, f"Microsoft answered {err or 'with no token'}")
+    return f"outlook: sign-in did not finish: {reason} (fix: run `careerbrew connect outlook` again)"
+
+
+def classify_refresh(ans: dict[str, Any]) -> str:
+    """Pure (rust-07b): a refresh-token answer is "token", "reconnect" (the sign-in ended), or the refusal text."""
+    if ans.get("access_token"):
+        return "token"
+    err = str(ans.get("error") or "")
+    if err in ENDED:
+        return "reconnect"
+    # an app or scope refusal: a new sign-in cannot fix it, so name the code
+    return f"outlook: Microsoft refused the token ({err or 'no token'}) (fix: check outlook_client_id and outlook_tenant; the app registration must allow public client flows)"

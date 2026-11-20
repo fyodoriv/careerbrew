@@ -78,6 +78,12 @@ A message blocked on a missing permission, policy, role, or group is work to res
 
 With an empty work_steps setting, add steps for every day with `careerbrew config set work_steps "/standup, /review-prs"`. Before adding an owner step, read `careerbrew config` and retain the existing `work_steps` entries; update the same entry if it is already present. `config set` replaces the list. With an empty list, an owner command with ordering can use `careerbrew config set work_steps '[{"step":"/standup","scope":["work"],"after":["/refresh"]}]'`. A company plugin adds its own under `work_steps:` in its manifest, with `after`, `scope`, `uses`, and `longRunning` to say what may run at once (docs/plugins.md, "Work steps").
 
+## Personality and peer review
+
+You are the operator: careful, you prove each step, keep every promise, and count failed and blocked steps. `/indie` is the founder (bold, counts outcomes per agent-hour). You two improve each other.
+
+At the start of a work day, run `careerbrew peer status --for work --json` and do each line in `next`: read the named `/indie` lesson in `skills/careerbrew-indie/LESSONS.md`, then trial it (`careerbrew peer experiment --side work --start "<change>" --metric step_fail_rate --lesson <id>`; other metrics: `step_blocked_rate`, `step_minutes`) or add `- [<id>] declined: <reason>` to this skill's `LESSONS.md`. One trial at a time; after 3 days or more, `careerbrew peer experiment --side work --close` prints KEEP, REVERT, NEUTRAL, or NO-DATA and the line to write. KEEP: change this skill and add an eval case. Lessons hold process rules only, never business text. A corporate machine never pushes: give the printed line to the owner, who adds it from a personal machine.
+
 ## Usage counts
 
 After the owner's yes to telemetry, `/work` is measured without content: each `day update` records the step's status, kind, seconds, and failure class (`--error-class`), and `day end` records how many steps ended done, blocked, failed, still running, or not started; they leave in the once-a-day send. Always pass the real `--error-class` on a failed step: the "Work-day step failures by class" tile picks the next `/work` fix from it. Compare versions in the "Work days by version" tile, and starts, asks, proofs and timeouts in "Work-day funnel and asks" (`docs/telemetry-tiles.md`). Never answer the consent question for the owner.

@@ -564,3 +564,45 @@ def from_log(title: str, text: str) -> Run:
             r.done.append(Item(name, id=f"section-{n}", evidence=last))
     r.counts = {"sections": len(sections), "blockers": len(r.blockers), "next_steps": len(r.next)}
     return r
+
+
+def indie_day(plan: dict[str, Any]) -> Run:
+    """The indie day (US-112): who gets a session, each bet's next action, and what waits for the owner. Ids and counts only."""
+    r = Run("indie-day", f"Indie day {plan['day']}")
+    for b in plan["bets"]:
+        item = Item(f"{b['rank']}. {b['bet']}", id=b["bet"], evidence=b["reason"], why=b["reason"], command=b["next"]["do"])
+        if b["slot"]:
+            r.done.append(Item(f"{b['rank']}. {b['bet']} gets a session", id=b["bet"], evidence=b["reason"], command=f"careerbrew work session open {b['bet']}"))
+            r.next.append(Item(f"{b['bet']}: {b['next']['do']}", id=f"next-{b['bet']}", command=f"careerbrew work session open {b['bet']}"))
+        elif b["next"]["kind"] in ("question", "decide"):
+            r.next.append(Item(f"You decide: {b['bet']} ({b['reason']})", id=f"ask-{b['bet']}", command=b["next"]["do"]))
+        else:
+            r.done.append(item)
+    g = plan["goal"]
+    if not g["set"]:
+        r.next.append(Item("Set your income target (you type it; it stays encrypted)", id="goal", command="careerbrew indie goal --monthly <amount> --by YYYY-MM-DD"))
+    _cap(r)
+    cov = plan["coverage"]
+    r.counts = {"bets": cov["repos"], "with_next_action": cov["with_next_action"], "sessions": len(plan["sessions"]), "questions": len(plan["questions"])}
+    r.headline = f"indie day {plan['day']}: {len(plan['sessions'])} session(s), {len(plan['questions'])} question(s) for you, {cov['with_next_action']}/{cov['repos']} repos with a next action"
+    r.commands = ["careerbrew indie run"]
+    return r
+
+
+def indie_review(got: dict[str, Any]) -> Run:
+    """The weekly indie review (US-112): outcomes and what each one cost, per week; each bet's status."""
+    r = Run("indie-review", "Indie review")
+    for w in got["weeks"]:
+        cost = "no agent-hours recorded" if w["hours_per_outcome"] is None else f"{w['hours_per_outcome']} agent-hour(s) per outcome"
+        r.done.append(Item(f"Week to {w['week_ending']}: {w['outcomes']} outcome(s)", id=f"week-{w['week_ending']}", evidence=f"{cost}; {w['asks']} ask(s)"))
+    for b in got["bets"]:
+        if b["held"]:
+            r.blockers.append(Item(f"{b['bet']} is held", id=f"held-{b['bet']}", why="its metric was under the pivot line twice in a row", command=f"careerbrew indie decide {b['bet']} persevere|pivot|kill --yes"))
+        elif b["metric_status"] == "no-data" and b["state"] == "active":
+            r.next.append(Item(f"Measure {b['bet']}", id=f"measure-{b['bet']}", command=f"careerbrew indie measure {b['bet']}"))
+    t = got["trend"]["hours_per_outcome"]
+    _cap(r)
+    r.counts = {"weeks": len(got["weeks"]), "outcomes": sum(w["outcomes"] for w in got["weeks"]), "bets": len(got["bets"])}
+    r.headline = f"indie review: {r.counts['outcomes']} outcome(s) in {len(got['weeks'])} week(s); agent-hours per outcome {t['earlier'] if t['earlier'] is not None else 'no-data'} -> {t['recent'] if t['recent'] is not None else 'no-data'}"
+    r.commands = ["careerbrew indie review"]
+    return r
