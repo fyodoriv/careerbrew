@@ -50,7 +50,7 @@ def inventory(tmp_path, home, monkeypatch):
 
 
 def test_ready_transition_once_across_passes_and_days(inventory, monkeypatch):
-    monkeypatch.setattr(review_ask, "recheck_pr", lambda _: ("open", "still open"))
+    monkeypatch.setattr(review_ask, "recheck_pr", lambda _, **__: ("open", "still open"))
     inventory(dict(READY, checks_green=False))
     assert questions.open_records() == []
     result = inventory(READY, READY)
@@ -62,7 +62,7 @@ def test_ready_transition_once_across_passes_and_days(inventory, monkeypatch):
     (repeated,) = questions.open_records()
     assert repeated["id"] == first["id"]
     assert repeated["createdAt"] == first["createdAt"]
-    monkeypatch.setattr(review_ask, "recheck_pr", lambda _: ("closed", "reviewer requested"))
+    monkeypatch.setattr(review_ask, "recheck_pr", lambda _, **__: ("closed", "reviewer requested"))
     inventory()
     assert questions.open_records() == []
 

@@ -91,7 +91,7 @@ def test_truncated_repository_inventory_is_rejected(adapter, response):
 def test_watch_uses_repo_scoped_github_adapter(response, tmp_path, home, monkeypatch):
     raw, pr = response
     monkeypatch.setenv("CAREERBREW_NOW", "2026-11-04T15:00+00:00")
-    monkeypatch.setattr(review_ask, "recheck_pr", lambda _: ("unknown", "fixture"))
+    monkeypatch.setattr(review_ask, "recheck_pr", lambda _, **__: ("unknown", "fixture"))
     cli.main(["init"])
 
     command_dir = tmp_path / "bin"
@@ -213,6 +213,44 @@ def test_inventory_request_stops_at_deadline(tmp_path, monkeypatch):
     with pytest.raises(subprocess.TimeoutExpired):
         fetch("example", "review-demo", None, start + 0.2)
     assert time.monotonic() - start < 1.5
+
+
+def test_inventory_request_owns_its_descendants(tmp_path, monkeypatch):
+    import os
+    import subprocess
+    import time
+
+    ready, release, marker = (tmp_path / name for name in ("ready", "release", "marker"))
+    child = """import os,pathlib,sys,time
+ready, release, marker = map(pathlib.Path, sys.argv[1:])
+ready.write_text(str(os.getpid()))
+deadline = time.monotonic() + 8
+while not release.exists() and time.monotonic() < deadline:
+    time.sleep(0.01)
+if release.exists(): marker.touch()
+"""
+    parent = "import subprocess,sys,time; subprocess.Popen([sys.executable, '-c', *sys.argv[1:]], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(6)"
+    gh = tmp_path / "gh"
+    command = shlex.join([sys.executable, "-c", parent, child, str(ready), str(release), str(marker)])
+    gh.write_text(f"#!/bin/sh\nexec {command}\n")
+    gh.chmod(0o700)
+    monkeypatch.setenv("PATH", f"{tmp_path}:/usr/bin:/bin")
+    fetch = run_path(str(ROOT / "scripts/review-github-inventory.py"))["fetch_page"]
+    start = time.monotonic()
+    with pytest.raises(subprocess.TimeoutExpired):
+        fetch("example", "review-demo", None, start + 2)
+    release.touch()
+    pid = int(ready.read_text())
+    deadline = time.monotonic() + 2
+    while time.monotonic() < deadline:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.02)
+    else:
+        pytest.fail("GitHub CLI descendant survived its owned request")
+    assert not marker.exists()
 
 
 def test_later_page_failure_prints_no_partial_inventory(response, monkeypatch, capsys):
@@ -396,3 +434,25 @@ def test_inventory_checks_deadline_after_validation(response, monkeypatch):
     monkeypatch.setitem(collect.__globals__, "fetch_page", lambda *_: raw)
     with pytest.raises(ValueError, match="deadline"):
         collect("example", "review-demo", 1.0)
+
+
+def test_stable_inventory_requires_two_identical_complete_traversals(response, monkeypatch):
+    import copy
+    import time
+
+    raw, pr = response
+    changed = copy.deepcopy(raw)
+    changed_pr = changed["data"]["repository"]["pullRequests"]["nodes"][0]
+    changed_pr["reviewRequests"]["totalCount"] = 1
+    stable = run_path(str(ROOT / "scripts/review-github-inventory.py"))["stable_inventory"]
+
+    pages = iter((raw, changed))
+    monkeypatch.setitem(stable.__globals__, "fetch_page", lambda *_: next(pages))
+    with pytest.raises(ValueError, match="inventory changed"):
+        stable("example", "review-demo", time.monotonic() + 5)
+
+    pages = iter((raw, copy.deepcopy(raw)))
+    monkeypatch.setitem(stable.__globals__, "fetch_page", lambda *_: next(pages))
+    result = stable("example", "review-demo", time.monotonic() + 5)
+    assert result["complete"] is True
+    assert [row["url"] for row in result["pull_requests"]] == [pr["url"]]

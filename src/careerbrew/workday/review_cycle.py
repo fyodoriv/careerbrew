@@ -4,7 +4,9 @@ import json
 import os
 import selectors
 import shlex
+import signal
 import subprocess
+import threading
 import time
 from datetime import date
 from typing import Any
@@ -30,10 +32,21 @@ def _identity(url: str) -> str:
     return f"https://{ref['host']}/{ref['owner']}/{ref['repo']}/pull/{ref['number']}".lower()
 
 
+def _stop_owned_group(process: subprocess.Popen[Any]) -> None:
+    """Stop the invocation-scoped process group and reap its direct child."""
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    process.wait()
+
+
 def _inventory(command: str, seconds: float) -> list[Any]:
     argv = shlex.split(command)
     deadline = time.monotonic() + seconds
     data = bytearray()
+    if seconds <= 0:
+        raise subprocess.TimeoutExpired(argv, seconds)
     with (
         subprocess.Popen(  # noqa: S603 (approved work step)
             argv,
@@ -41,6 +54,7 @@ def _inventory(command: str, seconds: float) -> list[Any]:
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             env={**os.environ, watch.SKIP_ENV: "skip"},
+            start_new_session=True,
         ) as process,
         selectors.DefaultSelector() as selector,
     ):
@@ -48,7 +62,8 @@ def _inventory(command: str, seconds: float) -> list[Any]:
         selector.register(process.stdout, selectors.EVENT_READ)
         try:
             while len(data) <= MAX_INVENTORY_BYTES:
-                if not selector.select(max(0, deadline - time.monotonic())):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0 or not selector.select(remaining):
                     raise subprocess.TimeoutExpired(argv, seconds)
                 chunk = os.read(process.stdout.fileno(), 8192)
                 if not chunk:
@@ -57,16 +72,35 @@ def _inventory(command: str, seconds: float) -> list[Any]:
             if len(data) > MAX_INVENTORY_BYTES or process.wait(timeout=max(0, deadline - time.monotonic())):
                 raise ValueError("review inventory failed")
         finally:
-            if process.poll() is None:
-                process.kill()
+            _stop_owned_group(process)
     body = json.loads(data)
     if not isinstance(body, dict) or body.get("complete") is not True or not isinstance(body.get("pull_requests"), list):
         raise ValueError("review inventory is incomplete")
     return body["pull_requests"]
 
 
+def _check_one(question: dict[str, Any], deadline: float) -> tuple[str, str]:
+    """Bound a read-only recheck; a late answer is discarded and never closes a record."""
+    done = threading.Event()
+    result: list[tuple[str, str]] = []
+
+    def check() -> None:
+        try:
+            result.append(questions.check_one(question, deadline=deadline))
+        except Exception:
+            result.append(("unknown", "review recheck: could not verify PR state"))
+        finally:
+            done.set()
+
+    threading.Thread(target=check, daemon=True).start()
+    if not done.wait(max(0, deadline - time.monotonic())):
+        return "unknown", "review recheck: deadline exceeded"
+    return result[0]
+
+
 def run(step: dict[str, Any], seconds: float) -> bool:
     """Close verified review questions and offer at most one question per eligible PR."""
+    deadline = time.monotonic() + seconds
     existing = set()
     for question in questions.open_records():
         recheck = question["recheck"]
@@ -77,11 +111,18 @@ def run(step: dict[str, Any], seconds: float) -> bool:
         except ValueError:
             continue
         if question["step"] == step["step"] and question["source"] == step["from"]:
-            state, why = questions.check_one(question)
+            state, why = _check_one(question, deadline)
+            if why == "review recheck: deadline exceeded":
+                return False
             if state == "closed":
                 questions.close(question["id"], why, date.fromisoformat(question["day"]), expected=question)
+        if time.monotonic() >= deadline:
+            return False
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        return False
     try:
-        rows = _inventory(step["review_ask_cycle"], seconds)
+        rows = _inventory(step["review_ask_cycle"], remaining)
     except (OSError, ValueError, subprocess.TimeoutExpired, RecursionError):
         return False
 
@@ -96,6 +137,8 @@ def run(step: dict[str, Any], seconds: float) -> bool:
         ready = all(row.get(key) is expected for key, expected in READY.items())
         candidates[url] = candidates.get(url, True) and ready
     for url, ready in candidates.items():
+        if time.monotonic() >= deadline:
+            return False
         text = f"Draft a review ask for {url}?"
         if ready and url not in existing and len(text) <= questions.MAX_TEXT:
             questions.add(step["step"], text, recheck=f"careerbrew:review-pr {url}", source=step["from"])

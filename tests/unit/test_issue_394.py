@@ -122,8 +122,8 @@ def test_review_pr_recheck(case, home, tmp_path, monkeypatch, capsys):
         secret_calls.append(True)
         return _FIXTURE["synthetic_token"]
 
-    def transport(url, headers, body=None, *, allow_redirects=True):
-        assert allow_redirects is False
+    def transport(url, headers, body=None, *, allow_redirects=True, timeout=30):
+        assert allow_redirects is False and timeout == 30
         expected = case["calls"][len(transport_calls)]
         transport_calls.append(url)
         assert expected["method"] == "GET" and url == expected["url"] and body is None
@@ -328,8 +328,8 @@ def test_review_pr_recheck_redirect_stays_unknown(home, review_loopback, tmp_pat
         assert ref == "env:FIXTURE_REVIEW_AUTH"
         return AUTH.removeprefix("Bearer ")
 
-    def local_transport(url, headers, body=None, *, allow_redirects=True):
-        assert url == "https://api.github.com/repos/example/review-demo/pulls/41" and body is None
+    def local_transport(url, headers, body=None, *, allow_redirects=True, timeout=30):
+        assert url == "https://api.github.com/repos/example/review-demo/pulls/41" and body is None and timeout == 30
         assert headers == {"Authorization": AUTH}
         calls.append(allow_redirects)
         return actual_http_json(base + "/cross", headers, allow_redirects=allow_redirects)

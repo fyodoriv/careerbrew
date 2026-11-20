@@ -2,10 +2,12 @@
 """Print a repo-scoped review inventory for an approved work-day watch step."""
 
 import argparse
+import hashlib
 import json
 import os
 import re
 import selectors
+import signal
 import subprocess
 import sys
 import time
@@ -96,6 +98,15 @@ MAX_OUTPUT_BYTES = 256 * 1024
 MAX_PAGES = 20
 
 
+def stop_owned_group(process: subprocess.Popen[Any]) -> None:
+    """Stop the request-scoped process group and reap its direct child."""
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    process.wait()
+
+
 def fetch_page(owner: str, repo: str, cursor: str | None, deadline: float) -> dict[str, Any]:
     argv = ["gh", "api", "--hostname", "github.com", "graphql", "-f", f"query={QUERY}", "-f", f"owner={owner}", "-f", f"repo={repo}"]
     if cursor is not None:
@@ -106,6 +117,7 @@ def fetch_page(owner: str, repo: str, cursor: str | None, deadline: float) -> di
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         env={**os.environ, "GH_PROMPT_DISABLED": "1"},
+        start_new_session=True,
     )
     try:
         assert process.stdout is not None
@@ -126,18 +138,14 @@ def fetch_page(owner: str, repo: str, cursor: str | None, deadline: float) -> di
             raise ValueError("provider failed")
         return json.loads(data)
     finally:
-        if process.poll() is None:
-            process.kill()
         if process.stdout is not None:
             process.stdout.close()
-        try:
-            process.wait(timeout=max(0, deadline - time.monotonic()))
-        except subprocess.TimeoutExpired:
-            pass
+        stop_owned_group(process)
 
 
-def collect_pages(owner: str, repo: str, deadline: float) -> dict[str, Any]:
+def _collect_pages(owner: str, repo: str, deadline: float) -> tuple[dict[str, Any], str]:
     name = f"{owner}/{repo}"
+    digest = hashlib.sha256()
     cursor = None
     cursors: set[str] = set()
     identities: set[int] = set()
@@ -159,6 +167,7 @@ def collect_pages(owner: str, repo: str, deadline: float) -> dict[str, Any]:
         if viewer is not None and viewer != current_viewer:
             raise ValueError("viewer changed")
         viewer = current_viewer
+        digest.update(json.dumps([current_viewer, repository["nameWithOwner"]], sort_keys=True).encode())
         connection = repository["pullRequests"]
         rows = connection["nodes"]
         if not isinstance(rows, list) or len(rows) > 50:
@@ -168,6 +177,7 @@ def collect_pages(owner: str, repo: str, deadline: float) -> dict[str, Any]:
             if type(number) is not int or number < 1 or number in identities or not isinstance(url, str) or url.casefold() != f"https://github.com/{name}/pull/{number}".casefold():
                 raise ValueError("invalid or duplicate PR")
             identities.add(number)
+            digest.update(json.dumps(pr, sort_keys=True, separators=(",", ":")).encode())
             row = ready_row(pr, name, viewer)
             if row is not None:
                 ready.append(row)
@@ -184,7 +194,7 @@ def collect_pages(owner: str, repo: str, deadline: float) -> dict[str, Any]:
                 raise ValueError("inventory too large")
             if time.monotonic() >= deadline:
                 raise ValueError("deadline exceeded")
-            return result
+            return result, digest.hexdigest()
         if not rows:
             raise ValueError("empty nonterminal page")
         cursor = info.get("endCursor")
@@ -192,6 +202,19 @@ def collect_pages(owner: str, repo: str, deadline: float) -> dict[str, Any]:
             raise ValueError("invalid page cursor")
         cursors.add(cursor)
     raise ValueError("page limit exceeded")
+
+
+def collect_pages(owner: str, repo: str, deadline: float) -> dict[str, Any]:
+    return _collect_pages(owner, repo, deadline)[0]
+
+
+def stable_inventory(owner: str, repo: str, deadline: float) -> dict[str, Any]:
+    """Require two identical traversals; this detects change but is not an atomic snapshot."""
+    first, first_digest = _collect_pages(owner, repo, deadline)
+    second, second_digest = _collect_pages(owner, repo, deadline)
+    if first_digest != second_digest or first != second:
+        raise ValueError("inventory changed during traversal")
+    return second
 
 
 def main() -> int:
@@ -202,7 +225,7 @@ def main() -> int:
         parser.error("use an explicit OWNER/REPO")
     owner, repo = args.repo.split("/")
     try:
-        result = collect_pages(owner, repo, time.monotonic() + 30)
+        result = stable_inventory(owner, repo, time.monotonic() + 30)
         print(json.dumps(result))
     except (AttributeError, KeyError, OSError, RecursionError, TypeError, ValueError, subprocess.SubprocessError):
         print("GitHub review inventory unavailable or incomplete", file=sys.stderr)

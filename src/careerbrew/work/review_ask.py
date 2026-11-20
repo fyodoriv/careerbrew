@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import base64
 import re
+import time
 import urllib.error
 import urllib.parse
 from collections import Counter
@@ -103,7 +104,16 @@ def recheck_pr_link(url: str) -> dict[str, str]:
     return match.groupdict()
 
 
-def _recheck_pr(url: str) -> tuple[str, str]:
+def _recheck_timeout(deadline: float | None) -> float:
+    if deadline is None:
+        return 30
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise ReviewAskError("review recheck deadline exceeded")
+    return min(30, remaining)
+
+
+def _recheck_pr(url: str, deadline: float | None = None) -> tuple[str, str]:
     ref = recheck_pr_link(url)
     source = _connector()
     api = str(source.get("api") or "https://api.github.com").rstrip("/")
@@ -116,7 +126,7 @@ def _recheck_pr(url: str) -> tuple[str, str]:
         raise ReviewAskError("review recheck authorization missing")
     headers = {"Authorization": f"Bearer {token}"}
     endpoint = f"{api}/repos/{ref['owner']}/{ref['repo']}/pulls/{ref['number']}"
-    pr = connectors.http_json(endpoint, headers, allow_redirects=False)
+    pr = connectors.http_json(endpoint, headers, allow_redirects=False, timeout=_recheck_timeout(deadline))
     reported = recheck_pr_link(pr["html_url"])
     if type(pr["number"]) is not int or pr["number"] != int(ref["number"]) or {k: v.lower() for k, v in reported.items()} != {k: v.lower() for k, v in ref.items()} or type(pr["merged"]) is not bool:
         raise ReviewAskError("review recheck identity mismatch")
@@ -139,7 +149,7 @@ def _recheck_pr(url: str) -> tuple[str, str]:
     if teams or any(person["type"] == "User" and person["login"].casefold() != author for person in requested):
         return "closed", "review recheck: reviewer requested"
 
-    reviews = connectors.http_json(f"{endpoint}/reviews?per_page={REVIEW_PAGE_SIZE}", headers, allow_redirects=False)
+    reviews = connectors.http_json(f"{endpoint}/reviews?per_page={REVIEW_PAGE_SIZE}", headers, allow_redirects=False, timeout=_recheck_timeout(deadline))
     if not isinstance(reviews, list) or len(reviews) >= REVIEW_PAGE_SIZE:
         raise ReviewAskError("review recheck reviews are incomplete")
     submitted = False
@@ -156,10 +166,10 @@ def _recheck_pr(url: str) -> tuple[str, str]:
     return "open", "review recheck: still open"
 
 
-def recheck_pr(url: str) -> tuple[str, str]:
+def recheck_pr(url: str, *, deadline: float | None = None) -> tuple[str, str]:
     """Return only verified closure and fixed, content-free reasons."""
     try:
-        return _recheck_pr(url)
+        return _recheck_pr(url, deadline)
     except (ReviewAskError, connectors.ConnectorError, secrets.SecretError, OSError, ValueError, TypeError, KeyError, AttributeError):
         return "unknown", "review recheck: could not verify PR state"
 

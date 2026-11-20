@@ -300,7 +300,7 @@ def _signin_open() -> tuple[str, str]:
     return ("closed", "signed in") if ok else ("open", why)
 
 
-def check_one(q: dict[str, Any]) -> tuple[str, str]:
+def check_one(q: dict[str, Any], *, deadline: float | None = None) -> tuple[str, str]:
     """(`open` | `closed` | `agent` | `unknown`, why) for one record. Runs its recheck; never reads its output."""
     from .gate import may_run, run_verify
 
@@ -321,7 +321,7 @@ def check_one(q: dict[str, Any]) -> tuple[str, str]:
             url = _review_pr_url(q["recheck"])
         except ValueError:
             return "unknown", "review recheck: invalid PR link"
-        return review_ask.recheck_pr(url)
+        return review_ask.recheck_pr(url, deadline=deadline)
     ok, why = run_verify(q["recheck"])
     if ok:
         return "open", "recheck: still open"

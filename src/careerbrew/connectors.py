@@ -137,7 +137,7 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def http_json(url: str, headers: dict[str, str], body: dict[str, Any] | None = None, *, allow_redirects: bool = True) -> Any:
+def http_json(url: str, headers: dict[str, str], body: dict[str, Any] | None = None, *, allow_redirects: bool = True, timeout: float = 30) -> Any:
     check_host(url)
     if os.environ.get("CAREERBREW_HTTP_FIXTURES"):
         fixture = json.loads(_fixture_path(url).read_text(encoding="utf-8"))
@@ -147,10 +147,10 @@ def http_json(url: str, headers: dict[str, str], body: dict[str, Any] | None = N
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, headers={"Accept": "application/json", "Content-Type": "application/json", **headers})
     if allow_redirects:
-        with open_url(req, timeout=30) as resp:
+        with open_url(req, timeout=timeout) as resp:
             return json.loads(resp.read())
     opener = urllib.request.build_opener(_NoRedirect())
-    with opener.open(req, timeout=30) as resp:  # noqa: S310 (configured hosts, policy-checked)
+    with opener.open(req, timeout=timeout) as resp:  # noqa: S310 (configured hosts, policy-checked)
         return json.loads(resp.read())
 
 

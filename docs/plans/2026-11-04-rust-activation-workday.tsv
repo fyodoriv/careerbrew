@@ -50,9 +50,9 @@ node	workday.end.write_handoff	rust-16	src/careerbrew/workday/end.py	164
 node	workday.gate.may_run	rust-16	src/careerbrew/workday/gate.py	48
 node	workday.gate.run_verify	rust-16	src/careerbrew/workday/gate.py	58
 node	workday.plan.build	rust-16	src/careerbrew/workday/plan.py	76
-node	workday.questions.check_one	rust-16	src/careerbrew/workday/questions.py	299
-node	workday.questions.close	rust-15	src/careerbrew/workday/questions.py	256
-node	workday.questions.open_records	rust-15	src/careerbrew/workday/questions.py	243
+node	workday.questions.check_one	rust-16	src/careerbrew/workday/questions.py	303
+node	workday.questions.close	rust-15	src/careerbrew/workday/questions.py	260
+node	workday.questions.open_records	rust-15	src/careerbrew/workday/questions.py	247
 node	workday.questions.record	rust-15	src/careerbrew/workday/questions.py	141
 node	workday.questions.save	rust-15	src/careerbrew/workday/questions.py	209
 node	workday.start.checkouts	rust-16	src/careerbrew/workday/start.py	145
