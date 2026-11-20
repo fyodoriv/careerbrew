@@ -60,17 +60,15 @@ def _inventory(command: str, seconds: float) -> list[Any]:
     data = bytearray()
     if seconds <= 0:
         raise subprocess.TimeoutExpired(argv, seconds)
-    with (
-        subprocess.Popen(  # noqa: S603 (approved work step)
-            argv,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            env={**os.environ, watch.SKIP_ENV: "skip", GROUP_OWNER_ENV: "1"},
-            start_new_session=True,
-        ) as process,
-        selectors.DefaultSelector() as selector,
-    ):
+    process = subprocess.Popen(  # noqa: S603 (approved work step)
+        argv,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        env={**os.environ, watch.SKIP_ENV: "skip", GROUP_OWNER_ENV: "1"},
+        start_new_session=True,
+    )
+    with selectors.DefaultSelector() as selector:
         assert process.stdout is not None
         selector.register(process.stdout, selectors.EVENT_READ)
         try:
@@ -85,6 +83,8 @@ def _inventory(command: str, seconds: float) -> list[Any]:
             if len(data) > MAX_INVENTORY_BYTES or process.wait(timeout=max(0, deadline - time.monotonic())):
                 raise ValueError("review inventory failed")
         finally:
+            process.stdout.close()
+            # Popen.__exit__ also waits; never enter it after a cleanup error.
             _stop_owned_group(process)
     body = json.loads(data)
     if not isinstance(body, dict) or body.get("complete") is not True or not isinstance(body.get("pull_requests"), list):

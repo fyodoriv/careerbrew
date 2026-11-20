@@ -1,5 +1,6 @@
 """Measure the saved review cycle's synthetic deadline boundaries."""
 
+import io
 import os
 import shlex
 import subprocess
@@ -52,6 +53,37 @@ def test_slow_recheck_stops_at_requested_budget(monkeypatch):
     finally:
         release.set()
     assert finished.wait(1)
+
+
+def test_cleanup_error_never_falls_into_popen_exit_wait(monkeypatch):
+    read, write = os.pipe()
+    os.close(write)
+
+    class Child:
+        pid = 424242
+
+        def __init__(self):
+            self.stdout = io.FileIO(read)
+
+        def wait(self, **_kwargs):
+            return 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            raise AssertionError("Popen.__exit__ waited after the cleanup error")
+
+    child = Child()
+    monkeypatch.setattr(review_cycle.subprocess, "Popen", lambda *_args, **_kwargs: child)
+
+    def fail_cleanup(_process):
+        raise PermissionError
+
+    monkeypatch.setattr(review_cycle, "_stop_owned_group", fail_cleanup)
+    with pytest.raises(PermissionError):
+        review_cycle._inventory("unused", 1)
+    assert child.stdout.closed
 
 
 def test_timed_out_inventory_owns_its_descendants(tmp_path):
