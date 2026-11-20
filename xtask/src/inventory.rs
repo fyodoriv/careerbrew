@@ -5,6 +5,9 @@ use std::process::Command;
 
 const INVENTORY: &str = "docs/plans/2026-11-01-rust-code-inventory.csv";
 const HEADER: &str = "path,disposition,task,reason";
+/// Per-step inventory fragments: same columns as `INVENTORY`, no header.
+/// New steps add a fragment so parallel pull requests touch separate files.
+const FRAGMENTS: &str = "docs/plans/rust-inventory.d/";
 const EMBEDDED: &str = "docs/plans/2026-11-04-rust-embedded-anchors.csv";
 const EMBEDDED_HEADER: &str = "path,task,anchor";
 const NATIVE_CONFIG: &[&str] = &[
@@ -30,7 +33,37 @@ fn git(args: &[&str]) -> Result<String, &'static str> {
 pub fn check() -> Result<usize, &'static str> {
     let tracked = git(&["ls-files", "--full-name", "--stage", "-z", "--", ":/"])?;
     let manifest = git(&["show", &format!(":{INVENTORY}")])?;
-    verify(&tracked, &manifest)
+    let combined = combine(&tracked, manifest, |path| {
+        git(&["show", &format!(":{path}")])
+    })?;
+    verify(&tracked, &combined)
+}
+
+/// Append every staged fragment, in sorted path order, to the main inventory.
+fn combine(
+    index: &str,
+    mut inventory: String,
+    mut read: impl FnMut(&str) -> Result<String, &'static str>,
+) -> Result<String, &'static str> {
+    let fragments: BTreeSet<&str> = index
+        .split('\0')
+        .filter_map(|entry| entry.split_once('\t').map(|(_, path)| path))
+        .filter(|path| {
+            path.strip_prefix(FRAGMENTS)
+                .is_some_and(|name| name.ends_with(".csv") && !name.contains('/'))
+        })
+        .collect();
+    for path in fragments {
+        let body = read(path)?;
+        if body.lines().next() == Some(HEADER) {
+            return Err("inventory fragment must not repeat the header");
+        }
+        if !inventory.is_empty() && !inventory.ends_with('\n') {
+            inventory.push('\n');
+        }
+        inventory.push_str(&body);
+    }
+    Ok(inventory)
 }
 
 pub fn check_embedded() -> Result<usize, &'static str> {
@@ -162,7 +195,7 @@ fn verify(index: &str, inventory: &str) -> Result<usize, &'static str> {
 
 #[cfg(test)]
 mod tests {
-    use super::verify;
+    use super::{combine, verify};
 
     const INDEX: &str = concat!("100644 oid 0\tx.rs\0", "100755 oid 0\tbin/check\0");
     const HEADER: &str = "path,disposition,task,reason\n";
@@ -190,6 +223,52 @@ mod tests {
                 Err("duplicate or untracked inventory assignment")
             );
         }
+    }
+
+    const FRAGMENT_INDEX: &str = concat!(
+        "100644 oid 0\tx.rs\0",
+        "100755 oid 0\tbin/check\0",
+        "100644 oid 0\tdocs/plans/rust-inventory.d/b.csv\0",
+        "100644 oid 0\tdocs/plans/rust-inventory.d/a.csv\0",
+    );
+
+    fn fragments(a: &str, b: &str) -> Result<usize, &'static str> {
+        let (a, b) = (a.to_owned(), b.to_owned());
+        let combined = combine(FRAGMENT_INDEX, format!("{HEADER}{SOURCE}"), |path| {
+            Ok(if path.ends_with("a.csv") {
+                a.clone()
+            } else {
+                b.clone()
+            })
+        })?;
+        verify(FRAGMENT_INDEX, &combined)
+    }
+
+    #[test]
+    fn a_fragment_row_counts() {
+        // Without the fragment, bin/check is unassigned; with it, both count.
+        assert_eq!(fragments("", ""), Err("unassigned tracked source path"));
+        assert_eq!(fragments(CHECK.trim_end(), ""), Ok(2));
+    }
+
+    #[test]
+    fn a_path_duplicated_across_fragments_is_refused() {
+        assert_eq!(
+            fragments(CHECK, CHECK),
+            Err("duplicate or untracked inventory assignment")
+        );
+        assert_eq!(
+            fragments(CHECK, SOURCE),
+            Err("duplicate or untracked inventory assignment")
+        );
+    }
+
+    #[test]
+    fn a_fragment_with_a_header_is_refused() {
+        assert_eq!(
+            fragments(&format!("{HEADER}{CHECK}"), ""),
+            Err("inventory fragment must not repeat the header")
+        );
     }
 
     #[test]
