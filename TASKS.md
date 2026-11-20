@@ -625,16 +625,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if re-pinning takes more than one working day, drop the harness and remove the module.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM).
 
-- [ ] Keep intended eval cases separate and reject duplicate YAML keys
-  - **ID**: eval-yaml-doc-boundaries
-  - **PR**: #420 (open in the pre-release repository)
-  - **Details**: At source revision `a1ab35d79cb8e6118ba34c5604e11a46000c3dcb`, `evals/cases/024-live-feed.yaml` has no document separator before `live-feed-standup-failed-is-not-a-failed-cycle`; it shares a document with `live-feed-pulls-in-one-parallel-batch`. `evals/run.py:load_cases` uses `yaml.safe_load_all`. Preserve this evidence. Reproduce through that actual loader; first add a strict duplicate-key regression, then repair the separator. This is outside #406 implementation and makes no model-quality claim. Wrap-up: repair and strict duplicate-key controls are committed at d7c2c7f8 and published as draft PR #420. Both intended cases survive and all 188 original records remain equal after excluding the restored record. The normal push gate passed; the retained full US-72 browser failure remains unresolved. A separate cleanup failure is tracked in #419. Preserve all failed evidence, validate and rebind the older diagnostic capsule metadata before any resumed execution, and obtain a causally justified repair plus a green full gate before merging.
-  - **Hypothesis**: intended case integrity rises from a predicted 1/2 to 2/2 because neither intended case is overwritten or merged.
-  - **Measurement**: `uv run python -c 'import runpy; cases=runpy.run_path("evals/run.py")["load_cases"](); wanted={"live-feed-pulls-in-one-parallel-batch","live-feed-standup-failed-is-not-a-failed-cycle"}; got=[c for c in cases if c.get("id") in wanted]; assert {c["id"] for c in got} == wanted and len(got) == 2'`; add and run the strict duplicate-key regression through the same loader.
-  - **Success**: both intended records survive separately (2/2), with zero lost or merged cases; duplicate keys are refused by the loader.
-  - **Pivot**: if the actual loader already rejects the file or preserves both intended records, stop and diagnose that result before changing the separator or expectations.
-  - **Anchor**: Basili, Caldiera and Rombach 1994 (GQM); source revision and loader path above.
-
 - [ ] The exercises gate step never fails a correct O(n^2) reference on a busy machine
   - **ID**: exercises-slope-noise
   - **Details**: `unique-paths` failed the `exercises` step with growth n^2.52 (limit 2.5) in a full gate on 2026-10-29, and passed 2 of 2 runs alone at load 3; the 2026-10-22 gotcha saw n^2.54. CPU time still moves with cache pressure under 8 workers. Options: fit the slope on the median of the runs, or retry one failed exercise once alone before failing the step. Also: `test_two_sizes_become_three_and_each_size_runs_several_times` still failed 1 of 4 full gates at load ~11 after `SCALE_CPU_SECONDS` went to 60 (#318), while alone it takes 14.5 s wall and 10.4 s CPU; its assertion now prints the child's `reason`, so read that first.
