@@ -12,7 +12,10 @@ reads them before it asks again, and `careerbrew approvals guidance` shows them.
 
 from __future__ import annotations
 
+import fcntl
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +24,20 @@ from . import calendar, events, paths, store
 
 def _path() -> Path:
     return paths.sub("approvals.json")
+
+
+@contextmanager
+def _locked() -> Iterator[None]:
+    """rust-05b2: hold `.approvals.json.lock` across one load-change-save, like `store.upsert_jsonl`.
+
+    Lifecycle: an fcntl lock on the data root's `.approvals.json.lock`, held for one `request` or
+    `decide` call and released when it returns. Readers take no lock: the file swap is atomic.
+    """
+    path = _path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.with_name(f".{path.name}.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
 
 
 STATUSES = ("pending", "approved", "rejected")
@@ -64,7 +81,8 @@ def request(title: str, detail: str = "", by: str = "agent") -> dict[str, Any]:
     if not title:
         raise ValueError("an approval request needs a title")
     item = {"id": uuid.uuid4().hex[:8], "title": title[:200], "detail": detail.strip()[:4000], "by": by[:60], "at": calendar.now_utc().isoformat(timespec="seconds"), "status": "pending", "note": ""}
-    store.write_json(_path(), [*validate_records(load()), item])
+    with _locked():
+        store.write_json(_path(), [*validate_records(load()), item])
     events.emit("approvals.request", status="pending")
     return item
 
@@ -76,16 +94,17 @@ def pending() -> list[dict[str, Any]]:
 def decide(item_id: str, decision: str, note: str = "") -> dict[str, Any]:
     if decision not in ("approved", "rejected"):
         raise ValueError("decision must be approved or rejected")
-    items = validate_records(load())
-    for a in items:
-        if a["id"] == item_id:
-            if a["status"] != "pending":
-                raise ValueError(f"already {a['status']}")
-            a.update(status=decision, note=note.strip()[:1000], decided_at=calendar.now_utc().isoformat(timespec="seconds"))
-            store.write_json(_path(), items)
-            events.emit("approvals.decide", status=decision)
-            return a
-    raise KeyError(f"unknown approval {item_id}")
+    with _locked():
+        items = validate_records(load())
+        found = next((a for a in items if a["id"] == item_id), None)
+        if found is None:
+            raise KeyError(f"unknown approval {item_id}")
+        if found["status"] != "pending":
+            raise ValueError(f"already {found['status']}")
+        found.update(status=decision, note=note.strip()[:1000], decided_at=calendar.now_utc().isoformat(timespec="seconds"))
+        store.write_json(_path(), items)
+    events.emit("approvals.decide", status=decision)
+    return found
 
 
 GUIDANCE_MAX = 10

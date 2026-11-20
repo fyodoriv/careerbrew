@@ -1324,8 +1324,12 @@ Case folding and word splits depend on this table.
     root) across read, change and write.
   - A plaintext `store.append_jsonl` takes the same `.<name>.lock` that
     `upsert_jsonl` takes.
-  - Tests: `tests/unit/test_rust05b_storage_hardening.py`. The approvals lock
-    is `rust-05b2`, after the `rust-04` approvals edits merge.
+  - Tests: `tests/unit/test_rust05b_storage_hardening.py`.
+- **Sub-step `rust-05b2` (Python hardening):** `approvals.request` and
+  `approvals.decide` hold `.approvals.json.lock` (data root) across load,
+  change and save, like `upsert_jsonl`. Readers take no lock. The event is
+  emitted after the lock is released. Tests:
+  `tests/unit/test_rust05b2_approvals_lock.py`.
 
 ### rust-06: Port backup, restore and cross-machine sync
 
