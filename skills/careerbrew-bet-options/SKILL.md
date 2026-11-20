@@ -18,15 +18,18 @@ First, load `careerbrew-best-practices` (privacy, sources, machine role, never s
    - **measure**: the exact command that prints the metric, or "owner reads it from <place>".
    - **success** and **pivot**: two numbers with a date, at most 8 weeks out. Pivot is under success.
    - **first task**: the first piece of work the bet needs.
+   - **traffic** and **first reading**: where the people come from (a form with no stated traffic source reads zero whether or not demand exists), and the date of the first pivot reading, so a metric that starts at zero does not hold the bet in week 1.
+   - The measure command must count exactly what the metric text says. A feeder bet names what it feeds and how that link is counted.
 3. **Five judges, fresh context each.** Start five subagents at once. Give each the facts, all candidates, and one role. Each judge returns `PASS` or `FAIL` per candidate with one reason, and the fix that would make a fail pass.
    - **Demand judge**: is there public evidence that someone wants this and pays for things like it? Cites a source per claim.
    - **Income judge**: can this path reach a full-time income for one person? Shows the arithmetic with public prices; no owner amounts.
    - **Measure judge**: is the metric readable today, hard to game, and are success and pivot numeric, dated, and reachable from today's value?
    - **Solo judge**: can one person with agents get the first reading in 8 weeks, without a team, an employer's resources, or a conflict with the owner's rules (vendors, privacy, employer)?
    - **Skeptic**: the strongest reason this fails. `FAIL` when that reason has no answer.
-4. **Fix once, then cut.** Revise each failed candidate with the judges' fixes and send only the revised ones back to the judges that failed them. One round. A candidate that still fails any judge is cut.
-5. **Show five.** Rank the candidates that passed all five judges by the Income judge's number, then by time to first reading. Show the top five in one table: kind, hypothesis, metric (today → success / pivot, date), first task, and the Skeptic's reason in one line. If fewer than five passed, show those and say how many were cut and why. Never pad the list with a candidate that failed a judge.
-6. **The owner picks.** Ask once: pick one, edit one, or reject all. Say which you would pick and why in one line. After the owner's answer, save it with `careerbrew indie bet <id> --kind … --hypothesis … --metric … --success … --pivot … [--measure …]`, and run `careerbrew indie decide <id> activate --yes` only after the owner says yes to activation.
+4. **Fix once, then cut.** Revise each failed candidate with the judges' fixes and send the revised set back to all five judges, as the final round for those candidates. A candidate that still fails any judge is cut.
+5. **Second batch for empty slots.** If fewer than five passed, draft new candidates (not the cut ones again) that answer the judges' failure reasons, and send them to five fresh judges once. At most two batches in all.
+6. **Show five.** Rank the candidates that passed all five judges by the Income judge's number, then by time to first reading. Show the top five in one table: kind, hypothesis, metric (today → success / pivot, date), first task, and the Skeptic's reason in one line. If fewer than five passed, show those and say how many were cut and why. Never pad the list with a candidate that failed a judge.
+7. **The owner picks.** Ask once: pick one, edit one, or reject all. Say which you would pick and why in one line. After the owner's answer, save it with `careerbrew indie bet <id> --kind … --hypothesis … --metric … --success … --pivot … [--measure …]`, and run `careerbrew indie decide <id> activate --yes` only after the owner says yes to activation.
 
 ## Rules
 
