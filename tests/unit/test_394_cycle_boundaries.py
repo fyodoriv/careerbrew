@@ -28,7 +28,7 @@ def test_review_recheck_receives_shared_deadline(monkeypatch):
 
 
 def test_slow_recheck_stops_at_requested_budget(monkeypatch):
-    row = {"recheck": "careerbrew:review-pr https://github.com/example/repo/pull/1", "step": "/review", "source": "settings"}
+    row = {"recheck": "careerbrew:review-pr https://github.com/example/repo/pull/1", "step": "/review", "source": "owner"}
     monkeypatch.setattr(questions, "open_records", lambda: [row])
     release = threading.Event()
     finished = threading.Event()
