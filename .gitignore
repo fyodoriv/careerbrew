@@ -169,6 +169,7 @@ __pycache__/
 !/xtask/src/trial_plan.rs
 !/xtask/src/capture_actions.rs
 !/xtask/src/leak_check.rs
+!/xtask/src/input_key.rs
 !/xtask/tests/
 /xtask/tests/*
 !/xtask/tests/activation_manifest.rs
@@ -184,6 +185,7 @@ __pycache__/
 !/xtask/tests/rust04_verify.rs
 !/xtask/tests/purevec.rs
 !/xtask/tests/leak_check.rs
+!/xtask/tests/input_key.rs
 !/xtask/tests/fixtures/
 /xtask/tests/fixtures/*
 !/xtask/tests/fixtures/depvec/

@@ -6,6 +6,7 @@ mod capture_data;
 mod capture_http;
 mod decide;
 mod depvec;
+mod input_key;
 mod inventory;
 mod leak_check;
 mod measure;
@@ -31,6 +32,9 @@ fn main() -> ExitCode {
             + vecdriver::controls::run();
         println!("migration self-test: {passed} controls passed");
         return ExitCode::SUCCESS;
+    }
+    if args.first().is_some_and(|a| a == "input-key") {
+        return input_key_command(&args[1..]);
     }
     if args.first().is_some_and(|a| a == "leak-check") {
         return leak_check_command(&args[1..]);
@@ -294,6 +298,7 @@ fn main() -> ExitCode {
         }
     }
     eprintln!("usage: cargo xtask migration self-test");
+    eprintln!("       cargo xtask input-key [--repo <dir>] [--] [pathspec...]");
     eprintln!("       cargo xtask leak-check [--staged] [--repo <dir>] --terms-file <file>");
     eprintln!("       cargo xtask migration inventory --check");
     eprintln!("       cargo xtask migration inventory --embedded-check");
@@ -317,6 +322,25 @@ fn main() -> ExitCode {
     );
     eprintln!("       cargo xtask migration observer-probe --image <immutable-id> [--out <new-directory> [--freeze-only|--fault-controls-only]]");
     ExitCode::from(2)
+}
+
+/// `input-key [--repo <dir>] [--] [pathspec...]`: the 16-hex gate cache key
+/// of `scripts/input-key.sh`; exit 1 with no output on any git error.
+fn input_key_command(rest: &[std::ffi::OsString]) -> ExitCode {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let Some(args) = input_key::parse(rest, root) else {
+        eprintln!("usage: cargo xtask input-key [--repo <dir>] [--] [pathspec...]");
+        return ExitCode::from(2);
+    };
+    match input_key::key(&args) {
+        Some(key) => {
+            println!("{key}");
+            ExitCode::SUCCESS
+        }
+        None => ExitCode::FAILURE,
+    }
 }
 
 /// `leak-check [--staged] [--repo <dir>] --terms-file <file>`: exit 0 clean,

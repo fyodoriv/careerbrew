@@ -4176,7 +4176,7 @@ def cmd_peer(a: argparse.Namespace) -> int:
                 say(json.dumps(e))
             else:
                 say(f"trial {e['id']}: {e['verdict']} ({e['metric']}: {e['baseline']} -> {e['value']})")
-                say(f"  add to {peers.SIDES[a.side]['skill']}/LESSONS.md by pull request: {e['write']}" if e["write"] else "  nothing to keep: undo the change")
+                say(f"  add to {peers.SIDES[a.side]['skill']}/LESSONS.md by pull request: {e['write']}" if e["write"] else "  no data: neither adopted nor declined" if e["verdict"] == "NO-DATA" else "  nothing to keep: undo the change")
             return 0
         rows = [e for e in peers.experiments() if not a.side or e["side"] == a.side]
         if a.json:
