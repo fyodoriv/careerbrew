@@ -395,7 +395,7 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Files**: local drafts only (no tracked file); docs/ for the write-up after the owner approves
   - **Blocked**: owner step: owner reads, edits and posts each draft.
   - **Hypothesis**: four posts and one write-up bring 300 or more unique visitors to the page in 4 weeks.
-  - **Measurement**: the owner reads unique page visitors from the page analytics; `gh api repos/fyodoriv/careerbrew/traffic/views -q .uniques` saved each week for the repo.
+  - **Measurement**: the owner reads unique page visitors from the page analytics; `gh api repos/{owner}/{repo}/traffic/views -q .uniques` saved each week for the repo.
   - **Success**: 300 or more unique page visitors by week 4.
   - **Pivot**: under 300 after one repeat launch, change the channel, not the offer.
   - **Anchor**: Ries 2011 (pivot or persevere); Doerr 2018 (outcomes, not activities).
