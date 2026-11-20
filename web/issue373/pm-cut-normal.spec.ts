@@ -34,7 +34,7 @@ test("restoring a PM line clears its cut flag without a save", async ({ page, co
   const errors: string[] = [];
   const forbidden: string[] = [];
   const pending = new Set<Request>();
-  const reads = new Set(["/api/session", "/api/config", "/api/overview", "/api/changes", "/api/daylog", "/api/today", "/api/inbox", "/api/priority", "/api/feed/asks", "/api/tab-key"]);
+  const reads = new Set(["/api/session", "/api/config", "/api/overview", "/api/changes", "/api/daylog", "/api/today", "/api/inbox", "/api/priority", "/api/feed/asks", "/api/feed/health", "/api/tab-key"]);
   let settled = false;
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
   page.on("pageerror", (error) => errors.push(error.message));
