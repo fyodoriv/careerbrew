@@ -73,6 +73,8 @@ __pycache__/
 !/crates/vault/src/lib.rs
 !/crates/vault/src/keyfile.rs
 !/crates/vault/src/main.rs
+!/crates/vault/src/atomic.rs
+!/crates/vault/src/bin/
 !/crates/depvec/
 /crates/depvec/*
 !/crates/depvec/Cargo.toml

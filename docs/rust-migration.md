@@ -1375,8 +1375,32 @@ the crate until the rust-05 and rust-07 closure is native, so
     and `~/` are.
   - Unit tests sit in the module. No production dispatch and no Python
     cross-engine vectors yet.
-  - Next: `rust-05d`, a `key` vector set (a Python-made key opens in Rust and
-    the other way) and the native atomic write with unique temp names.
+- **Sub-step `rust-05d` (cross-engine key, native atomic write, component
+  only):**
+  - `crates/vault/src/atomic.rs` ports `store._tmp_for`, `store.write_text`
+    and `store.write_text_if_changed`: a temp sibling
+    `.<name>.<pid>.<8 hex>.tmp` made with `O_EXCL` (a name clash takes a new
+    name), a rename over the target, the temp removed on any failure, and an
+    equal stored text left alone (same bytes and mtime). An unreadable file is
+    written again. The caller says whether the path is sealed.
+  - `vault-store` (`crates/vault/src/bin/`) is a synthetic-only transport:
+    `read`, `write` and `write-if-changed` with an explicit key file and data
+    root. It never prints the key.
+  - `tests/unit/test_rust05d_key_interop.py`: a key Python's `load_key`
+    makes opens a file in Rust, a key Rust's `load_key` makes (mode `0600`)
+    opens the Rust-sealed file in Python, missing-key and inside-data-root
+    refusals, write-if-changed, and 20 concurrent Rust writers leave one
+    whole file and no temp.
+  - Why not the vector driver: these cases cross engines through files, so
+    the two drivers' answers would not be byte-equal values. The pure
+    vector set stays for the codec; this pairs real processes instead.
+  - Gap: no lock port yet (`.<name>.lock`), and no mixed Python and Rust
+    writer run under one lock.
+  - Gap: Python's `write_text_if_changed` rewrites only on `VaultError` and
+    stops on any other read error (for example invalid UTF-8). The Rust
+    version rewrites on every read error. Narrow it before any caller uses it.
+  - Next: `rust-05e`, the native advisory lock and the 1,000-operation mixed
+    writer run from the gate.
 
 ### rust-06: Port backup, restore and cross-machine sync
 

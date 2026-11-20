@@ -10,3 +10,13 @@ fernet = { version = "=0.2.2", default-features = false, features = ["rustcrypto
 base64 = "=0.22.1"
 serde_json = "=1.0.154"
 serde = { version = "=1.0.229", features = ["derive"] }
+
+# Synthetic-only cross-engine transport for the key provider and the
+# atomic write (rust-05d, tests/unit/test_rust05d_key_interop.py).
+[[bin]]
+name = "vault-store"
+path = "src/bin/vault-store.rs"
+
+[[bin]]
+name = "careerbrew-vault"
+path = "src/main.rs"

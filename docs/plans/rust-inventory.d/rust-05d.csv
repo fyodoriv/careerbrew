@@ -1,0 +1,3 @@
+crates/vault/src/atomic.rs,port,rust-05,rust-05d native atomic write: unique O_EXCL temp sibling and rename; temp removed on failure; write-if-changed keeps an equal file; no production dispatch
+crates/vault/src/bin/vault-store.rs,keep-native,rust-05,rust-05d synthetic-only transport for cross-engine key and atomic-write checks; never prints the key
+tests/unit/test_rust05d_key_interop.py,port,rust-05,Port rust-05d cross-engine key and atomic-write controls: Python key opens in Rust and Rust key opens in Python; write-if-changed; no temp left
