@@ -772,6 +772,7 @@ fn vector_check_command(rest: &[std::ffi::OsString]) -> ExitCode {
         std::path::Path::new(&driver),
         candidate,
         plant,
+        vecdriver::Scope::default(),
     )
     .and_then(|record| vecdriver::write_new(&output, &record).map(|()| record));
     match result {

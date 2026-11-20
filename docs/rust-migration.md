@@ -1131,9 +1131,13 @@ failed `unicode-version` case and runs no vector case. Cases are
   (`xtask/tests/vecdriver.rs`, with the synthetic fixtures in
   `xtask/tests/fixtures/vecdriver/`). `migration self-test` runs 4 more
   compare controls.
-- `vecdriver::STEPS` is empty. `rust-04c` registers `rust-04` with its
-  generator and oracle and routes `baseline`, `verify` and `measure` to
-  this kind; `rust-04d` adds the `policy-vectors` candidate.
+- `vecdriver::STEPS` registers `rust-04` (`rust-04d`): generator
+  `tests/oracles/rust04_vectors.py`, oracle `tests/oracles/rust04.py`,
+  candidate `target/debug/policy-vectors`, and the sets the candidate covers
+  (`canary-core`, `canary-match`, `leak-spans`, `allowlists`). `verify`
+  routes the step to this kind and keeps only those sets of the generated
+  file; a registered set the file lacks is refused. `baseline` still runs
+  the oracle's `--all`; `measure` still refuses the step.
 
 #### Oracle and generator (rust-04c)
 
@@ -1154,8 +1158,17 @@ failed `unicode-version` case and runs no vector case. Cases are
 - Until `rust-04b` lands, `validate-records` and `validate-directory` cases
   report `{"validator": "absent"}`.
 - `cargo xtask migration baseline --step rust-04` runs the oracle with
-  `--all`. The step has no Rust candidate yet, so `verify` and `measure`
-  refuse it.
+  `--all`. `verify` runs the vector-driver kind (`rust-04d`); `measure`
+  still refuses the step.
+
+#### Policy crate core (rust-04d)
+
+- `crates/policy` holds the canary engine and allowlists. `policy-vectors <set> <file>` prints the oracle's answer line in `json.dumps` form; an output that holds term text exits 3 and names the case only.
+- Python `str` and `re` rules come from generated tables (`crates/policy/gen_tables.py` writes `src/tables.rs`): `isalnum`, `isalpha`, `isdigit`, `\d`, `isspace`, simple and full lowercase, and `EXTRA_CASES`. NFKC uses `unicode-normalization` (Unicode 18) but cuts the text at each char unassigned in Python's 15.0; the normalization stability policy makes that exact. Known gap: the final-sigma context reads Rust's own Unicode data.
+- `filter_terms` keeps the first-seen order for terms of equal length. Python's order there follows the string hash seed, so the vectors avoid ties.
+- Gate step `rust-policy-io` refuses `std::fs`, `std::env`, `std::process`, `std::net`, `std::io`, `std::os`, `std::time`, `std::thread`, `SystemTime`, `Instant`, RNG names, `unsafe`, print macros and impure dependencies in the library (not `src/bin/`). Test: `tests/unit/test_policy_no_io.py`.
+- Controls (`crates/policy/tests/controls.rs`): removing any load-bearing `EXTRA_CASES` group fails exactly its case, `extra-cases-<index>`.
+- Wired: the oracle answers `python -I tests/oracles/rust04.py unicode-version` (`15.0.0` on Python 3.12, as the Rust tables), and `cargo xtask migration verify --step rust-04 --python "$PWD/.venv/bin/python" --out <new-file>` runs `policy-vectors` over the four core sets. The record adds `step`, `schema` and `planted_wrong_vector`; `--test-wrong-vector <set>` changes one byte of that set's first answer and must fail naming it (`xtask/tests/rust04_verify.rs`). `--test-oracle`, `--test-scope` and `--test-plant-home-write` are refused for this kind.
 
 #### Policy crate core (rust-04d)
 

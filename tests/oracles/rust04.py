@@ -1,9 +1,12 @@
 """rust-04 Python oracle: run privacy, policy and approval vectors with careerbrew's own code.
 
 Usage:
+  python -I tests/oracles/rust04.py unicode-version
   python -I tests/oracles/rust04.py <set> <vectors-file>
   python -I tests/oracles/rust04.py --all [<vectors-file>]
 
+`unicode-version` prints `unicodedata.unidata_version` alone (the
+vector-driver probe; the Rust driver must print the same).
 A set run prints one JSON line,
 {"set": ..., "unidata_version": ..., "results": [{"id": ..., "output": {"ok": value} | {"error": {...}}}]}.
 `--all` runs every set (from the file, or from the generator in memory when
@@ -310,6 +313,9 @@ def _load(path: str) -> dict[str, Any]:
 
 
 def main(argv: list[str]) -> int:
+    if argv == ["unicode-version"]:
+        print(unicodedata.unidata_version)
+        return 0
     if argv and argv[0] == "--all" and len(argv) <= 2:
         data = _load(argv[1]) if len(argv) == 2 else _generator().vectors()
         results = {}
@@ -335,7 +341,7 @@ def main(argv: list[str]) -> int:
         )
         return 0
     if len(argv) != 2:
-        print("usage: rust04.py <set> <vectors-file> | --all [<vectors-file>]", file=sys.stderr)
+        print("usage: rust04.py unicode-version | <set> <vectors-file> | --all [<vectors-file>]", file=sys.stderr)
         return 2
     name, path = argv
     data = _load(path)

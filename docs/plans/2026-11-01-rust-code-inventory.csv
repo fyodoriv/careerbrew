@@ -967,6 +967,7 @@ xtask/tests/depvec.rs,keep-native,rust-00,rust-01 verify controls against the Py
 xtask/tests/fixtures/depvec/driver.py,port,rust-27,Retire the rust-01 Python dependency vector oracle with the Python migration oracle
 xtask/src/vecdriver.rs,keep-native,rust-00,rust-04a vector-driver kind: one generated vector file for both drivers with planted-defect controls
 xtask/tests/vecdriver.rs,keep-native,rust-00,rust-04a vector-check controls: positive run and three planted defects
+xtask/tests/rust04_verify.rs,keep-native,rust-00,rust-04d verify controls: policy-vectors passes the four core sets and a planted wrong vector fails by name
 xtask/tests/fixtures/vecdriver/driver.py,port,rust-27,Retire the rust-04a synthetic vector driver control with the Python migration oracle
 xtask/tests/fixtures/vecdriver/generator.py,port,rust-27,Retire the rust-04a synthetic vector generator control with the Python migration oracle
 crates/purevec/src/clock.rs,keep-native,rust-00,rust-02 clock vector set: calendar.py clock helpers and config._tz with injected zones
