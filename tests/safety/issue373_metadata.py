@@ -58,6 +58,10 @@ SOURCES = (
     "web/e2e/comfort-health-boundary.ts",
     "web/e2e/comfort-targets.spec.ts",
     "web/e2e/comfort-tag.spec.ts",
+    "web/e2e/comfort-paint.ts",
+    "web/e2e/comfort-paint.spec.ts",
+    "web/node_modules/axe-core/package.json",
+    "web/node_modules/axe-core/axe.js",
     "web/playwright.issue373.config.ts",
     "web/vite.issue373.config.ts",
     "web/vite.config.ts",
@@ -77,6 +81,7 @@ SCENARIOS = {
     "dates": ["ascii", "unicode", "legacy-missing", "legacy-invalid", "legacy-naive", "legacy-unavailable"],
     "comfort": ["crowded"],
     "geometry": ["crowded"],
+    "paint": ["crowded"],
     "proof-before": ["crowded"],
     "proof-after": ["crowded"],
 }

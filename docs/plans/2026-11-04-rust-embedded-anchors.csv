@@ -67,6 +67,7 @@ tests/safety/run_issue_373_ui.sh,rust-27,"/bin/bash --noprofile --norc ""$ROOT/t
 web/playwright.issue373.config.ts,rust-27,"command: `exec /bin/bash --noprofile --norc '${root}/tests/safety/issue373_web_server.sh' '${scenario}' '${run}'`,"
 web/playwright.pm-cut.config.ts,rust-27,"command: `bash ../tests/e2e/pm-cut-seed-and-serve.sh ${port}`,"
 tests/e2e/us-59-pm-update.sh,rust-27,"if ! bash tests/safety/run_issue_373_ui.sh geometry > ""$geometry_log"" 2>&1; then"
+tests/e2e/us-59-pm-update.sh,rust-27,"if ! bash tests/safety/run_issue_373_ui.sh paint > ""$paint_log"" 2>&1; then"
 xtask/tests/fixtures/linux-observer/Dockerfile,rust-27,RUN apt-get update && apt-get install -y --no-install-recommends strace=6.1-0.1 && rm -rf /var/lib/apt/lists/*
 xtask/tests/fixtures/linux-observer/Dockerfile,rust-27,RUN strace --version && strace --help && python --version && dpkg-query -W strace
 xtask/src/observer_probe.rs,rust-27,"const CONTROLLER_TRANSPORT: &str = r#"""

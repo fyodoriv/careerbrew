@@ -172,4 +172,12 @@ if ! bash tests/safety/run_issue_373_ui.sh geometry > "$geometry_log" 2>&1; then
 fi
 geometry_root="$(head -1 "$geometry_log" | cut -d' ' -f4-)"
 expect "$(cat "$geometry_root/playwright.stdout")" "8 passed" "crowded geometry: targets and tags in four modes"
+# 10. Paint evidence uses real screenshots for gradients and group opacity.
+# Fixed pass/fail controls calibrate the adapter before every actual scan.
+paint_log="$SCRATCH/comfort-paint.log"
+if ! bash tests/safety/run_issue_373_ui.sh paint > "$paint_log" 2>&1; then
+  cat "$paint_log"; fail "crowded disabled-control and gradient paint evidence"
+fi
+paint_root="$(head -1 "$paint_log" | cut -d' ' -f4-)"
+expect "$(cat "$paint_root/playwright.stdout")" "4 passed" "crowded paint: four modes with fixed controls"
 echo "ok US-59 PM update and project priority"

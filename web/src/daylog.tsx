@@ -52,14 +52,19 @@ export function PmCopyBar() {
   );
 }
 
-function pmCuts(pm: DayLogView["pm"], body: string) {
-  const context = pm.cut_context;
-  if (context?.schema !== 1) {
-    return { cuts: body === pm.body ? (pm.left_out ?? []).map((label) => ({ label, date: null })) : [], unknown: body !== pm.body };
-  }
-  if (context.candidates.length === 0) return { cuts: [], unknown: false };
+function scanPmLabel(content: string, spellings: Map<string, string>, present: Set<string>): boolean {
+  const colon = content.indexOf(":");
+  const prefix = colon < 0 ? "" : content.slice(0, colon);
+  const label = prefix.replace(/[*_`]+/g, "").trim();
+  const known = spellings.get(label);
+  if (!label || /^(?:[#>]|\d+[.)]\s)/.test(label) || /[[\]<>|]/.test(prefix)) return true;
+  if (known !== undefined) present.add(known);
+  else if (/^[ -~]+$/.test(label)) present.add(label.toLowerCase());
+  else return true;
+  return false;
+}
 
-  const spellings = new Map(context.candidates.flatMap(({ aliases }) => aliases.map(({ spelling, norm }) => [spelling, norm] as const)));
+function scanPmLabels(body: string, spellings: Map<string, string>) {
   const present = new Set<string>();
   let uncertain = false;
   let fence = "";
@@ -74,22 +79,19 @@ function pmCuts(pm: DayLogView["pm"], body: string) {
     if (marker) {
       fence = marker;
       uncertain = true;
-      continue;
-    }
-    const colon = content.indexOf(":");
-    const prefix = colon < 0 ? "" : content.slice(0, colon);
-    const label = prefix.replace(/[*_`]+/g, "").trim();
-    const known = spellings.get(label);
-    if (!label || /^(?:[#>]|\d+[.)]\s)/.test(label) || /[[\]<>|]/.test(prefix)) {
-      uncertain = true;
-    } else if (known !== undefined) {
-      present.add(known);
-    } else if (/^[ -~]+$/.test(label)) {
-      present.add(label.toLowerCase());
-    } else {
-      uncertain = true;
-    }
+    } else if (scanPmLabel(content, spellings, present)) uncertain = true;
   }
+  return { present, uncertain };
+}
+
+function pmCuts(pm: DayLogView["pm"], body: string) {
+  const context = pm.cut_context;
+  if (context?.schema !== 1) {
+    return { cuts: body === pm.body ? (pm.left_out ?? []).map((label) => ({ label, date: null })) : [], unknown: body !== pm.body };
+  }
+  if (context.candidates.length === 0) return { cuts: [], unknown: false };
+  const spellings = new Map(context.candidates.flatMap(({ aliases }) => aliases.map(({ spelling, norm }) => [spelling, norm] as const)));
+  const { present, uncertain } = scanPmLabels(body, spellings);
   const absent = context.candidates.filter(({ aliases }) => !aliases.some(({ norm }) => present.has(norm)));
   return { cuts: uncertain ? [] : absent.map((candidate) => ({ label: candidate.label, date: cutDate(candidate) })), unknown: uncertain && absent.length > 0 };
 }

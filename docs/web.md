@@ -79,8 +79,14 @@ desktop, light and dark, with reduced motion. The measured repair reduced deskto
 target failures from 28 to zero and phone spill flags from nine to zero. All 29
 rendered controls remain in each scan, including disabled and offscreen controls.
 The complete long label wraps inside its parent; no smaller text or clipping is
-used. These geometry results do not qualify the separate disabled-control or
-root-gradient paint measurements, nor the original PM timing proof.
+used. These geometry results do not qualify the separate paint or PM timing
+proofs. The paint cases (`comfort-paint.spec.ts`, `comfort-paint.ts`) use axe-core
+for color parsing and WCAG ratios, and real full-page browser pictures for the
+painted background. They include below-viewport text and disabled controls.
+Fixed simple, gradient and group-opacity pass/fail controls run before every
+actual scan. An unsupported composition stays unknown; unknown and true ratios
+below 4.5:1 fail the proof. The pictures and temporary styles have browser-page
+scope, and the original DOM and synthetic data are restored before assertions.
 The geometry proof admits the same-origin, query-free source-health GET.
 Its boundary test rejects writes, other origins, queries and neighboring paths.
 The owned proof selects the checkout's Python and the installed Playwright

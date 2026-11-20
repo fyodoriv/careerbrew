@@ -125,6 +125,7 @@ Docs map: [docs/README.md](docs/README.md) · user stories: [docs/user-stories.m
 
 - **Daily log:** the watcher keeps one for every day (done today, plan for tomorrow) and rebuilds it on every new change.
 - **PM update:** the Today view holds a draft with Copy and Send. It has one line per project, ranked by `careerbrew work priority set <project> --rank <n> --match <glob>`, and each line names its results. Beside it, a "why it matters" note per line (who benefits, what it should change, a checked result) is for you only: it is never copied or sent. [Sent-message edits and DMs](docs/feedback-signals.md#edits-to-sent-pm-messages) teach later drafts when their source can be identified.
+- **Live PM cut notes:** Today follows the draft currently in the editor. Restoring a previously cut project removes its note before saving; text the comparison cannot read shows an uncertainty note instead.
 - **Ranking:** the plan and Next step follow the same ranking. Active now on Today and Work lists the ranked projects with Up, Down, and Remove.
 - **Open asks:** when no earlier Next step fits, Today can link the oldest eligible ask. Allow 5 minutes to read and respond, or 10 minutes to start a review. The Open asks card shows how many asks closed today.
 - **Agent activity:** on Work, each background agent's run by project, with its state and its last event as a link. Agents report each step with `careerbrew work agent event`, and the block updates within seconds, with no reload.

@@ -24,7 +24,7 @@ with (run / f"startup-{scenario}.json").open("x") as stream:
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 scenario="$1"; run="$2"
 first=ascii
-case "$ISSUE373_MODE" in comfort|geometry|proof-before|proof-after) first=crowded;; esac
+case "$ISSUE373_MODE" in comfort|geometry|paint|proof-before|proof-after) first=crowded;; esac
 if [ "$scenario" = "$first" ]; then
   cd "$ROOT/web"
   "$ISSUE373_NODE" node_modules/vite/bin/vite.js build --config vite.issue373.config.ts --configLoader runner > "$run/build.stdout" 2> "$run/build.stderr"

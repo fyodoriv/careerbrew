@@ -4,14 +4,14 @@ import { resolve } from "node:path";
 const run = process.env.ISSUE373_RUN;
 const mode = process.env.ISSUE373_MODE;
 const browser = process.env.ISSUE373_BROWSER;
-if (!run || !browser || !mode || !["primary", "dates", "comfort", "geometry", "proof-before", "proof-after"].includes(mode)) throw new Error("BLOCKED: exact373 mode/root/browser required");
+if (!run || !browser || !mode || !["primary", "dates", "comfort", "geometry", "paint", "proof-before", "proof-after"].includes(mode)) throw new Error("BLOCKED: exact373 mode/root/browser required");
 const root = resolve(import.meta.dirname, "..");
 const scenarios = mode === "dates"
   ? ["ascii", "unicode", "legacy-missing", "legacy-invalid", "legacy-naive", "legacy-unavailable"]
   : [mode === "primary" ? "ascii" : "crowded"];
 export default defineConfig({
-  testDir: mode === "geometry" ? "./e2e" : "./issue373",
-  testMatch: mode === "geometry" ? ["comfort-targets.spec.ts", "comfort-tag.spec.ts"] : "pm-cut.spec.ts",
+  testDir: ["geometry", "paint"].includes(mode) ? "./e2e" : "./issue373",
+  testMatch: mode === "geometry" ? ["comfort-targets.spec.ts", "comfort-tag.spec.ts"] : mode === "paint" ? "comfort-paint.spec.ts" : "pm-cut.spec.ts",
   outputDir: `${run}/playwright`, preserveOutput: "always",
   workers: 1, fullyParallel: false, retries: 0,
   timeout: 90_000, globalTimeout: 600_000, expect: { timeout: 15_000 },

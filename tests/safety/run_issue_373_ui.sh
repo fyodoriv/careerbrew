@@ -3,7 +3,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 mode="${1:-}"
-case "$mode" in primary|dates|comfort|geometry|proof-before|proof-after) ;; *) echo 'BLOCKED: fixed373 mode required' >&2; exit 2;; esac
+case "$mode" in primary|dates|comfort|geometry|paint|proof-before|proof-after) ;; *) echo 'BLOCKED: fixed373 mode required' >&2; exit 2;; esac
 [ "$#" = 1 ] || exit 2
 umask 077
 for folder in "$ROOT/.metrics" "$ROOT/.metrics/issue373" "$ROOT/.metrics/issue373/ui-runs"; do
