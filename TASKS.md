@@ -798,6 +798,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if the privacy scan blocks more than half of the lines, keep the manual carry and close this task.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Kohavi, Tang & Xu 2020 (one change per experiment).
 
+- [ ] Indie: a first reading date for a bet, and a way to remove a wrong reading
+  - **ID**: indie-first-reading-date
+  - **Details**: A bet whose metric starts at zero reads PIVOT on day 1, and two PIVOT readings in a row hold it. `careerbrew indie measure` has no guard against a reading taken before the bet's first reading date, and no way to remove one taken by mistake (this happened on 2026-11-19, on the day a bet was saved). Add `--first-reading <date>` to `careerbrew indie bet`: before that date `indie measure` refuses with the date, and `indie run` does not ask for a reading. Add `careerbrew indie measure <id> --remove-last --yes` for a wrong reading.
+  - **Files**: src/careerbrew/indie.py; src/careerbrew/cli.py; src/careerbrew/actions.py; tests/unit/test_indie.py; tests/e2e/us-112-indie-day.sh; docs/indie.md; skills/careerbrew-bet-options/SKILL.md
+  - **Hypothesis**: with a first reading date, no bet is held by readings taken before its traffic exists, so the count of readings dated before a bet's first reading date goes from 1 to 0.
+  - **Measurement**: `uv run pytest tests/unit/test_indie.py -q -k first_reading` on hosted CI; in use, `careerbrew indie bets --json` (readings dated before the first reading date).
+  - **Success**: the tests pass; 0 early readings over 4 weeks.
+  - **Pivot**: if owners clear the date to read early more than once in 4 weeks, drop the refusal and keep only a warning.
+  - **Anchor**: Ries 2011 (pivot or persevere); Munafò et al. 2017 (pre-registration).
+
 - [ ] Indie: an income measure command for a product bet
   - **ID**: indie-income-measure
   - **Blocked**: owner step: needs the owner's yes to read a payment or sponsor total, and the owner's own credential typed with `careerbrew secret set`
