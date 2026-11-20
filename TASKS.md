@@ -765,7 +765,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Success**: the tests pass; 0 early readings over 4 weeks.
   - **Pivot**: if owners clear the date to read early more than once in 4 weeks, drop the refusal and keep only a warning.
   - **Anchor**: Ries 2011 (pivot or persevere); Munafò et al. 2017 (pre-registration).
-||||||| 9b7b3e55
 
 - [ ] Indie: close two ways an agent could work out an owner number
   - **ID**: indie-owner-number-oracles
