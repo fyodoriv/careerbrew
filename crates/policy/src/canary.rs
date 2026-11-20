@@ -66,6 +66,10 @@ fn leet(c: char) -> Option<&'static (&'static str, &'static str, &'static [char]
 #[derive(Clone, Debug)]
 pub struct Rules {
     extra_cases: Vec<&'static [u32]>,
+    /// `access.MENTION`'s lookbehind keeps its `<` (planted defect: false).
+    pub(crate) mention_angle: bool,
+    /// `approvals.validate_records` refuses an unknown status (planted defect: false).
+    pub(crate) status_check: bool,
 }
 
 impl Default for Rules {
@@ -78,6 +82,24 @@ impl Rules {
     pub fn python() -> Self {
         Rules {
             extra_cases: tables::EXTRA_CASES.to_vec(),
+            mention_angle: true,
+            status_check: true,
+        }
+    }
+
+    /// The rules with the `<` removed from the mention lookbehind (a planted defect).
+    pub fn without_mention_angle() -> Self {
+        Rules {
+            mention_angle: false,
+            ..Self::python()
+        }
+    }
+
+    /// The rules whose receipt validator accepts an unknown status (a planted defect).
+    pub fn accepting_unknown_status() -> Self {
+        Rules {
+            status_check: false,
+            ..Self::python()
         }
     }
 
@@ -91,7 +113,7 @@ impl Rules {
     }
 
     /// The `re.IGNORECASE` class of a char.
-    fn fold(&self, c: char) -> char {
+    pub(crate) fn fold(&self, c: char) -> char {
         let lo = text::simple_lower(c);
         self.extra_cases
             .iter()
@@ -112,6 +134,11 @@ impl Rules {
             .filter(|t| self.pattern(t).search(&norm))
             .map(|t| term_id(t))
             .collect()
+    }
+
+    /// Every `finditer` match of one term's pattern as char (start, end).
+    pub(crate) fn match_spans(&self, term: &str, chars: &[char]) -> Vec<(usize, usize)> {
+        self.pattern(term).find_all(chars)
     }
 
     /// `privacy.leak_spans` over supplied terms: (term id, line, how, matched text).

@@ -92,6 +92,11 @@ def _leak_spans() -> list[dict[str, Any]]:
         "repeat": f"{CANARY_SHORT} {CANARY_SHORT}\n{CANARY_SHORT}",
         "phrase": f"see {CANARY_PHRASE}\nand {CANARY_PHRASE.lower()}",
         "clean": "nothing here",
+        # tests/unit/test_privacy_scan_file.py: the line and how it matched.
+        "unit-whole-word": f"## Problem\nthe {CANARY_LONG} repo failed\n",
+        "unit-spread-words": "one line\n" + " ".join(CANARY_LONG) + "\n",
+        "unit-line-break": f"a\n{CANARY_LONG[:4]}\n{CANARY_LONG[4:]}\n",
+        "unit-show-line": f"x\ny\nthe {CANARY_LONG} repo\n",
     }
     return [_case(f"spans-{k}", "leak-spans", text=v, terms=TERMS) for k, v in texts.items()]
 
@@ -105,6 +110,13 @@ def _assert_redact() -> list[dict[str, Any]]:
         "fullwidth-clean": "\uff21\uff22\uff23 stays wide when clean",
         "fullwidth-dirty": f"\uff21\uff22\uff23 and {CANARY_SHORT}",
         "zero-width-dirty": "Plu\u200bmbo again",
+        # tests/unit/test_plugins_privacy.py::test_redact_and_assert_clean:
+        # a term and a lowercased second term; redact removes both and the
+        # refusal names ids only.
+        "unit-hello": f"Hello {CANARY_LONG} at {CANARY_PHRASE.lower()}",
+        "empty": "",
+        "repeat": f"{CANARY_SHORT}{CANARY_SHORT} {CANARY_SHORT}",
+        "multiline": f"one\n{CANARY_MID}\nthree {CANARY_LONG}",
     }
     out = []
     for k, v in texts.items():
@@ -113,6 +125,9 @@ def _assert_redact() -> list[dict[str, Any]]:
     # With no terms nothing is redacted, so these inputs hold no canary.
     out.append(_case("redact-no-terms", "redact", text=texts["fullwidth-clean"], terms=[]))
     out.append(_case("assert-no-terms", "assert-clean", text=texts["clean"], where="log", terms=[]))
+    out.append(_case("assert-unit-where", "assert-clean", text=texts["unit-hello"], where="test", terms=TERMS))
+    # Term order matters: redaction runs term by term on the replaced text.
+    out.append(_case("redact-reversed", "redact", text=texts["two"], terms=list(reversed(TERMS))))
     return out
 
 
@@ -175,6 +190,8 @@ def _allowlists() -> list[dict[str, Any]]:
         "lower-camel": "call parseItem() then saveItem.",
         "mixed": "self-serve LinkedIn quarzo-milano iOS macOS",
         "none": "nothing odd here",
+        # tests/unit/test_public_scrub.py::test_suspects_list_internal_looking_words
+        "unit-suspects": "Ran the zebra-oncall rotation with BillingHub and on-call staff",
     }
     out += [_case(f"suspects-{k}", "public-suspects", text=v) for k, v in texts.items()]
     return out
@@ -212,10 +229,33 @@ def _public_scrub() -> list[dict[str, Any]]:
         "identifier": "ran job_runner_7 with abc123def",
         "clean": "Shipped the onboarding flow; latency dropped 20%.",
         "empty": "",
+        # tests/unit/test_public_scrub.py bypass attempts, with the canaries
+        # standing in for its terms.
+        "unit-sha": "commit 3f9c2ab1d4e5 fixed it",
+        "unit-mr": "merged PR !42",
+        "unit-hyphen-term": "for Plum-bo team",
+        "unit-snake-term": "for plum_bo team",
+        "unit-spaced-phrase": "with Zorblat-Quenix",
+        "unit-fullwidth-term": "the Ｐｌｕｍｂｏ launch",
+        "unit-zero-width-term": "the Van​trelux launch",
+        "unit-unc": "saved to \\\\fileserver\\share\\plans",
+        "unit-ipv6-short": "ipv6 [::1] and 2001:db8::1",
+        "unit-channels": "posted in #team-x and #incidents",
+        "unit-mentions": "thanks @jsmith and @alice.w",
+        "unit-url-paths": "see /browse/X-1 and /pages/123",
+        "unit-lan-host": "server host-01.example.lan",
+        "unit-at-dot": "mail ops at corp dot example dot com",
+        "unit-bracket-at": "mail ops[at]corp[dot]com",
+        "unit-ordinary": "Cut p99 latency by 40% across 3 services and/or teams.",
+        "unit-version": "Upgraded to v1.2.3 and Python3 in Q3",
+        "unit-tech-words": "Added OAuth2 and IPv6 support",
+        "unit-leet-term": "the pl0mb0 launch",
     }
     out = [_case(f"scrub-{k}", "scrub-public", text=v, terms=TERMS) for k, v in texts.items()]
     out.append(_case("scrub-replacement", "scrub-public", text=texts["term"], terms=TERMS, replacement="a project"))
     out.append(_case("scrub-no-terms", "scrub-public", text=texts["clean"], terms=[]))
+    # An empty term matches empty at every place: re.sub puts the replacement there too.
+    out.append(_case("scrub-empty-term", "scrub-public", text="we shipped it.", terms=[""]))
     return out
 
 
@@ -233,6 +273,29 @@ def _private_path() -> list[dict[str, Any]]:
         "suffix": "myprivate/x",
         "start": "/private/tmp",
         "none": "nothing private here",
+        "empty": "",
+        "only-head": "private/",
+        "second-match": "/private/tmp/x and private/y",
+        # tests/unit/test_privacy_scan_file.py: each path is flagged ...
+        "unit-dot-relative": "see ./private/day/log.md",
+        "unit-home-nested": "in ~/apps/careerbrew/private/out/a.md",
+        "unit-paren": "(private/profile.yaml)",
+        "unit-backtick": "`private/work/x`",
+        "unit-placeholder": "<repo>/private/work/evidence.jsonl",
+        "unit-env": "${CAREERBREW_HOME}/private/x",
+        "unit-absolute": "/private/work/evidence.jsonl",
+        "unit-placeholder-tmp": "<repo>/private/tmp/x",
+        "unit-env-var": "$HOME/private/var/x",
+        "unit-rel-draft": "the error names private/work/evidence.jsonl",
+        # ... and these lines are not.
+        "unit-word": "careerbrew never reads `private/`.",
+        "unit-tmp-log": "The log was at /private/tmp/run.log.",
+        "unit-var-start": "/private/var/folders/x",
+        "unit-etc-paren": "(/private/etc/hosts)",
+        "unit-suffix": "myprivate/x",
+        "unit-all-lines": "careerbrew never reads `private/`.\nThe log was at /private/tmp/run.log.\n/private/var/folders/x\n(/private/etc/hosts)\nmyprivate/x\n",
+        "unicode-word-before": "\u00e9private/x",
+        "unicode-space-before": "a\u2003/private/tmp/x",
     }
     return [_case(f"path-{k}", "names-private-path", text=v) for k, v in texts.items()]
 
@@ -262,6 +325,8 @@ def _approvals() -> list[dict[str, Any]]:
         _case("guidance-zero", "guidance", records=base, limit=0),
         _case("get-found", "get", records=base, item="aa000003"),
         _case("get-unknown", "get", records=base, item="zz999999"),
+        # KeyError's message is repr(): non-printable chars escape as str.isprintable says.
+        _case("get-unknown-nonprint", "get", records=base, item="zz\x85\u2028\xa0\u200b\U000e0001"),
     ]
     return out
 

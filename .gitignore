@@ -109,9 +109,14 @@ __pycache__/
 !/crates/policy/gen_tables.py
 !/crates/policy/src/
 /crates/policy/src/*
+!/crates/policy/src/access.rs
 !/crates/policy/src/allow.rs
+!/crates/policy/src/approvals.rs
 !/crates/policy/src/canary.rs
 !/crates/policy/src/lib.rs
+!/crates/policy/src/outputs.rs
+!/crates/policy/src/pyre.rs
+!/crates/policy/src/scrub.rs
 !/crates/policy/src/tables.rs
 !/crates/policy/src/text.rs
 !/crates/policy/src/vectors.rs

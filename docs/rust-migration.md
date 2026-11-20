@@ -1179,6 +1179,90 @@ failed `unicode-version` case and runs no vector case. Cases are
 - Controls (`crates/policy/tests/controls.rs`): removing any load-bearing `EXTRA_CASES` group fails exactly its case, `extra-cases-<index>`.
 - Not wired yet: `vecdriver::STEPS` is still empty and the oracle has no `unicode-version` probe, so `vector-check` and `verify --step rust-04` cannot run the candidate yet.
 
+#### Canary outputs (rust-04e, PR 1 of 4)
+
+- `crates/policy/src/outputs.rs` ports `assert_clean`, `redact` and
+  `_names_private_path`. `policy-vectors` now also answers `assert-redact`
+  and `private-path`.
+- `assert_clean` refuses with `PrivacyError` and the count, the place and
+  term ids only. `redact` returns the input unchanged when no term matches;
+  otherwise it normalizes once and replaces each term's matches in term
+  order on the text so far, like `re.sub`.
+- `_names_private_path` follows `(?<![\w.-])private/([\w.-]+)` with
+  `finditer` steps; `\w` and `\s` use the Python 3.12 tables.
+- Vectors map `test_redact_and_assert_clean` (`test_plugins_privacy.py`)
+  and the path tests of `test_privacy_scan_file.py`. `test_privacy_index.py`
+  covers the `scan_repo` index reads, which moved to `rust-27`; no vector.
+- Byte compare (one-off script, both drivers on one generated file): every
+  set the crate answers is byte-identical with the oracle.
+
+#### Scrub, approvals and access (rust-04e, PRs 2 to 4)
+
+- Landed as one change. `policy-vectors` now answers every rust-04 set:
+  `public-scrub`, `approvals`, `receipt-validate` and `access` too.
+- `pyre.rs` is a small backtracking matcher for the fixed `re` patterns of
+  `privacy.py` and `work/access.py`: greedy quantifiers, groups,
+  alternation, classes, `\w` `\s` `\d` `\b` `^` `$`, fixed-width lookbehind,
+  lookahead and `re.IGNORECASE` (the canary fold, ranges checked on the
+  lowercase and its uppercase, like `_sre`). `sub` and `finditer` follow
+  sre's empty-match rule. Other syntax is refused when a pattern is built.
+- `scrub.rs` ports `scrub_public` with the same pattern text and steps.
+  It matched the oracle on the first round, so it stays native; the pivot
+  (keep it in Python) was not needed. A replacement with a backslash (a
+  `re` template) is out of contract and refused.
+- `approvals.rs`: the receipt validator, `request_item`, `decide_items`
+  (title or decision check, then the validator, then the first record
+  with the id), `pending`, `guidance` (stable newest-first sort) and `get`.
+  The caller supplies `now` (an ISO string) and the new id; records keep
+  their key order and `dict.update` appends new keys.
+- `access.rs`: `validate_directory`, `blocker`, `_topic`, `owner`,
+  `existing`, `route` (keys in Python's insertion order), `mentions` and
+  `judge`. `str()` of a non-scalar directory value is out of contract.
+- Planted defects (`crates/policy/tests/controls.rs`): the `<` removed from
+  the mention lookbehind fails exactly `mentions-angle`; a validator that
+  accepts an unknown status fails exactly `validate-unknown-status`.
+- New vectors map `test_privacy_scan_file.py` (line and match kind in
+  `leak-spans`) and `test_public_scrub.py` (bypass, ordinary-text and
+  suspects cases, canaries in place of its terms).
+- Byte compare (one-off, both drivers on one generated file, 268 cases):
+  all 11 sets byte-identical. A one-off random check of 600 scrub texts and
+  200 mention texts also agreed. `verify --step rust-04` still waits for
+  the step's registration in `vecdriver::STEPS` (rust-04f).
+- Review fixes: two new vectors, `scrub-empty-term` (`terms: [""]`:
+  the replacement goes in at every empty match, like `re.sub`) and
+  `get-unknown-nonprint` (an approval id with `\x85`, `\u2028`, `\xa0`,
+  `\u200b` and `\U000e0001`). `py_repr` now escapes every char that
+  `str.isprintable` refuses (`text::is_printable`, a Unicode 15.0.0 table
+  checked against CPython for every code point). These two vectors are new
+  since the 268-case compare and are not yet compared by a driver run.
+
+##### Matcher limits
+
+- A greedy repeat of a one-char node (a char, a class, `\w` `\s` `\d`
+  and their negations, `.`) runs in a loop: it counts the longest run,
+  then backs off one char at a time, like sre's `REPEAT_ONE`. Stack use
+  stays flat, so a 2 MB URL or base64 token is scrubbed without a crash
+  (control `a_two_megabyte_token_is_scrubbed_and_searched_without_overflow`).
+- A repeat of a wider body (a group or a sequence, such as
+  `(?:[a-z0-9-]+\.){2,}`) still recurses once per repeat. A text with
+  hundreds of thousands of repeats of such a body can overflow the stack.
+  No vector covers it yet.
+- `search` tries every start in turn. It builds the empty group record
+  once per search and copies groups only when a group took part. A
+  pattern that fails late at each start of a long `\w` run stays
+  quadratic in the run's length. CPython is quadratic there too:
+  `scrub_public` on an 80,000-char `\w` token took 38 s in Python 3.12.
+  A caller must bound input length before either side sees it.
+
+##### rust-05 boundary notes
+
+- `approvals.load() or []` (an empty or missing file read as no records)
+  is the storage caller's coercion. It belongs to rust-05; the rust-04
+  functions take the record list as given.
+- Float text in echoed records is out of contract: serde_json and
+  `json.dumps` can print the same float differently. It stays out until a
+  vector covers it.
+
 #### Unicode version check
 
 The verify record stores Python's `unicodedata.unidata_version` and the
@@ -1764,7 +1848,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
 | `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
-| `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `allowlists`, `assert-no-echo` | none: component parity only |
+| `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access` | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
 | `crates/depvec/` | `careerbrew-depvec` | the rust-01 dependency vector candidate: maps each synthetic vector of a set (`calendar`, `code-parse`, `fernet`, `fsrs`, `json-yaml` and `runtime` today) to an output with maintained crates, for `migration verify --step rust-01` | none: dependency evidence only |
 | `experiments/hash/` | `careerbrew-hash-experiment` | the pure `changes._h` hash for a supported synthetic JSON subset. It refuses values outside that subset. | none: component parity only |
