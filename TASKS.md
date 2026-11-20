@@ -444,6 +444,7 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 - [ ] `rust-00`: count descendants that leave the process group
   - **ID**: rust-00-process-tree-escapees
   - **Details**: The tree collector counts only process-group members (`docs/rust-migration.md` "Process-tree resource accounting"). A descendant that calls `setsid` or `setpgid`, and a parent that left the group, are not counted; a parent that never exits keeps the Linux call polling. A cgroup v2 scope per call (Linux) would close this gap.
+  - **Progress**: 2026-11-20: Linux cgroup v2 CPU scope with a fallback, fixture mode `escape`, control `a_descendant_that_calls_setsid_is_counted_by_the_cgroup` (records `supported=`). Left: read the hosted `ubuntu-24.04` record; on `supported=false`, apply the pivot. macOS escapees and escapee peak RSS stay uncounted.
   - **Files**: xtask/src/resources.rs; xtask/tests/resources.rs; docs/rust-migration.md
   - **Hypothesis**: a cgroup collector counts a `setsid` descendant's 300 ms CPU burn within 0.75x to 1.5x on Linux, where the group collector reports about 0.
   - **Measurement**: `cargo test -p careerbrew-xtask --test resources` on hosted `gate (ubuntu-24.04)`, with a `setsid` burn control.
