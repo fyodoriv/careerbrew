@@ -39,6 +39,26 @@ pub fn check() -> Result<usize, &'static str> {
     verify(&tracked, &combined)
 }
 
+/// Every assigned path in the staged inventory and its fragments, after the
+/// same full check as `check`.
+pub fn assigned_paths() -> Result<BTreeSet<String>, &'static str> {
+    let tracked = git(&["ls-files", "--full-name", "--stage", "-z", "--", ":/"])?;
+    let manifest = git(&["show", &format!(":{INVENTORY}")])?;
+    let combined = combine(&tracked, manifest, |path| {
+        git(&["show", &format!(":{path}")])
+    })?;
+    verify(&tracked, &combined)?;
+    combined
+        .lines()
+        .skip(1)
+        .map(|line| {
+            fields(line)
+                .and_then(|row| row.into_iter().next())
+                .ok_or("invalid inventory row")
+        })
+        .collect()
+}
+
 /// Append every staged fragment, in sorted path order, to the main inventory.
 fn combine(
     index: &str,

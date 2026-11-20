@@ -7,6 +7,7 @@ mod capture_http;
 mod check_docs;
 mod decide;
 mod depvec;
+mod exec_map;
 mod input_key;
 mod inventory;
 mod leak_check;
@@ -22,6 +23,41 @@ mod vecdriver;
 mod verify;
 
 use std::process::ExitCode;
+
+/// Exit 0: every in-checkout exec target is assigned; 1: an unassigned
+/// target; 2: refused input.
+fn exec_check_command(trace: &std::ffi::OsStr, root: &std::ffi::OsStr) -> ExitCode {
+    let (Some(root), Ok(text)) = (root.to_str(), std::fs::read_to_string(trace)) else {
+        eprintln!("migration inventory: cannot read the trace file or root");
+        return ExitCode::from(2);
+    };
+    if !root.starts_with('/') || root.trim_end_matches('/').is_empty() {
+        eprintln!("migration inventory: --root must be an absolute folder, not /");
+        return ExitCode::from(2);
+    }
+    let inventory = match inventory::assigned_paths() {
+        Ok(paths) => paths,
+        Err(reason) => {
+            eprintln!("migration inventory: {reason}");
+            return ExitCode::from(2);
+        }
+    };
+    let report = exec_map::compare(&text, root, &inventory);
+    for path in &report.unassigned {
+        println!("unassigned exec target: {path}");
+    }
+    println!(
+        "migration inventory: {} assigned exec targets, {} external, {} unassigned",
+        report.assigned,
+        report.external,
+        report.unassigned.len()
+    );
+    if report.unassigned.is_empty() {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
+}
 
 fn main() -> ExitCode {
     let args = std::env::args_os().skip(1).collect::<Vec<_>>();
@@ -76,6 +112,15 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         };
+    }
+    if let [migration, action, flag, trace, root_flag, root] = args.as_slice() {
+        if migration == "migration"
+            && action == "inventory"
+            && flag == "--exec-check"
+            && root_flag == "--root"
+        {
+            return exec_check_command(trace, root);
+        }
     }
     if args == ["migration", "inventory", "--embedded-check"] {
         return match inventory::check_embedded() {
@@ -309,6 +354,7 @@ fn main() -> ExitCode {
     eprintln!("       cargo xtask migration inventory --embedded-check");
     eprintln!("       cargo xtask migration inventory --sites-check");
     eprintln!("       cargo xtask migration inventory --sites-list");
+    eprintln!("       cargo xtask migration inventory --exec-check <trace-file> --root <dir>");
     eprintln!("       cargo xtask migration baseline --step <id> --python <absolute-path> --out <new-file> [--runs <n>] [--test-allow-few-runs]");
     eprintln!("       cargo xtask migration measure --step <id> --python <absolute-path> --out <new-file> [--pairs <n>] [--test-allow-few-pairs] [--test-candidate <absolute-path>]");
     eprintln!("       cargo xtask migration decide --step <id> --baseline <file> --verify <file> --measure <file> --out <new-file> [--test-noise-floor <absolute-file>]");
