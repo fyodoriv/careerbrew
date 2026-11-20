@@ -21,6 +21,7 @@ One row per doc: the question it answers and who reads it.
 | [corporate-machine.md](corporate-machine.md) | How do I set up a corporate laptop and build the company plugin? | both |
 | [migrate-to-public-history.md](migrate-to-public-history.md) | My old checkout says `diverged`: how do I move it to the new history without losing work? | both |
 | [learn.md](learn.md) | How do I learn a project so it sticks, and how does careerbrew measure that it stuck? | both |
+| [indie.md](indie.md) | How do I run my own projects as income bets with `/indie`, and how do `/indie` and `/work` improve each other? | personal |
 | [practice.md](practice.md) | How do flashcards work, and which learning research backs each step? | both |
 | [web.md](web.md) | How do I open the web app, what does each view show, and how is it built? | both |
 | [rust-migration.md](rust-migration.md) | How does careerbrew move from Python to Rust, step by step, how is each step measured, and where does it stand now? | both |

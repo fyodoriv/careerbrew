@@ -306,6 +306,8 @@ src/careerbrew/workday/start.py,port,rust-16,Runtime capability; tests port with
 src/careerbrew/workday/status.py,port,rust-15,Runtime capability; tests port with the capability
 src/careerbrew/workday/steps.py,port,rust-15,Runtime capability; tests port with the capability
 src/careerbrew/workday/timing.py,port,rust-16,Runtime capability; tests port with the capability
+src/careerbrew/indie.py,port,rust-24,Runtime capability; tests port with the capability
+src/careerbrew/peers.py,port,rust-24,Runtime capability; tests port with the capability
 src/careerbrew/workday/watch.py,port,rust-16,Runtime capability; tests port with the capability
 src/careerbrew/workday/workflow_check.py,port,rust-07,Runtime capability; tests port with the capability
 tests/__init__.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -529,6 +531,8 @@ tests/unit/test_issue_270.py,port,rust-27,Port each assertion/helper with its do
 tests/unit/test_issue_271.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_272.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_274.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_indie.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_peers.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_276.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_280.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_305.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -884,6 +888,8 @@ tests/unit/test_issue_423_metadata_temp.py,port,rust-27,Check owned temporary me
 scripts/browser-test-receipts.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/e2e/us-110-pm-promise-outcomes.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/e2e/us-111-native-actions.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-112-indie-day.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/e2e/us-113-peer-improvement.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_browser_test_receipts.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_e2e_cache_runtime.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_issue_389_baseline.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
@@ -923,6 +929,7 @@ tests/unit/test_redirect_host_policy.py,port,rust-27,Check a redirect obeys the 
 tests/unit/test_visual_pictures.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/telemetry-install.sh,port,rust-24,Setup's local install numbers for the telemetry capability; ports with it
 tests/unit/test_telemetry_reference_successor.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_indie_reference_successor.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_telemetry_tiles.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 scripts/release.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
 tests/unit/test_version.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here

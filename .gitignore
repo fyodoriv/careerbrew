@@ -200,6 +200,7 @@ __pycache__/
 !/xtask/tests/fixtures/capture/actions-reference-promise-v2.json
 !/xtask/tests/fixtures/capture/actions-reference-rules-promise-v3.json
 !/xtask/tests/fixtures/capture/actions-reference-telemetry-v4.json
+!/xtask/tests/fixtures/capture/actions-reference-indie-v5.json
 !/xtask/tests/fixtures/capture/observer/
 /xtask/tests/fixtures/capture/observer/*
 !/xtask/tests/fixtures/capture/observer/sitecustomize.py
@@ -215,6 +216,7 @@ __pycache__/
 !/xtask/tests/fixtures/capture/http-reference-promise-v2.json
 !/xtask/tests/fixtures/capture/http-reference-rules-promise-v3.json
 !/xtask/tests/fixtures/capture/http-reference-telemetry-v4.json
+!/xtask/tests/fixtures/capture/http-reference-indie-v5.json
 
 !/xtask/tests/capture_data.rs
 !/xtask/tests/capture_data_cli.rs
