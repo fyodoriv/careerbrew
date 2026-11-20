@@ -1361,6 +1361,48 @@ the crate until the rust-05 and rust-07 closure is native, so
   change and save, like `upsert_jsonl`. Readers take no lock. The event is
   emitted after the lock is released. Tests:
   `tests/unit/test_rust05b2_approvals_lock.py`.
+- **Sub-step `rust-05c` (native key provider, component only):**
+  `crates/vault/src/keyfile.rs` ports `keyfile.key_path` and
+  `keyfile.load_key`. The caller supplies the facts Python reads from its
+  process (`CAREERBREW_KEY_FILE`, home, data root, and whether sealed data
+  exists), so the module needs no backup, config or event code.
+  - Same contract: default path `~/.config/careerbrew/backup.key`, `~/`
+    expansion, refusal inside the data root (non-strict resolve), stripped
+    read, missing-key refusal without `create`, refusal when sealed data
+    exists, `O_CREAT | O_EXCL` create at mode `0600`, and a race loser reads
+    the winner's key (empty after 50 tries of 10 ms is an error).
+  - Gap: `~user/...` is not expanded (Python's `expanduser` does); only `~`
+    and `~/` are.
+  - Unit tests sit in the module. No production dispatch and no Python
+    cross-engine vectors yet.
+- **Sub-step `rust-05d` (cross-engine key, native atomic write, component
+  only):**
+  - `crates/vault/src/atomic.rs` ports `store._tmp_for`, `store.write_text`
+    and `store.write_text_if_changed`: a temp sibling
+    `.<name>.<pid>.<8 hex>.tmp` made with `O_EXCL` (a name clash takes a new
+    name), a rename over the target, the temp removed on any failure, and an
+    equal stored text left alone (same bytes and mtime). An unreadable file is
+    written again. The caller says whether the path is sealed.
+  - `vault-store` (`crates/vault/src/bin/`) is a synthetic-only transport:
+    `read`, `write` and `write-if-changed` with an explicit key file and data
+    root. It never prints the key.
+  - `tests/unit/test_rust05d_key_interop.py`: a key Python's `load_key`
+    makes opens a file in Rust, a key Rust's `load_key` makes (mode `0600`)
+    opens the Rust-sealed file in Python, missing-key and inside-data-root
+    refusals, write-if-changed, and 20 concurrent Rust writers leave one
+    whole file and no temp.
+  - Why not the vector driver: these cases cross engines through files, so
+    the two drivers' answers would not be byte-equal values. The pure
+    vector set stays for the codec; this pairs real processes instead.
+  - Gap: no lock port yet (`.<name>.lock`), and no mixed Python and Rust
+    writer run under one lock.
+  - Gap: Python's `write_text_if_changed` rewrites only on `VaultError` and
+    stops on other read or decode errors (for example invalid UTF-8). Rust
+    rewrites after codec failures and compares decoded bytes without UTF-8
+    validation; filesystem errors other than `NotFound` propagate. Narrow this
+    before any caller uses it.
+  - Next: `rust-05e`, the native advisory lock and the 1,000-operation mixed
+    writer run from the gate.
 
 ### rust-06: Port backup, restore and cross-machine sync
 
@@ -1837,7 +1879,7 @@ refresh the map in the **same** pull request:
 | When this changes | Do this | Then run |
 | --- | --- | --- |
 | a Python source file that the activation tables name | refresh the pinned line cells (definition and call lines, and duplicated expected-line data) in the three [activation tables](#the-activation-manifest-today) | `cargo test -p careerbrew-xtask --test activation_manifest` |
-| a tracked source file is added (any executable mode, or a Python, shell, JavaScript, TypeScript or Rust extension) | add its row to a fragment in [`plans/rust-inventory.d/`](plans/rust-inventory.d/README.md) (`<name>.csv`, one per step, same columns, no header; the main [code inventory](plans/2026-11-01-rust-code-inventory.csv) stays as is, so parallel step PRs do not conflict): path, disposition (`port`, `keep-ui` or `keep-native`), task, reason; then add it to the [owner map](#every-module-has-an-owner-step) | `cargo xtask migration inventory --check` |
+| a tracked source file is added (any executable mode, or a Python, shell, JavaScript, TypeScript or Rust extension) | add its row to a fragment in [`plans/rust-inventory.d/`](plans/rust-inventory.d/README.md) (`<name>.csv`, one per step, same columns, no header; the main [code inventory](plans/2026-11-01-rust-code-inventory.csv) stays as is, so parallel step PRs do not conflict): path, disposition (`port`, `keep-ui` or `keep-native`), task, reason; the task is empty for `keep-ui`, `rust-00` for `keep-native`, or the two-digit migration step for `port`; then add it to the [owner map](#every-module-has-an-owner-step) | `cargo xtask migration inventory --check` |
 | a reviewed interpreter call site in source moves | update its row in the [embedded anchors](plans/2026-11-04-rust-embedded-anchors.csv) | `cargo xtask migration inventory --embedded-check` |
 | an embedded code site (an interpreter with `-c` or `-e` in shell or argument-array form, an interpreter heredoc, an inline `<script>`) or a generated entry point (a pyproject script or entry point, a `package.json` script or bin, an Agentfile command, skill or hook, a git hook, a lefthook or workflow `run`) is added, changed or removed | add, change or remove its row in the [embedded sites](plans/2026-11-17-rust-embedded-sites.csv): kind, path, key (the trimmed line or the name; a repeated identical line in one file gets ` #2`, ` #3`), owner task. `--sites-list` prints every discovered site as a manifest row, with its current task or an empty task for a new site | `cargo xtask migration inventory --check` |
 | `src/careerbrew/vault.py` | update the pinned `SOURCE_SHA` in `tests/unit/test_rust_vault_interop.py` and `tests/unit/test_rust_vault_base64_parity.py` | `uv run pytest -q tests/unit/test_rust_vault_interop.py tests/unit/test_rust_vault_base64_parity.py` |
@@ -1885,7 +1927,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | Path | Package | What it is | Production use |
 | --- | --- | --- | --- |
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
-| `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
+| `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No network, keychain or policy work. rust-05c adds `keyfile.rs`, the native key provider (path, `0600` create, missing-key refusal) over caller-supplied facts. | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |

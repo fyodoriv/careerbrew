@@ -52,7 +52,7 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 - [ ] Rust migration: Port encrypted storage and transaction locks
   - **ID**: rust-05
   - **Details**: Preserve encryption envelope, key location/mode, missing-key refusal, JSON/YAML/JSONL semantics, atomic replacement, unique temporary names, lock paths and write-if-changed. Extract the key-path/load functions currently in backup.py, settings IO and minimal content-free event emission here, so native storage never depends on later backup/config/event orchestration. Include approval-receipt storage, with one implementation per provider. Prove mixed Python/Rust writers under the same advisory lock and crash/interruption boundaries. Port whole transactions together; never hold a parent lock while a child reacquires it. Follow the measured Rust migration plan in `docs/rust-migration.md`: step `rust-05` in "Work breakdown" (its inputs, outputs and gate), "Scope", and "Measurement protocol for every step". Split large capabilities into independently measured PRs. Port this capability's CLI handlers and the assertions of its test files in this step, and route its own commands to native code when its activation closure is native; do not defer them to rust-26 or rust-27 ("Every module has an owner step" lists them). A component-only result does not enable production dispatch: the plan's full native activation closure must be measured before switching.
-  - **Progress**: rust-05a done (#167): key provider in `keyfile.py`, settings IO in `config_io.py`, `events.emit` split into `record` and `write_row`; no behaviour change (`tests/unit/test_rust05a_provider_seams.py`). rust-05b done (#165); rust-05b2 (approvals lock) done (#185). Next: rust-05c.
+  - **Progress**: rust-05a done (#167): key provider in `keyfile.py`, settings IO in `config_io.py`, `events.emit` split into `record` and `write_row`; no behaviour change (`tests/unit/test_rust05a_provider_seams.py`). rust-05b done (#165); rust-05b2 (approvals lock) done (#185). rust-05c: native key provider `crates/vault/src/keyfile.rs` (component only, unit tests in the module). rust-05d: native atomic write `crates/vault/src/atomic.rs` and cross-engine key checks through the synthetic `vault-store` binary (`tests/unit/test_rust05d_key_interop.py`). Next: rust-05e (native advisory lock, 1,000-operation mixed Python and Rust writer run).
   - **Files**: src/careerbrew/store.py; vault.py; secrets.py; keyfile.py (key provider); config_io.py (settings IO); events.py (emit primitive); approvals.py (receipt IO)
   - **Hypothesis**: replacing this slice preserves 100% of its registered behavior with 0 privacy/policy/side-effect violations; native CPU-time p95 and peak RSS stay at or below 1.10 times measured baseline B. Preparation steps instead prove their harness/dependency controls before any product switch. No current speed result is claimed.
   - **Measurement**: After rust-00 creates the harness: `heavy-run --exclusive cargo xtask migration baseline --step rust-05`, `heavy-run cargo xtask migration verify --step rust-05`, `heavy-run --exclusive cargo xtask migration measure --step rust-05 --pairs 30`, then `cargo xtask migration decide --step rust-05`. Commit the baseline and prediction before implementation.
@@ -70,17 +70,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Success**: 100% valid archives restore; 100% tampered/truncated/trailing-junk archives rejected; 0 unapproved exports or lost files. All applicable shared parity/resource gates pass; whole-repo fast/full checks remain green.
   - **Pivot**: any contract disagreement, privacy violation or missing/duplicate write, or CPU/RSS ratio >1.10 B, blocks rollout. Rework the adapter or dependency, register the new approach and remeasure; keep the last verified handler. Preparation fails on any accepted planted defect or unsupported required contract.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
-
-- [ ] Rust migration: Leftovers of rust-07a and rust-07b
-  - **ID**: rust-07c
-  - **Details**: Part of rust-07. Two items left when rust-07a (#166) and rust-07b (#168) merged: (1) `plugins.installed()` does not re-check an already installed manifest with `validate_manifest`; (2) `mcp_check.check_rows` is not yet split into a pure function over supplied facts. No Rust.
-  - **Files**: src/careerbrew/plugins.py; src/careerbrew/mcp_check.py; tests/unit/
-  - **Hypothesis**: a malformed installed manifest is refused on load (0 accepted), and `check_rows` gives the same rows from supplied facts as before.
-  - **Measurement**: new unit tests on hosted CI: a planted malformed installed manifest, and `check_rows` fed recorded facts.
-  - **Success**: both tests pass; no existing test changes.
-  - **Pivot**: if re-checking installed manifests refuses a manifest users already have, warn instead of refuse and record it.
-  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM).
-  - **Progress** (2026-11-20): both items done on branch `refactor/rust-07c-leftovers`: `plugins.installed()` re-checks each manifest and refuses an invalid one with a fix line (`remove` skips the check); `mcp_check.check` now probes with `check_facts` and decides with the pure `check_rows` (`tests/unit/test_rust07c_leftovers.py`). Pending: hosted CI.
 
 - [ ] Rust migration: Port plugin, machine and account setup
   - **ID**: rust-07
@@ -759,6 +748,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Success**: the tests pass; 0 early readings over 4 weeks.
   - **Pivot**: if owners clear the date to read early more than once in 4 weeks, drop the refusal and keep only a warning.
   - **Anchor**: Ries 2011 (pivot or persevere); Munafò et al. 2017 (pre-registration).
+
+- [ ] Indie: the plan names an active bet's own task first
+  - **ID**: indie-bet-task-first
+  - **Details**: `careerbrew indie run` names the highest-priority unblocked task of a bet's project as its next action. For the careerbrew bet (a yearly data licence, saved 2026-11-19) it names `telemetry-plugin-sink` (P0), not the bet's first task `pro-data-free-sample` (P1), so a session started from the plan does not work on the bet. Let a task name its bet (a `**Bet**: <bet id>` line), and let `indie run` prefer an unblocked task that names the active bet over other tasks of the same project. A project with no such task keeps today's order. Until this ships, start a session with the task id in the prompt.
+  - **Files**: src/careerbrew/indie.py; tests/unit/test_indie.py; tests/e2e/us-112-indie-day.sh; skills/careerbrew-indie/SKILL.md; skills/careerbrew-bet-options/SKILL.md; docs/indie.md
+  - **Hypothesis**: with the bet line, the next action of an active bet is one of its own tasks whenever one is unblocked, so the share of active bets whose next action is a bet task goes from 0 of 1 to 1 of 1.
+  - **Measurement**: `gh pr checks <pr>` (a new case in `tests/unit/test_indie.py`: a P1 task that names the bet is named before a P0 task that does not); in use, `careerbrew indie run`.
+  - **Success**: the case passes; `careerbrew indie run` names `pro-data-free-sample` for careerbrew.
+  - **Pivot**: if a bet line on tasks is skipped in more than half of new bets over 4 weeks, read the first task from the bet record instead.
+  - **Anchor**: Ries 2011 (build, measure, learn); Doerr 2018 (outcomes, not activities).
 
 - [ ] Indie: close two ways an agent could work out an owner number
   - **ID**: indie-owner-number-oracles

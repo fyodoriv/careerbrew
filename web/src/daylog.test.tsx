@@ -178,7 +178,7 @@ describe("Today's day-log blocks page their lists (issue #146)", () => {
     expect(within(block).getByRole("group", { name: "Pages of suggestions" })).toHaveTextContent("Showing 1–10 of 24");
     fireEvent.click(within(block).getByRole("button", { name: "goal (4)" }));
     expect(window.location.hash).toBe("#/today?suggestions-filter=goal");
-    expect(within(block).getAllByRole("listitem")).toHaveLength(4);
+    await waitFor(() => expect(within(block).getAllByRole("listitem")).toHaveLength(4));
     expect(within(block).queryByRole("group", { name: "Pages of suggestions" })).toBeNull();
     const housekeeping = screen.getByRole("heading", { name: "Housekeeping (1)" }).closest("details")!;
     expect(housekeeping.open).toBe(false);

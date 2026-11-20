@@ -4,6 +4,9 @@ use base64::engine::{general_purpose, DecodePaddingMode, GeneralPurpose, General
 use base64::Engine;
 use fernet::Fernet;
 
+pub mod atomic;
+pub mod keyfile;
+
 pub const MAGIC: &[u8] = b"CBV1\n";
 
 #[derive(Debug)]
