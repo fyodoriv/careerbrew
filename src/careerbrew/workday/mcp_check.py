@@ -167,31 +167,74 @@ def check(server_map: dict[str, dict[str, Any]] | None = None, getenv=_launchctl
         return scoped
     if not server_map:
         return []
-    rows: list[dict[str, Any]] = []
+    return check_rows(server_map, check_facts(server_map, getenv, port_open, which, repair_host=repair_host), repair_host=repair_host)
+
+
+def check_facts(server_map: dict[str, dict[str, Any]], getenv=_launchctl, port_open=_port_open, which=shutil.which, *, repair_host: str = "") -> dict[str, Any]:
+    """Probe what `check_rows` needs, under the same conditions the old check probed them (rust-07c).
+
+    Per server: `vars` (name -> launchd value or None); `ownership_error` (str, or None when the
+    source is owned; only for an empty GITHUB_TOKEN on a Claude GitHub header); `github_token`
+    (the GitHub CLI token, only when that comparison applies); `port_open` (bool, localhost URL
+    only); `command_found` (bool, command server only).
+    """
     launchd_path = getenv("PATH") or DEFAULT_LAUNCHD_PATH
+    facts: dict[str, Any] = {"servers": {}}
     for name, server in sorted(server_map.items()):
-        empty = []
-        values = {}
-        for var in _vars_in(server):
-            value = getenv(var)
-            values[var] = value
-            if value is not None and value == "":
-                empty.append(var)
+        values = {var: getenv(var) for var in _vars_in(server)}
+        fact: dict[str, Any] = {"vars": values}
+        facts["servers"][name] = fact
+        empty = [var for var, value in values.items() if value is not None and value == ""]
+        github_header = repair_host == "claude" and bool(_github_auth_header(server))
+        if empty:
+            if github_header and empty == ["GITHUB_TOKEN"]:
+                try:
+                    _check_source_ownership(name.removeprefix("claude:"))
+                    fact["ownership_error"] = None
+                except ValueError as exc:
+                    fact["ownership_error"] = str(exc)
+            continue
+        if github_header and values.get("GITHUB_TOKEN"):
+            fact["github_token"] = _github_cli_token()
+        url = str(server.get("url") or "")
+        if url:
+            parsed = urlparse(url)
+            if parsed.hostname in LOCAL_HOSTS:
+                port = parsed.port or (443 if parsed.scheme == "https" else 80)
+                fact["port_open"] = bool(port_open(parsed.hostname or "127.0.0.1", port))
+            continue
+        command = str(server.get("command") or "")
+        if command:
+            fact["command_found"] = bool((os.path.isabs(command) and os.access(command, os.X_OK)) or which(command, path=launchd_path))
+    return facts
+
+
+def check_rows(server_map: dict[str, dict[str, Any]], facts: dict[str, Any], *, repair_host: str = "") -> list[dict[str, Any]]:
+    """Pure preflight rows over supplied facts (rust-07c): no environment, socket, file or process reads.
+
+    `facts` comes from `check_facts`. One row per failing server; one ok row when all pass.
+    """
+    if not server_map:
+        return []
+    rows: list[dict[str, Any]] = []
+    for name, server in sorted(server_map.items()):
+        fact = facts["servers"][name]
+        values = fact["vars"]
+        empty = [var for var in _vars_in(server) if values.get(var) is not None and values.get(var) == ""]
         if empty:
             names = ", ".join(empty)
             safe = f"the desktop app sees {names} empty: `launchctl setenv {empty[0]} <value>`, then restart the app"
             if repair_host == "claude" and empty == ["GITHUB_TOKEN"] and _github_auth_header(server):
-                try:
-                    _check_source_ownership(name.removeprefix("claude:"))
-                except ValueError as exc:
-                    safe = str(exc)
+                error = fact.get("ownership_error")
+                if error is not None:
+                    safe = error
                 else:
                     safe = "after the owner approves changing Claude connector settings, run careerbrew day start --fix --yes; reconnect with the host's supported tool and recheck; no token belongs in chat"
             rows.append({"check": f"mcp {name}", "value": "empty launchd var", "ok": False, "safe": safe})
             continue
         launchd_token = values.get("GITHUB_TOKEN")
         if repair_host == "claude" and launchd_token and _github_auth_header(server):
-            github_token = _github_cli_token()
+            github_token = fact.get("github_token")
             if github_token and not hmac.compare_digest(launchd_token.encode(), github_token.encode()):
                 rows.append({"check": f"mcp {name}", "value": "GitHub credential mismatch", "ok": False, "safe": "the desktop app and GitHub CLI use different credentials; reconnect the GitHub connector and recheck"})
                 continue
@@ -200,11 +243,11 @@ def check(server_map: dict[str, dict[str, Any]] | None = None, getenv=_launchctl
             parsed = urlparse(url)
             if parsed.hostname in LOCAL_HOSTS:
                 port = parsed.port or (443 if parsed.scheme == "https" else 80)
-                if not port_open(parsed.hostname or "127.0.0.1", port):
+                if not fact.get("port_open"):
                     rows.append({"check": f"mcp {name}", "value": f"port {port} closed", "ok": False, "safe": f"nothing answers on localhost:{port}: start the app that serves it (an IDE), or remove the server"})
             continue
         command = str(server.get("command") or "")
-        if command and not (os.path.isabs(command) and os.access(command, os.X_OK)) and not which(command, path=launchd_path):
+        if command and not fact.get("command_found"):
             rows.append(
                 {"check": f"mcp {name}", "value": "command not on launchd PATH", "ok": False, "safe": f"the desktop app cannot find `{command}`: use its full path in the config, or `launchctl setenv PATH ...`, then restart the app"}
             )

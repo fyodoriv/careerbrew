@@ -14,6 +14,9 @@ export const TRACE_IN_SANDBOX = /^Blocked script execution in 'about:srcdoc' bec
 
 // The suite drives the built app served by `careerbrew serve` over a synthetic data root.
 export default defineConfig({
+  // Never let Playwright run git in this checkout: in a pull request on GitHub Actions it fetches the base
+  // with --depth=1, which makes the checkout shallow (tests/unit/test_hosted_ci.py, docs/ci.md).
+  captureGitInfo: { commit: false, diff: false },
   testDir: "./e2e",
   outputDir: OUT,
   fullyParallel: false,

@@ -1,0 +1,189 @@
+{
+ "set": "fernet",
+ "vectors": [
+  {
+   "id": "open-python-token",
+   "op": "open",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "data": "CBV1\ngAAAAABq_YbAAAECAwQFBgcICQoLDA0OD79xOGQ3lOCqb9q-KPn3yts879_DPH6jDRP3CWCGX8h8oA53x_wb02bsvtVjHI3PDuA0cr3UXj2ymvYw_RaqAsQ="
+   }
+  },
+  {
+   "id": "open-python-token-unicode",
+   "op": "open",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "data": "CBV1\ngAAAAABq_YbAAAECAwQFBgcICQoLDA0ODxWPAYSCuPiXLvFu3sBs22LUbC21-SHv5J9_ir_SGt2941E10FFDDLe5Z5RSmk8uVw=="
+   }
+  },
+  {
+   "id": "open-python-token-empty",
+   "op": "open",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "data": "CBV1\ngAAAAABq_YbAAAECAwQFBgcICQoLDA0OD7eteCFsVWnW2hqrh_bbxWHEuSPElXZn-ZQJEWfiRQUTnJNrFNOWuswpM6pvHUDTCQ=="
+   }
+  },
+  {
+   "id": "open-rust-token",
+   "op": "open",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "data": "CBV1\ngAAAAABq_aaPWATOx9L8IRo1WxzJlggSCqRpBYcoexcSl7wmzYuR0m2p1q6sJfOkcfaT0iISjz9MZjFj3LtCpbGZ3cIEp3GE1w=="
+   }
+  },
+  {
+   "id": "open-rust-token-unicode",
+   "op": "open",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "data": "CBV1\ngAAAAABq_aaPXBv2nTTsnTg4f7wJAvNr_9Se957bipeAD5fc6cmhoOfcy1-eNKuaxfri585B-fQpirhcMluZOMU-X3q_aHPsdA=="
+   }
+  },
+  {
+   "id": "open-old-plaintext-record",
+   "op": "open",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "data": "goal: promotion\nready: yes\n"
+   }
+  },
+  {
+   "id": "open-old-token-2020",
+   "op": "open",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "data": "CBV1\ngAAAAABeC-EAAAECAwQFBgcICQoLDA0OD17-6lcqZNR8HY5An3BPM-G8wXPBMqma9Ibqb9wb9o5u7ByIXe6fCfVS9dQ7Wx3Bxg=="
+   }
+  },
+  {
+   "id": "open-key-file-with-newline",
+   "op": "open",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\n",
+    "data": "CBV1\ngAAAAABq_YbAAAECAwQFBgcICQoLDA0OD79xOGQ3lOCqb9q-KPn3yts879_DPH6jDRP3CWCGX8h8oA53x_wb02bsvtVjHI3PDuA0cr3UXj2ymvYw_RaqAsQ="
+   }
+  },
+  {
+   "id": "open-future-token",
+   "op": "open",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "data": "CBV1\ngAAAAAB9yal6AAECAwQFBgcICQoLDA0ODz06t_j7nySlk-mmSzRMl08zlQuBN4pu4gxrmIcHSJ4mn7pADEwBTE6FBfXTO72TSQ=="
+   }
+  },
+  {
+   "id": "open-wrong-key",
+   "op": "open",
+   "input": {
+    "cipher_file": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=",
+    "data": "CBV1\ngAAAAABq_YbAAAECAwQFBgcICQoLDA0OD79xOGQ3lOCqb9q-KPn3yts879_DPH6jDRP3CWCGX8h8oA53x_wb02bsvtVjHI3PDuA0cr3UXj2ymvYw_RaqAsQ="
+   }
+  },
+  {
+   "id": "open-tampered-token",
+   "op": "open",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "data": "CBV1\ngAAAAABq_YbAAAECAwQFBgcICQoLDA0OD79xOGQ3lOCqb9q-KPA3yts879_DPH6jDRP3CWCGX8h8oA53x_wb02bsvtVjHI3PDuA0cr3UXj2ymvYw_RaqAsQ="
+   }
+  },
+  {
+   "id": "open-truncated-token",
+   "op": "open",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "data": "CBV1\ngAAAAABq_YbAAAECAwQFBgcICQoLDA0OD79xOGQ3lOCqb9q-KPn3yts879_D"
+   }
+  },
+  {
+   "id": "open-not-a-token",
+   "op": "open",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "data": "CBV1\nnot a token!"
+   }
+  },
+  {
+   "id": "open-appended-after-padding",
+   "op": "open",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "data": "CBV1\ngAAAAABq_YbAAAECAwQFBgcICQoLDA0OD-19Te6pGow-yBklVhCz78UHZahD210zSoNJRquSmL4StZvwtdn0QE9-PP6sGe2_pQ==junk"
+   }
+  },
+  {
+   "id": "open-appended-without-padding",
+   "op": "open",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "data": "CBV1\ngAAAAABq_YbAAAECAwQFBgcICQoLDA0ODwxnxuU1LvDJI85gh9NvOEzm__hCwC_mDHLg27CXwQzUA0sGGmREuAEHmtnNQXVt-KCzfScRukJARiAkL7I4OP_HflH_HVwVuc5a4EC-d7KkAAAA"
+   }
+  },
+  {
+   "id": "open-bad-key",
+   "op": "open",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0O",
+    "data": "CBV1\ngAAAAABq_YbAAAECAwQFBgcICQoLDA0OD79xOGQ3lOCqb9q-KPn3yts879_DPH6jDRP3CWCGX8h8oA53x_wb02bsvtVjHI3PDuA0cr3UXj2ymvYw_RaqAsQ="
+   }
+  },
+  {
+   "id": "strict-clean-token",
+   "op": "open-strict",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "data": "gAAAAABq_YbAAAECAwQFBgcICQoLDA0OD-19Te6pGow-yBklVhCz78UHZahD210zSoNJRquSmL4StZvwtdn0QE9-PP6sGe2_pQ=="
+   }
+  },
+  {
+   "id": "strict-rust-token",
+   "op": "open-strict",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "data": "gAAAAABq_aaPWATOx9L8IRo1WxzJlggSCqRpBYcoexcSl7wmzYuR0m2p1q6sJfOkcfaT0iISjz9MZjFj3LtCpbGZ3cIEp3GE1w=="
+   }
+  },
+  {
+   "id": "strict-appended-after-padding",
+   "op": "open-strict",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "data": "gAAAAABq_YbAAAECAwQFBgcICQoLDA0OD-19Te6pGow-yBklVhCz78UHZahD210zSoNJRquSmL4StZvwtdn0QE9-PP6sGe2_pQ==junk"
+   }
+  },
+  {
+   "id": "strict-wrong-key",
+   "op": "open-strict",
+   "input": {
+    "cipher_file": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=",
+    "data": "gAAAAABq_YbAAAECAwQFBgcICQoLDA0OD-19Te6pGow-yBklVhCz78UHZahD210zSoNJRquSmL4StZvwtdn0QE9-PP6sGe2_pQ=="
+   }
+  },
+  {
+   "id": "seal-text",
+   "op": "seal",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "plaintext_hex": "7365616c6564206279206561636820736964"
+   }
+  },
+  {
+   "id": "seal-empty",
+   "op": "seal",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+    "plaintext_hex": ""
+   }
+  },
+  {
+   "id": "seal-binary",
+   "op": "seal",
+   "input": {
+    "cipher_file": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=\n",
+    "plaintext_hex": "00ff10e2988300ff10e2988300ff10e2988300ff10e2988300ff10e2988300ff10e2988300ff10e2988300ff10e29883"
+   }
+  }
+ ]
+}

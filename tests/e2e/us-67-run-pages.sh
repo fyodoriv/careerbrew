@@ -38,6 +38,7 @@ ln -s "$ROOT/.venv" "$repo/.venv"
 printf '#!/usr/bin/env bash\necho "OPEN  #7 feat: synthetic (branch feat/x, updated 2026-10-19)"\necho "      next: review, then merge when the gate is green"\nexit 1\n' > "$repo/scripts/open-prs.sh"
 printf '#!/usr/bin/env bash\necho "ok    git installed"\n' > "$repo/scripts/doctor.sh"
 printf '#!/usr/bin/env bash\necho "check.sh: full gate passed"\n' > "$repo/scripts/check.sh"
+printf '#!/usr/bin/env bash\necho "hosted-gate: main 0123abcd passed (run 42, push)"\n' > "$repo/scripts/hosted-gate.sh"
 printf '#!/usr/bin/env bash\necho "metrics: no data yet"\n' > "$repo/scripts/metrics.sh"
 printf '#!/usr/bin/env bash\necho none\n' > "$repo/scripts/open-work.sh"
 chmod +x "$repo/scripts/"*.sh

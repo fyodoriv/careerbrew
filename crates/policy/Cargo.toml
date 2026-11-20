@@ -1,0 +1,18 @@
+[package]
+name = "careerbrew-policy"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+# The library does no IO (scripts/policy-no-io.py, gate step rust-policy-io):
+# these are its only dependencies, all pure. The `policy-vectors` binary in
+# src/bin/ is the one IO edge: it reads the vector file.
+[dependencies]
+serde_json = "=1.0.154"
+sha2 = "=0.10.9"
+unicode-normalization = "=0.1.26"
+
+[[bin]]
+name = "policy-vectors"
+path = "src/bin/policy-vectors.rs"

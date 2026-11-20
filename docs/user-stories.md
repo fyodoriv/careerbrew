@@ -1694,22 +1694,29 @@ See [Agent hosts](agent-hosts.md) for runtime, deployment and regression details
 
 - **Host contract**: dual-host-shared-memory
 - **Mode**: platform
-- **As** the owner, **I want** anonymous usage counts from real runs (command, ok or error, duration, counts) on PostHog EU, **so that** the README's headline numbers come from the field, not from tests.
+- **As** the owner, **I want** anonymous usage counts from real runs (command, ok or error, duration, counts, installs, weekly outcomes) on PostHog EU from every user who says yes, **so that** the README's headline numbers come from the field, not from tests.
 - **Acceptance criteria**:
-  - Given events in the log with business text, paths, or names in fields, when telemetry sends, then only the event name, time, a random install id, allowlisted ids, and numbers leave (tests: `test_only_allowlisted_fields_leave_the_machine`, `test_the_host_and_user_names_never_leave`).
-  - Given no key, `DO_NOT_TRACK=1`, `careerbrew telemetry off`, or a plugin policy `telemetry: false`, when a send runs, then nothing is sent (tests: `test_no_key_sends_nothing`, `test_off_switches_send_nothing`, `test_a_plugin_policy_forbids_telemetry`).
+  - Given no answer yet (`telemetry_consent: unset`) or a `no`, even with a key, when a send runs, then nothing is sent (tests: `test_consent_unset_sends_nothing`, `test_no_sends_nothing_even_with_a_key`).
+  - Given a yes at time T, when telemetry sends, then no event stamped before T leaves (tests: `test_a_yes_never_sends_an_event_from_before_it`, `test_a_yes_saved_with_config_set_still_starts_at_its_own_time`).
+  - Given `careerbrew` starts on a real terminal with no answer, then it asks one question that names what is sent, what is never sent, and where it goes, and saves the answer; with no terminal, in CI, or with an off switch it never asks and sends nothing (tests: `test_the_question_names_what_and_where_and_saves_the_answer`, `test_no_terminal_means_no_question_and_no_send`, `test_the_question_is_never_asked_in_ci_or_with_an_off_switch`, `test_no_answer_asks_again_at_most_once_a_day_and_three_times`).
+  - Given a corporate machine, then the answer defaults to `no`; given an install from before the question (a Keychain key), then `telemetry status` leaves the answer unset and sends nothing, and two terminals never both ask (tests: `test_a_corporate_machine_defaults_to_no`, `test_status_on_an_install_from_before_the_question_leaves_consent_unset_and_sends_nothing`, `test_an_old_telemetry_false_still_means_no`, `test_two_terminals_never_both_ask`).
+  - Given the key lookup, then `CAREERBREW_POSTHOG_KEY` and the Keychain are read in that order, no key is committed, a yes with no key records locally, sends nothing, and status names `careerbrew secret set posthog_key`, a value that is not one `phc_` key is no key, and no output, log, or error prints the key (tests: `test_the_key_lookup_order_and_shape`, `test_no_key_file_is_committed_or_packaged`, `test_with_a_yes_and_no_key_events_stay_local_and_status_names_the_fix`, `test_the_key_never_appears_in_output_logs_or_errors`).
+  - Given events in the log with business text, paths, host or user names in fields, when telemetry sends, then only fixed-list event names and string values, bounded numbers, a random install id, and the machine fields leave (tests: `test_only_allowlisted_fields_leave_the_machine`, `test_a_canary_path_host_or_user_name_never_leaves`, `test_every_emitted_event_name_is_on_the_fixed_list`, `test_command_values_come_from_the_cli_parser`).
+  - Given `DO_NOT_TRACK`, `CAREERBREW_TELEMETRY=0`, `CI`, `careerbrew telemetry off`, a missing key, or a plugin policy `telemetry: false`, when a send runs, then nothing is sent (tests: `test_off_switches_send_nothing`, `test_no_key_sends_nothing`, `test_a_plugin_policy_forbids_telemetry`).
   - Given a plugin host policy (`allowed_hosts`) that does not list the telemetry host, or a telemetry address that redirects to an unlisted host, when a send runs, then nothing is sent there (tests: `test_a_host_policy_without_the_telemetry_host_sends_nothing`, `test_a_telemetry_redirect_to_a_host_outside_the_policy_sends_nothing_there`).
-  - Given a sent event, when the next send runs, then it is not sent again; a half-written line waits (test: `test_nothing_is_sent_twice_and_a_partial_line_waits`).
-  - Given a dead or failing endpoint, when the watcher or `telemetry send` runs, then no other command fails and the events stay queued (tests: `test_a_failed_send_never_raises_and_keeps_the_events`, `test_an_unreachable_endpoint_never_fails_the_watcher`).
-  - Given telemetry is on, when `careerbrew` starts the first time, then it says so in one line, and the watcher sends at most once a day after that (test: `test_the_watcher_sends_once_a_day_and_only_after_the_notice`).
-  - Given `careerbrew telemetry send --dry-run`, then it prints the exact JSON with the key as a placeholder and sends nothing (test: `test_dry_run_prints_the_exact_body_without_the_key_and_sends_nothing`).
-- **Metric**: requests with a canary, path, host, or user name in the body. **Target**: 0.
+  - Given a sent event, when the next send runs, then it is not sent again; a half-written line waits; batches hold at most 500 and a send at most the newest 2,000; a second send waits for the lock (tests: `test_nothing_is_sent_twice_and_a_partial_line_waits`, `test_batches_of_500_and_the_backlog_cap`, `test_a_second_send_waits_for_the_lock`, `test_a_failed_batch_keeps_the_cursor`).
+  - Given a dead or failing endpoint, when the watcher or `telemetry send` runs, then no other command fails, the events stay queued, and an ordinary command or the watcher tries once a day with 3 s in all (tests: `test_a_failed_send_never_raises_and_keeps_the_events`, `test_an_unreachable_endpoint_never_fails_the_watcher`, `test_the_watcher_sends_once_a_day_with_a_short_timeout`, `test_an_ordinary_command_sends_once_a_day_with_the_short_timeout`, `test_the_whole_auto_send_ends_within_its_timeout`).
+  - Given setup ran, then it writes no event; the next yes emits one `careerbrew.install` event with its time and result, stamped after the yes; a second setup emits none, a failed setup sends `ok: false`, and nothing is recorded in CI or tests; a setup trap with no `careerbrew` command writes nothing and keeps the exit code (tests: `test_setup_alone_writes_no_event_line`, `test_a_yes_after_setup_emits_the_install_event_once_stamped_after_the_yes`, `test_a_second_setup_of_the_same_data_folder_emits_none`, `test_a_failed_setup_then_a_yes_emits_ok_false`, `test_record_install_does_nothing_in_ci_or_tests`, `test_the_setup_trap_with_no_careerbrew_writes_nothing_and_keeps_the_exit_code`).
+  - Given a finished ISO week after the yes, then the watcher records one `careerbrew.week` event of counts only, even when a send fails, and a planted name never leaves; with consent unset neither outcome event leaves (tests: `test_the_week_event_carries_only_numbers_and_no_planted_name`, `test_the_week_event_is_recorded_once_even_when_the_send_fails`, `test_a_week_that_ended_before_the_yes_is_never_recorded`, `test_with_consent_unset_neither_outcome_event_leaves`).
+  - Given a job stage, a web view, a work-day step, or a new version after a yes, then each leaves only a name from a fixed list or a number: every funnel stage as its `status`, a view's fixed name once a day, a step's kind and seconds (never its name), and one `careerbrew.upgrade` with the old version (tests: `test_every_job_funnel_stage_leaves_as_its_status`, `test_a_web_view_leaves_only_its_fixed_name_once_a_day`, `test_a_route_off_the_view_list_never_leaves`, `test_a_work_day_step_leaves_its_kind_and_seconds`, `test_a_new_version_emits_one_upgrade_event`, `test_a_from_version_that_is_not_a_version_never_leaves`).
+  - Given `careerbrew telemetry send --dry-run`, then it prints the exact JSON with the key as a placeholder and sends nothing; `--json` prints only the JSON (tests: `test_dry_run_prints_the_exact_body_without_the_key_and_sends_nothing`, `test_dry_run_json_prints_only_the_json`).
+- **Metric**: requests with a canary, path, host, or user name in the body, and events sent from before a yes. **Target**: 0 and 0.
 - **Skill**: `skills/careerbrew-privacy-guard`
-- **Web views**: none (Actions lists `telemetry status`, `on`, `off`, and `send`)
+- **Web views**: none (Actions lists `telemetry status`, `on`, `off`, `send`, and `record-install`)
 
 | Case | Test | Log event |
 |---|---|---|
-| happy and error | `tests/e2e/us-89-field-telemetry.sh` | `telemetry.send` |
+| happy and error | `tests/e2e/us-89-field-telemetry.sh` | `telemetry.send`, `careerbrew.install` |
 
 ## US-90: A review ask names enough people for the required approvals
 
@@ -2073,3 +2080,76 @@ See [Agent hosts](agent-hosts.md) for runtime, deployment and regression details
 | Case | Test | Log event |
 |---|---|---|
 | owner decision and refusals | `tests/e2e/us-110-pm-promise-outcomes.sh` | `work.promise` |
+
+## US-111: Switch one action to the native CLI, and roll it back with one line or one variable
+
+- **Host contract**: dual-host-shared-memory
+- **Mode**: platform
+- **As** a careerbrew user, **I want** each action routed to Python or to the native `careerbrew-native` binary one line at a time, with a rollback that needs no code change, **so that** a faster native path can ship without changing what any command prints.
+- **Acceptance criteria**:
+  - Given the committed `config/native-routes.txt` (`actions native` since rust-03 activated; every other action `python`), when I run `careerbrew actions --json`, then `careerbrew-native` answers.
+  - Given `actions` routed native (the route line, or `CAREERBREW_ROUTE_ACTIONS=native`), when I run `careerbrew actions --json`, then `careerbrew-native` answers with the same bytes as Python.
+  - Given a rollback (`CAREERBREW_NATIVE=off`, `CAREERBREW_ROUTE_ACTIONS=python`, or a missing binary), when I run the same command, then Python answers with the same bytes; a missing binary logs `cli.native_fallback`.
+  - Given the native binary refuses the argv (exit 64), when the command runs, then Python runs it and `cli.native_unsupported` is logged.
+- **Metric**: byte differences in `actions --json` between the python, native and rollback routes. **Target**: 0 in the US-111 runs.
+- **Skill**: `skills/careerbrew-best-practices`
+- **Web views**: none
+
+| Case | Test | Log event |
+|---|---|---|
+| python, native and rollback routes print the same bytes; a refusal falls back | `tests/e2e/us-111-native-actions.sh` | `cli.native_fallback`, `cli.native_unsupported` |
+
+## US-112: Run my personal projects as income bets, with agent time on the ones that pay back
+
+- **Host contract**: dual-host-shared-memory
+- **Mode**: platform
+- **As** an owner who wants to replace a salary with income from my own software, **I want** `/indie` to treat each personal repo as a bet with a hypothesis, a metric, a success line and a pivot line, and to put agent sessions on the bets whose work pays back, **so that** every day with my agents moves me closer to that income at a lower cost per outcome.
+- **Acceptance criteria**:
+  - Given personal repos under `indie_roots`, when I run `careerbrew indie run --json`, then every repo is a bet with a rank, a reason, and a next action; a bet with no hypothesis is a question for me and gets no session.
+  - Given a bet, when an agent runs `careerbrew indie decide <bet> activate` with no `--yes` or with a field missing, then it is refused: only I activate, pause, pivot, or kill a bet.
+  - Given active bets with recorded hours, when the plan is built, then an untried bet is tried once, a bet with outcomes per agent-hour ranks first, and at most one `enabler` bet holds a session.
+  - Given a bet whose last two readings are under its pivot line, when the plan is built, then the bet is held with no session until I decide.
+  - Given an income goal and a month's income that I typed, when any command prints, then it shows a percentage of the target and never an amount or a hypothesis text.
+  - Given a day of sessions, when I run `careerbrew indie end` and `careerbrew indie review --json`, then each week shows outcomes (merged `feat`, `fix`, `perf` commits), agent-hours and asks per outcome; a week with no recorded hours is `null`, never zero.
+- **Metric**: mean agent-hours per outcome in weeks 7 to 8 of the seeded 8-week simulation, ranked plan against round-robin over 200 seeds. **Target**: 20% lower or better at the 10th percentile, and no seed worse than round-robin.
+- **Skill**: `skills/careerbrew-indie`
+- **Web views**: none
+
+| Case | Test | Log event |
+|---|---|---|
+| question not work, owner-only decisions, ranking, pivot hold, privacy, end and review | `tests/e2e/us-112-indie-day.sh` | `indie.run`, `indie.end`, `indie.measure`, `indie.review` |
+
+## US-113: `/indie` and `/work` improve each other
+
+- **Host contract**: dual-host-shared-memory
+- **Mode**: platform
+- **As** the owner of both runners, **I want** `/indie` (the founder) and `/work` (the operator) to detect each other's new lessons and source changes and to trial them on their own metrics, **so that** a gain on one side reaches the other and neither falls behind.
+- **Acceptance criteria**:
+  - Given a new numbered lesson or source commit on one side, when I run `careerbrew peer status --for <other side> --json`, then it lists the lesson as unreviewed and the commits since that side's review marker, with the next step.
+  - Given a side with an open trial, when it starts a second one or closes the first before 3 days, then the command is refused: one change at a time.
+  - Given a trial of 3 days or more, when it closes, then the verdict is KEEP, REVERT, or NEUTRAL by a 10% margin on the side's own metric, NO-DATA when there is no number, and the command prints the adopted or declined line for the side's `LESSONS.md`.
+  - Given a verdict line and a moved marker in a side's `LESSONS.md`, when status runs again, then the lesson and the commits are gone from its list.
+- **Metric**: peer lessons with no verdict, per side. **Target**: 0 after each side's review in the US-113 run.
+- **Skill**: `skills/careerbrew-indie`
+- **Web views**: none
+
+| Case | Test | Log event |
+|---|---|---|
+| detect, trial, refuse a second trial, decline, marker | `tests/e2e/us-113-peer-improvement.sh` | `peer.status`, `peer.experiment` |
+
+## US-114: Pick a bet's hypothesis from five judged options
+
+- **Host contract**: dual-host-shared-memory
+- **Mode**: platform
+- **As** an owner who is not sure how a project leads to income, **I want** five full bet options that five independent judges all pass, **so that** I can pick or edit one in a minute and the project can get agent time.
+- **Acceptance criteria**:
+  - Given a bet with no hypothesis, when I say "I'm not sure", then the `careerbrew-bet-options` skill drafts candidates from public facts and has five judges (demand, income, measure, solo, skeptic) grade each one.
+  - Given a candidate that fails any judge after one fix round, when the options are shown, then it is not in the list, and the list is never padded.
+  - Given a shown option, when I have not picked it, then no agent saves or activates it: a saved option is still a question until I say yes, and its text never prints.
+- **Metric**: bets with a hypothesis, of the bets scanned. **Target**: every bet the owner asks options for has an owner-picked hypothesis the same day.
+- **Skill**: `skills/careerbrew-bet-options`
+- **Web views**: none
+
+| Case | Test | Log event |
+|---|---|---|
+| five judges named, no padding, the owner picks, a saved option stays a question, privacy | `tests/e2e/us-114-bet-options.sh` | `indie.decide` |

@@ -23,7 +23,11 @@ Then work the promises the user made, in parallel with the rest (issue #268). `u
 
 Every other thing careerbrew can do is in its action catalog: `uv run careerbrew actions` (or `--json` for the arguments). Run any of them as the CLI command it names; the web app's Actions view runs the same list. Actions marked "confirm" change or send something hard to undo: run them only after the user says yes. "Terminal only" actions need the user's own terminal (hidden prompts): give them the command.
 
+On a personal machine, when the user wants to work on their own projects, asks which project to work on, or asks how close they are to living off their own software, use `/indie` (`careerbrew indie run --json`; guide: `docs/indie.md`). When they ask whether `/indie` and `/work` learn from each other, run `careerbrew peer status`.
+
 Long runs (`review`, `work collect`, `day plan`, `day render`, `checkup`, `machine ready`, `machine new-user`, `plugin new`) end the same way, with two lines instead of their step text: read `uv run careerbrew report latest --json`, open the page with `uv run careerbrew open --report latest`, and ask which Next item to take.
+
+Usage counts: when the user asks whether careerbrew sends usage data, or wants it on or off, run `uv run careerbrew telemetry status` (on or off and why), `uv run careerbrew telemetry on` (only after they say yes), or `uv run careerbrew telemetry off`. Never answer the consent question for them. To see what is sent: `uv run careerbrew telemetry send --dry-run`. When status says "no key", the owner types the key once on that machine with `careerbrew secret set posthog_key` (never ask for it in chat). When the owner asks how careerbrew is used across installs, point to the PostHog dashboard "careerbrew: product and performance" (one tile per tile section of `docs/telemetry-tiles.md`; its last section is the four command timing tiles); this machine's own totals: `uv run careerbrew metrics field`.
 
 To change a default the user asks for, use `uv run careerbrew config set <key> <value>` (see `uv run careerbrew config`). The PM update goes to Slack by default: show the user the draft (`uv run careerbrew day send`; its "why it matters" notes are for the user only, never in the sent text), and post it with `--yes` only after they say send.
 

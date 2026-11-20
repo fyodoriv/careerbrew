@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# e2e: weight: 40  (usual seconds on a hosted runner; scripts/e2e.sh E2E_SHARD)
 # US-74: the suggestions inbox explains itself, folds alike rows into one group, and drops asks already done elsewhere;
 # Dashboard has a Getting started checklist. Synthetic data only: tickets PROJ-* from recorded Jira answers, repo acme/shop.
 source "$(dirname "$0")/lib.sh"

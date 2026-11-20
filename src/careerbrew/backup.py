@@ -22,33 +22,19 @@ from pathlib import Path
 
 from cryptography.fernet import Fernet, InvalidToken
 
-from . import events, paths, plugins, store
+from . import events, keyfile, paths, plugins, store
 
 EXCLUDE_DIRS = {"cache", ".staging"}
 KEEP = 10
 
 
 def key_path() -> Path:
-    env = os.environ.get("CAREERBREW_KEY_FILE")
-    return Path(env).expanduser() if env else Path.home() / ".config" / "careerbrew" / "backup.key"
+    """rust-05a: the key provider lives in `keyfile`; this name stays for existing callers."""
+    return keyfile.key_path()
 
 
 def load_key(create: bool = True) -> bytes:
-    path = key_path()
-    paths.require_outside_data_root(path, "backup key")
-    if path.exists():
-        return path.read_bytes().strip()
-    if not create:
-        raise FileNotFoundError(f"backup key missing at {path} (fix: restore it from your password manager)")
-    from . import vault
-
-    if vault._has_sealed_data():
-        raise vault.VaultError("backup key missing but encrypted data exists (fix: restore the key from your password manager)")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    key = Fernet.generate_key()
-    path.write_bytes(key)
-    path.chmod(0o600)
-    return key
+    return keyfile.load_key(create, key_path())
 
 
 def icloud_dir() -> Path:

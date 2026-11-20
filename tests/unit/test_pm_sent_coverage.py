@@ -157,7 +157,7 @@ def test_ambiguous_retained_slack_source_is_excluded(audit, home, capsys):
 def test_real_business_policy_authorizes_without_changing_files(home, capsys):
     audit = run_path(str(SCRIPT))["main"]
     store.write_json(home / "plugins.lock.json", {"plugins": {"fixture": {}}})
-    store.write_yaml(home / "plugins" / "fixture" / plugins.MANIFEST, {"policy": {"agent_may_read_business": True}})
+    store.write_yaml(home / "plugins" / "fixture" / plugins.MANIFEST, {"name": "fixture", "version": "1.0.0", "policy": {"agent_may_read_business": True}})
     before = snapshot(home)
     assert audit(["--from", day(0), "--to", day(0), "--json"]) == 0
     assert json.loads(capsys.readouterr().out)["status"] == "insufficient_data"

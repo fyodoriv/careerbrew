@@ -3,6 +3,9 @@
 # Safe to run again; each step skips work that is already done.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Setup's time and result, saved locally for field telemetry; they leave only after a yes (US-89).
+source scripts/telemetry-install.sh
+telemetry_install_begin
 
 step() { printf '\n==> %s\n' "$1"; }
 
@@ -32,6 +35,14 @@ else
     fi
   fi
   if [ -f Cargo.toml ]; then PATH="$RUST_READY_BIN:$PATH" RUSTUP_AUTO_INSTALL=0 "$RUST_READY_BIN/cargo" fetch; fi
+  # Rebuild each Rust crate that ships, so a pulled Rust change reaches this machine.
+  # The list and the docs Crates table stay in step (tests/unit/test_rust_shipped_crates.py).
+  if [ -f Cargo.toml ] && [ -f scripts/rust-shipped-crates.txt ]; then
+    while read -r crate; do
+      case "$crate" in ''|'#'*) continue ;; esac
+      PATH="$RUST_READY_BIN:$PATH" RUSTUP_AUTO_INSTALL=0 "$RUST_READY_BIN/cargo" build --release --locked --manifest-path "$crate/Cargo.toml"
+    done < scripts/rust-shipped-crates.txt
+  fi
 fi
 
 step "Web app (TypeScript)"
@@ -67,5 +78,6 @@ scripts/install-launcher.sh
 
 step "Health check"
 scripts/doctor.sh
+telemetry_install_ok
 
 printf '\nReady. Next: scripts/check.sh\n'

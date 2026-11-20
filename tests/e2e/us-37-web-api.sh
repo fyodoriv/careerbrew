@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# e2e: weight: 30  (usual seconds on a hosted runner; scripts/e2e.sh E2E_SHARD)
 # US-37: the web app's API is local-only: token required, foreign Host refused, job views blocked on corporate machines (and their sidebar group hidden), responses never cached or framed;
 # `careerbrew open` stops a careerbrew server on its port that nothing tracks and opens a working link (issue #118).
 source "$(dirname "$0")/lib.sh"

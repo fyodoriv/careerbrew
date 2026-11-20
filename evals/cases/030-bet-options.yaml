@@ -1,0 +1,27 @@
+id: bet-options-five-judged
+suite: regression
+skill: careerbrew-bet-options
+should: act
+input: "/indie asked how my CLI tool leads to income and I said: I'm not sure, give me options"
+expect:
+  - "Takes public facts about the repo with commands (stars, downloads) and does not read `private/` or use the owner's income"
+  - "Drafts more candidates than five, each with a kind, a hypothesis, a metric readable today, a numeric dated success line and a pivot line"
+  - "Starts five independent judges (demand, income, measure, solo, skeptic) and shows only candidates that all five pass"
+  - "Asks the owner to pick, edit, or reject, and saves or activates a bet only after the owner's answer"
+---
+id: bet-options-fewer-than-five
+suite: regression
+skill: careerbrew-bet-options
+should: act
+input: "bet options for my project: after the fix round only three candidates pass all five judges"
+expect:
+  - "Shows the three passing options and says how many were cut and why"
+  - "Does not pad the list with a candidate that failed a judge"
+---
+id: bet-options-refrains-when-hypothesis-given
+suite: regression
+skill: careerbrew-bet-options
+should: refrain
+input: "my bet for sidequest: product, people pay 5 a month for the pro plan, metric paying users, success 20, pivot 3"
+expect:
+  - "Does not generate options or start judges; the owner already gave the hypothesis"

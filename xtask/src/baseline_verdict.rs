@@ -67,12 +67,12 @@ fn has_canary(observation: Observation<'_>, canaries: &[&[u8]]) -> bool {
     })
 }
 
-fn cpu_p95(mut samples: Vec<u64>) -> u64 {
+pub(crate) fn cpu_p95(mut samples: Vec<u64>) -> u64 {
     let index = samples.len() - samples.len() / 20 - 1;
     *samples.select_nth_unstable(index).1
 }
 
-fn within_limit(baseline: u64, candidate: u64, limit: ResourceLimit) -> bool {
+pub(crate) fn within_limit(baseline: u64, candidate: u64, limit: ResourceLimit) -> bool {
     if baseline < limit.floor {
         return candidate <= limit.absolute;
     }

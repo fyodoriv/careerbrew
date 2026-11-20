@@ -4,6 +4,8 @@ use base64::engine::{general_purpose, DecodePaddingMode, GeneralPurpose, General
 use base64::Engine;
 use fernet::Fernet;
 
+pub mod keyfile;
+
 pub const MAGIC: &[u8] = b"CBV1\n";
 
 #[derive(Debug)]
@@ -68,7 +70,33 @@ pub fn open(key: Option<&str>, data: &[u8]) -> Result<Vec<u8>, VaultError> {
     };
     let decoded = python_token_bytes(token)?;
     let canonical = general_purpose::URL_SAFE.encode(decoded);
-    cipher(key)?.decrypt(&canonical).map_err(|_| VaultError)
+    decrypt_like_python(&cipher(key)?, &canonical)
+}
+
+/// Decrypts the way Python's `Fernet.decrypt(token)` does with no TTL.
+///
+/// Python then skips every time check. The crate's `decrypt` rejects a token
+/// stamped more than 60 s ahead of the clock, so this passes the crate a
+/// "current time" no earlier than the token's own stamp. The MAC, IV and
+/// cipher checks stay the crate's own.
+pub fn decrypt_like_python(cipher: &fernet::Fernet, token: &str) -> Result<Vec<u8>, VaultError> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|_| VaultError)?
+        .as_secs();
+    let raw = general_purpose::URL_SAFE
+        .decode(token)
+        .map_err(|_| VaultError)?;
+    let stamp = raw
+        .get(1..9)
+        .and_then(|b| <[u8; 8]>::try_from(b).ok())
+        .map_or(0, u64::from_be_bytes);
+    // The crate adds 60 s to this clock without an overflow check. Keep the
+    // sum in range, so a stamp near u64::MAX cannot panic a debug build.
+    let clock = now.max(stamp).min(u64::MAX - 60);
+    cipher
+        .decrypt_at_time(token, None, clock)
+        .map_err(|_| VaultError)
 }
 
 #[cfg(test)]
@@ -91,5 +119,17 @@ mod tests {
     #[test]
     fn malformed_envelope_refuses_without_a_value() {
         assert!(open(Some(KEY), b"CBV1\n!").is_err());
+    }
+
+    #[test]
+    fn a_stamp_near_the_u64_limit_opens_or_fails_without_overflow() {
+        let cipher = fernet::Fernet::new(KEY).unwrap();
+        let token = cipher.encrypt_at_time(b"synthetic", u64::MAX);
+        assert!(matches!(decrypt_like_python(&cipher, &token), Ok(b) if b == b"synthetic"));
+        let mut raw = general_purpose::URL_SAFE.decode(&token).unwrap();
+        let last = raw.len() - 1;
+        raw[last] ^= 1;
+        let tampered = general_purpose::URL_SAFE.encode(raw);
+        assert!(decrypt_like_python(&cipher, &tampered).is_err());
     }
 }

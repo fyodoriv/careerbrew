@@ -1,0 +1,119 @@
+name: CI
+
+# The hosted copy of the local gate: `scripts/setup.sh`, then `scripts/check.sh`,
+# the same commands a contributor runs, split into parts that run in parallel
+# (gate-part.yml; docs/ci.md, "Parallel parts"). It runs on GitHub's standard runners,
+# which are free for a public repository. Read docs/ci.md before you change it.
+#
+# Safety:
+# - No secrets are used. A fork pull request gets a read-only token.
+# - No `private/` data and no real `.env` exist on a runner. Tests use synthetic data.
+# - No artifact is uploaded: a trace or a log would be a public download.
+# - The owner's private-pattern check cannot run here: its pattern file lives
+#   only on the owner's machine. The local pre-push hook stays the authority.
+# - Never change the trigger to `pull_request_target`.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      cold:
+        description: skip the Playwright cache (re-measure, docs/ci.md "Dependency caches")
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || (github.event_name == 'workflow_dispatch' && github.run_id) || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Each OS runs the same parts. Together they run every step of scripts/check.sh
+# once, and the e2e shares run every story file once
+# (tests/unit/test_gate_parts.py). Keep the two part lists equal.
+jobs:
+  linux:
+    name: ${{ matrix.part.name }} (ubuntu-24.04)
+    strategy:
+      fail-fast: false
+      matrix:
+        part:
+          - name: checks
+            steps: docs learnings leaks sources stories secrets tasks format lint types unit registry public-cards card-code web-types web-lint web-unit web-build
+          - name: native
+            steps: exercises rust-fmt rust-clippy rust-test rust-inventory rust-policy-io
+          - name: e2e-1
+            steps: e2e
+            shard: 1/2
+          - name: e2e-2
+            steps: e2e
+            shard: 2/2
+    uses: ./.github/workflows/gate-part.yml
+    with:
+      # Pinned standard images; never a larger runner. Only the Linux parts compare
+      # approved pictures: CAREERBREW_VISUAL_PICTURES in gate-part.yml (docs/ci.md).
+      os: ubuntu-24.04
+      steps: ${{ matrix.part.steps }}
+      shard: ${{ matrix.part.shard || '' }}
+      gitleaks_asset: linux_x64
+      cold: ${{ inputs.cold == true }}
+      gitleaks_sha256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+
+  macos:
+    name: ${{ matrix.part.name }} (macos-15)
+    strategy:
+      fail-fast: false
+      matrix:
+        part:
+          - name: checks
+            steps: docs learnings leaks sources stories secrets tasks format lint types unit registry public-cards card-code web-types web-lint web-unit web-build
+          - name: native
+            steps: exercises rust-fmt rust-clippy rust-test rust-inventory rust-policy-io
+          - name: e2e-1
+            steps: e2e
+            shard: 1/2
+          - name: e2e-2
+            steps: e2e
+            shard: 2/2
+    uses: ./.github/workflows/gate-part.yml
+    with:
+      os: macos-15
+      steps: ${{ matrix.part.steps }}
+      shard: ${{ matrix.part.shard || '' }}
+      gitleaks_asset: darwin_arm64
+      cold: ${{ inputs.cold == true }}
+      gitleaks_sha256: b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5
+
+  # The required checks on main (docs/ci.md, "Branch rule on `main`"): one per OS,
+  # green only when every part of that OS passed.
+  gate-linux:
+    name: gate (ubuntu-24.04)
+    needs: linux
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Every part passed
+        env:
+          RESULT: ${{ needs.linux.result }}
+        run: |
+          echo "parts: $RESULT"
+          [ "$RESULT" = success ]
+
+  gate-macos:
+    name: gate (macos-15)
+    needs: macos
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Every part passed
+        env:
+          RESULT: ${{ needs.macos.result }}
+        run: |
+          echo "parts: $RESULT"
+          [ "$RESULT" = success ]

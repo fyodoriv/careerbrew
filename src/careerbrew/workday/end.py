@@ -246,7 +246,7 @@ def finish(by: str = "owner", at: datetime | None = None) -> dict[str, Any]:
     _put(day, "wrapup", {"at": _stamp(at), "reminded": "not needed", "handoff": counts}, only_if_missing=True)
     pm = daylog.pm_report(daylog.save(day))
     loops = watch.end()
-    page = report.write(runs.work_day(plan.build(day)))
+    page = report.write(runs.work_day(built := plan.build(day)))
     body = pm["body"]
     rec = {
         "at": _stamp(at),
@@ -257,7 +257,7 @@ def finish(by: str = "owner", at: datetime | None = None) -> dict[str, Any]:
         "page": str(page or ""),
     }
     _put(day, "end", rec)
-    events.emit("workday.end", status="ended", action="end", by_clock=by == "clock", prs=counts["prs"], questions=counts["questions"], loops_left=len(loops["running"]), pm_edited=pm["edited"])
+    events.emit("workday.end", status="ended", action="end", by_clock=by == "clock", prs=counts["prs"], questions=counts["questions"], loops_left=len(loops["running"]), pm_edited=pm["edited"], steps_waiting=(o := _outcomes(day, built)).get("steps_waiting"), steps_running=o.get("steps_running"), steps_done=o.get("steps_done"), steps_blocked=o.get("steps_blocked"), steps_failed=o.get("steps_failed"), needs_you=o.get("needs_you"))  # one line: the Rust activation manifest pins the lines below  # fmt: skip
     return {**rec, "pm": {**rec["pm"], "subject": pm["subject"], "body": body}, "loops": loops, "dashboard": DASHBOARD}
 
 
@@ -303,3 +303,22 @@ def morning(day: date | None = None) -> dict[str, Any]:
         out.append({"id": i["id"], "section": i["section"], "state": state, "why": why})
     events.emit("workday.morning", items=len(out), closed=sum(1 for r in out if r["state"] == "closed"), open=sum(1 for r in out if r["state"] == "open"))
     return {"from": h_day.isoformat(), "items": out}
+
+
+def _outcomes(day: date, built: dict[str, Any]) -> dict[str, int]:
+    """One row per step in the day's plan: a step /work never touched counts as waiting (not started)."""
+    from .status import rows
+
+    try:
+        return step_outcomes(rows([s["step"] for s in built["steps"]], day))
+    except Exception:  # noqa: BLE001 (a count must never fail the end of the day)
+        return {}
+
+
+def step_outcomes(rows: list[dict[str, Any]]) -> dict[str, int]:
+    """How the day's steps ended, as counts for `workday.end`: what /work did alone, and what waited on the owner."""
+    from .status import STATUSES
+
+    out = {f"steps_{s}": sum(1 for r in rows if r.get("status") == s) for s in STATUSES}
+    out["needs_you"] = sum(1 for r in rows if r.get("needs_you"))
+    return out

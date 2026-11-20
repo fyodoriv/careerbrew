@@ -253,7 +253,7 @@ fn components<'a>(
 }
 
 #[test]
-fn verifies_twenty_four_cross_module_calls() {
+fn verifies_twenty_eight_cross_module_calls() {
     let manifest = parse(MANIFEST).unwrap();
     let calls: Vec<_> = manifest
         .calls
@@ -273,13 +273,17 @@ fn verifies_twenty_four_cross_module_calls() {
             by_area("vault"),
             by_area("approvals")
         ],
-        [24, 4, 3, 7]
+        [28, 4, 3, 7]
     );
     let expected = [
-        ("config._file", "store.read_yaml"),
-        ("config.set_value", "store.write_yaml"),
+        ("config._file", "config_io.read_settings"),
+        ("config.set_value", "config_io.write_settings"),
         ("config.set_value", "events.emit"),
-        ("config.unset", "store.write_yaml"),
+        ("config.unset", "config_io.write_settings"),
+        ("config_io.read_settings", "store.read_yaml"),
+        ("config_io.write_settings", "store.write_yaml"),
+        ("backup.key_path", "keyfile.key_path"),
+        ("backup.load_key", "keyfile.load_key"),
         ("vault._fernet", "backup.load_key"),
         ("vault._key", "backup.key_path"),
         ("vault.open_bytes", "backup.key_path"),
@@ -315,14 +319,14 @@ fn verifies_twenty_four_cross_module_calls() {
 }
 
 #[test]
-fn verifies_twenty_two_local_bridges() {
+fn verifies_twenty_three_local_bridges() {
     let manifest = parse(MANIFEST).unwrap();
     let calls: Vec<_> = manifest
         .calls
         .iter()
         .filter(|call| call.kind == "local")
         .collect();
-    assert_eq!(calls.len(), 22);
+    assert_eq!(calls.len(), 23);
     for call in calls {
         assert!(call.expression.contains(&format!("{}(", name(call.to))));
         check_anchor(&manifest, call.from, call.line, call.expression);
@@ -332,7 +336,7 @@ fn verifies_twenty_two_local_bridges() {
 #[test]
 fn requires_unique_owned_nodes_and_valid_edges() {
     let manifest = parse(MANIFEST).unwrap();
-    assert_eq!(manifest.nodes.len(), 36);
+    assert_eq!(manifest.nodes.len(), 40);
     let node = MANIFEST
         .lines()
         .find(|row| row.starts_with("node\t"))

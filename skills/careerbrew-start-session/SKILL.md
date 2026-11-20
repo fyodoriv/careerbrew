@@ -16,7 +16,8 @@ First, read the handoff the last session left: `uv run careerbrew day handoff sh
    - job hunt: `uv run careerbrew drill next` (due reviews) and the phase from `uv run careerbrew jobs strategy`;
    - work: `uv run careerbrew work plan` and evidence freshness.
 5. Each long run (`review`, `work collect`, `day plan`, `careerbrew`) ends with a run page and prints only its path and one summary line. Read `uv run careerbrew report latest --json` (counts, ids, and commands; no business text), open the page for the user with `uv run careerbrew open --report latest` (never publish a page whose JSON says `"personal": true`), and ask which Next item to take, with the page's Next items as the options. Recommend ONE with the exact command and why it has the most value now. Wait for the user's choice.
-6. At the end, record only reusable source-backed procedures through the shared-memory session protocol. Career records remain local; change them only through Careerbrew CLI actions under its privacy policy.
+6. Usage counts: when the user asks whether careerbrew sends usage data, run `uv run careerbrew telemetry status` (the answer, the events waiting, the last send). Never answer the consent question for them; only `uv run careerbrew telemetry on` after their yes. Usage across installs is on the owner's PostHog dashboard "careerbrew: product and performance" (`docs/telemetry-tiles.md`).
+7. At the end, record only reusable source-backed procedures through the shared-memory session protocol. Career records remain local; change them only through Careerbrew CLI actions under its privacy policy.
 
 <!-- careerbrew:dual-host-shared-memory -->
 ## Agent host contract

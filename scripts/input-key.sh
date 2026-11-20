@@ -15,7 +15,7 @@ git rev-parse --git-dir >/dev/null 2>&1 || exit 1
 unset $(git rev-parse --local-env-vars)
 
 # The key hashes file content only, so it is the same in fast and full mode and
-# before and after `git add` or `git commit`: the pre-push fast gate reuses a
+# before and after `git add` or `git commit`: a later run reuses a
 # green gate on the same files. A copy of the index records the working tree;
 # --info-only writes no objects.
 # cp -p keeps the index mtime: git re-reads a file as new as the index (racy

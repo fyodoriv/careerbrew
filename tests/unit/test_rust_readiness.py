@@ -19,7 +19,7 @@ def installed(tmp_path):
     repo = tmp_path / "repo"
     scripts = repo / "scripts"
     scripts.mkdir(parents=True)
-    for name in ("rust-readiness.sh", "setup.sh", "doctor.sh"):
+    for name in ("rust-readiness.sh", "setup.sh", "telemetry-install.sh", "doctor.sh"):
         source = ROOT / "scripts" / name
         if source.exists():
             shutil.copy2(source, scripts / name)
@@ -30,10 +30,10 @@ def installed(tmp_path):
     log = tmp_path / "calls"
     executable(tools / "curl", "exit 1")
     for name, answer in {
-        "rustc": "rustc 1.99.1\nrelease: 1.99.1",
-        "cargo": "cargo 1.99.1 (fixture)",
+        "rustc": "rustc 1.100.0\nrelease: 1.100.0",
+        "cargo": "cargo 1.100.0 (fixture)",
         "rustfmt": "rustfmt 1.10.0",
-        "clippy-driver": "clippy 0.1.99",
+        "clippy-driver": "clippy 0.1.100",
     }.items():
         executable(tools / name, f'echo "{name} $*" >> "$CALL_LOG"\nprintf "%s\\n" "{answer}"')
     env = {"PATH": f"{tools}:/usr/bin:/bin", "HOME": str(tmp_path), "CALL_LOG": str(log)}
@@ -48,7 +48,7 @@ def check(installed, **overrides):
 def test_matching_installation(installed):
     result = check(installed)
     assert result.returncode == 0, result.stderr + result.stdout
-    assert "1.99.1" in result.stdout
+    assert "1.100.0" in result.stdout
 
 
 def test_wrong_compiler(installed):
@@ -91,7 +91,7 @@ def rustup_proxy(installed, available):
     proxy.mkdir()
     body = 'echo "rustup $* auto=$RUSTUP_AUTO_INSTALL" >> "$CALL_LOG"\n'
     body += 'test "${0##*/}" = rustup\n'
-    body += 'test "$*" = "which --toolchain 1.99.1 rustc"\ntest "$RUSTUP_AUTO_INSTALL" = 0\n'
+    body += 'test "$*" = "which --toolchain 1.100.0 rustc"\ntest "$RUSTUP_AUTO_INSTALL" = 0\n'
     body += f'echo "{tools / "rustc"}"' if available else "exit 1"
     executable(proxy / "rustup", body)
     if available:
@@ -106,7 +106,7 @@ def test_installed_rustup_uses_local_direct_tools(installed):
     result = check(installed)
     assert result.returncode == 0, result.stdout + result.stderr
     calls = installed[2].read_text()
-    assert "which --toolchain 1.99.1 rustc auto=0" in calls
+    assert "which --toolchain 1.100.0 rustc auto=0" in calls
     assert "rustc -Vv" in calls
 
 
@@ -114,7 +114,7 @@ def test_missing_rustup_toolchain_never_runs_proxy(installed):
     rustup_proxy(installed, False)
     result = check(installed)
     assert result.returncode == 1
-    assert installed[2].read_text().splitlines() == ["rustup which --toolchain 1.99.1 rustc auto=0"]
+    assert installed[2].read_text().splitlines() == ["rustup which --toolchain 1.100.0 rustc auto=0"]
 
 
 def test_setup_checks_before_fetch_and_keeps_skip(installed):
@@ -142,7 +142,7 @@ def test_setup_fetch_uses_only_verified_cargo(installed, ready):
     decoy = repo.parent / "decoy"
     decoy.mkdir()
     executable(decoy / "cargo", 'echo "decoy $*" >> "$CALL_LOG"; exit 99')
-    executable(tools / "cargo", 'echo "verified $* auto=${RUSTUP_AUTO_INSTALL-unset}" >> "$CALL_LOG"\nif [ "$*" = "--version" ]; then echo "cargo 1.99.1 (fixture)"; else test "$*" = fetch && test "$RUSTUP_AUTO_INSTALL" = 0; fi')
+    executable(tools / "cargo", 'echo "verified $* auto=${RUSTUP_AUTO_INSTALL-unset}" >> "$CALL_LOG"\nif [ "$*" = "--version" ]; then echo "cargo 1.100.0 (fixture)"; else test "$*" = fetch && test "$RUSTUP_AUTO_INSTALL" = 0; fi')
     env["PATH"] = f"{decoy}:{env['PATH']}"
     if not ready:
         executable(tools / "rustc", 'echo "release: 1.98.0"')
@@ -195,7 +195,7 @@ argv = sys.argv[1:]
 expected = ["metadata", "--locked", "--offline", "--no-deps", "--format-version", "1"]
 if argv == ["--version"]:
     event = "VERSION_{label}"
-    output = "cargo 1.99.1 (fixture)"
+    output = "cargo 1.100.0 (fixture)"
     status = 0
 elif argv == expected:
     event = "META_{label}"
@@ -233,9 +233,9 @@ def doctor_routing_observation(installed):
         "meta_a": sum(event["event"] == "META_A" for event in events),
         "meta_b": sum(event["event"] == "META_B" for event in events),
         "forbidden": [event for event in events if event["event"].startswith("FORBIDDEN_")],
-        "rustup_discoveries": lines.count("rustup which --toolchain 1.99.1 rustc auto=0"),
-        "readiness_refused": "Rust 1.99.1 toolchain is not installed" in result.stdout,
-        "readiness_ready": "Rust 1.99.1 compiler, Cargo, rustfmt and Clippy installed" in result.stdout,
+        "rustup_discoveries": lines.count("rustup which --toolchain 1.100.0 rustc auto=0"),
+        "readiness_refused": "Rust 1.100.0 toolchain is not installed" in result.stdout,
+        "readiness_ready": "Rust 1.100.0 compiler, Cargo, rustfmt and Clippy installed" in result.stdout,
         "serde_metadata_validated": "ok    native Serde derive dependency (locked, offline)" in result.stdout,
         "events": events,
         "doctor_exit": result.returncode,

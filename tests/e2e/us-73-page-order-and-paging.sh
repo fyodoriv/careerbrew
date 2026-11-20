@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# e2e: weight: 35  (usual seconds on a hosted runner; scripts/e2e.sh E2E_SHARD)
 # US-73: every web view puts the block the owner acts on first at the top, in the order docs/web.md lists; a list of
 # live data longer than its page shows one page, "Showing 1–10 of N", and Previous and Next, with the page and the
 # filter in the URL hash (bare tokens only), so a reload keeps the place; folded blocks show their count.
