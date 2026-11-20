@@ -68,7 +68,7 @@ cross	config_io.write_settings	store.write_yaml	26	store.write_yaml(
 cross	backup.key_path	keyfile.key_path	33	keyfile.key_path(
 cross	backup.load_key	keyfile.load_key	37	keyfile.load_key(
 local	config.get	config._file	275	_file()
-local	config.effective	config._file	275	_file()
+local	config.effective	config._file	279	_file()
 local	config.set_value	config._file	293	_file()
 local	config.unset	config._file	302	_file()
 local	vault._key	vault._fernet	55	_fernet(str(path))
