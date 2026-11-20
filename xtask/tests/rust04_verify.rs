@@ -46,7 +46,7 @@ fn read(out: &Path) -> serde_json::Value {
 }
 
 #[test]
-fn verify_on_rust_04_passes_over_the_four_core_sets() {
+fn verify_on_rust_04_passes_over_every_oracle_set() {
     let scratch = tempfile::tempdir().unwrap();
     let out = scratch.path().join("verify.json");
     let run = verify(&out, &[]);
@@ -58,15 +58,27 @@ fn verify_on_rust_04_passes_over_the_four_core_sets() {
     assert_eq!(record["candidate"]["plant"], "none");
     assert_eq!(
         record["sets"],
-        serde_json::json!(["allowlists", "canary-core", "canary-match", "leak-spans"])
+        serde_json::json!([
+            "access",
+            "allowlists",
+            "approvals",
+            "assert-no-echo",
+            "assert-redact",
+            "canary-core",
+            "canary-match",
+            "leak-spans",
+            "private-path",
+            "public-scrub",
+            "receipt-validate"
+        ])
     );
     assert_eq!(record["unicode"]["python"], "15.0.0");
     assert_eq!(record["unicode"]["rust"], "15.0.0");
     assert_eq!(record["passed"], true);
     assert_eq!(record["failed_cases"], serde_json::json!([]));
-    assert!(record["case_count"].as_u64().unwrap() > 4);
-    // 2 Unicode probes plus 4 sets, each run on both sides.
-    assert_eq!(record["vector_file_hash_checks"], 10);
+    assert!(record["case_count"].as_u64().unwrap() > 11);
+    // 2 Unicode probes plus 11 sets, each run on both sides.
+    assert_eq!(record["vector_file_hash_checks"], 24);
 }
 
 #[test]
@@ -89,7 +101,7 @@ fn a_planted_wrong_vector_fails_naming_its_case() {
 fn a_wrong_vector_in_a_set_the_step_does_not_cover_is_refused() {
     let scratch = tempfile::tempdir().unwrap();
     let out = scratch.path().join("verify.json");
-    let run = verify(&out, &["--test-wrong-vector", "approvals"]);
+    let run = verify(&out, &["--test-wrong-vector", "no-such-set"]);
     assert_eq!(run.status.code(), Some(1));
     assert!(!out.exists());
     assert!(String::from_utf8_lossy(&run.stderr).contains("names no vector set"));

@@ -33,11 +33,18 @@ const HASHED: &[&str] = &["xtask/src/measure.rs", "xtask/src/trial_plan.rs"];
 
 /// A registered Rust candidate: the step id, the executable path relative to
 /// the repo root, and its arguments. The candidate must be read-only and must
-/// exit 0.
+/// exit 0. A vector step whose oracle builds its vectors in memory names its
+/// tracked generator in `vectors`: measure runs it once (with the measured
+/// Python, `-I -B`, in a synthetic home) into a scratch file and appends that
+/// file's path to the candidate's arguments, so both sides answer the same
+/// vectors. The same file is appended to the oracle's arguments too, so
+/// neither side's samples include vector generation. The record shows the
+/// path as `<vectors-file>` on both commands.
 pub struct Candidate {
     pub step: &'static str,
     pub program: &'static str,
     pub args: &'static [&'static str],
+    pub vectors: Option<&'static str>,
 }
 
 /// The registered Rust candidates. rust-02's stub runs every vector set in
@@ -47,6 +54,7 @@ pub const CANDIDATES: &[Candidate] = &[
         step: "rust-02",
         program: "target/debug/careerbrew-purevec",
         args: &["--all"],
+        vectors: None,
     },
     // rust-03's pilot binary is measured as a release build (`cargo build
     // --release -p careerbrew-cli` first); the record names the profile.
@@ -54,6 +62,16 @@ pub const CANDIDATES: &[Candidate] = &[
         step: "rust-03",
         program: "target/release/careerbrew-native",
         args: &["actions", "--json"],
+        vectors: None,
+    },
+    // rust-04: both sides run every set of one generated file, the oracle
+    // as `rust04.py --all <file>` and the candidate as
+    // `policy-vectors --all <file>` (the debug build `verify` uses).
+    Candidate {
+        step: "rust-04",
+        program: "target/debug/policy-vectors",
+        args: &["--all"],
+        vectors: Some("tests/oracles/rust04_vectors.py"),
     },
 ];
 
@@ -95,6 +113,49 @@ fn candidate(root: &Path, id: &str, source: &Source) -> Result<(PathBuf, Vec<Str
             ))
         }
     }
+}
+
+/// The registered candidate's vector generator, if it needs one. A test
+/// override never gets one.
+fn vector_generator(id: &str, source: &Source) -> Option<&'static str> {
+    match source {
+        Source::TestOverride(_) => None,
+        Source::Registered => CANDIDATES
+            .iter()
+            .find(|candidate| candidate.step == id)
+            .and_then(|candidate| candidate.vectors),
+    }
+}
+
+/// Runs a step's tracked vector generator once into `folder` (the generator
+/// refuses an existing file) and returns the new file's path. It runs in a
+/// fresh synthetic home like every side, and must exit 0.
+fn generate_vectors(
+    root: &Path,
+    python: &Path,
+    generator: &str,
+    folder: &Path,
+) -> Result<PathBuf, String> {
+    let file = folder.join("vectors.json");
+    let side = Side {
+        name: "vector generator",
+        program: python.to_path_buf(),
+        args: Vec::new(),
+        warmup_args: Vec::new(),
+        python: true,
+        env: &[],
+    };
+    let args = [
+        OsString::from("-I"),
+        OsString::from("-B"),
+        OsString::from(generator),
+        file.clone().into_os_string(),
+    ];
+    execute(root, &side, &args, None, false)?;
+    if !file.is_file() {
+        return Err("the vector generator wrote no file; measure refused".into());
+    }
+    Ok(file)
 }
 
 /// One side's command: program, arguments, and its warm-up arguments.
@@ -299,7 +360,22 @@ pub fn record(
     let python_version = capture_actions::version(python)?;
     let bound = inputs(root, step, &program)?;
     let sources_sha256 = capture_actions::digest(bound.sources.to_string().as_bytes());
-    let oracle_args = step.oracle.iter().map(OsString::from).collect::<Vec<_>>();
+    // Lives until the record is built: every candidate run reads this file.
+    let vector_folder = tempfile::tempdir().map_err(|_| "cannot create vector folder")?;
+    let mut candidate_args: Vec<OsString> = args.iter().map(OsString::from).collect();
+    let mut args = args;
+    let mut oracle_args = step.oracle.iter().map(OsString::from).collect::<Vec<_>>();
+    let mut oracle_command = vec!["<python>".to_owned()];
+    oracle_command.extend(step.oracle.iter().map(|arg| (*arg).to_owned()));
+    if let Some(generator) = vector_generator(step.id, source) {
+        let file = generate_vectors(root, python, generator, vector_folder.path())?;
+        // Both sides read the same file: no sample includes generation.
+        oracle_args.push(file.clone().into_os_string());
+        candidate_args.push(file.into_os_string());
+        // The record stays content-free: no scratch path.
+        args.push("<vectors-file>".to_owned());
+        oracle_command.push("<vectors-file>".to_owned());
+    }
     let sides = [
         Side {
             name: "oracle",
@@ -316,8 +392,8 @@ pub fn record(
         Side {
             name: "candidate",
             program: program.clone(),
-            args: args.iter().map(OsString::from).collect(),
-            warmup_args: args.iter().map(OsString::from).collect(),
+            warmup_args: candidate_args.clone(),
+            args: candidate_args,
             python: false,
             env: step.env,
         },
@@ -331,8 +407,6 @@ pub fn record(
         return Err("a relevant source changed during the measure".into());
     }
     let (os, _) = resources::host_unit()?;
-    let mut oracle_command = vec!["<python>".to_owned()];
-    oracle_command.extend(step.oracle.iter().map(|arg| (*arg).to_owned()));
     let profile = if test_override {
         "test-override"
     } else {
@@ -476,6 +550,30 @@ mod controls {
         let (path, _) = candidate(Path::new("/r"), "rust-02", &Source::Registered).unwrap();
         assert_eq!(profile(&path), "debug");
         assert_eq!(profile(Path::new("/x/candidate")), "unknown");
+    }
+
+    #[test]
+    fn rust_04_measures_policy_vectors_over_a_generated_vector_file() {
+        let (path, args) = candidate(Path::new("/r"), "rust-04", &Source::Registered).unwrap();
+        assert_eq!(path, Path::new("/r/target/debug/policy-vectors"));
+        assert_eq!(args, ["--all"]);
+        assert_eq!(
+            vector_generator("rust-04", &Source::Registered),
+            Some("tests/oracles/rust04_vectors.py")
+        );
+        assert_eq!(vector_generator("rust-03", &Source::Registered), None);
+        let fake = Path::new("/x/candidate");
+        assert_eq!(
+            vector_generator("rust-04", &Source::TestOverride(fake)),
+            None
+        );
+        // The generator is a hashed source of the step.
+        let step = baseline::step("rust-04").unwrap();
+        assert!(step.sources.contains(&"tests/oracles/rust04_vectors.py"));
+        assert_eq!(step.candidate, Some("target/debug/policy-vectors"));
+        // measure appends the same file to these oracle args, so the oracle
+        // must take `--all` last (`rust04.py --all <vectors-file>`).
+        assert_eq!(step.oracle.last(), Some(&"--all"));
     }
 
     #[test]
