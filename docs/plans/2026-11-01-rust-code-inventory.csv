@@ -205,6 +205,7 @@ src/careerbrew/checkup.py,port,rust-24,Runtime capability; tests port with the c
 src/careerbrew/checkup_runs.py,port,rust-24,Runtime capability; tests port with the capability
 src/careerbrew/cli.py,port,rust-26,Runtime capability; tests port with the capability
 src/careerbrew/config.py,port,rust-02,Pure schema rust-02; encrypted IO and event primitive rust-05
+src/careerbrew/config_io.py,port,rust-05,Settings file read and write extracted rust-05a for the native storage port
 src/careerbrew/connectors.py,port,rust-08,Runtime capability; tests port with the capability
 src/careerbrew/day/__init__.py,port,rust-17,Runtime capability; tests port with the capability
 src/careerbrew/day/done_elsewhere.py,port,rust-17,Runtime capability; tests port with the capability
@@ -232,6 +233,7 @@ src/careerbrew/learn/__init__.py,port,rust-12,Runtime capability; tests port wit
 src/careerbrew/learn/project.py,port,rust-12,Runtime capability; tests port with the capability
 src/careerbrew/learn/replay.py,port,rust-12,Runtime capability; tests port with the capability
 src/careerbrew/learn/tour.py,port,rust-12,Runtime capability; tests port with the capability
+src/careerbrew/keyfile.py,port,rust-05,Data key path and load provider extracted rust-05a from backup
 src/careerbrew/machine.py,port,rust-07,Runtime capability; tests port with the capability
 src/careerbrew/mail.py,port,rust-08,Runtime capability; tests port with the capability
 src/careerbrew/metrics_share.py,port,rust-24,Runtime capability; tests port with the capability
@@ -985,6 +987,7 @@ xtask/tests/purevec.rs,keep-native,rust-00,rust-02 vector step controls: four co
 xtask/tests/fixtures/purevec/driver.py,port,rust-27,Retire the rust-02 Python pure value vector oracle with the Python migration oracle
 xtask/tests/fixtures/purevec/settings.json,port,rust-27,Retire the rust-02 settings vectors with the Python migration oracle
 tests/unit/test_rust05b_storage_hardening.py,port,rust-05,Port rust-05b storage hardening controls for temp files and key and settings and append locks
+tests/unit/test_rust05a_provider_seams.py,port,rust-05,Port rust-05a key and settings and event seam controls
 tests/unit/test_rust07a_shapes.py,port,rust-07,Fixed refusals for malformed plugin policy and manifest shapes
 crates/policy/src/lib.rs,keep-native,rust-00,rust-04d policy core: pure privacy decisions over supplied inputs with no IO
 crates/policy/src/text.rs,keep-native,rust-00,rust-04d Python str rules on Python Unicode tables: lower strip split splitlines and normalize

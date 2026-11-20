@@ -14,7 +14,11 @@ node	config.effective	rust-05	src/careerbrew/config.py	278
 node	config.get	rust-05	src/careerbrew/config.py	272
 node	config.set_value	rust-05	src/careerbrew/config.py	285
 node	config.unset	rust-05	src/careerbrew/config.py	300
+node	config_io.read_settings	rust-05	src/careerbrew/config_io.py	20
+node	config_io.write_settings	rust-05	src/careerbrew/config_io.py	25
 node	events.emit	rust-05	src/careerbrew/events.py	46
+node	keyfile.key_path	rust-05	src/careerbrew/keyfile.py	20
+node	keyfile.load_key	rust-05	src/careerbrew/keyfile.py	25
 node	machine.guard	rust-07	src/careerbrew/machine.py	196
 node	machine.info	rust-07	src/careerbrew/machine.py	89
 node	machine.role	rust-07	src/careerbrew/machine.py	93
@@ -35,10 +39,10 @@ node	vault.decode	rust-05	src/careerbrew/vault.py	111
 node	vault.encode	rust-05	src/careerbrew/vault.py	106
 node	vault.open_bytes	rust-05	src/careerbrew/vault.py	89
 node	vault.seal_bytes	rust-05	src/careerbrew/vault.py	85
-cross	config._file	store.read_yaml	269	store.read_yaml(
-cross	config.set_value	store.write_yaml	295	store.write_yaml(
+cross	config._file	config_io.read_settings	269	config_io.read_settings(
+cross	config.set_value	config_io.write_settings	295	config_io.write_settings(
 cross	config.set_value	events.emit	296	events.emit("config.set"
-cross	config.unset	store.write_yaml	304	store.write_yaml(
+cross	config.unset	config_io.write_settings	304	config_io.write_settings(
 cross	vault._fernet	backup.load_key	44	backup.load_key(create=True)
 cross	vault._key	backup.key_path	50	backup.key_path()
 cross	vault.open_bytes	backup.key_path	103	backup.key_path()
@@ -59,6 +63,10 @@ cross	plugins.installed	store.read_yaml	479	store.read_yaml(
 cross	store.read_text	vault.decode	41	vault.decode(
 cross	store.write_text	vault.encode	60	vault.encode(
 cross	calendar.local_tz	store.read_yaml	44	store.read_yaml(
+cross	config_io.read_settings	store.read_yaml	22	store.read_yaml(
+cross	config_io.write_settings	store.write_yaml	26	store.write_yaml(
+cross	backup.key_path	keyfile.key_path	33	keyfile.key_path(
+cross	backup.load_key	keyfile.load_key	37	keyfile.load_key(
 local	config.get	config._file	275	_file()
 local	config.effective	config._file	279	_file()
 local	config.set_value	config._file	293	_file()
@@ -81,6 +89,7 @@ local	store.read_json	store.read_text	95	read_text(path)
 local	store.write_json	store.write_text	104	write_text(path,
 local	calendar.now_utc	calendar.now	59	now()
 local	calendar.now	calendar.local_tz	54	local_tz()
+local	keyfile.load_key	keyfile.key_path	27	key_path()
 unresolved	config.set_value	289	DEFAULTS[key][1](raw)	setting registry selects a validator
 unresolved	cli.main	5086	args.fn(args)	parser selects the command implementation
 unresolved	vault._fernet	40	@lru_cache(maxsize=4)	module cache controls whether key loading executes
