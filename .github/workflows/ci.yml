@@ -45,7 +45,7 @@ jobs:
           - name: checks
             steps: docs learnings leaks sources stories secrets tasks format lint types unit registry public-cards card-code web-types web-lint web-unit web-build
           - name: native
-            steps: exercises rust-fmt rust-clippy rust-test rust-inventory
+            steps: exercises rust-fmt rust-clippy rust-test rust-inventory rust-policy-io
           - name: e2e-1
             steps: e2e
             shard: 1/2
@@ -72,7 +72,7 @@ jobs:
           - name: checks
             steps: docs learnings leaks sources stories secrets tasks format lint types unit registry public-cards card-code web-types web-lint web-unit web-build
           - name: native
-            steps: exercises rust-fmt rust-clippy rust-test rust-inventory
+            steps: exercises rust-fmt rust-clippy rust-test rust-inventory rust-policy-io
           - name: e2e-1
             steps: e2e
             shard: 1/2
