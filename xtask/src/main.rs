@@ -4,6 +4,7 @@ mod capture_actions;
 #[cfg(not(test))]
 mod capture_data;
 mod capture_http;
+mod check_docs;
 mod decide;
 mod depvec;
 mod input_key;
@@ -32,6 +33,9 @@ fn main() -> ExitCode {
             + vecdriver::controls::run();
         println!("migration self-test: {passed} controls passed");
         return ExitCode::SUCCESS;
+    }
+    if args.first().is_some_and(|a| a == "check-docs") {
+        return check_docs_command(&args[1..]);
     }
     if args.first().is_some_and(|a| a == "input-key") {
         return input_key_command(&args[1..]);
@@ -298,6 +302,7 @@ fn main() -> ExitCode {
         }
     }
     eprintln!("usage: cargo xtask migration self-test");
+    eprintln!("       cargo xtask check-docs [--repo <dir>]");
     eprintln!("       cargo xtask input-key [--repo <dir>] [--] [pathspec...]");
     eprintln!("       cargo xtask leak-check [--staged] [--repo <dir>] --terms-file <file>");
     eprintln!("       cargo xtask migration inventory --check");
@@ -322,6 +327,32 @@ fn main() -> ExitCode {
     );
     eprintln!("       cargo xtask migration observer-probe --image <immutable-id> [--out <new-directory> [--freeze-only|--fault-controls-only]]");
     ExitCode::from(2)
+}
+
+/// `check-docs [--repo <dir>]`: the docs drift check of
+/// `scripts/check-docs.sh`; exit 0 when docs match, 1 on drift, 2 on usage.
+fn check_docs_command(rest: &[std::ffi::OsString]) -> ExitCode {
+    let mut repo = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .to_path_buf();
+    match rest {
+        [] => {}
+        [flag, dir] if flag == "--repo" => repo = dir.into(),
+        _ => {
+            eprintln!("usage: cargo xtask check-docs [--repo <dir>]");
+            return ExitCode::from(2);
+        }
+    }
+    let (lines, ok) = check_docs::check(&repo);
+    for line in lines {
+        println!("{line}");
+    }
+    if ok {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
 }
 
 /// `input-key [--repo <dir>] [--] [pathspec...]`: the 16-hex gate cache key
