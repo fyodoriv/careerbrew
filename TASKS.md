@@ -749,6 +749,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if owners clear the date to read early more than once in 4 weeks, drop the refusal and keep only a warning.
   - **Anchor**: Ries 2011 (pivot or persevere); Munafò et al. 2017 (pre-registration).
 
+- [ ] Indie: the plan names an active bet's own task first
+  - **ID**: indie-bet-task-first
+  - **Details**: `careerbrew indie run` names the highest-priority unblocked task of a bet's project as its next action. For the careerbrew bet (a yearly data licence, saved 2026-11-19) it names `telemetry-plugin-sink` (P0), not the bet's first task `pro-data-free-sample` (P1), so a session started from the plan does not work on the bet. Let a task name its bet (a `**Bet**: <bet id>` line), and let `indie run` prefer an unblocked task that names the active bet over other tasks of the same project. A project with no such task keeps today's order. Until this ships, start a session with the task id in the prompt.
+  - **Files**: src/careerbrew/indie.py; tests/unit/test_indie.py; tests/e2e/us-112-indie-day.sh; skills/careerbrew-indie/SKILL.md; skills/careerbrew-bet-options/SKILL.md; docs/indie.md
+  - **Hypothesis**: with the bet line, the next action of an active bet is one of its own tasks whenever one is unblocked, so the share of active bets whose next action is a bet task goes from 0 of 1 to 1 of 1.
+  - **Measurement**: `gh pr checks <pr>` (a new case in `tests/unit/test_indie.py`: a P1 task that names the bet is named before a P0 task that does not); in use, `careerbrew indie run`.
+  - **Success**: the case passes; `careerbrew indie run` names `pro-data-free-sample` for careerbrew.
+  - **Pivot**: if a bet line on tasks is skipped in more than half of new bets over 4 weeks, read the first task from the bet record instead.
+  - **Anchor**: Ries 2011 (build, measure, learn); Doerr 2018 (outcomes, not activities).
+
 - [ ] Indie: close two ways an agent could work out an owner number
   - **ID**: indie-owner-number-oracles
   - **Details**: A review of PR 175 found two indirect reads. (1) `careerbrew indie measure <bet> --value N` answers KEEP, WATCH, or PIVOT to an agent, so about 20 typed values find the bet's success and pivot lines (each one also records a false reading). (2) `careerbrew indie income --amount` and `indie goal --monthly` have no owner gate, so an agent that records a known amount reads the target from the percentage. Both are only asked of agents in `actions.AGENT_NOTES` today. Fix: require `--yes` ("the owner said so") for a typed reading, an income record, and a goal change; add them to `actions.CONFIRM`; keep the stored measure command free. A new flag changes the action catalog, so follow the frozen-reference gotcha (a successor fixture pair and both pins).
