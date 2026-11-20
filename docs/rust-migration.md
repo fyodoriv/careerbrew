@@ -1361,6 +1361,22 @@ the crate until the rust-05 and rust-07 closure is native, so
   change and save, like `upsert_jsonl`. Readers take no lock. The event is
   emitted after the lock is released. Tests:
   `tests/unit/test_rust05b2_approvals_lock.py`.
+- **Sub-step `rust-05c` (native key provider, component only):**
+  `crates/vault/src/keyfile.rs` ports `keyfile.key_path` and
+  `keyfile.load_key`. The caller supplies the facts Python reads from its
+  process (`CAREERBREW_KEY_FILE`, home, data root, and whether sealed data
+  exists), so the module needs no backup, config or event code.
+  - Same contract: default path `~/.config/careerbrew/backup.key`, `~/`
+    expansion, refusal inside the data root (non-strict resolve), stripped
+    read, missing-key refusal without `create`, refusal when sealed data
+    exists, `O_CREAT | O_EXCL` create at mode `0600`, and a race loser reads
+    the winner's key (empty after 50 tries of 10 ms is an error).
+  - Gap: `~user/...` is not expanded (Python's `expanduser` does); only `~`
+    and `~/` are.
+  - Unit tests sit in the module. No production dispatch and no Python
+    cross-engine vectors yet.
+  - Next: `rust-05d`, a `key` vector set (a Python-made key opens in Rust and
+    the other way) and the native atomic write with unique temp names.
 
 ### rust-06: Port backup, restore and cross-machine sync
 
@@ -1885,7 +1901,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | Path | Package | What it is | Production use |
 | --- | --- | --- | --- |
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
-| `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No file, network, keychain or policy work. | none: component parity only |
+| `crates/vault/` | `careerbrew-vault` | a byte-level `CBV1` vault codec on the maintained `fernet` crate. It takes a supplied synthetic key. No network, keychain or policy work. rust-05c adds `keyfile.rs`, the native key provider (path, `0600` create, missing-key refusal) over caller-supplied facts. | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |

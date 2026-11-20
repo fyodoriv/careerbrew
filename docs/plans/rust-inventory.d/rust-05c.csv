@@ -1,0 +1,1 @@
+crates/vault/src/keyfile.rs,port,rust-05,rust-05c native key provider: key path default and env expansion; 0600 O_EXCL create; missing-key and sealed-data refusal; outside-data-root check; no production dispatch
