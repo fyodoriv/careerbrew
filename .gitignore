@@ -274,6 +274,7 @@ __pycache__/
 !/docs/plans/2026-11-17-rust-embedded-sites.csv
 !/docs/plans/rust-inventory.d/
 !/docs/plans/rust-inventory.d/rust-27b-check-docs.csv
+!/docs/plans/rust-inventory.d/rust-27-pr63-artifact-proof.csv
 
 !/xtask/src/observer_probe.rs
 !/xtask/src/observer_probe/
@@ -302,3 +303,4 @@ __pycache__/
 !/xtask/tests/fixtures/linux-observer-replay-v7/status.json
 !/xtask/tests/fixtures/linux-observer-replay-v7/manifest.json
 !/xtask/tests/fixtures/linux-observer-replay-v7/README.md
+!/xtask/tests/wait4_accounting.rs

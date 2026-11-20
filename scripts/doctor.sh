@@ -17,6 +17,17 @@ if [ -d web/node_modules ]; then
 fi
 # The browser suite's comfort budget (web/e2e/comfort.spec.ts) needs axe-core. A note, not a failure: the app runs without it.
 if [ -d web/node_modules/@axe-core/playwright ]; then ok "browser test deps installed (axe-core)"; else echo "note  browser test deps missing -> fix: cd web && npm ci (npx playwright test needs them)"; fi
+# Optional artifact source-preflight tooling.
+if [ "${CAREERBREW_CHECK_ARTIFACT_PREFLIGHT:-0}" = 1 ]; then
+  artifact_py=python3
+  [ -x .venv/bin/python ] && artifact_py=.venv/bin/python
+  if command -v "$artifact_py" >/dev/null 2>&1; then
+    "$artifact_py" scripts/check-artifact-preflight.py || fails=$((fails + 1))
+  else
+    fail "artifact preflight metadata checker unavailable" "install Python 3 (developer tooling only)"
+  fi
+fi
+# End optional artifact source-preflight tooling.
 need gitleaks "brew install gitleaks"
 if command -v lsof >/dev/null 2>&1; then ok "lsof installed (careerbrew open finds a careerbrew server on its port that nothing tracks)"; else ok "lsof missing: careerbrew open cannot stop an untracked careerbrew server on its port (optional: install lsof)"; fi
 [ -f package.json ] && need node "mise use node@lts"
