@@ -1,5 +1,5 @@
-//! `vault-store`: synthetic-only transport for the rust-05d cross-engine
-//! checks (`tests/unit/test_rust05d_key_interop.py`). No production dispatch.
+//! `vault-store`: synthetic-only transport for the rust-05d and rust-05e
+//! cross-engine checks (`tests/unit/test_rust05d_key_interop.py`). No production dispatch.
 //!
 //! - `vault-store read <key-file> <data-root> <file>` loads the key without
 //!   creating it, opens the file and prints its text.
@@ -7,10 +7,13 @@
 //!   creates the key and writes stdin to the file atomically.
 //! - `vault-store write-if-changed ...` (same arguments) prints `wrote` or
 //!   `unchanged`.
+//! - `vault-store append <key-file> <data-root> <file> <seal|plain>` (rust-05e)
+//!   appends the JSON lines on stdin under the shared `.{name}.lock` flock
+//!   (`tests/unit/test_rust05e_mixed_writers.py`).
 //!
 //! It never prints the key. Exit 1 on a refusal (the message names the
 //! error kind only), 2 on a usage error.
-use careerbrew_vault::{atomic, keyfile};
+use careerbrew_vault::{atomic, keyfile, lock};
 use std::io::{Read, Write};
 use std::path::Path;
 use std::process::ExitCode;
@@ -61,6 +64,23 @@ fn run(args: &[String]) -> Result<String, String> {
                 Ok(if wrote { "wrote" } else { "unchanged" }.to_string())
             }
         }
+        [op, key_file, root, file, mode]
+            if op == "append" && (mode == "seal" || mode == "plain") =>
+        {
+            let mut text = String::new();
+            std::io::stdin()
+                .read_to_string(&mut text)
+                .map_err(|_| "io".to_string())?;
+            let seal = mode == "seal";
+            let key = if seal {
+                Some(key(Path::new(key_file), Path::new(root), true)?)
+            } else {
+                None
+            };
+            lock::append_jsonl_text(Path::new(file), key.as_deref(), seal, &text)
+                .map_err(|_| "append".to_string())?;
+            Ok(String::new())
+        }
         _ => Err("usage".to_string()),
     }
 }
@@ -73,7 +93,7 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Err(kind) if kind == "usage" => {
-            eprintln!("usage: vault-store read|write|write-if-changed <key-file> <data-root> <file> [seal|plain]");
+            eprintln!("usage: vault-store read|write|write-if-changed|append <key-file> <data-root> <file> [seal|plain]");
             ExitCode::from(2)
         }
         Err(kind) => {
