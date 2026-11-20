@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # The one gate. Agents run it before they say a change is done.
-#   scripts/check.sh        full gate: docs, lint, types, unit tests, e2e (once per PR)
+#   scripts/check.sh        full gate: docs, lint, types, unit tests, e2e (the hosted checks run it for every pull request)
 #   scripts/check.sh fast   skips e2e (each commit; keep it under 10 seconds)
 # Each step's time goes to .metrics/events.jsonl; scripts/metrics.sh reports it.
 #
 # A cache-eligible step that passed can be skipped while its inputs are unchanged,
-# except `leaks`, format, lint, types, unit, web-types, e2e and Rust checks, whose inputs are not fully keyed
+# except `leaks`, format, lint, types, registry, unit, web-types, e2e and Rust checks, whose inputs are not fully keyed
 # (hash of the content of tracked and untracked files, like the nx cache). A
 # step's inputs are every file, or the git pathspecs `inputs_of` names for it,
 # like an nx target's inputs; `scripts/check.sh inputs <step>...` prints them.
@@ -27,7 +27,7 @@ NOT_READ=(':(exclude)TASKS.md' ':(exclude)RECURRING.md' ':(exclude)docs/learning
 inputs_of() { # inputs_of <step>: print its pathspecs, one per line (none: every file)
   case "$1" in
     # unit reads every file: test_no_conflict_markers.py scans each tracked file.
-    format | lint | types | public-cards | card-code | exercises | web-* | e2e) printf '%s\n' "${NOT_READ[@]}" ;;
+    format | lint | types | registry | public-cards | card-code | exercises | web-* | e2e) printf '%s\n' "${NOT_READ[@]}" ;;
   esac
 }
 if [ "$mode" = inputs ]; then
@@ -45,8 +45,8 @@ fi
 key=""
 if [ "${NO_CACHE:-0}" != 1 ]; then
   # The key hashes file content only (scripts/input-key.sh), so it is the same in
-  # fast and full mode and before and after `git add` or `git commit`: eligible
-  # pre-push checks reuse a green gate on the same files. On any error the
+  # fast and full mode and before and after `git add` or `git commit`: a later
+  # run reuses a green gate on the same files. On any error the
   # key is empty: no cache.
   key="$(scripts/input-key.sh)" || key=""
 fi
@@ -64,11 +64,21 @@ step_key() { # step_key <name>: set k to one step's cache key, from its inputs (
   k="$(scripts/input-key.sh $spec)" || k=""
   input_sets+=("$spec"); input_keys+=("$k")
 }
+# CHECK_STEPS="<step> ..." runs only the named steps: the hosted gate runs in
+# parallel parts this way (docs/ci.md, "Parallel parts"). A name that never
+# runs (a typo, or a step whose tool is missing) fails the gate.
+# The filter is this run's only: a test that runs check.sh in a scratch repo
+# must not inherit it (export -n keeps the value here, hides it from children).
+steps_filter="${CHECK_STEPS:-}" only=" ${steps_filter//,/ } " seen=" "
+export -n CHECK_STEPS
 step() {
   # step <name> <command...>: run, time, and log one gate step; skip it on a cache hit.
   name="$1"; shift
+  if [ -n "${CHECK_STEPS:-}" ]; then
+    case "$only" in *" $name "*) seen="$seen$name " ;; *) return 0 ;; esac
+  fi
   local k; step_key "$name"
-  case "$name" in format | lint | types | unit | exercises | web-types | e2e | rust-fmt | rust-clippy | rust-test | rust-inventory) k="" ;; esac
+  case "$name" in format | lint | types | registry | unit | exercises | web-types | e2e | rust-fmt | rust-clippy | rust-test | rust-inventory) k="" ;; esac
   if [ -n "$k" ] && [ "$(cat ".metrics/cache/$name" 2>/dev/null)" = "$k" ]; then
     printf '{"ts":"%s","event":"check.step","name":"%s","seconds":0,"ok":true,"cached":true}\n' \
       "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$name" >> .metrics/events.jsonl
@@ -118,6 +128,8 @@ if [ -f pyproject.toml ]; then
   if uv run --quiet pyright --version >/dev/null 2>&1; then step types uv run pyright; fi
   # pytest-xdist runs the unit tests on every CPU; UNIT_JOBS=0 runs them one by one.
   step unit uv run pytest -q -n "${UNIT_JOBS:-auto}"
+  # The generated action registry matches the CLI parser (rust-03); it renders help on the pinned Python, a runtime input, so it never caches.
+  step registry uv run --quiet python -I scripts/gen-registry.py --check
   step public-cards env -u CAREERBREW_PUBLIC_CARDS uv run careerbrew cards public-check
   step card-code uv run python scripts/check-card-code.py
   step exercises env -u CAREERBREW_EXERCISES uv run careerbrew exercises check
@@ -127,6 +139,8 @@ if [ -f Cargo.toml ]; then
   step rust-clippy cargo clippy --all-targets -- -D warnings
   step rust-test cargo test --all
   step rust-inventory cargo xtask migration inventory --check
+  # The policy crate's library does no IO (rust-04d; docs/rust-migration.md, rust-04 "Ownership split").
+  step rust-policy-io uv run --quiet python -I scripts/policy-no-io.py
 fi
 
 if [ -f web/package.json ]; then
@@ -139,5 +153,12 @@ if [ "$mode" != fast ]; then step e2e scripts/e2e.sh; fi
 if [ "${CHECK_EVALS:-0}" = 1 ]; then
   [ -x evals/run.sh ] || { echo "check.sh: CHECK_EVALS=1 but evals/run.sh is missing" >&2; exit 1; }
   step evals evals/run.sh
+fi
+if [ -n "${CHECK_STEPS:-}" ]; then
+  missing=""
+  for s in $only; do case "$seen" in *" $s "*) ;; *) missing="$missing $s" ;; esac; done
+  [ -z "$missing" ] || { echo "check.sh: CHECK_STEPS names step(s) that did not run:$missing (a typo, or the step's tool is missing)" >&2; exit 1; }
+  echo "check.sh: steps$(printf ' %s' $only) passed"
+  exit 0
 fi
 echo "check.sh: $mode gate passed"

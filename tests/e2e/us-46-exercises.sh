@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# e2e: weight: 90  (usual seconds on a hosted runner; scripts/e2e.sh E2E_SHARD)
 # US-46: coding exercises in curriculum order, run locally with time and quality grading, synced with solved work.
 source "$(dirname "$0")/lib.sh"
 "$ROOT/.venv/bin/careerbrew" init >/dev/null

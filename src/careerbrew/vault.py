@@ -155,10 +155,15 @@ def status() -> dict[str, int | bool]:
 
 
 def _rewrite(path: Path, raw: bytes) -> None:
-    tmp = path.with_name(f".{path.name}.{os.getpid()}.vault.tmp")
-    tmp.write_bytes(raw)
-    os.chmod(tmp, 0o600)
-    tmp.replace(path)
+    # rust-05b: a name unique to this writer (like `store._tmp_for`), removed again when the swap fails.
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.{os.urandom(4).hex()}.vault.tmp")
+    try:
+        tmp.write_bytes(raw)
+        os.chmod(tmp, 0o600)
+        tmp.replace(path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def seal_files(targets: list[Path]) -> int:

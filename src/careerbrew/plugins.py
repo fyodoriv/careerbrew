@@ -205,29 +205,84 @@ def _version_tuple(v: str) -> tuple[int, ...]:
 
 
 def validate_manifest(data: Any, root: Path) -> dict[str, Any]:
+    """Probe the plugin folder, then decide with `validate_manifest_data` (rust-07b)."""
+    from .workday import steps  # local: steps reads the installed plugins
+
+    def step_error(work_steps: Any, label: str) -> str | None:
+        try:
+            steps.validate(work_steps, label)
+        except steps.StepError as e:
+            return str(e)
+        return None
+
+    return validate_manifest_data(data, manifest_facts(data, root), __version__, step_error)
+
+
+def manifest_facts(data: Any, root: Path) -> dict[str, Any]:
+    """The filesystem facts `validate_manifest_data` needs, keyed by the manifest's own strings."""
+    real = root.resolve()
+    facts: dict[str, Any] = {
+        "symlinks": sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_symlink()),
+        "provides": {},
+        "live": {},
+        "terms_inside": True,
+    }
+    if not isinstance(data, dict):
+        return facts
+    provides = data.get("provides")
+    if isinstance(provides, dict):
+        for rel in provides.values():
+            for item in rel if isinstance(rel, list) else [rel]:
+                text = str(item)
+                fact: dict[str, Any] = {"inside": (root / text).resolve().is_relative_to(real), "exists": False}
+                if not (Path(text).is_absolute() or ".." in Path(text).parts or not fact["inside"]):
+                    try:
+                        fact["exists"] = any(root.glob(text))
+                    except (ValueError, NotImplementedError) as e:  # kept: raised where the old check globbed
+                        fact["exists"] = e
+                facts["provides"][text] = fact
+    live = data.get("live")
+    if isinstance(live, dict):
+        for rel in live.values():
+            target = (root / str(rel)).resolve()
+            facts["live"][str(rel)] = {"inside": target.is_relative_to(real), "is_file": target.is_file()}
+    terms = data.get("sensitive_terms")
+    if isinstance(terms, str) and terms and not Path(terms).is_absolute() and ".." not in Path(terms).parts:
+        facts["terms_inside"] = (root / terms).resolve().is_relative_to(real)
+    return facts
+
+
+def validate_manifest_data(data: Any, facts: dict[str, Any], version: str, step_error: Any) -> dict[str, Any]:
+    """Pure manifest decision over supplied facts (rust-07b): no file, clock or environment reads.
+
+    `facts` comes from `manifest_facts`; `step_error(work_steps, label)` returns the step validator's refusal or None.
+    """
     if not isinstance(data, dict):
         raise PluginError(f"{MANIFEST} must be a mapping")
     name = data.get("name")
-    if not isinstance(name, str) or not _NAME.match(name):
+    if not isinstance(name, str) or not _NAME.fullmatch(name):
         raise PluginError("plugin name must match ^[a-z][a-z0-9-]{1,39}$ (fix: set `name:` in the manifest)")
     if "version" not in data:
         raise PluginError("plugin manifest needs `version:`")
-    req = str(data.get("requires", "")).lstrip(">= ")
-    if req and _version_tuple(__version__) < _version_tuple(req):
-        raise PluginError(f"plugin needs careerbrew >= {req}; this is {__version__} (fix: update careerbrew)")
+    _check_shapes(data, bool(facts["terms_inside"]))
+    req = str(data.get("requires") or "").lstrip(">= ")
+    if req and _version_tuple(version) < _version_tuple(req):
+        raise PluginError(f"plugin needs careerbrew >= {req}; this is {version} (fix: update careerbrew)")
     provides = data.get("provides", {}) or {}
     unknown = set(provides) - set(RESOURCE_KINDS)
     if unknown:
         raise PluginError(f"unknown provides keys: {sorted(unknown)}; allowed: {list(RESOURCE_KINDS)}")
-    links = [p for p in root.rglob("*") if p.is_symlink()]
+    links = facts["symlinks"]
     if links:
-        raise PluginError(f"plugin contains a symlink ({links[0].relative_to(root)}); plugins must be plain files")
+        raise PluginError(f"plugin contains a symlink ({links[0]}); plugins must be plain files")
     for kind, rel in provides.items():
         for item in rel if isinstance(rel, list) else [rel]:
-            target = (root / str(item)).resolve()
-            if Path(str(item)).is_absolute() or ".." in Path(str(item)).parts or not target.is_relative_to(root.resolve()):
+            fact = facts["provides"][str(item)]
+            if Path(str(item)).is_absolute() or ".." in Path(str(item)).parts or not fact["inside"]:
                 raise PluginError(f"provides.{kind} escapes the plugin folder: {item}")
-            if not any(root.glob(str(item))):
+            if isinstance(fact["exists"], Exception):
+                raise fact["exists"]
+            if not fact["exists"]:
                 raise PluginError(f"provides.{kind} points to a missing path: {item}")
     policy = data.get("policy", {}) or {}
     if not isinstance(policy, dict):
@@ -242,15 +297,12 @@ def validate_manifest(data: Any, root: Path) -> dict[str, Any]:
     if not isinstance(live, dict) or set(live) - {"sources", "team"}:
         raise PluginError("live maps sources and team to files in the plugin, e.g. {sources: live/sources.yaml, team: live/team.yaml}")
     for key, rel in live.items():
-        target = (root / str(rel)).resolve()
-        if Path(str(rel)).is_absolute() or not target.is_relative_to(root.resolve()) or not target.is_file():
+        fact = facts["live"][str(rel)]
+        if Path(str(rel)).is_absolute() or not fact["inside"] or not fact["is_file"]:
             raise PluginError(f"live.{key} must be a file inside the plugin folder: {rel}")
-    from .workday import steps  # local: steps reads the installed plugins
-
-    try:
-        steps.validate(data.get("work_steps"), f"plugin:{name}")
-    except steps.StepError as e:
-        raise PluginError(f"{e} (fix: list names like /standup under `work_steps:`)") from None
+    err = step_error(data.get("work_steps"), f"plugin:{name}")
+    if err is not None:
+        raise PluginError(f"{err} (fix: list names like /standup under `work_steps:`)")
     return data
 
 
@@ -361,7 +413,7 @@ def remove(name: str, purge_data: bool = False) -> dict[str, int]:
     lock = _lock()
     if name not in lock["plugins"]:
         raise PluginError(f"plugin {name} is not installed (see `careerbrew plugin list`)")
-    dependents = [p["name"] for p in installed() if (p["manifest"].get("extends") == name)]
+    dependents = [p["name"] for p in installed(check=False) if (p["manifest"].get("extends") == name)]
     if dependents:
         raise PluginError(f"plugin {name} is extended by {dependents}; remove those first")
     _migrate_legacy_commands(name, lock)
@@ -405,16 +457,7 @@ def purge_origin(origin: str) -> int:
 def refresh() -> list[str]:
     """Reinstall every plugin from where it came from (after editing it). Base plugins go first."""
     lock = _lock()["plugins"]
-    order: list[str] = []
-
-    def visit(name: str, seen: tuple[str, ...] = ()) -> None:
-        if name in order or name not in lock or name in seen:
-            return
-        visit(lock[name].get("extends") or "", (*seen, name))
-        order.append(name)
-
-    for name in sorted(lock):
-        visit(name)
+    order = refresh_order(lock)
     for name in order:
         e = lock[name]
         src = e.get("local_path") or (e["source"] if e["source"] != "local-folder" else None)
@@ -428,12 +471,22 @@ def refresh() -> list[str]:
     return order
 
 
-def installed(*, read_root: Path | None = None) -> list[dict[str, Any]]:
+def installed(*, read_root: Path | None = None, check: bool = True) -> list[dict[str, Any]]:
+    """Every installed plugin. Each manifest is re-checked with `validate_manifest` (rust-07c).
+
+    A manifest that no longer passes is refused with a fix line, never used: dropping it
+    quietly could also drop a stricter policy. `check=False` is only for `remove`.
+    """
     out = []
     lock = _lock() if read_root is None else store.read_json(read_root / "plugins.lock.json", {"plugins": {}}, create_key=False)
     for name, entry in sorted(lock["plugins"].items()):
         root = (plugins_dir() if read_root is None else read_root / "plugins") / name
         manifest = store.read_yaml(root / MANIFEST, {}, create_key=read_root is None) or {}
+        if check:
+            try:
+                validate_manifest(manifest, root)
+            except PluginError as e:
+                raise PluginError(f"installed plugin {name} has an invalid manifest: {e} (fix: `careerbrew plugin add <its folder>` again, or `careerbrew plugin remove {name}`)") from e
         terms = manifest.get("sensitive_terms")
         out.append(
             {
@@ -475,6 +528,84 @@ def resources(kind: str) -> list[tuple[str, Path]]:
 
 def effective_policy(*, read_root: Path | None = None) -> dict[str, Any]:
     """Strictest merge of every plugin policy."""
+    manifests = [p["manifest"] for p in installed(read_root=read_root)] if read_root is not None else [p["manifest"] for p in installed()]
+    expansions = {t: os.path.expanduser(t) for m in manifests for t in ((m.get("policy") or {}).get("backup_targets") or [])}
+    return merge_policy(manifests, expansions)
+
+
+def detect() -> list[tuple[str, list[str]]]:
+    """Which installed plugins' detect signals fire on this machine (env vars only)."""
+    out = []
+    for p in installed():
+        det = p["manifest"].get("detect") or {}
+        fired = [f"env:{e}" for e in det.get("env", []) if os.environ.get(e)]
+        out.append((p["name"], fired))
+    return out
+
+
+_LIST_POLICY = ("allowed_routes", "allowed_connectors", "allowed_hosts", "secret_backends", "backup_targets")
+_BOOL_POLICY = ("agent_may_read_business", "require_encrypted_backup", "public_metrics")
+_EXPORT_LEVELS = ("none", "aggregates", "redacted", "full")
+
+
+def _str_list(value: Any) -> bool:
+    return isinstance(value, list) and all(isinstance(x, str) for x in value)
+
+
+def _check_shapes(data: dict[str, Any], terms_inside: bool) -> None:
+    """Deny-by-default shape checks (rust-07a). Messages are fixed: they never echo input."""
+    req = data.get("requires")
+    if req not in (None, ""):
+        text = str(req) if isinstance(req, (str, int, float)) and not isinstance(req, bool) else ""
+        if not re.search(r"[0-9]", text) or any(c.isdigit() and not c.isascii() for c in text):
+            raise PluginError("requires must name a version with ASCII digits, e.g. >=0.1.0")
+    provides = data.get("provides")
+    if provides is not None and not isinstance(provides, dict):
+        raise PluginError("provides must be a mapping of resource kind to paths")
+    policy = data.get("policy")
+    if isinstance(policy, dict):
+        for key in _LIST_POLICY:
+            if key in policy and not _str_list(policy[key]):
+                raise PluginError(f"policy.{key} must be a list of strings")
+        for key in _BOOL_POLICY:
+            if key in policy and not isinstance(policy[key], bool):
+                raise PluginError(f"policy.{key} must be true or false")
+        if "export_to_personal" in policy and policy["export_to_personal"] not in _EXPORT_LEVELS:
+            raise PluginError(f"policy.export_to_personal must be one of {list(_EXPORT_LEVELS)}")
+    terms = data.get("sensitive_terms")
+    if terms is not None:
+        bad = not isinstance(terms, str) or not terms or Path(terms).is_absolute() or ".." in Path(terms).parts
+        if bad or not terms_inside:
+            raise PluginError("sensitive_terms must be a relative file path inside the plugin folder")
+    det = data.get("detect")
+    if det is not None:
+        if not isinstance(det, dict):
+            raise PluginError("detect must be a mapping with env and paths lists")
+        for key in ("env", "paths"):
+            if key in det and not _str_list(det[key]):
+                raise PluginError(f"detect.{key} must be a list of strings")
+
+
+def refresh_order(lock: dict[str, Any]) -> list[str]:
+    """Base plugins first: each plugin after the one it extends; unknown or cyclic bases are skipped (rust-07b)."""
+    order: list[str] = []
+
+    def visit(name: str, seen: tuple[str, ...] = ()) -> None:
+        if name in order or name not in lock or name in seen:
+            return
+        visit(lock[name].get("extends") or "", (*seen, name))
+        order.append(name)
+
+    for name in sorted(lock):
+        visit(name)
+    return order
+
+
+def merge_policy(manifests: list[dict[str, Any]], expansions: dict[str, str]) -> dict[str, Any]:
+    """Pure strictest merge of the manifests' policies (rust-07b).
+
+    `expansions` maps each `backup_targets` entry to its home-expanded path; the IO wrapper builds it.
+    """
     policy: dict[str, Any] = {
         "allowed_routes": None,
         "allowed_connectors": None,
@@ -488,8 +619,8 @@ def effective_policy(*, read_root: Path | None = None) -> dict[str, Any]:
     }
     export_order = ["none", "aggregates", "redacted", "full"]
     agent_votes: list[bool] = []
-    for p in installed(read_root=read_root) if read_root is not None else installed():
-        pol = p["manifest"].get("policy") or {}
+    for manifest in manifests:
+        pol = manifest.get("policy") or {}
         for key in ("allowed_routes", "allowed_connectors", "allowed_hosts", "secret_backends"):
             if key in pol:
                 mine = set(pol[key])
@@ -506,19 +637,9 @@ def effective_policy(*, read_root: Path | None = None) -> dict[str, Any]:
         if pol.get("require_encrypted_backup"):
             policy["require_encrypted_backup"] = True
         if "backup_targets" in pol:
-            mine = {os.path.expanduser(t) for t in pol["backup_targets"]}
+            mine: set[Any] = {expansions.get(t, t) for t in pol["backup_targets"]}
             cur = policy["backup_targets"]
             policy["backup_targets"] = sorted(mine if cur is None else set(cur) & mine)
     # Agents may read business data only if some plugin allows it and none forbids it.
     policy["agent_may_read_business"] = bool(agent_votes) and all(agent_votes)
     return policy
-
-
-def detect() -> list[tuple[str, list[str]]]:
-    """Which installed plugins' detect signals fire on this machine (env vars only)."""
-    out = []
-    for p in installed():
-        det = p["manifest"].get("detect") or {}
-        fired = [f"env:{e}" for e in det.get("env", []) if os.environ.get(e)]
-        out.append((p["name"], fired))
-    return out

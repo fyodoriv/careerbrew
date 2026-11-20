@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# e2e: weight: 70  (usual seconds on a hosted runner; scripts/e2e.sh E2E_SHARD)
 # US-59: the PM update has one line per project in priority order, naming its work (issue #214); the plan and Next step follow the same priority;
 # the web app copies it in one click from the top of Today and Dashboard.
 source "$(dirname "$0")/lib.sh"

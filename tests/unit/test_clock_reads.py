@@ -18,7 +18,7 @@ READS = {"now", "utcnow", "today"}
 # "<file>::<function>": (reads, reason). None of these is a time a view shows or a metric counts by.
 ALLOWED: dict[str, tuple[int, str]] = {
     "calendar.py::now": (1, "the clock owner: it reads the wall clock when CAREERBREW_NOW is not set"),
-    "events.py::emit": (1, "content-free event log: `ts` records when the code really ran"),
+    "events.py::utc_now": (1, "content-free event log: `ts` records when the code really ran"),
     "day/watch.py::run_cycle": (4, "the watcher's own throttles (MIN_GAP_S per source) and cycle stats measure real elapsed time"),
     "day/watch.py::loop": (2, "the watcher process's own start and reload times"),
     "day/watch.py::pause": (1, "the watcher process's own pause time"),

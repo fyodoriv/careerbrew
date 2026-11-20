@@ -10,6 +10,9 @@ import sys
 
 MAX_CONTEXT = 1024 * 1024
 MAX_REFS = 1000
+# The first commit of the public history. A commit that does not descend from it
+# comes from a checkout made before the public release (docs/migrate-to-public-history.md).
+PUBLIC_ROOT = "22e3e591b70dd8a5f8a1111355201b85c8f68ed5"
 
 
 class InvalidContext(ValueError):
@@ -67,17 +70,100 @@ def validate(data: bytes) -> int:
     return len(rows)
 
 
+def old_history(data: bytes) -> int:
+    """Count pushed refs in a validated context whose history is not only the public history."""
+    root = os.environ.get("CAREERBREW_PUBLIC_ROOT") or PUBLIC_ROOT  # the override is for tests with scratch repositories
+    if not re.fullmatch(r"[0-9a-f]{40,64}", root):
+        raise InvalidContext("public root is invalid")
+    payload = data.split(b"\0", 2)[2]
+    found = 0
+    for line in payload.splitlines():
+        new = os.fsdecode(line.split(b" ")[1])
+        if set(new) == {"0"}:
+            continue  # a deletion pushes no commit
+        if _git("cat-file", "-e", new).returncode != 0:
+            continue  # not a local object: Git itself refuses to push it
+        if _git("cat-file", "-e", f"{new}^{{commit}}").returncode != 0:
+            found += 1  # a tag of a tree or a file: its history cannot be checked
+            continue
+        # Every first commit under the tip must be the public one: a merge of both histories descends from it too.
+        roots = _git("rev-list", "--max-parents=0", new)
+        if roots.returncode != 0 or set(os.fsdecode(roots.stdout).split()) != {root}:
+            found += 1
+    return found
+
+
+def pushed_ranges(data: bytes) -> list[str]:
+    """The `git log` range of each pushed ref in a validated context: the commits this push adds."""
+    remote, _, payload = data.split(b"\0", 2)
+    name = os.fsdecode(remote)
+    # Commits that a branch of this remote already holds were scanned when they were pushed.
+    known = f" --not --remotes={name}" if re.fullmatch(r"[A-Za-z0-9._-]+", name) else ""
+    ranges = []
+    for line in payload.splitlines():
+        _, new, _, old = (os.fsdecode(part) for part in line.split(b" "))
+        if set(new) == {"0"} or _git("cat-file", "-e", new).returncode != 0:
+            continue  # a deletion, or an object Git itself refuses to push
+        if set(old) != {"0"} and _git("cat-file", "-e", f"{old}^{{commit}}").returncode == 0:
+            ranges.append(f"{old}..{new}")
+        else:
+            ranges.append(f"{new}{known}")  # a new ref, or a remote tip this checkout does not hold
+    return ranges
+
+
+def secret_scan(ranges: list[str]) -> int:
+    """Run gitleaks on every pushed commit, not only the newest ones. Findings are redacted."""
+    for commits in ranges:
+        # gitleaks exits 0 when `git log` fails, so prove first that Git can read the range.
+        if _git("rev-list", "--quiet", *commits.split(" ")).returncode != 0:
+            print("pre-push secret scan unavailable: Git cannot read a pushed range; repair the repository", file=sys.stderr)
+            return 1
+        try:
+            done = subprocess.run(
+                # -m: `git log -p` prints no diff for a merge commit without it, and a merge can add a secret.
+                ["gitleaks", "git", "--no-banner", "--redact", "-l", "warn", f"--log-opts=-m {commits}"],
+                stdin=subprocess.DEVNULL,
+                check=False,
+                timeout=300,
+            )
+        except FileNotFoundError:
+            print("gitleaks missing (fix - brew install gitleaks)", file=sys.stderr)
+            return 1
+        except (OSError, subprocess.TimeoutExpired):
+            print("pre-push secret scan unavailable; repair the repository setup", file=sys.stderr)
+            return 1
+        if done.returncode != 0:
+            print("pre-push: gitleaks found a secret in a pushed commit, or could not scan it. Remove the commit from the branch; never push it", file=sys.stderr)
+            return 1
+    return 0
+
+
 def main() -> int:
     try:
-        count = validate(sys.stdin.buffer.read(MAX_CONTEXT + 1))
+        data = sys.stdin.buffer.read(MAX_CONTEXT + 1)
+        count = validate(data)
+        old = old_history(data)
     except InvalidContext:
         print("pre-push context invalid or unavailable; retry through Git", file=sys.stderr)
         return 1
+    if old:
+        print(
+            f"pre-push: {old} pushed ref(s) do not descend from the public first commit. This checkout holds the history from before the public release (or is a shallow clone). Do not push it. Fix: follow docs/migrate-to-public-history.md",
+            file=sys.stderr,
+        )
+        return 1
     print(f"pre-push context: {count} ref record(s) checked; target not verified")
     try:
-        return subprocess.run(["scripts/leak-check.sh"], stdin=subprocess.DEVNULL, check=False).returncode
+        leaks = subprocess.run(["scripts/leak-check.sh"], stdin=subprocess.DEVNULL, check=False).returncode
     except OSError:
         print("pre-push privacy scan unavailable; repair the repository setup", file=sys.stderr)
+        return 1
+    if leaks:
+        return leaks
+    try:
+        return secret_scan(pushed_ranges(data))
+    except InvalidContext:
+        print("pre-push context invalid or unavailable; retry through Git", file=sys.stderr)
         return 1
 
 

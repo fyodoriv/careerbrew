@@ -6,9 +6,15 @@ Two kinds: **outcome metrics** about you (computed by `careerbrew review` from `
 
 Defined, with success and pivot thresholds and literature anchors, in [`config/goals.yaml`](../config/goals.yaml). Override per user in `private/goals.yaml`. A missing value is `no-data`, never 0.
 
+## Field telemetry (real use, after a yes)
+
+Installs that answered yes send content-free counts (US-89, [`observability.md`](observability.md) "Field telemetry"). The tiles and their exact queries are in [`telemetry-tiles.md`](telemetry-tiles.md). The setup success rate and setup time come from `careerbrew.install`; they cover only setup attempts that got as far as a working `careerbrew` command (the setup trap cannot record a run that stopped before the command existed). The weekly outcome numbers come from `careerbrew.week`.
+
 ## README proof
 
 `scripts/metrics.sh proof` measures the README's claims and writes `docs/proof/metrics.json` (value, unit, date, data kind, command, and a history per metric). Then `scripts/proof.py render` rewrites the README Proof section from it, and `tests/unit/test_proof.py` fails when the two differ. Run it after a green `scripts/check.sh`, so the e2e results are fresh. Counts and rates only: never anything from `private/`. Real-use (field) totals are left out unless you set `PROOF_FIELD=1`, which is for your own copy: the committed file holds no machine's real use.
+
+Freshness on 2026-11-16: every number in `docs/proof/metrics.json` and the README Proof section keeps its old date (2026-10-26). A refresh needs a green local `scripts/check.sh` and `scripts/e2e.sh`, and local test runs are now blocked (tests run on hosted CI only, [`ci.md`](ci.md)). Field telemetry: the owner's manual check on 2026-11-17 00:36Z found 29 events sent and 29 counted. To reproduce: run `careerbrew telemetry send`, then a PostHog HogQL `count()` grouped by `distinct_id` with `created_at` in the send window, through `/api/projects/<id>/query/` ([`telemetry-tiles.md`](telemetry-tiles.md)).
 
 ## Capability coverage (build metric)
 

@@ -33,9 +33,9 @@ def test_doctor_checks_locked_offline_serde_metadata(tmp_path, case):
     curl.write_text("#!/bin/sh\nexit 1\n")
     curl.chmod(0o755)
     for command, version in {
-        "rustc": "rustc 1.99.1\nrelease: 1.99.1",
+        "rustc": "rustc 1.100.0\nrelease: 1.100.0",
         "rustfmt": "rustfmt 1.10.0",
-        "clippy-driver": "clippy 0.1.99",
+        "clippy-driver": "clippy 0.1.100",
     }.items():
         script = bin_dir / command
         script.write_text(f"#!/bin/sh\nprintf '%s\\n' '{version}'\n")
@@ -48,7 +48,7 @@ def test_doctor_checks_locked_offline_serde_metadata(tmp_path, case):
     metadata = json.dumps({"packages": [{"name": "careerbrew-xtask", "dependencies": [dependency]}]})
     cargo = bin_dir / "cargo"
     cargo.write_text(
-        f"#!{sys.executable}\nimport json, pathlib, sys\nif sys.argv[1:] == ['--version']:\n    print('cargo 1.99.1 (fixture)')\n    sys.exit(0)\npathlib.Path('cargo-args.json').write_text(json.dumps(sys.argv[1:]))\nprint({('not-json' if case == 'malformed' else metadata)!r})\nsys.exit({7 if case == 'cargo-error' else 0})\n"
+        f"#!{sys.executable}\nimport json, pathlib, sys\nif sys.argv[1:] == ['--version']:\n    print('cargo 1.100.0 (fixture)')\n    sys.exit(0)\npathlib.Path('cargo-args.json').write_text(json.dumps(sys.argv[1:]))\nprint({('not-json' if case == 'malformed' else metadata)!r})\nsys.exit({7 if case == 'cargo-error' else 0})\n"
     )
     cargo.chmod(0o755)
     env = {key: value for key, value in os.environ.items() if key not in {"BASH_ENV", "ENV", "RUSTC", "RUSTC_WRAPPER", "RUSTC_WORKSPACE_WRAPPER", "RUSTUP_TOOLCHAIN"}}

@@ -157,7 +157,7 @@ def test_the_web_timing_event_is_content_free_and_checked(home):
 
     assert server.post("/api/timing", {"saves": "standup", "step": "copy", "seconds": 61.25}) == {"logged": True}
     (row,) = [json.loads(line) for line in (home / "logs" / "events.jsonl").read_text().splitlines()]
-    assert {k: v for k, v in row.items() if k != "ts"} == {"event": "web.timing", "saves": "standup", "step": "copy", "seconds": 61.2}
+    assert {k: v for k, v in row.items() if k not in ("ts", "v")} == {"event": "web.timing", "saves": "standup", "step": "copy", "seconds": 61.2}
     for bad in (
         {"saves": "lunch", "step": "copy", "seconds": 1},
         {"saves": "standup", "step": "paste", "seconds": 1},

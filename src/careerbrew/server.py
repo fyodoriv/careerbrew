@@ -43,7 +43,7 @@ from time import monotonic
 from typing import Any
 from urllib.parse import SplitResult, parse_qs, unquote, urlsplit
 
-from . import config, events, machine, paths, plugins, store
+from . import config, events, machine, paths, plugins, store, telemetry
 
 DIST = paths.REPO_ROOT / "web" / "dist"
 JOB_PATHS = ("/api/jobs", "/api/interviews", "/api/cards", "/api/library", "/api/explanations", "/api/exercises", "/api/drill")
@@ -512,7 +512,7 @@ CHANGE_DIRS = ("work", "day")
 # state with the last cycle's CPU time, and each source's checkpoint time), which every cycle rewrites, and the work
 # feed's live-feed cycle record (`feed-cycle.json`: the sources stored this cycle, issue #254). No cached
 # or live view reads them, so they are no input change (test: `test_no_cached_or_live_view_reads_a_file_the_versions_skip`).
-CHANGE_SKIP = {"web.json", "web-token.json", "web.lock", "inbox.lock", "watch.lock", "watch.json", "cursors.json", "telemetry.json", "feed-cycle.json", "loops.json"}
+CHANGE_SKIP = {"web.json", "web-token.json", "web.lock", "inbox.lock", "watch.lock", "watch.json", "cursors.json", "telemetry.json", "telemetry.lock", "telemetry-ask.lock", "feed-cycle.json", "loops.json"}
 # The PM draft the Day log view showed (`day/pm-shown-<day>.json`, issue #185): the view writes it, and only a save
 # reads it back, so it is no input change.
 CHANGE_SKIP_PREFIXES = ("pm-shown-",)
@@ -1121,6 +1121,7 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 body, cache = respond(self.cache, url)
             events.emit("web.api", status="ok", route=_route(url.path), cached=cache == "hit", ms=int((monotonic() - t0) * 1000))
+            telemetry.note_view(_route(url.path))
             self._send(HTTPStatus.OK, body, cache=cache)
         except ApiError as exc:
             self._json(exc.status, {"error": str(exc)})
@@ -1134,8 +1135,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._session("POST", url.path)
             except BAD_INPUT as exc:
                 return self._json(HTTPStatus.BAD_REQUEST, {"error": f"bad request: {exc}"[:300]})
+        t0, act, guarded = monotonic(), "error", False
         try:
             self._guard(url.path)
+            guarded = True  # a request the guard refuses (no token, a foreign page) is not the owner's click
             length = int(self.headers.get("Content-Length", "0") or 0)
             limit = VOICE_MAX_BYTES if url.path == "/api/drill/voice" else 64_000
             if not 0 <= length <= limit:
@@ -1148,11 +1151,17 @@ class Handler(BaseHTTPRequestHandler):
             finally:
                 if url.path not in KEEPS_CACHE:
                     self.cache.clear()  # the owner acted: every view rebuilds on its next read, even one that runs before this reply arrives
+            act = "ok"
             self._json(HTTPStatus.OK, result)
         except ApiError as exc:
+            act = "refused"
             self._json(exc.status, {"error": str(exc)})
         except BAD_INPUT as exc:
+            act = "refused"
             self._json(HTTPStatus.BAD_REQUEST, {"error": f"bad request: {exc}"[:300]})
+        finally:
+            if guarded and _act_route(url.path) in telemetry.WEB_ACTS:  # a known control; never the timing beacon
+                events.emit("web.act", route=_act_route(url.path), status=act, ms=int((monotonic() - t0) * 1000))
 
     def _static(self, path: str) -> None:
         rel = "index.html" if path in ("", "/") else path.lstrip("/")
@@ -1162,6 +1171,16 @@ class Handler(BaseHTTPRequestHandler):
         if not f.exists():
             return self._send(HTTPStatus.NOT_FOUND, b"web app not built: cd web && npm ci && npm run build", "text/plain")
         self._send(HTTPStatus.OK, f.read_bytes(), mimetypes.guess_type(str(f))[0] or "application/octet-stream")
+
+
+def _act_route(path: str) -> str:
+    """The fixed name of a data-changing web control (`promises.done`, `actions.run`): an id in the path never leaves."""
+    parts = path.removeprefix("/api/").strip("/").split("/")
+    if parts[0] == "actions":
+        return "actions.run"  # the action itself leaves as the cli.run it starts, with via `ui`
+    if len(parts) >= 3:
+        return f"{parts[0]}.{parts[-1]}"[:48]  # /api/<kind>/<id>/<verb>
+    return ".".join(parts)[:48] or "api"
 
 
 # POSTs that change no data a view reads, so every cached view stays: a timing writes only the event log.
@@ -1373,6 +1392,15 @@ class Server(ThreadingHTTPServer):
     # The stdlib listen backlog is 5: a page that asks for its blocks at once (the Dashboard's 9, issue #142)
     # beside its own reads overflowed it on a busy machine, and the kernel reset the extra connections.
     request_queue_size = 128
+
+    def server_bind(self) -> None:
+        # The stdlib bind asks the resolver for the host's full name (`socket.getfqdn`). With no resolver
+        # answer that takes many seconds, and a start missed its wait (hosted macOS run, 2026-11-13).
+        # The server listens on a literal address, so its name is that address.
+        import socketserver
+
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = str(self.server_address[0]), int(self.server_address[1])
 
 
 def make_server(port: int = 8765, token: str | None = None) -> ThreadingHTTPServer:

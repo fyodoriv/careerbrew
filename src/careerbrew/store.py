@@ -56,8 +56,12 @@ def read_text_nofollow(path: Path, *, create_key: bool = True) -> str:
 def write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = _tmp_for(path)
-    tmp.write_bytes(vault.encode(path, text))
-    tmp.replace(path)
+    try:
+        tmp.write_bytes(vault.encode(path, text))
+        tmp.replace(path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)  # rust-05b: a failed write or replace leaves no temp file behind
+        raise
 
 
 def write_text_if_changed(path: Path, text: str) -> bool:
@@ -117,8 +121,11 @@ def append_jsonl(path: Path, rows: Iterable[dict[str, Any]]) -> int:
     path.parent.mkdir(parents=True, exist_ok=True)
     new = [json.dumps(row, sort_keys=True, default=str) + "\n" for row in rows]
     if not (vault.enabled() and vault.sealable(path)):
-        with path.open("a", encoding="utf-8") as fh:
-            fh.writelines(new)
+        # rust-05b: the same lock `upsert_jsonl` takes, so an append never lands inside its rewrite.
+        with path.with_name(f".{path.name}.lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            with path.open("a", encoding="utf-8") as fh:
+                fh.writelines(new)
         return len(new)
     # A sealed file is one ciphertext: append is read, add, rewrite, under a lock so two writers never lose rows.
     with path.with_name(f".{path.name}.lock").open("a") as lock:

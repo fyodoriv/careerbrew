@@ -33,6 +33,9 @@ MENTIONS = {
     ("scripts/checkup.sh", "RECURRING.md"): "a comment",
     ("scripts/learnings-table.py", "docs/learnings"): "run by the learnings step and test_learnings_table.py (unit), which read every file; no story runs it",
     ("src/careerbrew/judge.py", "TASKS.md"): "comments and a message that name a task",
+    ("src/careerbrew/indie.py", "TASKS.md"): "reads the TASKS.md of a bet's own repo (the path the owner's scan found), never this repo's",
+    ("tests/e2e/us-112-indie-day.sh", "TASKS.md"): "writes a TASKS.md into its own scratch repos; it never reads this repo's",
+    (".github/workflows/ci.yml", "docs/learnings"): "the step names `docs learnings` in a CHECK_STEPS list, not the folder",
 }
 # Walks over the whole repo in code that some excluding step runs, each checked by hand.
 WALKS = {
@@ -41,6 +44,7 @@ WALKS = {
     "tests/e2e/us-40-corporate-rehearsal.sh": "bundles the committed main branch (never in any cache key) and reads only its push remote and checkup state",
     "tests/e2e/us-43-data-show.sh": "snapshots the files of its data folder ($CAREERBREW_HOME), not the repo",
     "tests/e2e/us-80-learn-project.sh": "lists the files of its temp repo ($repo) to prove learning writes nothing there",
+    "xtask/tests/fixtures/depvec/driver.py": "globs one fixed path, web/node_modules/@esbuild/*/bin/esbuild, to find the esbuild binary; it reads no other repo file",
     "src/careerbrew/machine.py": "walks a job-hunt data folder (_data_files), not the repo",
     "src/careerbrew/learn/project.py": "reads docs/**/*.md of the repo given to `learn start --repo`; no story gives it this repo (checked below)",
     "src/careerbrew/privacy.py": (
@@ -121,7 +125,7 @@ def _code_files() -> list[str]:
 def test_some_heavy_steps_leave_out_notes_and_unit_reads_everything():
     left = _left_out()
     assert {"TASKS.md", "RECURRING.md", "docs/learnings"} <= left.get("e2e", set()), left
-    assert "exercises" in left and "web-build" in left, left
+    assert "exercises" in left and "web-build" in left and "registry" in left, left
     # A conflict marker in any tracked file fails test_no_conflict_markers.py, so unit reads every file.
     assert "unit" not in left, left
     for step in ("docs", "learnings", "leaks", "tasks", "secrets"):

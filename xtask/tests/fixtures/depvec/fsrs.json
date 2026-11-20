@@ -1,0 +1,350 @@
+{
+ "set": "fsrs",
+ "vectors": [
+  {
+   "id": "parameters",
+   "op": "parameters",
+   "input": null
+  },
+  {
+   "id": "new-again",
+   "op": "schedule",
+   "input": {
+    "reviews": [
+     {
+      "at_minutes": 0,
+      "rating": "again"
+     }
+    ]
+   }
+  },
+  {
+   "id": "new-hard",
+   "op": "schedule",
+   "input": {
+    "reviews": [
+     {
+      "at_minutes": 0,
+      "rating": "hard"
+     }
+    ]
+   }
+  },
+  {
+   "id": "new-good",
+   "op": "schedule",
+   "input": {
+    "reviews": [
+     {
+      "at_minutes": 0,
+      "rating": "good"
+     }
+    ]
+   }
+  },
+  {
+   "id": "new-easy",
+   "op": "schedule",
+   "input": {
+    "reviews": [
+     {
+      "at_minutes": 0,
+      "rating": "easy"
+     }
+    ]
+   }
+  },
+  {
+   "id": "learning-good-good",
+   "op": "schedule",
+   "input": {
+    "reviews": [
+     {
+      "at_minutes": 0,
+      "rating": "good"
+     },
+     {
+      "at_minutes": 10,
+      "rating": "good"
+     }
+    ]
+   }
+  },
+  {
+   "id": "learning-again-then-good",
+   "op": "schedule",
+   "input": {
+    "reviews": [
+     {
+      "at_minutes": 0,
+      "rating": "again"
+     },
+     {
+      "at_minutes": 1,
+      "rating": "good"
+     },
+     {
+      "at_minutes": 11,
+      "rating": "good"
+     }
+    ]
+   }
+  },
+  {
+   "id": "learning-hard-at-step-one",
+   "op": "schedule",
+   "input": {
+    "reviews": [
+     {
+      "at_minutes": 0,
+      "rating": "good"
+     },
+     {
+      "at_minutes": 10,
+      "rating": "hard"
+     },
+     {
+      "at_minutes": 20,
+      "rating": "good"
+     }
+    ]
+   }
+  },
+  {
+   "id": "learning-late-next-day",
+   "op": "schedule",
+   "input": {
+    "reviews": [
+     {
+      "at_minutes": 0,
+      "rating": "good"
+     },
+     {
+      "at_minutes": 2880,
+      "rating": "good"
+     }
+    ]
+   }
+  },
+  {
+   "id": "review-on-time-chain",
+   "op": "schedule",
+   "input": {
+    "reviews": [
+     {
+      "at_minutes": 0,
+      "rating": "good"
+     },
+     {
+      "at_minutes": 10,
+      "rating": "good"
+     },
+     {
+      "at_minutes": 4330,
+      "rating": "good"
+     },
+     {
+      "at_minutes": 17290,
+      "rating": "good"
+     },
+     {
+      "at_minutes": 64810,
+      "rating": "good"
+     },
+     {
+      "at_minutes": 216010,
+      "rating": "good"
+     }
+    ]
+   }
+  },
+  {
+   "id": "review-hard-and-easy",
+   "op": "schedule",
+   "input": {
+    "reviews": [
+     {
+      "at_minutes": 0,
+      "rating": "easy"
+     },
+     {
+      "at_minutes": 21600,
+      "rating": "hard"
+     },
+     {
+      "at_minutes": 43200,
+      "rating": "easy"
+     }
+    ]
+   }
+  },
+  {
+   "id": "review-same-day",
+   "op": "schedule",
+   "input": {
+    "reviews": [
+     {
+      "at_minutes": 0,
+      "rating": "easy"
+     },
+     {
+      "at_minutes": 60,
+      "rating": "good"
+     },
+     {
+      "at_minutes": 120,
+      "rating": "again"
+     }
+    ]
+   }
+  },
+  {
+   "id": "review-lapse-relearn",
+   "op": "schedule",
+   "input": {
+    "reviews": [
+     {
+      "at_minutes": 0,
+      "rating": "good"
+     },
+     {
+      "at_minutes": 10,
+      "rating": "good"
+     },
+     {
+      "at_minutes": 7200,
+      "rating": "good"
+     },
+     {
+      "at_minutes": 43200,
+      "rating": "again"
+     },
+     {
+      "at_minutes": 43210,
+      "rating": "good"
+     },
+     {
+      "at_minutes": 46080,
+      "rating": "good"
+     }
+    ]
+   }
+  },
+  {
+   "id": "relearning-hard-and-again",
+   "op": "schedule",
+   "input": {
+    "reviews": [
+     {
+      "at_minutes": 0,
+      "rating": "easy"
+     },
+     {
+      "at_minutes": 28800,
+      "rating": "again"
+     },
+     {
+      "at_minutes": 28810,
+      "rating": "hard"
+     },
+     {
+      "at_minutes": 28825,
+      "rating": "again"
+     },
+     {
+      "at_minutes": 28840,
+      "rating": "easy"
+     }
+    ]
+   }
+  },
+  {
+   "id": "review-overdue",
+   "op": "schedule",
+   "input": {
+    "reviews": [
+     {
+      "at_minutes": 0,
+      "rating": "good"
+     },
+     {
+      "at_minutes": 10,
+      "rating": "good"
+     },
+     {
+      "at_minutes": 576000,
+      "rating": "good"
+     },
+     {
+      "at_minutes": 577440,
+      "rating": "again"
+     }
+    ]
+   }
+  },
+  {
+   "id": "all-again",
+   "op": "schedule",
+   "input": {
+    "reviews": [
+     {
+      "at_minutes": 0,
+      "rating": "again"
+     },
+     {
+      "at_minutes": 10,
+      "rating": "again"
+     },
+     {
+      "at_minutes": 20,
+      "rating": "again"
+     },
+     {
+      "at_minutes": 30,
+      "rating": "again"
+     },
+     {
+      "at_minutes": 40,
+      "rating": "again"
+     },
+     {
+      "at_minutes": 50,
+      "rating": "again"
+     },
+     {
+      "at_minutes": 60,
+      "rating": "again"
+     },
+     {
+      "at_minutes": 70,
+      "rating": "again"
+     }
+    ]
+   }
+  },
+  {
+   "id": "unknown-rating",
+   "op": "schedule",
+   "input": {
+    "reviews": [
+     {
+      "at_minutes": 0,
+      "rating": "great"
+     }
+    ]
+   }
+  },
+  {
+   "id": "unknown-op",
+   "op": "replay",
+   "input": {
+    "reviews": [
+     {
+      "at_minutes": 0,
+      "rating": "good"
+     }
+    ]
+   }
+  }
+ ]
+}

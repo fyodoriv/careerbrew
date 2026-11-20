@@ -6,4 +6,6 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 if command -v lefthook >/dev/null 2>&1; then exec lefthook run pre-push "$@"; fi
 bash hooks/lefthook/pre-push/privacy.sh "$@"
-scripts/check.sh fast
+# No test runs here: the hosted checks run the gate for every pull request (docs/ci.md).
+command -v gitleaks >/dev/null 2>&1 || { echo "gitleaks missing (fix - brew install gitleaks)" >&2; exit 1; }
+gitleaks git --no-banner --redact -l warn --log-opts=-20

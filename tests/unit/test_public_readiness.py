@@ -1688,3 +1688,34 @@ def test_an_input_that_cannot_be_read_ends_with_status_2_and_a_summary_line_not_
     (repo.tmp / "dotfiles" / "config" / "public-push-remotes.txt").write_bytes(b"github.com/\xff\xfe broken\n")
     r = repo.raw("--release")
     assert r.returncode == 2 and r.stdout.splitlines()[-1].startswith("public-readiness: result=error (") and "Traceback" not in r.stderr
+
+
+def test_a_failed_gate_in_the_first_run_names_its_failed_steps_and_nothing_it_printed(repo):
+    """The scratch copy is deleted after S17, so the note keeps the gate's failed step names (fixed ids)."""
+    repo.script("scripts/setup.sh")
+    repo.script("scripts/doctor.sh")
+    events = (
+        '{"event":"check.step","name":"lint","seconds":1,"ok":true}',
+        '{"event":"check.step","name":"unit","seconds":9,"ok":false}',
+        '{"event":"check.step","name":"Secret Words Here","seconds":1,"ok":false}',
+        '{"event":"other","name":"leaks","ok":false}',
+    )
+    body = "#!/bin/sh\nmkdir -p .metrics\n" + "".join(f"echo '{e}' >> .metrics/events.jsonl\n" for e in events) + "echo private-canary-output\nexit 1\n"
+    repo.script("scripts/check.sh", body)
+    repo.commit()
+    r = repo.raw("--first-run")
+    line = next(ln for ln in r.stdout.splitlines() if ln.startswith("S17 "))
+    assert "failed=4:check.sh(unit)" in line, line
+    assert "Secret" not in r.stdout and "private-canary-output" not in r.stdout and "leaks" not in line
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [b"5\n", b"null\n", b"[1]\n", b"\xff\xfe\n", b"[" * 100_000 + b"\n", b'{"event": "check.step", "ok": false, "name": "lint"'],
+    ids=["number", "null", "list", "invalid-utf8", "deep-nesting", "partial-last-line"],
+)
+def test_a_damaged_gate_log_never_breaks_the_failed_step_names(tmp_path, bad):
+    (tmp_path / ".metrics").mkdir()
+    good = b'{"event": "check.step", "ok": false, "name": "unit"}\n'
+    (tmp_path / ".metrics" / "events.jsonl").write_bytes(good + bad + good.replace(b"unit", b"types"))
+    assert script.failed_steps(str(tmp_path)) in ("(unit+types)", "(unit)")
