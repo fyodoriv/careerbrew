@@ -368,6 +368,38 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P1
 
+- [ ] Pro data: a free sample of maintained data in the open tool
+  - **ID**: pro-data-free-sample
+  - **Details**: First task of the careerbrew income bet (a yearly licence for maintained data, tested by a priced waitlist). Ship a small free sample the open tool reads through the signed-plugin path: one public company ladder mapped to levels, and three sourced interview loops from `knowledge/research/`, each with a dated changelog line. The promotion and interview run pages show one static local link to the waitlist page (`pro_data_url` setting, empty by default, so nothing shows until the owner sets it). No hosted service, no network call, no buyer data.
+  - **Files**: knowledge/research/; src/careerbrew/plugins.py; src/careerbrew/runs.py; src/careerbrew/config.py; tests/unit/; docs/plugins.md; README.md
+  - **Hypothesis**: with a sample in the tool and a link on two run pages, page visitors who come from the tool are more than 0, so the waitlist reading can tell "no traffic" from "no demand".
+  - **Measurement**: `gh pr checks <pr>` (a unit case: the sample loads through the plugin path, and the link shows only when `pro_data_url` is set); in use, the owner reads unique page visitors (cookie-free page analytics) beside each waitlist reading.
+  - **Success**: the cases pass; 300 or more unique page visitors by the week-4 reading.
+  - **Pivot**: under 300 visitors by week 4, repeat the launch once before the reading counts; if the sample needs a hosted part, stop and keep the tool local.
+  - **Anchor**: Ries 2011 (minimum viable product, pivot or persevere); Kohavi, Tang & Xu 2020 (guardrail beside the primary metric).
+
+- [ ] Pro data: the waitlist page with a double opt-in form
+  - **ID**: pro-data-waitlist-page
+  - **Details**: One static page: what the yearly data licence holds, its price for one person and for a team, the first data release date, and a form (email plus a required choice of "individual" or "team"). The page takes no money. The owner creates the mailing-list and page-analytics accounts and types the form address; an agent drafts the page and fills everything else. Comfort budget applies (phone and desktop, light and dark, 44 px targets, contrast 4.5:1).
+  - **Files**: docs/ (page source, where the owner picks); web/e2e/ or a page test
+  - **Blocked**: owner step: owner creates the two accounts and approves publishing the page (a public post under the owner's name).
+  - **Hypothesis**: a priced page with a confirmed-email form gives one readable number, confirmed subscribers, that moves from 0 only when someone wants the paid data.
+  - **Measurement**: the owner reads the confirmed subscriber count (own addresses removed) and records it with `careerbrew indie measure careerbrew --value <n>` on the two reading dates; the page passes an axe run with 0 serious problems.
+  - **Success**: 30 confirmed subscribers by the week-8 reading.
+  - **Pivot**: under 5 at two readings in a row holds the bet.
+  - **Anchor**: Ries 2011 (smoke test before build); Munafo et al. 2017 (pre-registration).
+
+- [ ] Pro data: launch drafts for the owner to post
+  - **ID**: pro-data-launch-drafts
+  - **Details**: Agent-drafted, owner-posted: one post each for Hacker News, Lobsters and two Reddit communities, plus a write-up "a promotion doc from your git history in 10 minutes" built from personal repos only. Drafts stay local until the owner posts them; an agent never posts. No xAI or X channels.
+  - **Files**: local drafts only (no tracked file); docs/ for the write-up after the owner approves
+  - **Blocked**: owner step: owner reads, edits and posts each draft.
+  - **Hypothesis**: four posts and one write-up bring 300 or more unique visitors to the page in 4 weeks.
+  - **Measurement**: the owner reads unique page visitors from the page analytics; `gh api repos/fyodoriv/careerbrew/traffic/views -q .uniques` saved each week for the repo.
+  - **Success**: 300 or more unique page visitors by week 4.
+  - **Pivot**: under 300 after one repeat launch, change the channel, not the offer.
+  - **Anchor**: Ries 2011 (pivot or persevere); Doerr 2018 (outcomes, not activities).
+
 - [ ] Measure and register the rust-03 noise floors on hosted macOS and Linux
   - **ID**: rust-00-measure-noise-floors
   - **Details**: `xtask/src/noise_floor.rs` registers `rust-03` as `unmeasured` on both OSes, so `decide` uses the 1.10 ratio for every case. On a clean tree on each hosted OS, run `heavy-run --exclusive cargo xtask migration baseline --step rust-03 --python "$PWD/.venv/bin/python" --out <new-file>` twice, then `cargo xtask migration noise-floor --baseline <file>` on each record. Register the result as `Floor::Measured` with its method and record (run id, source revision), per docs/rust-migration.md "Noise floors and normalization rules".
