@@ -413,7 +413,7 @@ def remove(name: str, purge_data: bool = False) -> dict[str, int]:
     lock = _lock()
     if name not in lock["plugins"]:
         raise PluginError(f"plugin {name} is not installed (see `careerbrew plugin list`)")
-    dependents = [p["name"] for p in installed() if (p["manifest"].get("extends") == name)]
+    dependents = [p["name"] for p in installed(check=False) if (p["manifest"].get("extends") == name)]
     if dependents:
         raise PluginError(f"plugin {name} is extended by {dependents}; remove those first")
     _migrate_legacy_commands(name, lock)
@@ -471,12 +471,22 @@ def refresh() -> list[str]:
     return order
 
 
-def installed(*, read_root: Path | None = None) -> list[dict[str, Any]]:
+def installed(*, read_root: Path | None = None, check: bool = True) -> list[dict[str, Any]]:
+    """Every installed plugin. Each manifest is re-checked with `validate_manifest` (rust-07c).
+
+    A manifest that no longer passes is refused with a fix line, never used: dropping it
+    quietly could also drop a stricter policy. `check=False` is only for `remove`.
+    """
     out = []
     lock = _lock() if read_root is None else store.read_json(read_root / "plugins.lock.json", {"plugins": {}}, create_key=False)
     for name, entry in sorted(lock["plugins"].items()):
         root = (plugins_dir() if read_root is None else read_root / "plugins") / name
         manifest = store.read_yaml(root / MANIFEST, {}, create_key=read_root is None) or {}
+        if check:
+            try:
+                validate_manifest(manifest, root)
+            except PluginError as e:
+                raise PluginError(f"installed plugin {name} has an invalid manifest: {e} (fix: `careerbrew plugin add <its folder>` again, or `careerbrew plugin remove {name}`)") from e
         terms = manifest.get("sensitive_terms")
         out.append(
             {

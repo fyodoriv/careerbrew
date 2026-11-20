@@ -123,6 +123,7 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Success**: both tests pass; no existing test changes.
   - **Pivot**: if re-checking installed manifests refuses a manifest users already have, warn instead of refuse and record it.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM).
+  - **Progress** (2026-11-20): both items done on branch `refactor/rust-07c-leftovers`: `plugins.installed()` re-checks each manifest and refuses an invalid one with a fix line (`remove` skips the check); `mcp_check.check` now probes with `check_facts` and decides with the pure `check_rows` (`tests/unit/test_rust07c_leftovers.py`). Pending: hosted CI.
 
 - [ ] Rust migration: Port plugin, machine and account setup
   - **ID**: rust-07
