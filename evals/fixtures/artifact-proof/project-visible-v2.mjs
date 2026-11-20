@@ -105,6 +105,11 @@ async function project(browser, html, htmlBytes = Buffer.from(html, 'utf8')) {
           : /\/\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?%?)\s*\)$/i).exec(color);
         return alpha !== null && Number.parseFloat(alpha[1]) === 0;
       };
+      const textPaint = (element) => {
+        const style = getComputedStyle(element);
+        const fill = style.getPropertyValue('-webkit-text-fill-color');
+        return fill && fill !== 'currentcolor' ? fill : style.color;
+      };
       for (const metadata of document.body.querySelectorAll('script,style,template')) {
         if (visible(metadata)) return reject('Unsupported rendered metadata');
       }
@@ -131,8 +136,7 @@ async function project(browser, html, htmlBytes = Buffer.from(html, 'utf8')) {
       const textVisible = (node) => {
         const parent = node.parentElement;
         if (!parent || !visible(parent)) return false;
-        const color = getComputedStyle(parent).color;
-        if (transparentText(color)) return false;
+        if (transparentText(textPaint(parent))) return false;
         const range = document.createRange();
         range.selectNodeContents(node);
         return [...range.getClientRects()].some((rect) => rect.width > 0 && rect.height > 0);
@@ -162,8 +166,7 @@ async function project(browser, html, htmlBytes = Buffer.from(html, 'utf8')) {
         for (let parent = node.parentElement; parent; parent = parent.parentElement) {
           if (Number(getComputedStyle(parent).opacity) === 0) opacityHidden = true;
         }
-        const color = getComputedStyle(node.parentElement).color;
-        const transparent = transparentText(color);
+        const transparent = transparentText(textPaint(node.parentElement));
         const range = document.createRange();
         range.selectNodeContents(node);
         const hasBox = [...range.getClientRects()].some((rect) => rect.width > 0 && rect.height > 0);

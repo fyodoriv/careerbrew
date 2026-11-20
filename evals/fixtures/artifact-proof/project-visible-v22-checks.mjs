@@ -10,7 +10,7 @@ const directory = dirname(fileURLToPath(import.meta.url));
 const projector = join(directory, 'project-visible-v2.mjs');
 const previousDriver = join(directory, 'project-visible-v21-checks.mjs');
 const RED_SOURCE = '1e2404527edc5b8f34a623d1ada8c76ca6df5e93b4a1fd4279675656de4bfbf7';
-const PREVIOUS_DRIVER = 'aa7990ff7d990b10f3035cc4666a081e58c08a77617c9087a0f12b97a96d3b17';
+const PREVIOUS_DRIVER = '94e2fce633212063710d8ae44243ace138678d6a0ca0d6d678cbcffa81ccbae4';
 const NEW_CASES = '5fc69da4f85b4f61e832319270253f5cb9f8d14954ddfd81e25d1d8f2d18471f';
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const args = process.argv.slice(2);

@@ -10,7 +10,7 @@ const directory = dirname(fileURLToPath(import.meta.url));
 const projector = join(directory, 'project-visible-v2.mjs');
 const ORIGINAL_SOURCE = '749ba33c4e3a9435184ba2378a250d60e1476c85d51cd0ce4408407897061e41';
 const ORIGINAL_CASES = '692f0bf3c4dbb3ef8a1fedc4cd4000415eb0b3977acc21116fd82c381a1444c1';
-const NEW_CASES = '8772e0c7462733126229624c8da5244f2bad8fb3f01bb8b0c9af4eeed1c0cdcb';
+const NEW_CASES = '7c95cebf0b4531fa2363a74bb4e23f844529fdb59cfe66e9ddf0af756d22c9d5';
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const args = process.argv.slice(2);
 assert.equal(args.length, 4);

@@ -105,4 +105,6 @@ legacy, modern and percentage-zero forms. The repaired projector and its new
 case hash still need the registered harness and fresh independent review; the
 old receipts do not qualify this change. Opaque legacy `rgb()` controls now keep
 color channels distinct from `rgba()` alpha, and V2.2 pins the repaired V2.1
-driver's current hash so its compatibility run can execute.
+driver's current hash so its compatibility run can execute. The projector also
+checks the effective computed `-webkit-text-fill-color`; zero-alpha fill hides
+text even with opaque `color`, while opaque fill stays visible.
