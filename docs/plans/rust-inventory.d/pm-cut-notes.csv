@@ -10,9 +10,9 @@ tests/unit/test_issue_373_portability.py,port,rust-27,Port synthetic alternate-t
 web/e2e/comfort-geometry.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 web/e2e/comfort-health-boundary.ts,keep-ui,,Keep the test-scoped exact source-health request predicate in TypeScript
 web/e2e/comfort-paint.ts,keep-ui,,Keep the browser-page scoped actual-paint adapter in TypeScript
-web/e2e/comfort-paint.spec.ts,keep-ui,,Keep fixed and actual paint composition controls in TypeScript
-web/e2e/comfort-tag.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
-web/e2e/comfort-targets.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/issue373/comfort-paint.spec.ts,keep-ui,,Keep fixed and actual paint composition controls in TypeScript
+web/issue373/comfort-tag.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
+web/issue373/comfort-targets.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 web/issue373/pm-cut-normal.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 web/issue373/pm-cut.spec.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27
 web/playwright.issue373.config.ts,keep-ui,,Keep UI/browser code in TypeScript; migrate embedded backend launch/probe/seed or generated shell dependencies via rust-25/rust-27

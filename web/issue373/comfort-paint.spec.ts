@@ -1,6 +1,6 @@
 import { expect } from "@playwright/test";
-import { MODES, open, record, state, test } from "./comfort-geometry";
-import { measurePaint } from "./comfort-paint";
+import { MODES, open, record, state, test } from "../e2e/comfort-geometry";
+import { measurePaint } from "../e2e/comfort-paint";
 
 const CONTROLS = [
   { text: "fixed simple pass", verdict: "pass", min: 20.9, max: 21.1 },

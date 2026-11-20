@@ -18,8 +18,6 @@ export default defineConfig({
   // with --depth=1, which makes the checkout shallow (tests/unit/test_hosted_ci.py, docs/ci.md).
   captureGitInfo: { commit: false, diff: false },
   testDir: "./e2e",
-  // These crowded-state cases run through US-59 with their owned real-app fixture.
-  testIgnore: ["**/comfort-targets.spec.ts", "**/comfort-tag.spec.ts", "**/comfort-paint.spec.ts"],
   outputDir: OUT,
   fullyParallel: false,
   workers: 1,

@@ -10,7 +10,7 @@ const scenarios = mode === "dates"
   ? ["ascii", "unicode", "legacy-missing", "legacy-invalid", "legacy-naive", "legacy-unavailable"]
   : [mode === "primary" ? "ascii" : "crowded"];
 export default defineConfig({
-  testDir: ["geometry", "paint"].includes(mode) ? "./e2e" : "./issue373",
+  testDir: "./issue373",
   testMatch: mode === "geometry" ? ["comfort-targets.spec.ts", "comfort-tag.spec.ts"] : mode === "paint" ? "comfort-paint.spec.ts" : "pm-cut.spec.ts",
   outputDir: `${run}/playwright`, preserveOutput: "always",
   workers: 1, fullyParallel: false, retries: 0,

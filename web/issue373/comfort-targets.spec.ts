@@ -1,5 +1,5 @@
 import { expect } from "@playwright/test";
-import { MODES, geometry, open, preserveFold, record, state, test } from "./comfort-geometry";
+import { MODES, geometry, open, preserveFold, record, state, test } from "../e2e/comfort-geometry";
 
 for (const mode of MODES) {
     test(`comfort targets preserves complete and unknown PM geometry (${mode.id})`, async ({ page, proof }, info) => {
