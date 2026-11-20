@@ -99,7 +99,10 @@ async function project(browser, html, htmlBytes = Buffer.from(html, 'utf8')) {
       const visible = (element) => element.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true, contentVisibilityAuto: true });
       const transparentText = (color) => {
         if (color === 'transparent') return true;
-        const alpha = /(?:\/|,)\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?%?)\s*\)$/i.exec(color);
+        // A legacy rgb() channel is not alpha; only rgba() uses a final comma.
+        const alpha = (/^rgba\(/i.test(color)
+          ? /,\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?%?)\s*\)$/i
+          : /\/\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?%?)\s*\)$/i).exec(color);
         return alpha !== null && Number.parseFloat(alpha[1]) === 0;
       };
       for (const metadata of document.body.querySelectorAll('script,style,template')) {

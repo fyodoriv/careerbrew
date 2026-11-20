@@ -103,4 +103,6 @@ the legacy-only transparency predicate. Four V2.1 controls now cover zero and
 opaque `oklch` and `color(srgb)` forms. One computed-final-alpha parser handles
 legacy, modern and percentage-zero forms. The repaired projector and its new
 case hash still need the registered harness and fresh independent review; the
-old receipts do not qualify this change.
+old receipts do not qualify this change. Opaque legacy `rgb()` controls now keep
+color channels distinct from `rgba()` alpha, and V2.2 pins the repaired V2.1
+driver's current hash so its compatibility run can execute.

@@ -23,7 +23,10 @@
         { "html": "<!doctype html><html><body><p>Ordinary visible.</p><div style=\"color:oklch(0.5 0.1 20 / 0)\">HIDDEN_OKLCH</div><p>After visible.</p></body></html>", "expected": "Ordinary visible.\n\nAfter visible.\n" },
         { "html": "<!doctype html><html><body><p>Ordinary visible.</p><div style=\"color:color(srgb 1 0 0 / 0)\">HIDDEN_COLOR</div><p>After visible.</p></body></html>", "expected": "Ordinary visible.\n\nAfter visible.\n" },
         { "html": "<!doctype html><html><body><p>Ordinary visible.</p><div style=\"color:oklch(0.5 0.1 20 / 1)\">OPAQUE_OKLCH</div><p>After visible.</p></body></html>", "expected": "Ordinary visible.\n\nOPAQUE_OKLCH\n\nAfter visible.\n" },
-        { "html": "<!doctype html><html><body><p>Ordinary visible.</p><div style=\"color:color(srgb 1 0 0 / 1)\">OPAQUE_COLOR</div><p>After visible.</p></body></html>", "expected": "Ordinary visible.\n\nOPAQUE_COLOR\n\nAfter visible.\n" }
+        { "html": "<!doctype html><html><body><p>Ordinary visible.</p><div style=\"color:color(srgb 1 0 0 / 1)\">OPAQUE_COLOR</div><p>After visible.</p></body></html>", "expected": "Ordinary visible.\n\nOPAQUE_COLOR\n\nAfter visible.\n" },
+        { "html": "<!doctype html><html><body><p>Ordinary visible.</p><div style=\"color:rgb(255, 255, 0)\">OPAQUE_YELLOW</div><p>After visible.</p></body></html>", "expected": "Ordinary visible.\n\nOPAQUE_YELLOW\n\nAfter visible.\n" },
+        { "html": "<!doctype html><html><body><p>Ordinary visible.</p><div style=\"color:rgb(0, 0, 0)\">OPAQUE_BLACK</div><p>After visible.</p></body></html>", "expected": "Ordinary visible.\n\nOPAQUE_BLACK\n\nAfter visible.\n" },
+        { "html": "<!doctype html><html><body><p>Ordinary visible.</p><div style=\"color:rgba(0, 0, 0, 0)\">HIDDEN_RGBA</div><p>After visible.</p></body></html>", "expected": "Ordinary visible.\n\nAfter visible.\n" }
       ]
     },
     {
