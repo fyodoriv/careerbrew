@@ -1361,7 +1361,11 @@ Case folding and word splits depend on this table.
   `plugins.validate_manifest_data`, `merge_policy`, `refresh_order`;
   `machine.readiness_rows`, `cloud_service`, `per_user`, `guard_decision`,
   `suggest_decision`; `msauth.classify_poll`, `classify_refresh`. The old
-  names probe, then call them. `mcp_check.check_rows` is not split yet.
+  names probe, then call them.
+- **Slice `rust-07c` (preparation):** `mcp_check.check_rows` decides over
+  facts from `check_facts`; `plugins.installed()` re-checks every installed
+  manifest with `validate_manifest` and refuses an invalid one (`remove` skips
+  the check so the owner can still uninstall it).
 
 ### rust-08: Port HTTP sources, calendar and mail
 

@@ -196,6 +196,7 @@ A plugin's `commands/` folder is the source of truth for its slash commands, nev
 - `plugin add` and `careerbrew plugin refresh` declare the exact installed canonical command files in a private Agentfile under the data root and run agentbrew from that ownership scope. Agentbrew emits both host formats; no second command copy is created.
 - To change a command, edit it in the plugin's source, then run `careerbrew plugin refresh`. Agentbrew must support individual command-file sources; missing or failed sync is an error, not success.
 - Do not edit the installed copy: the next refresh replaces it.
+- Every load re-checks the installed manifest with the same rules as `plugin add`. An invalid one stops the command with `installed plugin <name> has an invalid manifest`: run `careerbrew plugin add <its folder>` again, or `careerbrew plugin remove <name>`.
 - Do not copy a command by hand into `.claude/commands/`, `~/.claude/commands/`, or another agent's folder. A hand copy drifts from the plugin. One in `.claude/commands/` with the same name also blocks `plugin add`, because careerbrew never overwrites a command it does not own.
 - careerbrew's own commands follow the same rule: `commands/` in this repo is the source, and agentbrew deploys it from `Agentfile.yaml`.
 
