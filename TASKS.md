@@ -797,6 +797,26 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if the privacy scan blocks more than half of the lines, keep the manual carry and close this task.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Kohavi, Tang & Xu 2020 (one change per experiment).
 
+- [ ] Indie: close two ways an agent could work out an owner number
+  - **ID**: indie-owner-number-oracles
+  - **Details**: A review of PR 175 found two indirect reads. (1) `careerbrew indie measure <bet> --value N` answers KEEP, WATCH, or PIVOT to an agent, so about 20 typed values find the bet's success and pivot lines (each one also records a false reading). (2) `careerbrew indie income --amount` and `indie goal --monthly` have no owner gate, so an agent that records a known amount reads the target from the percentage. Both are only asked of agents in `actions.AGENT_NOTES` today. Fix: require `--yes` ("the owner said so") for a typed reading, an income record, and a goal change; add them to `actions.CONFIRM`; keep the stored measure command free. A new flag changes the action catalog, so follow the frozen-reference gotcha (a successor fixture pair and both pins).
+  - **Files**: src/careerbrew/cli.py; src/careerbrew/actions.py; tests/unit/test_indie.py; skills/careerbrew-indie/SKILL.md; commands/indie.md; xtask/tests/fixtures/capture/
+  - **Hypothesis**: with the gate, an agent call with no `--yes` is refused, so the count of owner numbers an agent can work out with these three commands falls from 3 (success line, pivot line, income target) to 0.
+  - **Measurement**: `gh pr checks <pr>` (new cases in `tests/unit/test_indie.py`: each of the three calls with no `--yes` exits 2 and writes nothing).
+  - **Success**: 3 of 3 calls refused.
+  - **Pivot**: if the web Actions form cannot pass the confirm as `--yes`, refuse by caller (`may_show_business()`) instead.
+  - **Anchor**: Saltzer & Schroeder 1975 (complete mediation).
+
+- [ ] Indie: the asks trend counts an adapter week with no day record as zero asks
+  - **ID**: indie-asks-trend-adapter-week
+  - **Details**: With `indie_agent_time_command` set, a week can have agent-hours and no day rows. `indie.review` then shows that week's `asks_per_outcome` as no-data, but the trend's `cost()` counts it as 0 asks, so the trend reads lower than the weeks do. Count a week in the asks trend only when it has day rows.
+  - **Files**: src/careerbrew/indie.py; tests/unit/test_indie.py
+  - **Hypothesis**: the asks trend equals total asks over total outcomes of the weeks that have day rows; the gap to the per-week numbers falls from 1 case to 0.
+  - **Measurement**: `gh pr checks <pr>` (a new case in `tests/unit/test_indie.py` with adapter hours and one week without day rows).
+  - **Success**: the case passes.
+  - **Pivot**: none needed; a wrong trend is a bug, not an approach.
+  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM).
+
 - [ ] Indie: an income measure command for a product bet
   - **ID**: indie-income-measure
   - **Blocked**: owner step: needs the owner's yes to read a payment or sponsor total, and the owner's own credential typed with `careerbrew secret set`

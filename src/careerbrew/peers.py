@@ -85,10 +85,14 @@ def read_lessons(side: str) -> dict[str, Any]:
     return {"own": own, "verdicts": verdicts, "mark": mark}
 
 
+def _known(mark: str) -> str:
+    """The marker when it names a commit here, else "": an unknown marker hides nothing, so the window applies."""
+    return mark if mark and indie.git_out(root(), "rev-parse", "--verify", "--quiet", f"{mark}^{{commit}}") else ""
+
+
 def _peer_commits(side: str, mark: str) -> list[str]:
     """Short ids of the commits that changed the peer's sources since this side's marker (30 days with no marker)."""
-    if mark and not indie.git_out(root(), "rev-parse", "--verify", "--quiet", f"{mark}^{{commit}}"):
-        mark = ""  # an unknown marker hides nothing: fall back to the window
+    mark = _known(mark)
     span = [f"{mark}..HEAD"] if mark else [f"--since={(calendar.now() - timedelta(days=30)).isoformat()}", "HEAD"]
     out = indie.git_out(root(), "log", "--format=%h", *span, "--", *SIDES[PEER[side]]["sources"])
     return out.split()
@@ -206,6 +210,7 @@ def status(side: str, at: datetime | None = None) -> dict[str, Any]:
     """What `side` should look at before it runs: the peer's unreviewed lessons and source commits, and both sides' numbers."""
     peer = PEER[_side(side)]
     mine, theirs = read_lessons(side), read_lessons(peer)
+    mine["mark"] = _known(mine["mark"])
     unreviewed = [k for k in theirs["own"] if k not in mine["verdicts"]]
     commits = _peer_commits(side, mine["mark"])
     cur = open_experiment(side)
