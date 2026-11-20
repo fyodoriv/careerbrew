@@ -101,7 +101,7 @@ fn a_planted_wrong_vector_fails_naming_its_case() {
 fn a_wrong_vector_in_a_set_the_step_does_not_cover_is_refused() {
     let scratch = tempfile::tempdir().unwrap();
     let out = scratch.path().join("verify.json");
-    let run = verify(&out, &["--test-wrong-vector", "approvals"]);
+    let run = verify(&out, &["--test-wrong-vector", "no-such-set"]);
     assert_eq!(run.status.code(), Some(1));
     assert!(!out.exists());
     assert!(String::from_utf8_lossy(&run.stderr).contains("names no vector set"));
