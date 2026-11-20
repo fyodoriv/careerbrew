@@ -1397,8 +1397,10 @@ the crate until the rust-05 and rust-07 closure is native, so
   - Gap: no lock port yet (`.<name>.lock`), and no mixed Python and Rust
     writer run under one lock.
   - Gap: Python's `write_text_if_changed` rewrites only on `VaultError` and
-    stops on any other read error (for example invalid UTF-8). The Rust
-    version rewrites on every read error. Narrow it before any caller uses it.
+    stops on other read or decode errors (for example invalid UTF-8). Rust
+    rewrites after codec failures and compares decoded bytes without UTF-8
+    validation; filesystem errors other than `NotFound` propagate. Narrow this
+    before any caller uses it.
   - Next: `rust-05e`, the native advisory lock and the 1,000-operation mixed
     writer run from the gate.
 
