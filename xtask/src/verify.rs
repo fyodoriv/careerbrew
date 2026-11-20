@@ -1149,6 +1149,37 @@ pub fn run(
     Ok(record)
 }
 
+/// The contract fields `decide` reads, added to a vector-driver record the
+/// same way `depvec` writes them: one check per case, the violation counts
+/// (`contract` counts failed cases, the rest are 0), and no missing
+/// contracts, since a vector step reaches no CLI contract.
+pub fn vector_contract(record: &mut Value) -> Result<(), String> {
+    let cases = record["cases"]
+        .as_array()
+        .ok_or("the vector-driver record has no cases")?;
+    let checks: Vec<Value> = cases
+        .iter()
+        .map(|case| json!({"id": case["case"], "passed": case["passed"] == true}))
+        .collect();
+    let failed = checks
+        .iter()
+        .filter(|check| check["passed"] != true)
+        .count();
+    let violations: serde_json::Map<String, Value> = decide::VIOLATIONS
+        .iter()
+        .map(|name| {
+            let count = if *name == "contract" { failed } else { 0 };
+            ((*name).to_owned(), json!(count))
+        })
+        .collect();
+    record["contracts"] = json!(["vector"]);
+    record["checks"] = json!(checks);
+    record["violations"] = Value::Object(violations);
+    record["unobserved_violations"] = json!(UNOBSERVED);
+    record["missing_contracts"] = json!(MISSING_CONTRACTS);
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1185,35 +1216,4 @@ mod tests {
             );
         }
     }
-}
-
-/// The contract fields `decide` reads, added to a vector-driver record the
-/// same way `depvec` writes them: one check per case, the violation counts
-/// (`contract` counts failed cases, the rest are 0), and no missing
-/// contracts, since a vector step reaches no CLI contract.
-pub fn vector_contract(record: &mut Value) -> Result<(), String> {
-    let cases = record["cases"]
-        .as_array()
-        .ok_or("the vector-driver record has no cases")?;
-    let checks: Vec<Value> = cases
-        .iter()
-        .map(|case| json!({"id": case["case"], "passed": case["passed"] == true}))
-        .collect();
-    let failed = checks
-        .iter()
-        .filter(|check| check["passed"] != true)
-        .count();
-    let violations: serde_json::Map<String, Value> = decide::VIOLATIONS
-        .iter()
-        .map(|name| {
-            let count = if *name == "contract" { failed } else { 0 };
-            ((*name).to_owned(), json!(count))
-        })
-        .collect();
-    record["contracts"] = json!(["vector"]);
-    record["checks"] = json!(checks);
-    record["violations"] = Value::Object(violations);
-    record["unobserved_violations"] = json!(UNOBSERVED);
-    record["missing_contracts"] = json!(MISSING_CONTRACTS);
-    Ok(())
 }
