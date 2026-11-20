@@ -202,7 +202,7 @@ fn sources_sha256(root: &Path) -> Result<String, String> {
         "xtask/src/capture_http.rs",
         "xtask/tests/fixtures/capture/http-v1.json",
         "xtask/tests/fixtures/capture/http_driver.py",
-        "xtask/tests/fixtures/capture/http-reference-telemetry-v4.json",
+        "xtask/tests/fixtures/capture/http-reference-indie-v5.json",
         DATA_DRIVER,
         DATA_FIXTURE,
     ] {

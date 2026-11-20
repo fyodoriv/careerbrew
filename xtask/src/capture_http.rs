@@ -18,9 +18,9 @@ const OBSERVER: &str = include_str!("../tests/fixtures/capture/observer/sitecust
 const HISTORICAL_REFERENCE: &str = include_str!("../tests/fixtures/capture/http-reference-v1.json");
 const HISTORICAL_REFERENCE_SHA256: &str =
     "e58db0db976b3205bc206437141e3877a440a3a8a46f9da713e4a215fdb9eaf3";
-const REFERENCE: &str = include_str!("../tests/fixtures/capture/http-reference-telemetry-v4.json");
-const REFERENCE_SHA256: &str = "52dc5c7914da8fd01a76e6694c26797aac358e6e7cc5a2ff625a28141cfd1419";
-const ACTIONS: &str = include_str!("../tests/fixtures/capture/actions-reference-telemetry-v4.json");
+const REFERENCE: &str = include_str!("../tests/fixtures/capture/http-reference-indie-v5.json");
+const REFERENCE_SHA256: &str = "6f48e7a934d5d9feb008638eb4443d9a9166528e03058fd61e774cdc90e4e4ba";
+const ACTIONS: &str = include_str!("../tests/fixtures/capture/actions-reference-indie-v5.json");
 const LIMIT: usize = 4 * 1024 * 1024;
 
 fn live(check: &mut dyn FnMut() -> Result<bool, String>) -> Result<(), String> {
@@ -720,7 +720,7 @@ fn run_mode(root: &Path, python: &Path, output: &Path, fault: &str) -> Result<()
             .map_err(|_| "HTTP reference missing")?
             != HISTORICAL_REFERENCE.as_bytes()
         || shared::digest(REFERENCE.as_bytes()) != REFERENCE_SHA256
-        || fs::read(root.join("xtask/tests/fixtures/capture/http-reference-telemetry-v4.json"))
+        || fs::read(root.join("xtask/tests/fixtures/capture/http-reference-indie-v5.json"))
             .map_err(|_| "current HTTP reference missing")?
             != REFERENCE.as_bytes()
     {
@@ -761,6 +761,6 @@ fn run_mode(root: &Path, python: &Path, output: &Path, fault: &str) -> Result<()
     }
     source_revision.push_str(out.trim());
     let executable = std::env::current_exe().map_err(|_| "HTTP capture executable missing")?;
-    let receipt = json!({"schema":fixture["schema"],"scope":"Python make_server handler oracle; no CLI startup or warmer qualification","qualification":"bounded-handler-contract" ,"reference_sha256":REFERENCE_SHA256,"reference_revision":"telemetry-v4","historical_reference_sha256":HISTORICAL_REFERENCE_SHA256,"source_revision":source_revision,"source_revision_scope":"HEAD identity only; actual implementation files are bound by sources hashes","sources":sources,"python":identity,"capture_executable_sha256":shared::digest(&fs::read(executable).map_err(|_| "cannot hash HTTP capture executable")?),"fixture_sha256":shared::digest(CASE.as_bytes()),"driver_sha256":shared::digest(DRIVER.as_bytes()),"observer_sha256":shared::digest(OBSERVER.as_bytes()),"semantic_projection":projection(&first),"executions":[first,second]});
+    let receipt = json!({"schema":fixture["schema"],"scope":"Python make_server handler oracle; no CLI startup or warmer qualification","qualification":"bounded-handler-contract" ,"reference_sha256":REFERENCE_SHA256,"reference_revision":"indie-v5","historical_reference_sha256":HISTORICAL_REFERENCE_SHA256,"source_revision":source_revision,"source_revision_scope":"HEAD identity only; actual implementation files are bound by sources hashes","sources":sources,"python":identity,"capture_executable_sha256":shared::digest(&fs::read(executable).map_err(|_| "cannot hash HTTP capture executable")?),"fixture_sha256":shared::digest(CASE.as_bytes()),"driver_sha256":shared::digest(DRIVER.as_bytes()),"observer_sha256":shared::digest(OBSERVER.as_bytes()),"semantic_projection":projection(&first),"executions":[first,second]});
     shared::write_receipt(&receipt, output)
 }

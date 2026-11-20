@@ -4,6 +4,7 @@ agent-command,commands/careerbrew-corporate.md,"commands/careerbrew-corporate.md
 agent-command,commands/careerbrew-grind.md,"commands/careerbrew-grind.md",rust-27
 agent-command,commands/careerbrew-learn.md,"commands/careerbrew-learn.md",rust-27
 agent-command,commands/careerbrew.md,"commands/careerbrew.md",rust-27
+agent-command,commands/indie.md,"commands/indie.md",rust-27
 agent-command,commands/work.md,"commands/work.md",rust-27
 agent-hook,Agentfile.yaml,"command: 'f=""$HOME/apps/careerbrew/hooks/block-local-tests.sh""; [ ! -f ""$f"" ] || bash ""$f""'",rust-27
 agent-skill,skills/careerbrew-best-practices/SKILL.md,"skills/careerbrew-best-practices/SKILL.md",rust-27
@@ -15,6 +16,7 @@ agent-skill,skills/careerbrew-corporate-setup/SKILL.md,"skills/careerbrew-corpor
 agent-skill,skills/careerbrew-day-planner/SKILL.md,"skills/careerbrew-day-planner/SKILL.md",rust-27
 agent-skill,skills/careerbrew-day-watch/SKILL.md,"skills/careerbrew-day-watch/SKILL.md",rust-27
 agent-skill,skills/careerbrew-inbox-triage/SKILL.md,"skills/careerbrew-inbox-triage/SKILL.md",rust-27
+agent-skill,skills/careerbrew-indie/SKILL.md,"skills/careerbrew-indie/SKILL.md",rust-27
 agent-skill,skills/careerbrew-interview-coach/SKILL.md,"skills/careerbrew-interview-coach/SKILL.md",rust-27
 agent-skill,skills/careerbrew-interview-drill/SKILL.md,"skills/careerbrew-interview-drill/SKILL.md",rust-27
 agent-skill,skills/careerbrew-job-hunt/SKILL.md,"skills/careerbrew-job-hunt/SKILL.md",rust-27
