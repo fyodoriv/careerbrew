@@ -6,7 +6,7 @@ import shlex
 import pytest
 import yaml
 
-from careerbrew import cli, plugins
+from careerbrew import cli, config, plugins
 from careerbrew.work import review_ask
 from careerbrew.workday import gate, questions, review_cycle, watch
 
@@ -102,3 +102,17 @@ def test_existing_manual_question_and_conflicting_rows(inventory):
     inventory(READY)
     (only,) = questions.open_records()
     assert only["id"] == manual["id"]
+
+
+def test_owner_settings_step_offers_and_rechecks(tmp_path, home, monkeypatch):
+    monkeypatch.setenv("CAREERBREW_NOW", "2026-11-04T15:00+00:00")
+    cli.main(["init"])
+    data = tmp_path / "owner-inventory.json"
+    data.write_text(json.dumps({"complete": True, "pull_requests": [READY]}))
+    config.set_value("work_steps", json.dumps([{"step": "/owner-review", "review_ask_cycle": f"cat {shlex.quote(str(data))}"}]))
+    watch.run_pass()
+    (offer,) = questions.open_records()
+    assert offer["source"] == "owner"
+    monkeypatch.setattr(review_ask, "recheck_pr", lambda _, **__: ("closed", "reviewer requested"))
+    watch.run_pass()
+    assert questions.open_records() == []

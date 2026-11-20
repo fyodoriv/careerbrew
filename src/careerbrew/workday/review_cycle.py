@@ -15,6 +15,7 @@ from ..work import review_ask
 from . import questions, watch
 
 MAX_INVENTORY_BYTES = 256 * 1024
+GROUP_OWNER_ENV = "CAREERBREW_REVIEW_GROUP_OWNER"
 READY = {
     "owned": True,
     "open": True,
@@ -30,6 +31,10 @@ READY = {
 def _identity(url: str) -> str:
     ref = review_ask.recheck_pr_link(url)
     return f"https://{ref['host']}/{ref['owner']}/{ref['repo']}/pull/{ref['number']}".lower()
+
+
+def _question_source(step: dict[str, Any]) -> str:
+    return "owner" if step["from"] == "settings" else step["from"]
 
 
 def _stop_owned_group(process: subprocess.Popen[Any]) -> None:
@@ -53,7 +58,7 @@ def _inventory(command: str, seconds: float) -> list[Any]:
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
-            env={**os.environ, watch.SKIP_ENV: "skip"},
+            env={**os.environ, watch.SKIP_ENV: "skip", GROUP_OWNER_ENV: "1"},
             start_new_session=True,
         ) as process,
         selectors.DefaultSelector() as selector,
@@ -101,6 +106,7 @@ def _check_one(question: dict[str, Any], deadline: float) -> tuple[str, str]:
 def run(step: dict[str, Any], seconds: float) -> bool:
     """Close verified review questions and offer at most one question per eligible PR."""
     deadline = time.monotonic() + seconds
+    source = _question_source(step)
     existing = set()
     for question in questions.open_records():
         recheck = question["recheck"]
@@ -110,7 +116,7 @@ def run(step: dict[str, Any], seconds: float) -> bool:
             existing.add(_identity(recheck.partition(" ")[2]))
         except ValueError:
             continue
-        if question["step"] == step["step"] and question["source"] == step["from"]:
+        if question["step"] == step["step"] and question["source"] == source:
             state, why = _check_one(question, deadline)
             if why == "review recheck: deadline exceeded":
                 return False
@@ -141,5 +147,5 @@ def run(step: dict[str, Any], seconds: float) -> bool:
             return False
         text = f"Draft a review ask for {url}?"
         if ready and url not in existing and len(text) <= questions.MAX_TEXT:
-            questions.add(step["step"], text, recheck=f"careerbrew:review-pr {url}", source=step["from"])
+            questions.add(step["step"], text, recheck=f"careerbrew:review-pr {url}", source=source)
     return True

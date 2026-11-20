@@ -14,6 +14,7 @@ import time
 from typing import Any
 
 REPO = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_.-]+")
+GROUP_OWNER_ENV = "CAREERBREW_REVIEW_GROUP_OWNER"
 QUERY = """
 query($owner: String!, $repo: String!, $cursor: String) {
   viewer { id }
@@ -98,12 +99,15 @@ MAX_OUTPUT_BYTES = 256 * 1024
 MAX_PAGES = 20
 
 
-def stop_owned_group(process: subprocess.Popen[Any]) -> None:
-    """Stop the request-scoped process group and reap its direct child."""
-    try:
-        os.killpg(process.pid, signal.SIGKILL)
-    except ProcessLookupError:
-        pass
+def stop_owned_group(process: subprocess.Popen[Any], *, outer_owned: bool) -> None:
+    """Stop this request and reap its direct child; the outer owner kills a shared group."""
+    if outer_owned:
+        process.kill()
+    else:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
     process.wait()
 
 
@@ -111,13 +115,14 @@ def fetch_page(owner: str, repo: str, cursor: str | None, deadline: float) -> di
     argv = ["gh", "api", "--hostname", "github.com", "graphql", "-f", f"query={QUERY}", "-f", f"owner={owner}", "-f", f"repo={repo}"]
     if cursor is not None:
         argv += ["-f", f"cursor={cursor}"]
+    outer_owned = os.environ.get(GROUP_OWNER_ENV) == "1"
     process = subprocess.Popen(  # noqa: S603 (fixed read-only GitHub query)
         argv,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         env={**os.environ, "GH_PROMPT_DISABLED": "1"},
-        start_new_session=True,
+        start_new_session=not outer_owned,
     )
     try:
         assert process.stdout is not None
@@ -140,7 +145,7 @@ def fetch_page(owner: str, repo: str, cursor: str | None, deadline: float) -> di
     finally:
         if process.stdout is not None:
             process.stdout.close()
-        stop_owned_group(process)
+        stop_owned_group(process, outer_owned=outer_owned)
 
 
 def _collect_pages(owner: str, repo: str, deadline: float) -> tuple[dict[str, Any], str]:
