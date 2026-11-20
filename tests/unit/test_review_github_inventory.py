@@ -281,6 +281,47 @@ def test_inventory_rejects_oversized_page(tmp_path, monkeypatch):
         fetch("example", "review-demo", None, time.monotonic() + 5)
 
 
+def test_group_kill_eperm_reaps_only_an_exited_leader(monkeypatch):
+    stop = run_path(str(ROOT / "scripts/review-github-inventory.py"))["stop_owned_group"]
+
+    class Child:
+        pid = 424242
+
+        def __init__(self, code):
+            self.code = code
+            self.waits = 0
+
+        def poll(self):
+            return self.code
+
+        def wait(self):
+            self.waits += 1
+            return self.code
+
+    reaped = Child(0)
+    calls = []
+
+    def zombie_group(*_args):
+        calls.append(1)
+        if len(calls) == 1:
+            raise PermissionError
+        raise ProcessLookupError
+
+    monkeypatch.setattr(stop.__globals__["os"], "killpg", zombie_group)
+    stop(reaped, outer_owned=False)
+    assert reaped.waits == 1 and len(calls) == 2
+
+    live = Child(None)
+
+    def live_group(*_args):
+        raise PermissionError
+
+    monkeypatch.setattr(stop.__globals__["os"], "killpg", live_group)
+    with pytest.raises(PermissionError):
+        stop(live, outer_owned=False)
+    assert live.waits == 0
+
+
 def test_paged_inventory_respects_page_limit(response, monkeypatch):
     import copy
     import time

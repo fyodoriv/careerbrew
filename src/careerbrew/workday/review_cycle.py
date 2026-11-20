@@ -43,6 +43,14 @@ def _stop_owned_group(process: subprocess.Popen[Any]) -> None:
         os.killpg(process.pid, signal.SIGKILL)
     except ProcessLookupError:
         pass
+    except PermissionError:
+        if process.poll() is None:
+            raise
+        # macOS can refuse a group whose leader is an unreaped zombie.
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
     process.wait()
 
 
