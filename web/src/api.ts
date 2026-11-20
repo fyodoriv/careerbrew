@@ -98,7 +98,14 @@ export interface RowDetail { title: string; task?: string; kind?: string; url: s
 // Issue #214: one owner-only note per PM update line (who benefits, what it should change, a checked result); never sent.
 export interface PmWhy { label: string; note: string }
 export interface PmCheck { rule: string; line: string; fix: string }  // issue #226: a content rule a line breaks, for the owner only
-export interface DayLogView extends InboxView { log: DayLog; markdown: string; pm: { subject: string; body: string; draft?: string; edited?: boolean; updated_at?: string; to: string; via: "slack" | "email"; slack_configured?: boolean; left_out?: string[]; why?: PmWhy[]; checks?: PmCheck[] }; history: string[] }
+export interface PmCutCandidate {
+  label: string;
+  aliases: { spelling: string; norm: string }[];
+  recorded_at: string | null;
+  report_day: string | null;
+  date_basis: "saved" | "report-day" | "unavailable";
+}
+export interface DayLogView extends InboxView { log: DayLog; markdown: string; pm: { subject: string; body: string; draft?: string; edited?: boolean; updated_at?: string; to: string; via: "slack" | "email"; slack_configured?: boolean; left_out?: string[]; cut_context?: { schema: 1; candidates: PmCutCandidate[] }; why?: PmWhy[]; checks?: PmCheck[] }; history: string[] }
 export interface Setting { key: string; value: unknown; source: string; default: unknown; help: string }
 // Issue #110: what you did on each row you report on since the last standup.
 // Issue #229: `extra` marks an action an agent passed (Slack, meetings, mail); `agent_written` a talking point an agent wrote.

@@ -81,6 +81,7 @@ embedded,tests/e2e/lib.sh,"cb config set serve_port ""$(""$ROOT/.venv/bin/python
 embedded,tests/e2e/lib.sh,"data_cat() { ""$ROOT/.venv/bin/python"" -c 'import sys; from pathlib import Path; from careerbrew import store; sys.stdout.write(store.read_text(Path(sys.argv[1])) or """")' ""$CAREERBREW_HOME/$1""; }",rust-27
 embedded,tests/e2e/lib.sh,"data_write() { ""$ROOT/.venv/bin/python"" -c 'import sys; from pathlib import Path; from careerbrew import store; store.write_text(Path(sys.argv[1]), sys.stdin.read())' ""$CAREERBREW_HOME/$1""; }",rust-27
 embedded,tests/e2e/lib.sh,"pid=""$(data_cat day/web.json 2>/dev/null | ""$ROOT/.venv/bin/python"" -c 'import json, sys; print(json.load(sys.stdin).get(""pid"", """"))' 2>/dev/null || true)""",rust-27
+embedded,tests/e2e/pm-cut-seed-and-serve.sh,"/bin/bash --noprofile --norc -c '",rust-27
 embedded,tests/e2e/us-04-strategy.sh,"dups=""$(cb jobs strategy --json | python3 -c 'import json,sys; t=json.load(sys.stdin)[""tiers""]; c=[r[""company""] for v in t.values() for r in v]; print(len(c)-len(set(c)))')""",rust-27
 embedded,tests/e2e/us-05-drill.sh,"crit=""$(cb drill next --json | python3 -c 'import json,sys; print(json.load(sys.stdin)[""rubric""])')""",rust-27
 embedded,tests/e2e/us-05-drill.sh,"item=""$(cb drill next --json | python3 -c 'import json,sys; print(json.load(sys.stdin)[""id""])')""",rust-27

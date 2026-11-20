@@ -4,12 +4,12 @@ node	day.handoff.item	rust-17	src/careerbrew/day/handoff.py	77
 node	day.handoff.load	rust-17	src/careerbrew/day/handoff.py	56
 node	day.handoff.path_for	rust-17	src/careerbrew/day/handoff.py	52
 node	day.handoff.replace_owned	rust-17	src/careerbrew/day/handoff.py	102
-node	day.log._pm_build	rust-17	src/careerbrew/day/log.py	519
+node	day.log._pm_build	rust-17	src/careerbrew/day/log.py	522
 node	day.log.build	rust-17	src/careerbrew/day/log.py	52
 node	day.log.path_for	rust-17	src/careerbrew/day/log.py	41
 node	day.log.pm_report	rust-17	src/careerbrew/day/log.py	257
-node	day.log.save	rust-17	src/careerbrew/day/log.py	708
-node	day.log.unlinked_refs	rust-17	src/careerbrew/day/log.py	622
+node	day.log.save	rust-17	src/careerbrew/day/log.py	711
+node	day.log.unlinked_refs	rust-17	src/careerbrew/day/log.py	625
 node	day.pm_learn._learn_sent	rust-17	src/careerbrew/day/pm_learn.py	241
 node	day.pm_learn._pm_sent_text	rust-17	src/careerbrew/day/pm_learn.py	190
 node	day.pm_learn._sent_lock	rust-17	src/careerbrew/day/pm_learn.py	91
@@ -31,11 +31,11 @@ node	day.watch.run_cycle	rust-17	src/careerbrew/day/watch.py	319
 node	day.watch.running	rust-17	src/careerbrew/day/watch.py	140
 node	day.watch.start	rust-17	src/careerbrew/day/watch.py	488
 node	day.watch.stop	rust-17	src/careerbrew/day/watch.py	531
-node	notify.remind	rust-14	src/careerbrew/notify.py	454
+node	notify.remind	rust-14	src/careerbrew/notify.py	680
 node	report.write	rust-24	src/careerbrew/report.py	248
 node	runs.work_day	rust-24	src/careerbrew/runs.py	175
 node	work.live.stop	rust-14	src/careerbrew/work/live.py	241
-node	work.sessions.request_wrap	rust-10	src/careerbrew/work/sessions.py	321
+node	work.sessions.request_wrap	rust-10	src/careerbrew/work/sessions.py	447
 node	workday.end._data	rust-16	src/careerbrew/workday/end.py	100
 node	workday.end._prs	rust-16	src/careerbrew/workday/end.py	147
 node	workday.end._remind	rust-16	src/careerbrew/workday/end.py	181
@@ -50,9 +50,9 @@ node	workday.end.write_handoff	rust-16	src/careerbrew/workday/end.py	164
 node	workday.gate.may_run	rust-16	src/careerbrew/workday/gate.py	48
 node	workday.gate.run_verify	rust-16	src/careerbrew/workday/gate.py	58
 node	workday.plan.build	rust-16	src/careerbrew/workday/plan.py	76
-node	workday.questions.check_one	rust-16	src/careerbrew/workday/questions.py	280
-node	workday.questions.close	rust-15	src/careerbrew/workday/questions.py	240
-node	workday.questions.open_records	rust-15	src/careerbrew/workday/questions.py	227
+node	workday.questions.check_one	rust-16	src/careerbrew/workday/questions.py	284
+node	workday.questions.close	rust-15	src/careerbrew/workday/questions.py	244
+node	workday.questions.open_records	rust-15	src/careerbrew/workday/questions.py	231
 node	workday.questions.record	rust-15	src/careerbrew/workday/questions.py	125
 node	workday.questions.save	rust-15	src/careerbrew/workday/questions.py	193
 node	workday.start.checkouts	rust-16	src/careerbrew/workday/start.py	145
@@ -129,9 +129,9 @@ cross	workday.plan.build	day.pm_promises.view	120	pm_promises.view(
 cross	day.pm_promises.reconcile	day.pm_learn._sent_lock	449	pm_learn._sent_lock(
 cross	day.pm_promises.reconcile	day.pm_learn._pm_sent_text	450	pm_learn._pm_sent_text(
 cross	day.pm_learn._learn_sent	day.pm_promises.record	255	pm_promises.record(
-cross	day.log.pm_report	day.pm_learn.rules	268	pm_learn.rules()
-cross	day.log.pm_report	day.pm_learn.remember	270	pm_learn.remember(
-cross	day.log._pm_build	day.pm_promises.report_lines	569	pm_promises.report_lines(
+cross	day.log.pm_report	day.pm_learn.rules	269	pm_learn.rules(history)
+cross	day.log.pm_report	day.pm_learn.remember	271	pm_learn.remember(
+cross	day.log._pm_build	day.pm_promises.report_lines	572	pm_promises.report_lines(
 local	workday.start.run	workday.start.checkouts	351	checkouts(
 local	workday.start.run	workday.start.refresh_one	354	refresh_one(
 local	workday.start.run	workday.start.preflight	356	preflight()
@@ -152,7 +152,7 @@ local	day.watch.run_cycle	day.watch._learn_sent	348	_learn_sent(
 local	day.watch._src_changes	day.watch.notify	258	notify(
 local	day.pm_learn.learn_sent	day.pm_learn._learn_sent	238	_learn_sent(
 local	day.pm_promises.reconcile	day.pm_promises.record	452	record(
-local	day.log.save	day.log.build	709	build(
+local	day.log.save	day.log.build	712	build(
 local	day.log.pm_report	day.log._pm_build	267	_pm_build(
 unresolved	day.watch.run_cycle	334	fn(day)	dispatch through SOURCES; the changes slot binds _src_changes at line 293
 unresolved	day.watch._rebuild	307	fn()	dispatch through rebuild steps; daylog.save is inside the log lambda at line 322

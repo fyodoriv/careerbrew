@@ -153,4 +153,41 @@ cd "$ROOT/web"
 out="$(env -u CAREERBREW_HOME -u CAREERBREW_NOW UV_OFFLINE=1 UV_NO_SYNC=1 UV_PYTHON_DOWNLOADS=never npm_config_offline=true npx --no-install --offline playwright test --reporter=line e2e/pm-copy.spec.ts 2>&1)" || { echo "$out"; fail "Copy update e2e"; }
 expect "$out" "13 passed" "Copy update: six existing cases and seven rich link and fallback cases"
 [ -s "$CAREERBREW_E2E_OUT/copy-update.png" ] || fail "screenshot of Copy update"
+# 8. The real editor clears a learned cut flag before saving (issue #373).
+# Keep the six Copy cases and their output unchanged. The second invocation
+# has its own server, data and Playwright result directory.
+copy_out="$CAREERBREW_E2E_OUT"
+browser_story
+pm_cut_world="$(cd "$SCRATCH" && pwd -P)/pm-cut-browser"
+(umask 077; mkdir "$pm_cut_world"; printf 'US-59 isolated PM cut fixture\n' > "$pm_cut_world/.owner")
+out="$(env -u CAREERBREW_HOME -u CAREERBREW_NOW CAREERBREW_PM_CUT_WORLD="$pm_cut_world" CAREERBREW_E2E_OUT="$copy_out/pm-cut" npx --no-install playwright test \
+  --config playwright.pm-cut.config.ts --reporter=line 2>&1)" || { echo "$out"; fail "PM cut editor e2e"; }
+expect "$out" "1 passed" "PM cut editor clears the flag before saving"
+# 9. Issue #407 geometry uses the crowded encrypted fixture and sole maintained
+# Playwright lifecycle. The outer story already occupies its heavy-run slot.
+cd "$ROOT"
+geometry_log="$SCRATCH/comfort-geometry.log"
+if ! bash tests/safety/run_issue_373_ui.sh geometry > "$geometry_log" 2>&1; then
+  cat "$geometry_log"
+  geometry_root="$(head -1 "$geometry_log" | cut -d' ' -f4-)"
+  for stream in stdout stderr; do
+    [ ! -f "$geometry_root/playwright.$stream" ] || cat "$geometry_root/playwright.$stream"
+  done
+  fail "crowded target and plan-tag geometry"
+fi
+geometry_root="$(head -1 "$geometry_log" | cut -d' ' -f4-)"
+expect "$(cat "$geometry_root/playwright.stdout")" "8 passed" "crowded geometry: targets and tags in four modes"
+# 10. Paint evidence uses real screenshots for gradients and group opacity.
+# Fixed pass/fail controls calibrate the adapter before every actual scan.
+paint_log="$SCRATCH/comfort-paint.log"
+if ! bash tests/safety/run_issue_373_ui.sh paint > "$paint_log" 2>&1; then
+  cat "$paint_log"
+  paint_root="$(head -1 "$paint_log" | cut -d' ' -f4-)"
+  for stream in stdout stderr; do
+    [ ! -f "$paint_root/playwright.$stream" ] || cat "$paint_root/playwright.$stream"
+  done
+  fail "crowded disabled-control and gradient paint evidence"
+fi
+paint_root="$(head -1 "$paint_log" | cut -d' ' -f4-)"
+expect "$(cat "$paint_root/playwright.stdout")" "4 passed" "crowded paint: four modes with fixed controls"
 echo "ok US-59 PM update and project priority"
