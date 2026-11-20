@@ -37,7 +37,9 @@ const HASHED: &[&str] = &["xtask/src/measure.rs", "xtask/src/trial_plan.rs"];
 /// tracked generator in `vectors`: measure runs it once (with the measured
 /// Python, `-I -B`, in a synthetic home) into a scratch file and appends that
 /// file's path to the candidate's arguments, so both sides answer the same
-/// vectors. The record shows the path as `<vectors-file>`.
+/// vectors. The same file is appended to the oracle's arguments too, so
+/// neither side's samples include vector generation. The record shows the
+/// path as `<vectors-file>` on both commands.
 pub struct Candidate {
     pub step: &'static str,
     pub program: &'static str,
@@ -62,9 +64,9 @@ pub const CANDIDATES: &[Candidate] = &[
         args: &["actions", "--json"],
         vectors: None,
     },
-    // rust-04's oracle runs `rust04.py --all` over the generator's vectors
-    // in memory; the candidate runs every set of the same generated file
-    // (`policy-vectors --all <file>`), the debug build `verify` uses.
+    // rust-04: both sides run every set of one generated file, the oracle
+    // as `rust04.py --all <file>` and the candidate as
+    // `policy-vectors --all <file>` (the debug build `verify` uses).
     Candidate {
         step: "rust-04",
         program: "target/debug/policy-vectors",
@@ -362,13 +364,18 @@ pub fn record(
     let vector_folder = tempfile::tempdir().map_err(|_| "cannot create vector folder")?;
     let mut candidate_args: Vec<OsString> = args.iter().map(OsString::from).collect();
     let mut args = args;
+    let mut oracle_args = step.oracle.iter().map(OsString::from).collect::<Vec<_>>();
+    let mut oracle_command = vec!["<python>".to_owned()];
+    oracle_command.extend(step.oracle.iter().map(|arg| (*arg).to_owned()));
     if let Some(generator) = vector_generator(step.id, source) {
         let file = generate_vectors(root, python, generator, vector_folder.path())?;
+        // Both sides read the same file: no sample includes generation.
+        oracle_args.push(file.clone().into_os_string());
         candidate_args.push(file.into_os_string());
         // The record stays content-free: no scratch path.
         args.push("<vectors-file>".to_owned());
+        oracle_command.push("<vectors-file>".to_owned());
     }
-    let oracle_args = step.oracle.iter().map(OsString::from).collect::<Vec<_>>();
     let sides = [
         Side {
             name: "oracle",
@@ -400,8 +407,6 @@ pub fn record(
         return Err("a relevant source changed during the measure".into());
     }
     let (os, _) = resources::host_unit()?;
-    let mut oracle_command = vec!["<python>".to_owned()];
-    oracle_command.extend(step.oracle.iter().map(|arg| (*arg).to_owned()));
     let profile = if test_override {
         "test-override"
     } else {
@@ -566,6 +571,9 @@ mod controls {
         let step = baseline::step("rust-04").unwrap();
         assert!(step.sources.contains(&"tests/oracles/rust04_vectors.py"));
         assert_eq!(step.candidate, Some("target/debug/policy-vectors"));
+        // measure appends the same file to these oracle args, so the oracle
+        // must take `--all` last (`rust04.py --all <vectors-file>`).
+        assert_eq!(step.oracle.last(), Some(&"--all"));
     }
 
     #[test]
