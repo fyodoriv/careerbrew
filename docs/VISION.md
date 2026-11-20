@@ -14,6 +14,7 @@ One programmer (the owner) who runs careerbrew through a coding agent and the CL
 
 - **Job hunt mode**: find, rank, and prepare for the next job.
 - **Work mode**: the work record (day log, PM update, standup, evidence, promotion docs, work feed) and the work-day runner (`/work`: the day's ordered steps, a status row per step, one page for the day, end of day). All work-day features live in careerbrew because they are career work; agentbrew only deploys careerbrew's commands.
+- **Independent mode** (`/indie`, personal machines): the owner's own projects as income bets, ranked by outcomes per agent-hour, toward replacing a salary with income from their own software. `/indie` and `/work` improve each other through `careerbrew peer`.
 
 ## Success
 

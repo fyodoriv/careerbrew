@@ -76,12 +76,18 @@ CONFIRM = {
     "day.accept-all": "accepts every suggestion of the group at once (tasks planned, sources added)",
     "day.dismiss-all": "dismisses every suggestion of the group at once; they do not come back",
     "work.session.end": "archives each project session that wrote its handoff and releases its claims (an ended session is not reopened)",
+    "indie.decide": "records the owner's decision on a bet: it starts, keeps, pauses, or ends the bet's agent time",
+    "indie.measure": "runs the bet's measure command on this machine (unless you pass a value)",
     "day.question.recheck": "runs each open question's recheck command on this machine (a plugin's only with --allow-exec) and closes the ones it finds closed",
 }
 # Actions whose CLI asks for --yes: the confirm above is the owner's yes, so a web run passes it on.
-YES_FROM_CONFIRM = {"day.send", "web.rotate-token", "day.accept-all", "day.dismiss-all", "work.project.remove", "day.start", "work.promise.accept", "work.project.rules-set", "data.decrypt"}
+YES_FROM_CONFIRM = {"day.send", "web.rotate-token", "day.accept-all", "day.dismiss-all", "work.project.remove", "day.start", "work.promise.accept", "work.project.rules-set", "data.decrypt", "indie.decide"}
 # What an agent must do differently, shown in `careerbrew actions` (issue #46).
 AGENT_NOTES = {
+    "indie.decide": "agents (/indie): a bet's state is the owner's call; add --yes only after the owner says so in this session",
+    "indie.goal": "agents: never ask for the amount in chat and never pass --monthly yourself; give the owner the command to type",
+    "indie.income": "agents: never ask for the amount in chat and never pass --amount yourself; give the owner the command to type",
+    "peer.experiment": "agents: one open trial per side; a kept or declined lesson reaches LESSONS.md by pull request, with the numbers",
     "work.task": "agents: pass --why, and one --link (a full https:// URL, or LABEL=URL) per file, ticket, or channel the task needs; the task waits in the owner's inbox until accepted",
     "day.send": "agents: show the draft first; add --yes only after the user says send",
     "day.update": "agents (/work): mark a step running when it starts and done, blocked, or failed when it ends, with a one-line --summary; blocked needs --needs-you (the ask), failed needs --error-class; done runs the step's verify and exits 1 when it fails",

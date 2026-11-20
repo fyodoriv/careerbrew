@@ -778,6 +778,37 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P3
 
+- [ ] Indie: a red-first signal from GitHub for each bet
+  - **ID**: indie-red-first-signal
+  - **Details**: `careerbrew indie run` picks a bet's next action from its `TASKS.md` only. Add an optional read of the bet's own open pull requests with failing checks (through the GitHub connector, metadata only), so a red pull request is the next action before a new task.
+  - **Files**: src/careerbrew/indie.py; tests/unit/test_indie.py; tests/fixtures/http/; docs/indie.md
+  - **Hypothesis**: bets with a red own pull request get it as their next action, so the median age of a red pull request in a bet's repo drops.
+  - **Measurement**: `uv run pytest tests/unit/test_indie.py -q -k red_first` on hosted CI; in use, `careerbrew indie review --json` outcomes per week before and after 14 days.
+  - **Success**: the test passes; outcomes per week does not drop by 10% or more.
+  - **Pivot**: if outcomes per week drops 10% or more over 14 days, remove the signal and keep the task queue order.
+  - **Anchor**: Forsgren, Humble & Kim 2018 (DORA: change failure rate, time to restore).
+
+- [ ] Indie: carry `/work` lessons from a corporate machine to the repo
+  - **ID**: indie-peer-corporate-carry
+  - **Details**: A corporate machine never pushes, so a `/work` lesson learned there reaches `skills/careerbrew-work-day/LESSONS.md` only when the owner types it on a personal machine. Add `careerbrew peer export` (prints the pending lesson lines, process rules only, after the privacy scan) and `careerbrew peer import --file` for the personal side.
+  - **Files**: src/careerbrew/peers.py; src/careerbrew/cli.py; tests/unit/test_peers.py; tests/e2e/us-113-peer-improvement.sh; docs/indie.md
+  - **Hypothesis**: with export and import, the count of closed `/work` trials whose lesson line is missing from the repo goes to 0.
+  - **Measurement**: `careerbrew peer status --for indie --json` (`unreviewed_lessons`) on the personal machine after one corporate week; unit test on hosted CI.
+  - **Success**: 0 closed corporate trials without a line after 14 days.
+  - **Pivot**: if the privacy scan blocks more than half of the lines, keep the manual carry and close this task.
+  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Kohavi, Tang & Xu 2020 (one change per experiment).
+
+- [ ] Indie: an income measure command for a product bet
+  - **ID**: indie-income-measure
+  - **Blocked**: owner step: needs the owner's yes to read a payment or sponsor total, and the owner's own credential typed with `careerbrew secret set`
+  - **Details**: A product or sponsors bet has no built-in way to read its income metric. Add a documented measure command per source (for example a sponsors count from the GitHub connector) that prints one number, so `careerbrew indie measure` runs with no typed value.
+  - **Files**: src/careerbrew/indie.py; src/careerbrew/connectors.py; docs/indie.md; docs/privacy.md
+  - **Hypothesis**: bets with a measure command get a reading every week, so the share of active bets with a reading in the last 7 days rises from 0% to 80% or more.
+  - **Measurement**: `careerbrew indie bets --json` (count of bets whose last reading is 7 days old or less).
+  - **Success**: 80% or more of active bets after 4 weeks.
+  - **Pivot**: under 40% after 4 weeks: drop the connector read and keep typed values.
+  - **Anchor**: Ries 2011 (innovation accounting); Basili, Caldiera & Rombach 1994 (GQM).
+
 - [ ] Find why story US-72 can miss its 15 s wait on the hosted macOS job
   - **ID**: us-72-macos-timing-miss
   - **Details**: On 2026-11-14 the hosted `gate (macos-15)` job failed once on the control inventory (story US-72, `web/e2e/controls.spec.ts`, the `heading(...)` helper): the heading "Sign in to careerbrew" was not found after 15000 ms; the run ended `1 failed`, `195 passed`. A rerun of that job on the same commit passed, the pull request changed no web code, and the Linux job passed. So far this is one event; the cause is not known. Do not raise the timeout first. Steps. (1) Count: list failed `gate (macos-15)` jobs with `gh run list --workflow ci.yml --status failure` and read each log (`gh run view <id> --log-failed`) for the same line. (2) If it shows again, find which visit failed (the test walks many views; add the visit name to the failure message) and whether the page was still loading, signed out, or slow. (3) Fix the cause in the test or the app, with a test that fails before the fix. A rerun is the answer for a single event: `gh run rerun <id> --failed`.

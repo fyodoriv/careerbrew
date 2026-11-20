@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github/workflows/gate-part.yml"  # each part of ci.yml runs this workflow
-REFERENCE = ROOT / "xtask/tests/fixtures/capture/http-reference-telemetry-v4.json"
+REFERENCE = ROOT / "xtask/tests/fixtures/capture/http-reference-indie-v5.json"
 
 
 def test_the_runner_python_is_the_one_in_the_frozen_http_reference():

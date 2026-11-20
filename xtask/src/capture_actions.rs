@@ -18,10 +18,9 @@ const HISTORICAL_REFERENCE: &str =
     include_str!("../tests/fixtures/capture/actions-reference-v1.json");
 const HISTORICAL_REFERENCE_SHA256: &str =
     "99cc30068c2264989d166acc38f114494b6252d0a4860a32506af25a53ccbba0";
-const REFERENCE: &str =
-    include_str!("../tests/fixtures/capture/actions-reference-telemetry-v4.json");
+const REFERENCE: &str = include_str!("../tests/fixtures/capture/actions-reference-indie-v5.json");
 const OBSERVER: &str = include_str!("../tests/fixtures/capture/observer/sitecustomize.py");
-const REFERENCE_SHA256: &str = "4fc9c3b278eb98d7afbe843d84ac82332eb427a8846b054586a0ebd1dc49c38e";
+const REFERENCE_SHA256: &str = "342e0a4c7445c846781576f67b348317a7f47ab955d596f3f6bf6f417c5f55c3";
 const LIMIT: u64 = 4 * 1024 * 1024;
 
 pub(crate) fn digest(bytes: &[u8]) -> String {
@@ -104,6 +103,8 @@ pub(crate) fn sources(root: &Path) -> Result<Value, String> {
         "xtask/tests/fixtures/capture/http-reference-rules-promise-v3.json",
         "xtask/tests/fixtures/capture/actions-reference-telemetry-v4.json",
         "xtask/tests/fixtures/capture/http-reference-telemetry-v4.json",
+        "xtask/tests/fixtures/capture/actions-reference-indie-v5.json",
+        "xtask/tests/fixtures/capture/http-reference-indie-v5.json",
         // rust-03: `careerbrew actions` and /api/actions read their rows from this file.
         "crates/cbcli/registry/registry.json",
     ] {
@@ -131,7 +132,15 @@ pub(crate) fn sources(root: &Path) -> Result<Value, String> {
         ),
         (
             "xtask/tests/fixtures/capture/actions-reference-telemetry-v4.json",
+            "4fc9c3b278eb98d7afbe843d84ac82332eb427a8846b054586a0ebd1dc49c38e",
+        ),
+        (
+            "xtask/tests/fixtures/capture/actions-reference-indie-v5.json",
             REFERENCE_SHA256,
+        ),
+        (
+            "xtask/tests/fixtures/capture/http-reference-indie-v5.json",
+            "6f48e7a934d5d9feb008638eb4443d9a9166528e03058fd61e774cdc90e4e4ba",
         ),
         (
             "xtask/tests/fixtures/capture/http-reference-rules-promise-v3.json",
@@ -851,11 +860,11 @@ pub fn validate(receipt: &Value) -> Result<(), String> {
             .map_err(|_| "historical action reference missing")?
             != HISTORICAL_REFERENCE.as_bytes()
         || digest(REFERENCE.as_bytes()) != REFERENCE_SHA256
-        || fs::read(root.join("xtask/tests/fixtures/capture/actions-reference-telemetry-v4.json"))
+        || fs::read(root.join("xtask/tests/fixtures/capture/actions-reference-indie-v5.json"))
             .map_err(|_| "current action reference missing")?
             != REFERENCE.as_bytes()
         || receipt["reference_sha256"] != REFERENCE_SHA256
-        || receipt["reference_revision"] != "telemetry-v4"
+        || receipt["reference_revision"] != "indie-v5"
         || receipt["historical_reference_sha256"] != HISTORICAL_REFERENCE_SHA256
         || receipt["observer_sha256"] != digest(OBSERVER.as_bytes())
     {
@@ -962,7 +971,7 @@ fn capture_mode(
         "source_revision": source_revision.trim(),
         "capture_executable_sha256": digest(&fs::read(observer_executable).map_err(|_| "cannot hash capture executable")?),
         "fixture_sha256": digest(CASE.as_bytes()),
-        "reference_sha256": REFERENCE_SHA256, "reference_revision":"telemetry-v4", "historical_reference_sha256":HISTORICAL_REFERENCE_SHA256, "observer_sha256": digest(OBSERVER.as_bytes()),
+        "reference_sha256": REFERENCE_SHA256, "reference_revision":"indie-v5", "historical_reference_sha256":HISTORICAL_REFERENCE_SHA256, "observer_sha256": digest(OBSERVER.as_bytes()),
         "sources_before": source_before, "sources_after": sources(root)?,
         "python_before": python_before, "python_after": identity()?,
         "executions": [first, second],
