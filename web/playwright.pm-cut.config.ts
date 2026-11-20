@@ -12,6 +12,7 @@ if (appServer?.command !== `bash ../tests/e2e/web-seed-and-serve.sh ${port}` || 
 
 export default defineConfig({
   ...normal,
+  captureGitInfo: { commit: false, diff: false },
   testDir: "./issue373",
   testMatch: "pm-cut-normal.spec.ts",
   use: { ...normal.use, serviceWorkers: "block" },
