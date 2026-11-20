@@ -806,6 +806,8 @@ xtask/src/sites.rs,keep-native,rust-00,Native embedded-site and entry-point disc
 xtask/src/sites_tests.rs,keep-native,rust-00,Controls for embedded-site and entry-point discovery
 xtask/src/leak_check.rs,keep-native,rust-00,rust-27b slice 1: native repo leak scan engine over supplied terms; no production dispatch
 xtask/tests/leak_check.rs,keep-native,rust-00,Synthetic canary controls for the native leak scan
+xtask/src/input_key.rs,keep-native,rust-00,rust-27 slice 2: native gate cache key of scripts/input-key.sh; no production dispatch
+xtask/tests/input_key.rs,keep-native,rust-00,Parity controls for the native gate cache key against the script in synthetic repos
 xtask/src/main.rs,keep-native,rust-00,Native migration workspace source or build configuration
 xtask/src/toolchain_identity.rs,keep-native,rust-00,Native read-only toolchain identity probe
 xtask/src/trial_plan.rs,keep-native,rust-00,Native paired trial ordering for the migration harness
