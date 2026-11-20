@@ -161,6 +161,10 @@ drawn on the same runner image, so the same fonts draw and compare.
   "Linux pictures". The workflow uploads no artifact: it prints each new or
   changed picture in its log as base64 with a SHA-256. The pictures show
   synthetic test data only. All 204 pictures make a log of about 20 MB.
+- **Noise floor of a migration step**: the manual workflow
+  [`noise-floor.yml`](../.github/workflows/noise-floor.yml) baselines one
+  step twice on each hosted OS and prints the proposed floors to the log:
+  `gh workflow run noise-floor.yml -f step=rust-03`.
 - **What drew the pictures** (the `visual-environment` lines of run
   43605737771, 2026-11-14): image `ubuntu24 20261111.127.1`, Playwright
   1.59.1, Liberation Sans (font version 137625) for text, DejaVu Sans Mono
