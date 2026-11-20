@@ -1394,14 +1394,14 @@ the crate until the rust-05 and rust-07 closure is native, so
   - Why not the vector driver: these cases cross engines through files, so
     the two drivers' answers would not be byte-equal values. The pure
     vector set stays for the codec; this pairs real processes instead.
-  - The lock port and the mixed-writer run landed in rust-05e.
+  - The lock port and the mixed-writer run are in rust-05e (this PR).
   - Gap: Python's `write_text_if_changed` rewrites only on `VaultError` and
-    stops on any other read error (for example invalid UTF-8). The Rust
-    version rewrites on every read error. Narrow it before any caller uses it.
-  - Next: `rust-05e`, the native advisory lock and the 1,000-operation mixed
-    writer run from the gate.
-
-### rust-06: Port backup, restore and cross-machine sync
+    stops on other read or decode errors (for example invalid UTF-8). Rust
+    rewrites after codec failures and compares decoded bytes without UTF-8
+    validation; filesystem errors other than `NotFound` propagate. Narrow this
+    before any caller uses it.
+  - Next: `rust-05f`, the JSON, YAML and JSONL readers, receipt storage,
+    `cmd_data_edit` and `cmd_secret_set`.
 
 - **Sub-step `rust-05e` (native advisory lock, mixed writers, component
   only):**
@@ -1413,6 +1413,9 @@ the crate until the rust-05 and rust-07 closure is native, so
   - `tests/unit/test_rust05e_mixed_writers.py`: 4 Python and 4 Rust writers
     make 1,000 appends to one sealed JSONL file; it opens and holds exactly
     1,000 distinct ids. A plain variant runs 200 appends.
+
+### rust-06: Port backup, restore and cross-machine sync
+
 - **Depends on:** `rust-05`.
 - **Boundary:** encrypted archives and explicit data transfer.
 - **Change:**
@@ -1886,7 +1889,7 @@ refresh the map in the **same** pull request:
 | When this changes | Do this | Then run |
 | --- | --- | --- |
 | a Python source file that the activation tables name | refresh the pinned line cells (definition and call lines, and duplicated expected-line data) in the three [activation tables](#the-activation-manifest-today) | `cargo test -p careerbrew-xtask --test activation_manifest` |
-| a tracked source file is added (any executable mode, or a Python, shell, JavaScript, TypeScript or Rust extension) | add its row to a fragment in [`plans/rust-inventory.d/`](plans/rust-inventory.d/README.md) (`<name>.csv`, one per step, same columns, no header; the main [code inventory](plans/2026-11-01-rust-code-inventory.csv) stays as is, so parallel step PRs do not conflict): path, disposition (`port`, `keep-ui` or `keep-native`), task, reason; then add it to the [owner map](#every-module-has-an-owner-step) | `cargo xtask migration inventory --check` |
+| a tracked source file is added (any executable mode, or a Python, shell, JavaScript, TypeScript or Rust extension) | add its row to a fragment in [`plans/rust-inventory.d/`](plans/rust-inventory.d/README.md) (`<name>.csv`, one per step, same columns, no header; the main [code inventory](plans/2026-11-01-rust-code-inventory.csv) stays as is, so parallel step PRs do not conflict): path, disposition (`port`, `keep-ui` or `keep-native`), task, reason; the task is empty for `keep-ui`, `rust-00` for `keep-native`, or the two-digit migration step for `port`; then add it to the [owner map](#every-module-has-an-owner-step) | `cargo xtask migration inventory --check` |
 | a reviewed interpreter call site in source moves | update its row in the [embedded anchors](plans/2026-11-04-rust-embedded-anchors.csv) | `cargo xtask migration inventory --embedded-check` |
 | an embedded code site (an interpreter with `-c` or `-e` in shell or argument-array form, an interpreter heredoc, an inline `<script>`) or a generated entry point (a pyproject script or entry point, a `package.json` script or bin, an Agentfile command, skill or hook, a git hook, a lefthook or workflow `run`) is added, changed or removed | add, change or remove its row in the [embedded sites](plans/2026-11-17-rust-embedded-sites.csv): kind, path, key (the trimmed line or the name; a repeated identical line in one file gets ` #2`, ` #3`), owner task. `--sites-list` prints every discovered site as a manifest row, with its current task or an empty task for a new site | `cargo xtask migration inventory --check` |
 | `src/careerbrew/vault.py` | update the pinned `SOURCE_SHA` in `tests/unit/test_rust_vault_interop.py` and `tests/unit/test_rust_vault_base64_parity.py` | `uv run pytest -q tests/unit/test_rust_vault_interop.py tests/unit/test_rust_vault_base64_parity.py` |

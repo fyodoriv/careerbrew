@@ -6,10 +6,12 @@ temp file and keeps write-if-changed. The `vault-store` binary never prints
 the key.
 """
 
+import concurrent.futures
 import os
 import shutil
 import stat
 import subprocess
+import threading
 from pathlib import Path
 
 import pytest
@@ -106,8 +108,16 @@ def test_concurrent_rust_writers_leave_one_whole_file_and_no_temp(store_bin, hom
     data = home / "mixed.json"
     texts = {f"rust-{i}" for i in range(20)}
     procs = [subprocess.Popen([store_bin, "write", key_file, home, data, "seal"], stdin=subprocess.PIPE, text=True) for _ in range(20)]
-    for proc, text in zip(procs, sorted(texts)):
+    barrier = threading.Barrier(len(procs))
+
+    def feed(proc, text):
+        # The binary writes only after stdin EOF. Release every communicate call
+        # together so no earlier process can finish while a later one waits.
+        barrier.wait(timeout=10)
         proc.communicate(text, timeout=10)
-        assert proc.returncode == 0
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(procs)) as pool:
+        list(pool.map(feed, procs, sorted(texts)))
+    assert all(proc.returncode == 0 for proc in procs)
     assert unseal(key, data.read_bytes()) in texts
     assert [p for p in os.listdir(home) if p.endswith(".tmp")] == []
