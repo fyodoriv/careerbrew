@@ -265,11 +265,13 @@ def pm_report(d: dict[str, Any]) -> dict[str, Any]:
     title = f"{config.get('pm_report_title')} {d['day']}"
     via = str(config.get("pm_send_via"))
     raw, notes = _pm_build(d)
-    learned = pm_learn.rules()
+    history = store.read_jsonl(pm_learn.path())
+    learned = pm_learn.rules(history)
     draft = "\n".join(_learned_pm_lines(raw, {e["name"] for e in project_priority.entries()}, learned))
     pm_learn.remember(d["day"], "\n".join(raw), draft)  # a later save is compared with what was shown (issue #185)
     saved = store.read_text(pm_draft_path(d["day"]))  # the owner's edits for that day win (issue #52)
     updated = _written_at(pm_draft_path(d["day"]) if saved else path_for(date.fromisoformat(d["day"])))
+    left_out, cut_context = pm_learn.cut_projection([line for line in raw if not line.startswith("Yesterday's promise:")], saved or draft, learned, history)
     return {
         "subject": title,
         "body": saved or draft,
@@ -279,7 +281,8 @@ def pm_report(d: dict[str, Any]) -> dict[str, Any]:
         "via": via,
         "slack_configured": via == "slack" and _slack_source() is not None,
         "to": str(config.get("pm_slack") if via == "slack" else config.get("pm_email")) or "",
-        "left_out": pm_learn.left_out([line for line in raw if not line.startswith("Yesterday's promise:")], learned),
+        "left_out": left_out,
+        "cut_context": cut_context,
         "ladder": _ladder(saved or draft),  # owner-only grading against the next level; never part of the sent text (issue #216)  # lines your past edits leave out: the view names them
         "why": _why_shown(draft, notes, learned, saved=saved),  # owner-only notes for the displayed body (issue #372)
         "checks": content_checks(saved or draft, d),  # owner-only content rules a machine can check (issue #226)

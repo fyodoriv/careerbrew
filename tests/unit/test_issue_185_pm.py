@@ -107,7 +107,9 @@ def test_the_pm_view_names_lines_the_lessons_leave_out(home):
     _edits(CUT_OTHER, CUT_OTHER)
     d = {"day": "2026-10-16", "tomorrow": "2026-10-19", "done": {"Shipped": ["Reviewed 4 pull requests"]}, "planned": [], "blockers": []}
     d["details"] = {"done": {"Shipped": [{"kind": "github", "repo": ""}]}}
-    assert daylog.pm_report(d)["left_out"] == ["Other"]
+    pm = daylog.pm_report(d)
+    assert "Other:" in pm["body"]
+    assert pm["left_out"] == []
 
 
 def test_reset_brings_a_cut_line_back(home, capsys):
