@@ -127,6 +127,17 @@ fn cut(s: &str, n: usize) -> String {
     s.chars().take(n).collect()
 }
 
+pub fn request_title(title: &str) -> Result<String, PyError> {
+    let title = text::split(title).join(" ");
+    if title.is_empty() {
+        return Err(PyError::new(
+            "ValueError",
+            "an approval request needs a title",
+        ));
+    }
+    Ok(title)
+}
+
 /// The record `approvals.request` appends, and the list it saves.
 /// `new_id` is `uuid4().hex`'s source; its first 8 chars are the id.
 pub fn request_item(
@@ -138,13 +149,7 @@ pub fn request_item(
     now: &str,
     new_id: &str,
 ) -> Result<(Out, Vec<Out>), PyError> {
-    let title = text::split(title).join(" ");
-    if title.is_empty() {
-        return Err(PyError::new(
-            "ValueError",
-            "an approval request needs a title",
-        ));
-    }
+    let title = request_title(title)?;
     let id: String = format!("{new_id}{}", "0".repeat(24))
         .chars()
         .take(8)
@@ -172,12 +177,30 @@ pub fn decide_items(
     note: &str,
     now: &str,
 ) -> Result<(Out, Vec<Out>), PyError> {
+    decide_items_with(rules, records, item_id, decision, note, || now.to_owned())
+}
+
+/// The IO caller supplies its clock lazily, so an invalid or already decided
+/// id is refused before a clock read, as in Python.
+pub fn validate_decision(decision: &str) -> Result<(), PyError> {
     if decision != "approved" && decision != "rejected" {
         return Err(PyError::new(
             "ValueError",
             "decision must be approved or rejected",
         ));
     }
+    Ok(())
+}
+
+pub fn decide_items_with(
+    rules: &Rules,
+    records: &Out,
+    item_id: &str,
+    decision: &str,
+    note: &str,
+    now: impl FnOnce() -> String,
+) -> Result<(Out, Vec<Out>), PyError> {
+    validate_decision(decision)?;
     let mut items = validate_records(rules, records)?;
     let Some(index) = items.iter().position(|a| get_str(a, "id") == Some(item_id)) else {
         return Err(key_error(&format!("unknown approval {item_id}")));
@@ -189,7 +212,7 @@ pub fn decide_items(
     let a = &mut items[index];
     set(a, "status", Out::Str(decision.to_owned()));
     set(a, "note", Out::Str(cut(text::strip(note), 1000)));
-    set(a, "decided_at", Out::Str(now.to_owned()));
+    set(a, "decided_at", Out::Str(now()));
     let decided = a.clone();
     Ok((decided, items))
 }

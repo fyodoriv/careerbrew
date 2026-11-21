@@ -781,6 +781,26 @@
      }
     ]
    }
+  },
+  {
+   "id": "json-read-arbitrary-precision-int",
+   "op": "json-read",
+   "input": "12089258196146291747061791208925819614629174706179"
+  },
+  {
+   "id": "json-write-arbitrary-precision-int",
+   "op": "json-write",
+   "input": {"t": "int", "v": "12089258196146291747061791208925819614629174706179"}
+  },
+  {
+   "id": "yaml-read-arbitrary-precision-int",
+   "op": "yaml-read",
+   "input": "12089258196146291747061791208925819614629174706179"
+  },
+  {
+   "id": "yaml-roundtrip-datetime-offset",
+   "op": "yaml-roundtrip",
+   "input": {"t": "datetime", "v": "2026-03-01T09:30:00+05:30"}
   }
  ]
 }

@@ -220,9 +220,14 @@ name = "careerbrew-vault"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "careerbrew-policy",
  "fernet",
+ "libc",
+ "num-bigint",
  "serde",
  "serde_json",
+ "sha2",
+ "yaml-rust2",
 ]
 
 [[package]]

@@ -40,8 +40,26 @@ pub fn tmp_for(path: &Path) -> PathBuf {
     path.with_file_name(format!(".{name}.{}.{}.tmp", std::process::id(), tag()))
 }
 
+/// Observable boundaries in one atomic write. Only the synthetic crash
+/// transport supplies a hook; production-shaped writes pass a no-op.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WritePoint {
+    BeforeTempWrite,
+    AfterTempWrite,
+    BeforeRename,
+    AfterRename,
+}
+
 /// Write `bytes` to `path` through a unique temp file and a rename.
 pub fn write_bytes(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    write_bytes_with(path, bytes, |_| Ok(()))
+}
+
+pub fn write_bytes_with(
+    path: &Path,
+    bytes: &[u8],
+    mut at: impl FnMut(WritePoint) -> std::io::Result<()>,
+) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -53,13 +71,16 @@ pub fn write_bytes(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
             Err(e) => return Err(e),
         }
     };
-    let result = file
-        .write_all(bytes)
+    let result = at(WritePoint::BeforeTempWrite)
+        .and_then(|()| file.write_all(bytes))
         .and_then(|()| file.flush())
+        .and_then(|()| at(WritePoint::AfterTempWrite))
+        .and_then(|()| at(WritePoint::BeforeRename))
         .and_then(|()| {
             drop(file);
             std::fs::rename(&tmp, path)
-        });
+        })
+        .and_then(|()| at(WritePoint::AfterRename));
     if result.is_err() {
         let _ = std::fs::remove_file(&tmp);
     }
@@ -73,6 +94,10 @@ pub enum StoreError {
     NoKey,
     /// The codec refused.
     Vault,
+    /// Decoded bytes were not UTF-8; Python does not rewrite on this error.
+    Utf8,
+    /// A JSON, YAML or JSONL contract was malformed.
+    Codec(&'static str),
     /// A file system error.
     Io(std::io::Error),
 }
@@ -98,8 +123,18 @@ pub fn write_text(
     seal: bool,
     text: &str,
 ) -> Result<(), StoreError> {
+    write_text_with(path, key, seal, text, |_| Ok(()))
+}
+
+pub fn write_text_with(
+    path: &Path,
+    key: Option<&str>,
+    seal: bool,
+    text: &str,
+    at: impl FnMut(WritePoint) -> std::io::Result<()>,
+) -> Result<(), StoreError> {
     let bytes = encode(key, seal, text)?;
-    write_bytes(path, &bytes)?;
+    write_bytes_with(path, &bytes, at)?;
     Ok(())
 }
 
@@ -111,13 +146,17 @@ pub fn write_text_if_changed(
     text: &str,
 ) -> Result<bool, StoreError> {
     match std::fs::read(path) {
-        Ok(stored) => {
-            if let Ok(plain) = crate::open(key, &stored) {
-                if plain == text.as_bytes() {
+        Ok(stored) => match crate::open(key, &stored) {
+            Ok(plain) => {
+                // Python's `vault.decode` validates UTF-8. Only VaultError is
+                // caught; a UnicodeDecodeError propagates without a rewrite.
+                let decoded = String::from_utf8(plain).map_err(|_| StoreError::Utf8)?;
+                if decoded == text {
                     return Ok(false);
                 }
             }
-        }
+            Err(_) => {}
+        },
         Err(e) if e.kind() == ErrorKind::NotFound => {}
         Err(e) => return Err(e.into()),
     }
@@ -227,5 +266,51 @@ mod tests {
         let path = dir.join("e.txt");
         write_text(&path, None, false, "plain").unwrap();
         assert_eq!(std::fs::read(&path).unwrap(), b"plain");
+    }
+
+    #[test]
+    fn invalid_utf8_propagates_without_rewriting() {
+        let dir = scratch("utf8");
+        let path = dir.join("f.txt");
+        std::fs::write(&path, [0xff]).unwrap();
+        assert!(matches!(
+            write_text_if_changed(&path, None, false, "replacement"),
+            Err(StoreError::Utf8)
+        ));
+        assert_eq!(std::fs::read(&path).unwrap(), [0xff]);
+    }
+
+    #[test]
+    fn catchable_faults_clean_temp_and_retry_after_rename_is_readable() {
+        let dir = scratch("faults");
+        let path = dir.join("g.txt");
+        for point in [
+            WritePoint::BeforeTempWrite,
+            WritePoint::AfterTempWrite,
+            WritePoint::BeforeRename,
+        ] {
+            assert!(write_bytes_with(&path, b"synthetic", |at| {
+                if at == point {
+                    Err(std::io::Error::other("synthetic"))
+                } else {
+                    Ok(())
+                }
+            })
+            .is_err());
+            assert!(!path.exists());
+            assert_eq!(leftovers(&dir), 0);
+        }
+        assert!(write_bytes_with(&path, b"synthetic", |at| {
+            if at == WritePoint::AfterRename {
+                Err(std::io::Error::other("synthetic"))
+            } else {
+                Ok(())
+            }
+        })
+        .is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), b"synthetic");
+        write_bytes(&path, b"retry").unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"retry");
+        assert_eq!(leftovers(&dir), 0);
     }
 }

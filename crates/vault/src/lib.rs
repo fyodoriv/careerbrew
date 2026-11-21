@@ -5,8 +5,16 @@ use base64::Engine;
 use fernet::Fernet;
 
 pub mod atomic;
+pub mod canon;
+pub mod cli;
+pub mod data;
+pub mod json_yaml;
 pub mod keyfile;
 pub mod lock;
+pub mod receipts;
+pub mod secrets;
+pub mod store;
+pub mod synthetic;
 
 pub const MAGIC: &[u8] = b"CBV1\n";
 

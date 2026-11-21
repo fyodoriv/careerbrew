@@ -15,6 +15,7 @@ import io
 import json
 import os
 import stat
+import subprocess
 import sys
 import types
 from pathlib import Path
@@ -101,9 +102,14 @@ def _file_evidence(root: Path, key_file: Path) -> list[dict[str, Any]]:
         if path == key_file:
             row["key"] = "present"
         else:
-            text = store.read_text(path, create_key=False) or ""
-            row["text_sha256"] = _sha(text)
-            row["utf8_bytes"] = len(text.encode("utf-8"))
+            try:
+                text = store.read_text(path, create_key=False) or ""
+            except UnicodeDecodeError:
+                row["raw_sha256"] = hashlib.sha256(raw).hexdigest()
+                row["text"] = "non-utf8"
+            else:
+                row["text_sha256"] = _sha(text)
+                row["utf8_bytes"] = len(text.encode("utf-8"))
         rows.append(row)
     return rows
 
@@ -195,7 +201,7 @@ def _run_all() -> dict[str, Any]:
         return types.SimpleNamespace(returncode=0)
 
     edit_before = _identity(yaml_path)
-    with _patched(cli.subprocess if hasattr(cli, "subprocess") else __import__("subprocess"), run=editor):
+    with _patched(subprocess, run=editor):
         _cli_case(cases, "data-edit-success", types.SimpleNamespace(file="record.yaml"), cli.cmd_data_edit, tty=True)
     edit_after = _identity(yaml_path)
     cases.append({"id": "data-edit-rewrites", "result": edit_before["inode"] != edit_after["inode"] and not (root / ".edit" / yaml_path.name).exists()})
@@ -212,8 +218,7 @@ def _run_all() -> dict[str, Any]:
     _call(cases, "secret-backend-literal", lambda: secrets.backend_of(SECRET))
     os.environ["SYNTHETIC_SECRET"] = SECRET
     with _patched(secrets.plugins, effective_policy=lambda: {"secret_backends": ["env"]}):
-        resolved = _call(cases, "secret-resolve-env", lambda: secrets.resolve("env:SYNTHETIC_SECRET"))
-        cases.append({"id": "secret-resolve-hidden", "result": resolved == SECRET})
+        _call(cases, "secret-resolve-env", lambda: secrets.resolve("env:SYNTHETIC_SECRET") == SECRET)
     os.environ.pop("SYNTHETIC_SECRET", None)
 
     event_rows = [json.loads(line) for line in (root / "logs" / "events.jsonl").read_text(encoding="utf-8").splitlines()]
@@ -236,9 +241,48 @@ def _raw(root: Path, name: str, raw: bytes) -> Path:
     return path
 
 
+def _crash_write(stage: str) -> None:
+    root = paths.data_root()
+    os.environ["CAREERBREW_KEY_FILE"] = str(root.parent / "keys" / "backup.key")
+    target = root / "crash.txt"
+
+    # Keep a direct reference before replacing the method for this invocation.
+    real_replace = Path.replace
+
+    def replace(self: Path, other: Path) -> Path:
+        if stage in ("after-temp", "before-rename"):
+            os._exit(86)
+        result = real_replace(self, other)
+        if stage == "after-rename":
+            os._exit(86)
+        return result
+
+    if stage == "before-temp":
+        with _patched(vault, encode=lambda path, text: os._exit(86)):
+            store.write_text(target, "synthetic crash")
+    elif stage in ("after-temp", "before-rename", "after-rename"):
+        with _patched(Path, replace=replace):
+            store.write_text(target, "synthetic crash")
+    else:
+        raise ValueError("unknown crash point")
+
+
+def _crash_receipt() -> None:
+    root = paths.data_root()
+    os.environ["CAREERBREW_KEY_FILE"] = str(root.parent / "keys" / "backup.key")
+    with _patched(approvals.uuid, uuid4=lambda: types.SimpleNamespace(hex="a1b2c3d4" + "0" * 24)), _patched(events, emit=lambda *args, **kwargs: os._exit(86)):
+        approvals.request("Synthetic crash")
+
+
 def main(argv: list[str]) -> int:
+    if len(argv) == 2 and argv[0] == "--crash":
+        _crash_write(argv[1])
+        return 0
+    if argv == ["--crash-receipt"]:
+        _crash_receipt()
+        return 0
     if argv != ["--all"]:
-        print("usage: rust05.py --all", file=sys.stderr)
+        print("usage: rust05.py --all | --crash <point> | --crash-receipt", file=sys.stderr)
         return 2
     result = _run_all()
     raw = json.dumps(result, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
