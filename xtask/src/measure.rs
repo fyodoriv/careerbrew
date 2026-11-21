@@ -359,6 +359,7 @@ pub fn record(
     }
     let python_version = capture_actions::version(python)?;
     let bound = inputs(root, step, &program)?;
+    let evidence = baseline::evidence_hashes(root, step)?;
     let sources_sha256 = capture_actions::digest(bound.sources.to_string().as_bytes());
     // Lives until the record is built: every candidate run reads this file.
     let vector_folder = tempfile::tempdir().map_err(|_| "cannot create vector folder")?;
@@ -403,7 +404,9 @@ pub fn record(
         .into_iter()
         .map(|cache| regime(root, &sides, cache, pairs, &mut method))
         .collect::<Result<Vec<_>, _>>()?;
-    if inputs(root, step, &program).ok().as_ref() != Some(&bound) {
+    if inputs(root, step, &program).ok().as_ref() != Some(&bound)
+        || baseline::evidence_hashes(root, step)? != evidence
+    {
         return Err("a relevant source changed during the measure".into());
     }
     let (os, _) = resources::host_unit()?;
@@ -429,7 +432,8 @@ pub fn record(
         "source_revision": baseline::revision(root)?,
         "source_tree_dirty": baseline::dirty(root)?,
         "sources_sha256": sources_sha256,
-        "fixtures_sha256": bound.fixtures_sha256,
+        "evidence_sources_sha256": evidence.0,
+        "fixtures_sha256": evidence.1,
         "meets_protocol_minimum": pairs >= MIN_PAIRS && !test_override,
         "tree_method": method,
         "pairs": pairs,

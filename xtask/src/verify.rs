@@ -934,6 +934,9 @@ pub fn record(
             );
         }
         let binary = candidate.map_or_else(|| root.join(step.candidate), Path::to_path_buf);
+        let registered = baseline::step(step.id)?;
+        let evidence = baseline::evidence_hashes(root, registered)?;
+        let candidate_sha256 = binary_sha256(&binary)?;
         let mut record = vecdriver::record(
             root,
             python,
@@ -950,8 +953,18 @@ pub fn record(
                 plant_set: wrong,
             },
         )?;
+        if baseline::evidence_hashes(root, registered)? != evidence {
+            return Err("a relevant source changed during verify".into());
+        }
+        if binary_sha256(&binary)? != candidate_sha256 {
+            return Err("the candidate binary changed during verify".into());
+        }
         record["schema"] = json!(SCHEMA);
         record["step"] = json!(step.id);
+        record["source_revision"] = json!(baseline::revision(root)?);
+        record["evidence_sources_sha256"] = json!(evidence.0);
+        record["fixtures_sha256"] = json!(evidence.1);
+        record["candidate_sha256"] = json!(candidate_sha256);
         record["planted_wrong_vector"] = json!(wrong);
         vector_contract(&mut record)?;
         return Ok(record);
@@ -1003,6 +1016,7 @@ pub fn record(
         return Err("the candidate binary does not exist".into());
     }
     let hash = sources_sha256(root)?;
+    let evidence = baseline::evidence_hashes(root, step)?;
     let candidate_sha256 = binary_sha256(&candidate)?;
     // `full` is the surface every CLI step had before contracts were scoped
     // (HTTP, DATA and role, Python allowed, no registry projection: the HTTP
@@ -1060,7 +1074,7 @@ pub fn record(
             contracts.push(PROJECTION_CASE);
         }
     }
-    if sources_sha256(root)? != hash {
+    if sources_sha256(root)? != hash || baseline::evidence_hashes(root, step)? != evidence {
         return Err("a relevant source changed during verify".into());
     }
     if binary_sha256(&candidate)? != candidate_sha256 {
@@ -1081,6 +1095,8 @@ pub fn record(
         "source_revision": baseline::revision(root)?,
         "source_tree_dirty": baseline::dirty(root)?,
         "sources_sha256": hash,
+        "evidence_sources_sha256": evidence.0,
+        "fixtures_sha256": evidence.1,
         "test_candidate": test_candidate,
         "test_oracle": test_oracle.is_some(),
         "candidate_sha256": candidate_sha256,

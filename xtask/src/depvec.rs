@@ -364,6 +364,10 @@ pub fn record(
         return Err("--test-wrong-vector names no vector set".into());
     }
     let hash = sources_sha256(root, step, &sets)?;
+    let evidence = baseline::step(step.id)
+        .ok()
+        .map(|registered| baseline::evidence_hashes(root, registered))
+        .transpose()?;
     let candidate_sha256 = capture_actions::digest(
         &std::fs::read(&candidate).map_err(|_| "cannot read the candidate binary")?,
     );
@@ -442,7 +446,11 @@ pub fn record(
     if home_writes.is_some_and(|count| count > 0) {
         cases.push(json!({"case": "real-home-writes", "passed": false}));
     }
-    if sources_sha256(root, step, &sets)? != hash {
+    let current_evidence = baseline::step(step.id)
+        .ok()
+        .map(|registered| baseline::evidence_hashes(root, registered))
+        .transpose()?;
+    if sources_sha256(root, step, &sets)? != hash || current_evidence != evidence {
         return Err("a relevant source changed during verify".into());
     }
     let failed: Vec<String> = cases
@@ -479,6 +487,10 @@ pub fn record(
         "missing_contracts": verify::MISSING_CONTRACTS,
         "cases": cases,
     });
+    if let Some((sources, fixtures)) = evidence {
+        record["evidence_sources_sha256"] = json!(sources);
+        record["fixtures_sha256"] = json!(fixtures);
+    }
     if let Some(count) = home_writes {
         record["real_home_writes"] = json!(count);
         record["real_homes_checked"] = json!(homes.len());

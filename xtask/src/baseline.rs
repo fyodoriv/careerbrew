@@ -231,6 +231,16 @@ fn hashed_sources(root: &Path, step: &Step) -> Result<Value, String> {
     Ok(sources)
 }
 
+/// The source and fixture identity every producer shares with `decide`.
+/// Producer-specific `sources_sha256` fields keep their separate coverage.
+pub(crate) fn evidence_hashes(root: &Path, step: &Step) -> Result<(String, String), String> {
+    let sources = hashed_sources(root, step)?;
+    Ok((
+        capture_actions::digest(sources.to_string().as_bytes()),
+        fixtures_sha256(root)?,
+    ))
+}
+
 /// Adds the step's extra environment to a source map, so a record's source
 /// hash also binds the environment its runs had. A step with no extra
 /// environment keeps its map unchanged.
@@ -311,7 +321,8 @@ pub fn record(
         "python_version": python_version.trim(),
         "source_revision": revision(root)?,
         "source_tree_dirty": dirty(root)?,
-        "sources_sha256": sources_sha256,
+        "sources_sha256": sources_sha256.clone(),
+        "evidence_sources_sha256": sources_sha256,
         "fixtures_sha256": fixtures,
         "cache_state": CACHE_STATE,
         "meets_protocol_minimum": runs >= MIN_RUNS,

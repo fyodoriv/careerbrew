@@ -11,6 +11,10 @@
 //!   `summary.cpu_us_p95` and the `tree_max_rss_bytes` of each sample. These
 //!   feed the protocol checks and the record; the limits use the measure
 //!   record's paired oracle samples.
+//!
+//! All three records must bind the same full source revision, common evidence
+//! source hash and fixture hash. Verify and measure must bind the same
+//! candidate hash. Missing, malformed or unequal identity is refused.
 //! - verify: `careerbrew-migration-verify-v1` with `step`, a nonempty
 //!   `checks` list of `{id, passed}`, a `violations` map of counts and an
 //!   `unobserved_violations` list of violation names verify cannot see yet
@@ -81,6 +85,53 @@ fn header(record: &Value, name: &str, schema: &str, step: &str) -> Result<(), St
     Ok(())
 }
 
+fn identity_field<'a>(
+    record: &'a Value,
+    name: &str,
+    field: &str,
+    length: usize,
+) -> Result<&'a str, String> {
+    let value = record
+        .get(field)
+        .ok_or_else(|| format!("the {name} record lacks {field}"))?;
+    let text = value
+        .as_str()
+        .ok_or_else(|| format!("the {name} record has malformed {field}"))?;
+    if text.len() != length
+        || !text
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+    {
+        return Err(format!("the {name} record has malformed {field}"));
+    }
+    Ok(text)
+}
+
+/// All records must describe the same observed source and fixtures. Verify
+/// and measure must also describe the same candidate bytes.
+fn bind_identity(base: &Value, verify: &Value, measure: &Value) -> Result<(), String> {
+    for (field, length) in [
+        ("source_revision", 40),
+        ("evidence_sources_sha256", 64),
+        ("fixtures_sha256", 64),
+    ] {
+        let expected = identity_field(base, "baseline", field, length)?;
+        for (record, name) in [(verify, "verify"), (measure, "measure")] {
+            if identity_field(record, name, field, length)? != expected {
+                return Err(format!(
+                    "the {name} record has another {field} than the baseline"
+                ));
+            }
+        }
+    }
+    let verified = identity_field(verify, "verify", "candidate_sha256", 64)?;
+    let measured = identity_field(measure, "measure", "candidate_sha256", 64)?;
+    if verified != measured {
+        return Err("the verify and measure records have different candidate_sha256".into());
+    }
+    Ok(())
+}
+
 fn number(value: &Value, what: &str) -> Result<u64, String> {
     value.as_u64().ok_or_else(|| format!("malformed {what}"))
 }
@@ -134,6 +185,7 @@ pub fn verdict(
     let (cpu_limit, rss_limit) = (chosen.cpu, chosen.rss);
     header(verify, "verify", VERIFY_SCHEMA, step)?;
     header(measure, "measure", MEASURE_SCHEMA, step)?;
+    bind_identity(base, verify, measure)?;
     if measure["os"].as_str() != Some(os) {
         return Err("the measure record is from another OS than the baseline".into());
     }

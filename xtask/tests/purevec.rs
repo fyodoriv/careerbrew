@@ -8,7 +8,6 @@
 //! absolute home or on a step that does not count writes, an empty
 //! `CAREERBREW_HOME`). Each test owns its temp folder and synthetic home.
 use serde_json::Value;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
