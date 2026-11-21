@@ -89,10 +89,26 @@ impl<'de> Visitor<'de> for JsonVisitor {
         let mut pairs = Vec::new();
         while let Some(key) = map.next_key::<String>()? {
             // serde_json's arbitrary-precision number adapter presents a
-            // number as this private one-entry map. No preserve_order feature
-            // is involved; ordinary maps still retain their visitor order.
+            // number as this private one-entry map. Prove that shape by
+            // consuming the end marker: an ordinary object can start with the
+            // same key and have more fields.
             if key == "$serde_json::private::Number" && pairs.is_empty() {
-                let number = map.next_value::<String>()?;
+                let JsonCanon(number) = map.next_value()?;
+                if let Some(next_key) = map.next_key::<String>()? {
+                    insert(&mut pairs, Canon::Str(key), number);
+                    let JsonCanon(value) = map.next_value()?;
+                    insert(&mut pairs, Canon::Str(next_key), value);
+                    continue;
+                }
+                let number = match number {
+                    Canon::Str(number) => number,
+                    other => {
+                        // A one-field ordinary object whose value is not text
+                        // cannot be the internal number representation.
+                        insert(&mut pairs, Canon::Str(key), other);
+                        return Ok(Canon::Map(pairs));
+                    }
+                };
                 if number.contains(['.', 'e', 'E']) {
                     return number
                         .parse::<f64>()

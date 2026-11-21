@@ -108,6 +108,11 @@ impl Terminal for ProcessTerminal {
         std::io::stdin()
             .read_line(&mut value)
             .map_err(|_| CliError("terminal"))?;
+        // getpass.unix_getpass writes one newline after hidden input, before
+        // the caller's result. Keep the synthetic PTY byte stream identical.
+        std::io::stderr()
+            .write_all(b"\n")
+            .map_err(|_| CliError("terminal"))?;
         Ok(value.trim_end_matches(['\r', '\n']).to_owned())
     }
 

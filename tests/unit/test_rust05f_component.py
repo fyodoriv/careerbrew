@@ -215,28 +215,33 @@ def fake_security(root: Path) -> Path:
     return bin_dir
 
 
-@pytest.mark.parametrize("engine", ["python", "rust"])
-def test_secret_set_uses_a_real_pty_fake_keychain_and_restores_echo(store_bin, tmp_path, engine):
-    root = tmp_path / engine
-    env = synthetic_env(root)
-    env["PATH"] = str(fake_security(root)) + os.pathsep + "/usr/bin:/bin"
-    command = [sys.executable, "-B", "-m", "careerbrew", "secret", "set", "synthetic.service"]
-    if engine == "rust":
-        command = [str(store_bin), "secret", "set", "synthetic.service"]
-    master, slave = os.openpty()
-    try:
-        child = subprocess.Popen(command, cwd=ROOT, env=env, stdin=slave, stdout=slave, stderr=slave, close_fds=True)
-        os.close(slave)
-        slave = -1
-        output = read_pty(master, child, secret=SECRET)
-        assert b"stored as keychain:synthetic.service" in output
-        assert SECRET.encode() not in output
-        assert termios.tcgetattr(master)[3] & termios.ECHO
-        assert_no_synthetic_values(root, output)
-    finally:
-        os.close(master)
-        if slave >= 0:
+def test_secret_set_uses_a_real_pty_fake_keychain_and_restores_echo(store_bin, tmp_path):
+    outputs = []
+    for engine in ("python", "rust"):
+        root = tmp_path / engine
+        env = synthetic_env(root)
+        env["PATH"] = str(fake_security(root)) + os.pathsep + "/usr/bin:/bin"
+        command = [sys.executable, "-B", "-m", "careerbrew", "secret", "set", "synthetic.service"]
+        if engine == "rust":
+            command = [str(store_bin), "secret", "set", "synthetic.service"]
+        master, slave = os.openpty()
+        try:
+            child = subprocess.Popen(command, cwd=ROOT, env=env, stdin=slave, stdout=slave, stderr=slave, close_fds=True, start_new_session=True)
             os.close(slave)
+            slave = -1
+            output = read_pty(master, child, secret=SECRET)
+            # getpass writes a newline after hidden input. The result starts on
+            # the next line on both engines, including PTY newline translation.
+            assert output == b"value for synthetic.service (input hidden): \r\nstored as keychain:synthetic.service\r\n"
+            assert SECRET.encode() not in output
+            assert termios.tcgetattr(master)[3] & termios.ECHO
+            assert_no_synthetic_values(root, output)
+            outputs.append(output)
+        finally:
+            os.close(master)
+            if slave >= 0:
+                os.close(slave)
+    assert outputs[0] == outputs[1]
 
 
 @pytest.mark.parametrize("engine", ["python", "rust"])
@@ -258,7 +263,7 @@ def test_data_edit_real_pty_fake_editor_and_full_rewrite(store_bin, tmp_path, mo
         command = [str(store_bin), "data", "edit", "record.yaml"]
     master, slave = os.openpty()
     try:
-        child = subprocess.Popen(command, cwd=ROOT, env=env, stdin=slave, stdout=slave, stderr=slave, close_fds=True)
+        child = subprocess.Popen(command, cwd=ROOT, env=env, stdin=slave, stdout=slave, stderr=slave, close_fds=True, start_new_session=True)
         os.close(slave)
         slave = -1
         output = read_pty(master, child)

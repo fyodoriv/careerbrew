@@ -801,6 +801,11 @@
    "id": "yaml-roundtrip-datetime-offset",
    "op": "yaml-roundtrip",
    "input": {"t": "datetime", "v": "2026-03-01T09:30:00+05:30"}
+  },
+  {
+   "id": "json-read-private-number-key-plus-field",
+   "op": "json-read",
+   "input": "{\"$serde_json::private::Number\":\"1\",\"x\":2}"
   }
  ]
 }

@@ -68,7 +68,7 @@ fn observe(
         .current_dir(root)
         .env_clear()
         .envs(&environment);
-    let (_, exit, stdout, _) = capture_actions::execute(command)?;
+    let (_, exit, stdout, stderr) = capture_actions::execute(command)?;
     let after = capture_actions::files(&owned, &owned, None)?;
     let writes = after
         .iter()
@@ -82,9 +82,11 @@ fn observe(
     if owned.exists() {
         scan(&owned, &mut leaks)?;
     }
-    for (id, term) in [("stdout-canary", CANARY), ("stdout-secret", SECRET)] {
-        if stdout.contains(term) {
-            leaks.insert(id.to_owned());
+    for (stream, text) in [("stdout", &stdout), ("stderr", &stderr)] {
+        for (kind, term) in [("canary", CANARY), ("secret", SECRET)] {
+            if text.contains(term) {
+                leaks.insert(format!("{stream}-{kind}"));
+            }
         }
     }
     Ok(Observation {
@@ -262,4 +264,26 @@ pub fn record(
         "writes_traced": "per-phase",
         "cases": cases,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    fn planted_stderr_canary_is_a_privacy_leak() {
+        let scratch = tempfile::tempdir().unwrap();
+        let script = scratch.path().join("stderr-control.sh");
+        std::fs::write(
+            &script,
+            format!("#!/bin/sh\nprintf '%s\\n' '{CANARY}' >&2\n"),
+        )
+        .unwrap();
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let observed = observe(root, &script, &[], false).unwrap();
+        assert_eq!(observed.exit, Some(0));
+        assert!(observed.leaked, "stderr canary escaped the privacy scan");
+    }
 }

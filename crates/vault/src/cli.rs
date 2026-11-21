@@ -37,7 +37,7 @@ pub trait Editor {
 }
 
 /// Python's `shlex.split` for an editor command: whitespace splits unquoted
-/// text, quotes group it, and a backslash escapes the next character.
+/// text, quotes group it, and backslash follows POSIX double-quote rules.
 pub fn editor_argv(text: &str) -> Result<Vec<String>, CliError> {
     #[derive(Clone, Copy, PartialEq)]
     enum Quote {
@@ -52,7 +52,15 @@ pub fn editor_argv(text: &str) -> Result<Vec<String>, CliError> {
     let mut out = Vec::new();
     for ch in text.chars() {
         if escaped {
-            word.push(ch);
+            // POSIX shlex inside double quotes removes a backslash only
+            // before $, backtick, double quote, backslash or newline. Before
+            // any other character (the a\q control), the backslash remains.
+            if quote == Quote::Double && !matches!(ch, '$' | '`' | '"' | '\\' | '\n') {
+                word.push('\\');
+            }
+            if ch != '\n' {
+                word.push(ch);
+            }
             escaped = false;
             started = true;
             continue;
@@ -248,5 +256,10 @@ mod tests {
         );
         assert!(editor_argv("editor 'open").is_err());
         assert!(editor_argv("").is_err());
+        // Python shlex: inside double quotes, a backslash before q stays.
+        assert_eq!(
+            editor_argv(r#"editor "a\q""#).unwrap(),
+            ["editor", r#"a\q"#]
+        );
     }
 }
