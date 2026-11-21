@@ -208,7 +208,9 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
       let worst: number | null = null;
       let detail: string | undefined;
       let samples = 0;
-      for (const [rectIndex, rect] of target.rects.entries()) {
+      for (const [rectIndex] of target.rects.entries()) {
+        const rect = captures[0].layout.find((item) => item.id === target.id)?.rects[rectIndex];
+        if (!rect) return { id: target.id, text: target.text, verdict: "unknown", ratio: null, samples, reason: "base-target-unavailable" };
         for (let y = rect.y; y < rect.y + rect.height; y += 1) {
           for (let x = rect.x; x < rect.x + rect.width; x += 1) {
             const background = pixel(decoded[0], x, y);
