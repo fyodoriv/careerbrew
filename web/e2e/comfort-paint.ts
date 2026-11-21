@@ -114,6 +114,7 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
   try {
     if (prepared.targets.length > 0) {
       const capture = async () => {
+        const image = (await page.screenshot({ fullPage: true, animations: "disabled" })).toString("base64");
         const layout = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>("[data-paint-target]")].map((element) => {
           const rects: Rect[] = [];
           for (const node of element.childNodes) {
@@ -129,7 +130,6 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
           item.id === expected[index].id && item.rects.length === expected[index].rects.length && item.rects.every((rect, n) =>
             rect.width === expected[index].rects[n].width && rect.height === expected[index].rects[n].height));
         if (!valid) throw new Error("BLOCKED: paint target identity or dimensions changed during capture");
-        const image = (await page.screenshot({ fullPage: true, animations: "disabled" })).toString("base64");
         return { image, layout };
       };
       captures.push(await capture());
