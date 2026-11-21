@@ -36,5 +36,7 @@ for (const mode of MODES) {
         }
         expect(state("crowded"), "read-only geometry changed synthetic state").toEqual(before);
       }
+      // Restore the clean editor before close; a dirty blur would save by design.
+      await page.getByLabel("PM update", { exact: true }).fill(ready.kept);
     });
 }
