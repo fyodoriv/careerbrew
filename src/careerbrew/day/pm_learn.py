@@ -511,7 +511,7 @@ def cut_projection(raw: list[str], body: str, learned: dict[str, Any], rows: lis
     unknown = False
     spellings = {alias["spelling"] for candidate in candidates for alias in candidate["aliases"]}
     for line in body.splitlines():
-        clean = line.strip().lstrip("-•◦ ").strip()
+        clean = line.strip().lstrip("-•◦+ ").strip()
         if not clean:
             continue
         label, _ = _split(line)

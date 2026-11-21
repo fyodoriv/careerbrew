@@ -69,7 +69,7 @@ function scanPmLabels(body: string, spellings: Map<string, string>) {
   let uncertain = false;
   let fence = "";
   for (const raw of body.split(/\r\n?|\n/)) {
-    const content = raw.trim().replace(/^[-•◦ ]+/, "").trim();
+    const content = raw.trim().replace(/^[-•◦+ ]+/, "").trim();
     if (!content) continue;
     if (fence) {
       if (content[0] === fence[0] && content.length >= fence.length && [...content].every((char) => char === fence[0])) fence = "";

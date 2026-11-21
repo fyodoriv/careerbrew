@@ -261,6 +261,7 @@ A trap that cost time gets a dated row here, or becomes a check.
 
 | Date | Symptom | Fix |
 |---|---|---|
+| 2026-11-21 | a valid `+ Other:` Markdown bullet left a false cut warning | strip `+` with the other list markers in both backend and browser scanners; retain backend/browser controls (`test_issue_373.py`, `pm-cut.spec.ts`) |
 | 2026-11-21 | full-page paint captures changed height or clipped to the viewport, and a fixed gradient crossed the whole page instead of the text | retain each capture's target coordinates, normalize images to their union, and reject missing or resized targets; make fixed gradients text-width, exclude invisible text, composite supported foreground alpha, and keep disabled text opaque enough for 4.5:1 (`comfort-paint.ts`, `comfort-paint.spec.ts`) |
 | 2026-11-20 | modern zero-alpha text colors and transparent text-fill passed the artifact projector's visibility check | parse slash alpha for modern forms and comma alpha only for `rgba()`, never legacy `rgb()` channels; check effective text-fill, retain zero/opaque controls and refresh the dependent V2.2 driver pin (`project-visible-v2.mjs`) |
 | 2026-11-20 | a morning recheck could close a question that changed underneath it | close with `expected=q`; a false close keeps the question and handoff item open (`test_issue_265.py`) |
