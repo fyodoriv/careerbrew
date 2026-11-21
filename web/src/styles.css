@@ -131,7 +131,7 @@ pre.code { margin-top: var(--space-2); padding: var(--space-3); background: var(
 .chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: var(--space-3) 0; }
 .back { display: inline-block; font-size: var(--fs-sm); color: var(--muted); }
 details { margin-top: var(--space-2); }
-summary { cursor: pointer; font-size: var(--fs-sm); color: var(--muted); }
+summary { cursor: pointer; font-size: var(--fs-sm); color: var(--muted); min-height: 44px; padding: var(--space-3) 0; }
 summary:hover { color: var(--text); }
 .card > details:first-child { margin-top: 0; }
 .props { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-4); margin: 0; }
@@ -178,8 +178,8 @@ summary:hover { color: var(--text); }
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
 
 /* ---------- forms ---------- */
-/* app controls: 40 px on a desktop, 44 px under a finger (below); the field edge holds 3:1 against its fill */
-input, select, button { font: inherit; font-size: var(--fs-body); padding: var(--space-2) var(--space-3); min-height: 40px; border-radius: var(--radius-control); border: 1px solid var(--field-edge); background: var(--card); color: var(--text); }
+/* app controls: at least 44 px on desktop and phone; the field edge holds 3:1 against its fill */
+input, select, button { font: inherit; font-size: var(--fs-body); padding: var(--space-2) var(--space-3); min-height: 44px; border-radius: var(--radius-control); border: 1px solid var(--field-edge); background: var(--card); color: var(--text); }
 form[aria-label="Run work.project.set"] input, form[aria-label="Run work.project.set"] select, form[aria-label="Run work.project.set"] button { min-height: 44px; }
 :is(form[aria-label="Run work.project.rules"], form[aria-label="Run work.project.rules-set"]) :is(input:not([type="checkbox"]), select, button) { min-height: 44px; }
 :is(form[aria-label="Run work.project.rules"], form[aria-label="Run work.project.rules-set"]) label:has(> input[type="checkbox"]) { min-height: 44px; min-width: 44px; }
@@ -266,7 +266,7 @@ tbody tr:hover { background: var(--sunken); }
 .block-meeting .block-title { color: var(--text); }
 .time { color: var(--muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
 .block-task .time { color: var(--text); }
-.block-title .tag { margin-right: 0; }
+.block-title .tag { margin-right: 0; max-width: calc(100% - var(--space-1)); white-space: normal; overflow-wrap: anywhere; }
 .week { display: grid; gap: var(--space-2); grid-template-columns: repeat(var(--cols, 7), minmax(0, 1fr)); }
 .day { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--space-3); min-width: 0; min-height: 140px; }
 .day h3 { margin-bottom: 0; }
@@ -413,6 +413,8 @@ textarea:focus { outline: 2px solid var(--focus); outline-offset: -1px; }
 .manual-copy { flex-basis: 100%; display: grid; gap: var(--space-2); justify-items: start; }
 .manual-copy .pm-body { margin-bottom: 0; }
 .pm-why { margin-top: var(--space-2); }
+.pm-cuts { margin-top: var(--space-2); overflow-wrap: anywhere; }
+.pm-cuts ul { margin: 0 0 var(--space-2); padding-left: var(--space-5); }
 .pm-why p { margin: 0 0 var(--space-1); }
 .pm-why ul { margin: 0; padding-left: var(--space-5); }
 .toast { position: fixed; bottom: var(--space-6); left: 50%; transform: translateX(-50%); z-index: 10; max-width: calc(100% - var(--space-8)); padding: var(--space-3) var(--space-4); border-radius: var(--radius-control); background: var(--text); color: var(--bg); font-size: var(--fs-sm); box-shadow: var(--shadow-toast); }
