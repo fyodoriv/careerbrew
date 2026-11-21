@@ -185,7 +185,8 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
           for (let x = rect.x; x < rect.x + rect.width; x += 1) {
             const background = pixel(decoded[0], x, y);
             if (!background || background.alpha !== 1) {
-              return { id: target.id, text: target.text, verdict: "unknown", ratio: null, samples, reason: "background-unavailable" };
+              const detail = JSON.stringify({ x, y, rect, width: decoded[0].width, height: decoded[0].height, rgba: background ? [background.red, background.green, background.blue, background.alpha] : null });
+              return { id: target.id, text: target.text, verdict: "unknown", ratio: null, samples, reason: `background-unavailable:${detail}` };
             }
             let effective = new Color(foreground.red, foreground.green, foreground.blue, 1);
             for (const group of target.groups) {
