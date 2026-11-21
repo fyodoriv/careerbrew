@@ -6,6 +6,26 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P0
 
+- [ ] Research every Tech Interview Handbook content area for interview preparation
+  - **ID**: handbook-interview-coverage
+  - **Details**: Read the official repository at https://github.com/yangshun/tech-interview-handbook and its current license/access terms before automated collection. Build `knowledge/research/tech-interview-handbook-coverage.yaml` at a pinned source revision. Inventory every official content item, including coding practice, algorithms, system design, behavioral answers, resume, interview process, and language-specific guides. Give each item its source URL, section, access status, and an included/excluded decision with a reason. Map included items to careerbrew's interview-coach, teacher, and public/private card boundaries. Do not copy licensed text into the repo or treat a page title as proof of coverage.
+  - **Files**: knowledge/research/tech-interview-handbook-coverage.yaml; knowledge/README.md; docs/integrations.md (source and access terms); the follow-up import task created from the coverage gaps
+  - **Hypothesis**: a source-pinned full-content inventory exposes every interview-preparation gap, so later imports can be planned and measured without silently omitting sections.
+  - **Measurement**: `uv run python -c "import yaml; p='knowledge/research/tech-interview-handbook-coverage.yaml'; d=yaml.safe_load(open(p)); assert d['source_revision'] and d['items'] and all(i['source_url'] and i['decision'] and i['reason'] for i in d['items']); print(len(d['items']))"` after the inventory exists; `scripts/check-sources.py` for registered research.
+  - **Success**: every official content item at the pinned revision appears exactly once with a source URL and an evidence-backed decision; all research checks pass; no disallowed text is copied.
+  - **Pivot**: if the license or access terms forbid the planned automated collection, stop that collection and record an owner-opened, manual review path with only allowed notes and links.
+  - **Anchor**: https://github.com/yangshun/tech-interview-handbook (current source and license); Basili, Caldiera & Rombach 1994 (GQM).
+
+- [ ] Teach interview and work skills daily, with corporate-safe evidence boundaries
+  - **ID**: daily-interview-and-work-learning
+  - **Details**: On the personal machine, offer one owner-visible interview lesson each local day, selected from the handbook coverage map, current goals, mistakes, and spaced-repetition state. On a corporate-role machine, offer only indirect work-improvement coaching and related general engineering knowledge, never job-hunt or interview-preparation content. Use existing work evidence to suggest resume/promotion proof only through private evidence and promotion documents; never publish, send, or move business text to a personal machine. The daily surface is opt-in, appears in the CLI, agent workflow and web UI, and uses existing notification/settings controls rather than a second scheduler. Include role, privacy, quiet-hours, missed-day and resume-proof refusal tests.
+  - **Files**: src/careerbrew/teacher.py; src/careerbrew/tutor/; src/careerbrew/day/; src/careerbrew/cli.py; web/src/; skills/careerbrew-interview-drill/; skills/careerbrew-work-companion/; docs/practice.md; docs/privacy.md; docs/user-stories.md; tests/
+  - **Hypothesis**: one daily, state-aware lesson increases completed interview practice on the personal machine, while a separate corporate-safe work lesson improves evidence capture with zero job-hunt content or business-data exits.
+  - **Measurement**: hosted unit and new end-to-end tests for both roles; `uv run careerbrew teach` on the personal synthetic fixture and `uv run careerbrew day run --json` on the corporate synthetic fixture, with role/content/privacy assertions in the new tests.
+  - **Success**: one appropriate due lesson appears per local day in both roles after opt-in; missed days do not pile up; corporate output has 0 interview/job-hunt items and 0 business-data exits; resume/promotion suggestions link only to existing private evidence.
+  - **Pivot**: if the two roles cannot share the scheduler without cross-role content risk, split the personal and corporate presentation adapters while retaining one pure lesson-selection contract; do not weaken role or privacy gates.
+  - **Anchor**: careerbrew corporate-role and private-data rules in `AGENTS.md`; Basili, Caldiera & Rombach 1994 (GQM); existing FSRS teacher contract.
+
 - [ ] Company plugin: adopt the 2026-11 core (public repo, hosted CI, telemetry, Rust, CI cache)
   - **ID**: company-plugin-adopt-core-2026-11
   - **Blocked**: owner step: runs only on a company machine, in the private `careerbrew-<org-overlay>` repo; nothing company-specific comes back here
