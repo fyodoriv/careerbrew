@@ -18,4 +18,5 @@ set +e
 "$py" -I -S -B "$ROOT/tests/safety/issue373_metadata.py" terminal
 status=$?
 set -e
+if [ "$status" -ne 0 ]; then cat "$ISSUE373_RUN/terminal.json"; fi
 exit "$status"
