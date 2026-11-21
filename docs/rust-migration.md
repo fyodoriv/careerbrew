@@ -1394,15 +1394,25 @@ the crate until the rust-05 and rust-07 closure is native, so
   - Why not the vector driver: these cases cross engines through files, so
     the two drivers' answers would not be byte-equal values. The pure
     vector set stays for the codec; this pairs real processes instead.
-  - Gap: no lock port yet (`.<name>.lock`), and no mixed Python and Rust
-    writer run under one lock.
+  - The lock port and the mixed-writer run are in rust-05e (this PR).
   - Gap: Python's `write_text_if_changed` rewrites only on `VaultError` and
     stops on other read or decode errors (for example invalid UTF-8). Rust
     rewrites after codec failures and compares decoded bytes without UTF-8
     validation; filesystem errors other than `NotFound` propagate. Narrow this
     before any caller uses it.
-  - Next: `rust-05e`, the native advisory lock and the 1,000-operation mixed
-    writer run from the gate.
+  - Next: `rust-05f`, the JSON, YAML and JSONL readers, receipt storage,
+    `cmd_data_edit` and `cmd_secret_set`.
+
+- **Sub-step `rust-05e` (native advisory lock, mixed writers, component
+  only):**
+  - `crates/vault/src/lock.rs` ports the `store.append_jsonl` lock: an
+    exclusive `flock` (`File::lock`) on the sibling `.<name>.lock`, opened in
+    append mode and created if missing. A sealed append reads, adds and
+    rewrites with `atomic::write_text` under the lock; a plain append just
+    appends. `vault-store append` exposes it. No production dispatch.
+  - `tests/unit/test_rust05e_mixed_writers.py`: 4 Python and 4 Rust writers
+    make 1,000 appends to one sealed JSONL file; it opens and holds exactly
+    1,000 distinct ids. A plain variant runs 200 appends.
 
 ### rust-06: Port backup, restore and cross-machine sync
 
