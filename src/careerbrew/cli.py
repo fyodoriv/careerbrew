@@ -3150,7 +3150,11 @@ def cmd_day_run(a: argparse.Namespace) -> int:
     if a.json:
         dash = p["dashboard"]
         # a verify or cycle command, or a watched repo path, may name company hosts: an agent sees only that one is set
-        shown = p["steps"] if show else [{**s, "about": _public_workday_about(s), "verify": bool(s["verify"]), "cycle": bool(s["cycle"]), "watch": [i.split(":", 1)[0] for i in s["watch"]]} for s in p["steps"]]
+        shown = (
+            p["steps"]
+            if show
+            else [{**s, "about": _public_workday_about(s), "verify": bool(s["verify"]), "cycle": bool(s["cycle"]), "review_ask_cycle": bool(s.get("review_ask_cycle")), "watch": [i.split(":", 1)[0] for i in s["watch"]]} for s in p["steps"]]
+        )
         out = {**p, "steps": shown, "dashboard": {**dash, "rows": [_workday_row(r, show) for r in dash["rows"]]}}
         if not show:
             from .day import pm_promises

@@ -75,21 +75,25 @@ def check_fields(fields: dict[str, Any], where: str) -> dict[str, Any]:
     """A step's `cycle` (one command line, like `verify`) and `watch` (inputs that trigger a re-run), checked."""
     from .steps import StepError, _strings
 
-    cycle = fields.get("cycle", None)
-    if cycle is not None and (not isinstance(cycle, str) or not cycle.strip()):
-        raise StepError(f"{where}: `cycle` must be a command, such as `careerbrew work feed cycle`")
-    if cycle is not None and (len(cycle) > MAX_CYCLE or any(c in cycle for c in "\n\r\0")):
-        raise StepError(f"{where}: `cycle` must be one line of at most {MAX_CYCLE} characters")
-    if cycle is not None:
+    commands = {}
+    for key in ("cycle", "review_ask_cycle"):
+        cycle = fields.get(key)
+        if cycle is None:
+            continue
+        if not isinstance(cycle, str) or not cycle.strip():
+            raise StepError(f"{where}: `{key}` must be a command, such as `careerbrew work feed cycle`")
+        if len(cycle) > MAX_CYCLE or any(c in cycle for c in "\n\r\0"):
+            raise StepError(f"{where}: `{key}` must be one line of at most {MAX_CYCLE} characters")
         try:
             shlex.split(cycle)
         except ValueError:
-            raise StepError(f"{where}: `cycle` has an unclosed quote") from None
+            raise StepError(f"{where}: `{key}` has an unclosed quote") from None
+        commands[key] = cycle.strip()
     inputs = _strings(fields.get("watch", []), "watch", where)
     for i in inputs:
         if not INPUT.match(i):
             raise StepError(f"{where}: `watch` entry {i[:40]!r} must start with repo:, feed:, or file: (for example feed:chat)")
-    return {"cycle": (cycle or "").strip(), "watch": inputs}
+    return {"cycle": "", "watch": inputs, **commands}
 
 
 # ---------- the interval ----------
@@ -441,20 +445,30 @@ def run_pass(clock: Callable[[], float] = time.monotonic, runner: Callable[[str,
         results: list[dict[str, Any]] = []
         fresh: dict[str, str] = {}
         for s in plan.build()["steps"]:
-            if not s.get("cycle"):
+            if not (s.get("cycle") or s.get("review_ask_cycle")):
                 continue
             row: dict[str, Any] = {"step": s["step"], "result": "", "why": ""}
             fp = fingerprint(s["watch"]) if s["watch"] else ""
             if not gate.may_run(s["from"]):
                 row |= {"result": "blocked", "why": f"the cycle of {s['step']} comes from {s['from']}, which may not run commands: careerbrew plugin add <src> --allow-exec"}
-            elif fp and digests.get(s["step"]) == fp:
-                row["result"] = "unchanged"
             else:
                 minutes = s.get("timeout") or 30
-                ok, why = runner(s["cycle"], float(minutes * 60))
-                row |= {"result": "ok" if ok else "failed", "why": why}
-                if ok and fp:
-                    fresh[s["step"]] = fp
+                if s.get("cycle"):
+                    if fp and digests.get(s["step"]) == fp:
+                        row["result"] = "unchanged"
+                    else:
+                        ok, why = runner(s["cycle"], float(minutes * 60))
+                        row |= {"result": "ok" if ok else "failed", "why": why}
+                        if ok and fp:
+                            fresh[s["step"]] = fp
+                if s.get("review_ask_cycle"):
+                    from . import review_cycle
+
+                    ok = review_cycle.run(s, float(minutes * 60))
+                    if not ok and row["result"] != "failed":
+                        row |= {"result": "failed", "why": "review inventory unavailable or incomplete"}
+                    elif ok and not row["result"]:
+                        row["result"] = "ok"
             results.append(row)
         seconds = max(0.0, clock() - start)
         with _changing() as st:
