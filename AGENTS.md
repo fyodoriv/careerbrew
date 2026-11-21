@@ -261,7 +261,7 @@ A trap that cost time gets a dated row here, or becomes a check.
 
 | Date | Symptom | Fix |
 |---|---|---|
-| 2026-11-21 | full-page paint captures changed height or clipped to the viewport, and a fixed gradient crossed the whole page instead of the text | use Chromium CDP `captureBeyondViewport` with one CSS-pixel clip for base/backdrop images; make the fixed gradient `width:max-content`; let axe composite a translucent foreground, but refuse translucent group-opacity compositions (`comfort-paint.ts`, `comfort-paint.spec.ts`) |
+| 2026-11-21 | full-page paint captures changed height or clipped to the viewport, and a fixed gradient crossed the whole page instead of the text | verify target layout, reject lost capture area and crop only surplus outer rows; make fixed gradients text-width, exclude invisible text, composite supported foreground alpha, and keep disabled text opaque enough for 4.5:1 (`comfort-paint.ts`, `comfort-paint.spec.ts`) |
 | 2026-11-20 | modern zero-alpha text colors and transparent text-fill passed the artifact projector's visibility check | parse slash alpha for modern forms and comma alpha only for `rgba()`, never legacy `rgb()` channels; check effective text-fill, retain zero/opaque controls and refresh the dependent V2.2 driver pin (`project-visible-v2.mjs`) |
 | 2026-11-20 | a morning recheck could close a question that changed underneath it | close with `expected=q`; a false close keeps the question and handoff item open (`test_issue_265.py`) |
 | 2026-11-20 | a cleanup error entered `Popen.__exit__` and could wait past the watch deadline | own the process without context-manager waiting, close its pipe, then run explicit group cleanup (`test_394_cycle_boundaries.py`) |

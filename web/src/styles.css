@@ -190,7 +190,7 @@ button { cursor: pointer; font-weight: 500; border-color: var(--line-strong); bo
 button:hover:not(:disabled) { background: var(--hover); }
 button:active:not(:disabled) { background: var(--press); box-shadow: none; }
 /* disabled says so three ways: its fill, its ink, and the cursor (and the native attribute) */
-button:disabled, input:disabled, select:disabled, textarea:disabled { opacity: 0.55; cursor: not-allowed; background: var(--disabled-fill); color: var(--muted); box-shadow: none; border-color: var(--line-strong); }
+button:disabled, input:disabled, select:disabled, textarea:disabled { opacity: 1; cursor: not-allowed; background: var(--disabled-fill); color: var(--muted); box-shadow: none; border-color: var(--line-strong); }
 button.primary { background: var(--accent); color: var(--on-accent); border-color: transparent; font-weight: 600; box-shadow: var(--shadow-key); }
 button.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.05); }
 button.primary:active:not(:disabled) { filter: brightness(0.95); box-shadow: none; }

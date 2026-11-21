@@ -54,8 +54,15 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
     const affected = new Set<HTMLElement>();
     const ownText = (element: HTMLElement) => [...element.childNodes].some((node) =>
       node.nodeType === Node.TEXT_NODE && Boolean(node.textContent?.trim()));
+    const { Color } = (window as unknown as AxeWindow).axe.commons.color;
+    const textColor = (element: HTMLElement) => {
+      const style = getComputedStyle(element);
+      const fill = style.getPropertyValue("-webkit-text-fill-color");
+      return fill && fill !== "currentcolor" ? fill : style.color;
+    };
     const elements = candidates.filter((element) =>
       ownText(element) && element.getClientRects().length > 0
+      && new Color().parseString(textColor(element)).alpha > 0
       && !element.closest(".sr-only,[hidden],[aria-hidden=true]")
       && !element.closest("textarea,code"));
     for (const element of elements) {
@@ -86,7 +93,7 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
       }
       const targetGroups = groups.map((group, id) => ({ group, id })).filter(({ group }) => group === element || group.contains(element));
       targetGroups.sort((a, b) => Number(a.group.contains(b.group)) - Number(b.group.contains(a.group)));
-      const color = getComputedStyle(element).color;
+      const color = textColor(element);
       element.setAttribute("data-paint-target", String(id));
       element.style.setProperty("color", "transparent", "important");
       element.style.setProperty("-webkit-text-fill-color", "transparent", "important");
@@ -106,31 +113,31 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
   const images: string[] = [];
   try {
     if (prepared.targets.length > 0) {
-      // One CSS-pixel clip keeps every base/backdrop capture registered even if
-      // unrelated page chrome changes the document's full-page screenshot height.
-      const clip = await page.evaluate(() => ({
-        x: 0,
-        y: 0,
-        width: Math.max(document.documentElement.scrollWidth, document.body?.scrollWidth ?? 0),
-        height: Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight ?? 0),
-      }));
-      // Playwright's clip is viewport-bound; CDP captures the same fixed rect beyond it.
-      const session = await page.context().newCDPSession(page);
-      try {
-        const capture = async () => (await session.send("Page.captureScreenshot", {
-          format: "png", clip: { ...clip, scale: 1 }, captureBeyondViewport: true,
-        })).data;
-        images.push(await capture());
-        for (let id = 0; id < prepared.groups; id++) {
-          const group = page.locator(`[data-paint-group="${id}"]`);
-          await group.evaluate((element: HTMLElement) => element.style.setProperty("visibility", "hidden", "important"));
-          images.push(await capture());
-          // The final cleanup below restores every original inline style. Keep the
-          // group hidden only for its own backdrop capture.
-          await group.evaluate((element: HTMLElement) => element.style.removeProperty("visibility"));
+      const capture = async () => {
+        const image = (await page.screenshot({ fullPage: true, animations: "disabled" })).toString("base64");
+        const layout = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>("[data-paint-target]")].map((element) => {
+          const rects: Rect[] = [];
+          for (const node of element.childNodes) {
+            if (node.nodeType !== Node.TEXT_NODE || !node.textContent?.trim()) continue;
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            for (const rect of range.getClientRects()) rects.push({ x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: rect.height });
+          }
+          return { id: `paint-${element.getAttribute("data-paint-target")}`, rects };
+        }));
+        if (JSON.stringify(layout) !== JSON.stringify(prepared.targets.map(({ id, rects }) => ({ id, rects })))) {
+          throw new Error("BLOCKED: paint target layout changed during capture");
         }
-      } finally {
-        await session.detach();
+        return image;
+      };
+      images.push(await capture());
+      for (let id = 0; id < prepared.groups; id++) {
+        const group = page.locator(`[data-paint-group="${id}"]`);
+        await group.evaluate((element: HTMLElement) => element.style.setProperty("visibility", "hidden", "important"));
+        images.push(await capture());
+        // The final cleanup below restores every original inline style. Keep the
+        // group hidden only for its own backdrop capture.
+        await group.evaluate((element: HTMLElement) => element.style.removeProperty("visibility"));
       }
     }
   } finally {
@@ -167,9 +174,21 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
     };
     const decoded = [] as ImageData[];
     for (const image of images) decoded.push(await decode(image));
-    if (decoded.some((image) => image.width !== decoded[0].width || image.height !== decoded[0].height)) {
+    const base = decoded[0];
+    if (decoded.some((image) => image.width < base.width || image.height < base.height)) {
       const dimensions = decoded.map((image, index) => `${index}:${image.width}x${image.height}`).join(",");
-      return targets.map((target) => ({ id: target.id, text: target.text, verdict: "unknown", ratio: null, samples: 0, reason: `capture-size-changed:${dimensions}` }));
+      return targets.map((target) => ({ id: target.id, text: target.text, verdict: "unknown", ratio: null, samples: 0, reason: `capture-lost-area:${dimensions}` }));
+    }
+    for (const [index, image] of decoded.entries()) {
+      if (image.width === base.width && image.height === base.height) continue;
+      // Crop only surplus outer rows/columns. The layout check above proves no
+      // target moved; a smaller capture remains a failure, never a guessed pass.
+      const data = new Uint8ClampedArray(base.width * base.height * 4);
+      for (let y = 0; y < base.height; y++) {
+        const start = y * image.width * 4;
+        data.set(image.data.subarray(start, start + base.width * 4), y * base.width * 4);
+      }
+      decoded[index] = new ImageData(data, base.width, base.height);
     }
     const pixel = (image: ImageData, x: number, y: number): AxeColor | null => {
       const px = Math.floor(x), py = Math.floor(y);
@@ -198,7 +217,7 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
               const detail = JSON.stringify({ x, y, rect, width: decoded[0].width, height: decoded[0].height, rgba: background ? [background.red, background.green, background.blue, background.alpha] : null });
               return { id: target.id, text: target.text, verdict: "unknown", ratio: null, samples, reason: `background-unavailable:${detail}` };
             }
-            let effective = new Color(foreground.red, foreground.green, foreground.blue, 1);
+            let effective = new Color(foreground.red, foreground.green, foreground.blue, foreground.alpha);
             for (const group of target.groups) {
               const backdrop = pixel(decoded[group.id + 1], x, y);
               if (!backdrop || backdrop.alpha !== 1) {

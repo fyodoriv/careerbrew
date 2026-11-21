@@ -83,6 +83,8 @@ used. These geometry results do not qualify the separate paint or PM timing
 proofs. The paint cases (`comfort-paint.spec.ts`, `comfort-paint.ts`) use axe-core
 for color parsing and WCAG ratios, and real full-page browser pictures for the
 painted background. They include below-viewport text and disabled controls.
+Disabled controls keep their text opaque; their fill, cursor and native state
+still distinguish them without fading the label below the contrast budget.
 Fixed simple, gradient and group-opacity pass/fail controls run before every
 actual scan. An unsupported composition stays unknown; unknown and true ratios
 below 4.5:1 fail the proof. The pictures and temporary styles have browser-page
