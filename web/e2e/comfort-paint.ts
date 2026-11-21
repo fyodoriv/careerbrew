@@ -105,11 +105,20 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
   const images: string[] = [];
   try {
     if (prepared.targets.length > 0) {
-      images.push((await page.screenshot({ fullPage: true, animations: "disabled" })).toString("base64"));
+      // One CSS-pixel clip keeps every base/backdrop capture registered even if
+      // unrelated page chrome changes the document's full-page screenshot height.
+      const clip = await page.evaluate(() => ({
+        x: 0,
+        y: 0,
+        width: Math.max(document.documentElement.scrollWidth, document.body?.scrollWidth ?? 0),
+        height: Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight ?? 0),
+      }));
+      const capture = async () => (await page.screenshot({ clip, scale: "css", animations: "disabled" })).toString("base64");
+      images.push(await capture());
       for (let id = 0; id < prepared.groups; id++) {
         const group = page.locator(`[data-paint-group="${id}"]`);
         await group.evaluate((element: HTMLElement) => element.style.setProperty("visibility", "hidden", "important"));
-        images.push((await page.screenshot({ fullPage: true, animations: "disabled" })).toString("base64"));
+        images.push(await capture());
         // The final cleanup below restores every original inline style. Keep the
         // group hidden only for its own backdrop capture.
         await group.evaluate((element: HTMLElement) => element.style.removeProperty("visibility"));

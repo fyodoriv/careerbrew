@@ -16,8 +16,8 @@ async function calibrate(page: Parameters<typeof measurePaint>[0]) {
     fixture.setAttribute("data-paint-controls", "");
     fixture.innerHTML = `
       <div style="background:#fff;color:#000">fixed simple pass</div>
-      <div style="background:linear-gradient(90deg,#fff 0%,#767676 100%);color:#000">fixed gradient pass</div>
-      <div style="background:linear-gradient(90deg,#fff 0%,#000 100%);color:#000">fixed gradient fail</div>
+      <div style="width:max-content;background:linear-gradient(90deg,#fff 0%,#767676 100%);color:#000">fixed gradient pass</div>
+      <div style="width:max-content;background:linear-gradient(90deg,#fff 0%,#000 100%);color:#000">fixed gradient fail</div>
       <div style="background:#000"><div style="opacity:.5;background:#000;color:#fff">fixed group opacity pass</div></div>
       <div style="background:#fff"><div style="opacity:.5;background:#fff;color:#000">fixed group opacity fail</div></div>`;
     main.append(fixture);

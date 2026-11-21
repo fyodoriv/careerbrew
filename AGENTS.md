@@ -261,6 +261,7 @@ A trap that cost time gets a dated row here, or becomes a check.
 
 | Date | Symptom | Fix |
 |---|---|---|
+| 2026-11-21 | full-page paint captures changed height, and a fixed gradient crossed the whole page instead of the text | use one CSS-pixel clip for base/backdrop images; make the fixed gradient `width:max-content` so its dark stop reaches the text (`comfort-paint.ts`, `comfort-paint.spec.ts`) |
 | 2026-11-20 | a hash-state click changed the URL but a newly rendered list kept its old filter | `useSyncExternalStore` rechecks the URL around subscription; an effect-only listener can miss the event (`daylog.test.tsx` suggestion filter) |
 | 2026-11-19 | after one story script ran in a new worktree, every command failed with `bad interpreter`: `.venv/bin/python` pointed at a Python under the story's removed temp HOME | the worktree had no `.venv`, so `cb` in `tests/e2e/lib.sh` fell back to `uv run` with the story's scratch HOME, and uv downloaded a Python there and built `.venv` on it. Run `scripts/setup.sh` (or `uv sync --locked`) in a new worktree before any story; repair with `UV_PYTHON_DOWNLOADS=never uv sync --locked --reinstall` |
 | 2026-11-19 | `blocks.spec.ts` failed on hosted macOS at 106 ms against its 100 ms loading-label limit, on PRs that never touched the web app | a wall-clock limit on a shared runner is a hang guard: the test keeps the 100 ms product target locally and checks 300 ms when `CI` is set |
