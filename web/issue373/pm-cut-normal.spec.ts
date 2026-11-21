@@ -76,7 +76,7 @@ test("restoring a PM line clears its cut flag without a save", async ({ page, co
     expect(snapshot(root)).toEqual(before);
     await expect(flag).toHaveCount(0);
   } finally {
-    if (before && !page.isClosed()) await editor.fill(kept);  // a clean value makes close's blur a no-op
+    if (before && !page.isClosed()) await page.getByLabel("PM update", { exact: true }).fill(kept);  // a clean value makes close's blur a no-op
     await page.close({ runBeforeUnload: false });
     if (before) expect(snapshot(root)).toEqual(before);
     expect(forbidden).toEqual([]);
