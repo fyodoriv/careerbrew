@@ -132,7 +132,7 @@ if (MODE === "dates") {
   test("D02 browser subhistories preserve exact presence, uncertainty and legacy date wording", async ({ page, proof }, info) => {
     const ready = await open(page, proof, "ascii");
     const candidates: [string, "present" | "absent" | "unknown"][] = [
-      ["Other: reviewed 4 PRs.", "present"], ["- **Other**: reviewed 4 PRs.", "present"], ["• _Other_: reviewed 4 PRs.", "present"], ["oThEr: reviewed 4 PRs.", "present"],
+      ["Other: reviewed 4 PRs.", "present"], ["+ Other: reviewed 4 PRs.", "present"], ["- **Other**: reviewed 4 PRs.", "present"], ["• _Other_: reviewed 4 PRs.", "present"], ["oThEr: reviewed 4 PRs.", "present"],
       ["Different: reviewed 4 PRs.", "absent"], ["[Other](https://example.com): reviewed 4 PRs.", "unknown"], ["# Other: reviewed 4 PRs.", "unknown"], ["> Other: reviewed 4 PRs.", "unknown"],
       ["```text\nOther: reviewed 4 PRs.\n```", "unknown"], ["1. Other: reviewed 4 PRs.", "unknown"], ["an unlabelled nonblank paragraph", "unknown"],
     ];

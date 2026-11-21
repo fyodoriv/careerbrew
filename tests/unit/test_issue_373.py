@@ -358,7 +358,7 @@ def test_pm_cut_dates(cut_world, case):
         candidate = next(c for c in pm["cut_context"]["candidates"] if c["label"] == "Other")
         assert candidate["recorded_at"] is None and candidate["report_day"] is None and candidate["date_basis"] == "unavailable"
         w.prove("legacy", {"pm": pm})
-        for n, text in enumerate(("Other: reviewed 4 PRs.", "- **Other**: reviewed 4 PRs.", "• _Other_: reviewed 4 PRs.", "oThEr: reviewed 4 PRs.", "Different: reviewed 4 PRs.", *UNSUPPORTED)):
+        for n, text in enumerate(("Other: reviewed 4 PRs.", "+ Other: reviewed 4 PRs.", "- **Other**: reviewed 4 PRs.", "• _Other_: reviewed 4 PRs.", "oThEr: reviewed 4 PRs.", "Different: reviewed 4 PRs.", *UNSUPPORTED)):
             w = cut_world(f"ascii-comparison-{n}")
             w.cuts()
             log.pm_report(sample())
