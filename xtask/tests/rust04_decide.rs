@@ -18,7 +18,10 @@ fn baseline() -> Value {
         "os": "linux",
         "runs": 30,
         "meets_protocol_minimum": true,
+        "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "source_tree_dirty": false,
+        "evidence_sources_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "fixtures_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
         "cache_state": "warm-imports-fresh-synthetic-home",
         "samples": samples,
         "summary": {"cpu_us_p95": 1000, "tree_max_rss_bytes_p95": 50_000},
@@ -30,6 +33,10 @@ fn verify() -> Value {
     json!({
         "schema": "careerbrew-migration-verify-v1",
         "step": "rust-04",
+        "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "evidence_sources_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "fixtures_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "candidate_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
         "kind": "vector-driver",
         "contracts": ["vector"],
         "checks": [
@@ -61,6 +68,10 @@ fn measure() -> Value {
         "schema": "careerbrew-migration-measure-v1",
         "step": "rust-04",
         "os": "linux",
+        "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "evidence_sources_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "fixtures_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "candidate_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
         "regimes": [regime("cold"), regime("warm")],
     })
 }

@@ -87,6 +87,8 @@ fn test_candidate_writes_a_paired_cold_and_warm_record() {
     assert_eq!(value["candidate_command"][0], "<candidate>");
     assert_eq!(value["candidate_sha256"].as_str().unwrap().len(), 64);
     assert_eq!(value["source_revision"].as_str().unwrap().len(), 40);
+    assert_eq!(value["evidence_sources_sha256"].as_str().unwrap().len(), 64);
+    assert_eq!(value["fixtures_sha256"].as_str().unwrap().len(), 64);
     let regimes = value["regimes"].as_array().unwrap();
     assert_eq!(regimes.len(), 2);
     assert_eq!(regimes[0]["cache_state"], "cold");
@@ -162,9 +164,16 @@ fn decide_consumes_the_measure_record_with_a_baseline_record() {
             .unwrap(),
     );
     let verify = scratch.path().join("verify.json");
+    let base_record: Value = serde_json::from_slice(&std::fs::read(&base).unwrap()).unwrap();
+    let measured_record: Value =
+        serde_json::from_slice(&std::fs::read(&measured).unwrap()).unwrap();
     let record = json!({
         "schema": "careerbrew-migration-verify-v1",
         "step": "rust-03",
+        "source_revision": base_record["source_revision"],
+        "evidence_sources_sha256": base_record["evidence_sources_sha256"],
+        "fixtures_sha256": base_record["fixtures_sha256"],
+        "candidate_sha256": measured_record["candidate_sha256"],
         "checks": [{"id": "cli.actions", "passed": true}],
         "violations": {
             "contract": 0, "privacy": 0, "authorization": 0, "role": 0,

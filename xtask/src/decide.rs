@@ -404,6 +404,9 @@ pub mod controls {
         json!({
             "schema": baseline::SCHEMA, "step": "rust-03", "os": "linux",
             "runs": 30, "meets_protocol_minimum": true, "source_tree_dirty": false,
+            "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "evidence_sources_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "fixtures_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
             "cache_state": baseline::CACHE_STATE, "samples": samples,
             "summary": {"cpu_us_p95": 100_000},
         })
@@ -416,6 +419,10 @@ pub mod controls {
             .collect();
         json!({
             "schema": VERIFY_SCHEMA, "step": "rust-03",
+            "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "evidence_sources_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "fixtures_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "candidate_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
             "checks": [{"id": "actions-json", "passed": true}],
             "violations": violations,
             "unobserved_violations": [],
@@ -434,6 +441,10 @@ pub mod controls {
             })
         };
         json!({"schema": MEASURE_SCHEMA, "step": "rust-03", "os": "linux",
+               "source_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+               "evidence_sources_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+               "fixtures_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+               "candidate_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
                "regimes": [regime("cold"), regime("warm")]})
     }
 

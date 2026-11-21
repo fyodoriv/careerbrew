@@ -252,15 +252,8 @@ fn baseline_measure_and_decide_accept_rust_02() {
         .unwrap();
     assert!(result.status.success(), "{result:?}");
     assert_eq!(read(&base)["step"], "rust-02");
-    // The override runs with no arguments, so a wrapper adds the registered
-    // candidate's `--all`.
-    let wrapper = scratch.path().join("candidate");
-    std::fs::write(
-        &wrapper,
-        format!("#!/bin/sh\nexec '{}' --all\n", purevec().display()),
-    )
-    .unwrap();
-    std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o700)).unwrap();
+    // Use the registered candidate itself so verify and measure bind the
+    // same candidate bytes; one pair still keeps Python below the minimum.
     let measured = scratch.path().join("measure.json");
     let result = Command::new(XTASK)
         .args(["migration", "measure", "--step", "rust-02", "--python"])
@@ -268,8 +261,6 @@ fn baseline_measure_and_decide_accept_rust_02() {
         .arg("--out")
         .arg(&measured)
         .args(["--pairs", "1", "--test-allow-few-pairs"])
-        .arg("--test-candidate")
-        .arg(&wrapper)
         .env_remove("CAREERBREW_HOME")
         .output()
         .unwrap();
@@ -277,7 +268,19 @@ fn baseline_measure_and_decide_accept_rust_02() {
     assert_eq!(read(&measured)["step"], "rust-02");
     let verified = scratch.path().join("verify.json");
     verify("rust-02", home.path(), &verified, &[]);
-    assert_eq!(read(&verified)["step"], "rust-02");
+    let verified_record = read(&verified);
+    assert_eq!(verified_record["step"], "rust-02");
+    assert_eq!(
+        verified_record["evidence_sources_sha256"]
+            .as_str()
+            .unwrap()
+            .len(),
+        64
+    );
+    assert_eq!(
+        verified_record["fixtures_sha256"].as_str().unwrap().len(),
+        64
+    );
     let out = scratch.path().join("decide.json");
     let result = Command::new(XTASK)
         .args(["migration", "decide", "--step", "rust-02", "--baseline"])

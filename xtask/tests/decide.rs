@@ -6,6 +6,10 @@ use std::path::Path;
 use std::process::Output;
 
 const XTASK: &str = env!("CARGO_BIN_EXE_careerbrew-xtask");
+const SOURCE_REVISION: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const EVIDENCE_SOURCES: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+const FIXTURES: &str = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
+const CANDIDATE: &str = "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
 
 fn baseline() -> Value {
     let samples: Vec<Value> = (1..=30)
@@ -17,7 +21,10 @@ fn baseline() -> Value {
         "os": "linux",
         "runs": 30,
         "meets_protocol_minimum": true,
+        "source_revision": SOURCE_REVISION,
         "source_tree_dirty": false,
+        "evidence_sources_sha256": EVIDENCE_SOURCES,
+        "fixtures_sha256": FIXTURES,
         "cache_state": "warm-imports-fresh-synthetic-home",
         "samples": samples,
         "summary": {"cpu_us_p95": 1000, "tree_max_rss_bytes_p95": 50_000},
@@ -28,6 +35,10 @@ fn verify() -> Value {
     json!({
         "schema": "careerbrew-migration-verify-v1",
         "step": "rust-03",
+        "source_revision": SOURCE_REVISION,
+        "evidence_sources_sha256": EVIDENCE_SOURCES,
+        "fixtures_sha256": FIXTURES,
+        "candidate_sha256": CANDIDATE,
         "checks": [{"id": "cli.actions", "passed": true}, {"id": "story.us-53", "passed": true}],
         "violations": {
             "contract": 0, "privacy": 0, "authorization": 0, "role": 0,
@@ -57,6 +68,10 @@ fn measure(cpu: u64) -> Value {
         "schema": "careerbrew-migration-measure-v1",
         "step": "rust-03",
         "os": "linux",
+        "source_revision": SOURCE_REVISION,
+        "evidence_sources_sha256": EVIDENCE_SOURCES,
+        "fixtures_sha256": FIXTURES,
+        "candidate_sha256": CANDIDATE,
         "regimes": [regime("cold"), regime("warm")],
     })
 }
@@ -111,6 +126,125 @@ fn passing_records_activate() {
     assert_eq!(record["schema"], "careerbrew-migration-decide-v1");
     assert_eq!(record["decision"], "activate");
     assert_eq!(record["reasons"], json!([]));
+}
+
+fn refuses_with(base: Value, verify: Value, measure: Value, diagnostic: &str) {
+    let dir = tempfile::tempdir().unwrap();
+    let (output, record) = decide(dir.path(), &base, &verify, &measure);
+    assert_eq!(output.status.code(), Some(2), "{diagnostic}: {output:?}");
+    assert!(record.is_none(), "{diagnostic}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains(diagnostic), "{stderr}");
+}
+
+#[test]
+fn mismatched_record_identity_is_refused_without_a_verdict() {
+    for field in [
+        "source_revision",
+        "evidence_sources_sha256",
+        "fixtures_sha256",
+    ] {
+        for name in ["verify", "measure"] {
+            let (base, mut verify, mut measure) = (baseline(), verify(), measure(1000));
+            let target = if name == "verify" {
+                &mut verify
+            } else {
+                &mut measure
+            };
+            let length = if field == "source_revision" { 40 } else { 64 };
+            target[field] = json!("e".repeat(length));
+            refuses_with(
+                base,
+                verify,
+                measure,
+                &format!("the {name} record has another {field} than the baseline"),
+            );
+        }
+    }
+    for name in ["verify", "measure"] {
+        let (base, mut verify, mut measure) = (baseline(), verify(), measure(1000));
+        let target = if name == "verify" {
+            &mut verify
+        } else {
+            &mut measure
+        };
+        target["candidate_sha256"] = json!("e".repeat(64));
+        refuses_with(
+            base,
+            verify,
+            measure,
+            "the verify and measure records have different candidate_sha256",
+        );
+    }
+}
+
+#[test]
+fn missing_record_identity_is_refused_without_a_verdict() {
+    for field in [
+        "source_revision",
+        "evidence_sources_sha256",
+        "fixtures_sha256",
+    ] {
+        for name in ["baseline", "verify", "measure"] {
+            let (mut base, mut verify, mut measure) = (baseline(), verify(), measure(1000));
+            let target = match name {
+                "baseline" => &mut base,
+                "verify" => &mut verify,
+                _ => &mut measure,
+            };
+            target.as_object_mut().unwrap().remove(field);
+            refuses_with(
+                base,
+                verify,
+                measure,
+                &format!("the {name} record lacks {field}"),
+            );
+        }
+    }
+    for name in ["verify", "measure"] {
+        let (base, mut verify, mut measure) = (baseline(), verify(), measure(1000));
+        let target = if name == "verify" {
+            &mut verify
+        } else {
+            &mut measure
+        };
+        target.as_object_mut().unwrap().remove("candidate_sha256");
+        refuses_with(
+            base,
+            verify,
+            measure,
+            &format!("the {name} record lacks candidate_sha256"),
+        );
+    }
+}
+
+#[test]
+fn malformed_record_identity_is_refused_without_a_verdict() {
+    for field in [
+        "source_revision",
+        "evidence_sources_sha256",
+        "fixtures_sha256",
+        "candidate_sha256",
+    ] {
+        for name in ["baseline", "verify", "measure"] {
+            if field == "candidate_sha256" && name == "baseline" {
+                continue;
+            }
+            let (mut base, mut verify, mut measure) = (baseline(), verify(), measure(1000));
+            let target = match name {
+                "baseline" => &mut base,
+                "verify" => &mut verify,
+                _ => &mut measure,
+            };
+            target[field] = json!("not-hex");
+            refuses_with(
+                base,
+                verify,
+                measure,
+                &format!("the {name} record has malformed {field}"),
+            );
+        }
+    }
 }
 
 #[test]
