@@ -18,6 +18,7 @@ export type PaintRecord = {
   ratio: number | null;
   samples: number;
   reason?: string;
+  detail?: string;
 };
 
 type AxeColor = {
@@ -183,10 +184,11 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
       } catch {
         return { id: target.id, text: target.text, verdict: "unknown", ratio: null, samples: 0, reason: "foreground-color-parse" };
       }
-      if (foreground.alpha !== 1) {
-        return { id: target.id, text: target.text, verdict: "unknown", ratio: null, samples: 0, reason: "translucent-foreground" };
+      if (foreground.alpha !== 1 && target.groups.length > 0) {
+        return { id: target.id, text: target.text, verdict: "unknown", ratio: null, samples: 0, reason: "translucent-group-unsupported" };
       }
       let worst: number | null = null;
+      let detail: string | undefined;
       let samples = 0;
       for (const rect of target.rects) {
         for (let y = rect.y; y < rect.y + rect.height; y += 1) {
@@ -212,7 +214,14 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
             if (ratio === null || !Number.isFinite(ratio)) {
               return { id: target.id, text: target.text, verdict: "unknown", ratio: null, samples, reason: "contrast-unavailable" };
             }
-            worst = worst === null ? ratio : Math.min(worst, ratio);
+            if (worst === null || ratio < worst) {
+              worst = ratio;
+              detail = JSON.stringify({
+                x, y, target: target.color,
+                background: [background.red, background.green, background.blue, background.alpha],
+                effective: [effective.red, effective.green, effective.blue, effective.alpha],
+              });
+            }
             samples += 1;
           }
         }
@@ -220,7 +229,7 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
       if (worst === null || samples === 0) {
         return { id: target.id, text: target.text, verdict: "unknown", ratio: null, samples, reason: "no-text-pixels" };
       }
-      return { id: target.id, text: target.text, verdict: worst >= 4.5 ? "pass" : "fail", ratio: worst, samples };
+      return { id: target.id, text: target.text, verdict: worst >= 4.5 ? "pass" : "fail", ratio: worst, samples, detail };
     });
   }, { targets: prepared.targets, images });
 }
