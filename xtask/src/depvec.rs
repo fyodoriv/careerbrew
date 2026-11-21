@@ -453,6 +453,12 @@ pub fn record(
     if sources_sha256(root, step, &sets)? != hash || current_evidence != evidence {
         return Err("a relevant source changed during verify".into());
     }
+    let current_candidate_sha256 = capture_actions::digest(
+        &std::fs::read(&candidate).map_err(|_| "cannot read the candidate binary")?,
+    );
+    if current_candidate_sha256 != candidate_sha256 {
+        return Err("the candidate binary changed during verify".into());
+    }
     let failed: Vec<String> = cases
         .iter()
         .filter(|case| case["passed"] != true)
