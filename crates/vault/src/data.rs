@@ -72,7 +72,7 @@ fn encode(value: &Canon) -> Value {
                     _ => None,
                 })
                 .collect();
-            entries.sort_by_key(|(key, _)| key.as_bytes());
+            entries.sort_by(|(a, _), (b, _)| a.as_bytes().cmp(b.as_bytes()));
             json!({"kind": "map", "entries": entries.into_iter().map(|(key, value)| json!({"key": encode(&Canon::Str(key.into())), "value": encode(value)})).collect::<Vec<_>>()})
         }
     }
