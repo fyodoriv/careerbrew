@@ -514,7 +514,7 @@ def cut_projection(raw: list[str], body: str, learned: dict[str, Any], rows: lis
         clean = line.strip().lstrip("-•◦+ ").strip()
         if not clean:
             continue
-        label, _ = _split(line)
+        label, _ = _split(clean)
         if not label or re.match(r"(?:[#>|<]|\[|`{3}|~{3}|\d+[.)]\s)", clean) or ("|" in label):
             unknown = True
         elif label.isascii() or label in spellings:
