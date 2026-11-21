@@ -49,6 +49,9 @@ pub struct Step {
     /// Extra files, relative to the repo root, hashed into the baseline and
     /// measure source hash (a vector step's driver and the Python it reads).
     pub sources: &'static [&'static str],
+    /// Exact fixture files, relative to the repo root, whose bytes join the
+    /// shared evidence identity. Directories and unregistered files are not read.
+    pub fixtures: &'static [&'static str],
 }
 
 pub const STEPS: &[Step] = &[
@@ -76,6 +79,12 @@ pub const STEPS: &[Step] = &[
             "src/careerbrew/paths.py",
             "src/careerbrew/changes.py",
             "src/careerbrew/calendar.py",
+        ],
+        fixtures: &[
+            "xtask/tests/fixtures/purevec/clock.json",
+            "xtask/tests/fixtures/purevec/hash.json",
+            "xtask/tests/fixtures/purevec/paths.json",
+            "xtask/tests/fixtures/purevec/settings.json",
         ],
     },
     Step {
@@ -107,6 +116,7 @@ pub const STEPS: &[Step] = &[
             "scripts/gen-registry.py",
             "config/native-routes.txt",
         ],
+        fixtures: &[],
     },
     Step {
         // rust-04 is a vector step (privacy, policy and approval decisions).
@@ -133,6 +143,7 @@ pub const STEPS: &[Step] = &[
             "src/careerbrew/approvals.py",
             "src/careerbrew/work/access.py",
         ],
+        fixtures: &[],
     },
 ];
 
@@ -237,7 +248,7 @@ pub(crate) fn evidence_hashes(root: &Path, step: &Step) -> Result<(String, Strin
     let sources = hashed_sources(root, step)?;
     Ok((
         capture_actions::digest(sources.to_string().as_bytes()),
-        fixtures_sha256(root)?,
+        fixtures_sha256(root, step)?,
     ))
 }
 
@@ -270,9 +281,13 @@ pub(crate) fn hashed_sources_with(root: &Path, extra: &[&str]) -> Result<Value, 
     Ok(sources)
 }
 
-/// One hash over the HTTP fixtures the oracle environment points at.
-pub(crate) fn fixtures_sha256(root: &Path) -> Result<String, String> {
-    let files = capture_actions::files(root, &root.join("tests/fixtures/http"), None)?;
+/// One hash over the HTTP fixtures and the step's registered fixture files.
+pub(crate) fn fixtures_sha256(root: &Path, step: &Step) -> Result<String, String> {
+    let mut files = capture_actions::files(root, &root.join("tests/fixtures/http"), None)?;
+    for name in step.fixtures {
+        let bytes = std::fs::read(root.join(name)).map_err(|_| "evidence fixture missing")?;
+        files.insert((*name).to_owned(), capture_actions::digest(&bytes));
+    }
     Ok(capture_actions::digest(json!(files).to_string().as_bytes()))
 }
 
@@ -300,12 +315,12 @@ pub fn record(
     }
     let python_version = capture_actions::version(python)?;
     let sources = hashed_sources(root, step)?;
-    let fixtures = fixtures_sha256(root)?;
+    let fixtures = fixtures_sha256(root, step)?;
     let sources_sha256 = capture_actions::digest(sources.to_string().as_bytes());
     let args = step.oracle.iter().map(OsString::from).collect::<Vec<_>>();
     let (samples, summary, method) =
         sample(root, python, &args, runs, "oracle", "baseline", step.env)?;
-    if hashed_sources(root, step)? != sources || fixtures_sha256(root)? != fixtures {
+    if hashed_sources(root, step)? != sources || fixtures_sha256(root, step)? != fixtures {
         return Err("a relevant source changed during the baseline".into());
     }
     let (os, _) = resources::host_unit()?;

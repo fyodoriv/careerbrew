@@ -201,7 +201,9 @@ stays blocked.
    sources, `baseline.rs`, `resources.rs`, the step's sources and its pinned
    environment. Each producer's separate `sources_sha256` keeps its own wider
    or different harness coverage; those producer-specific values are not
-   expected to match.
+   expected to match. The shared fixture hash covers the HTTP fixture tree and
+   each exact path in `baseline::Step::fixtures`: today the four pure-vector
+   JSON files for `rust-02`. It never reads an unregistered vector-fixture path.
 6. **Close the step.** Update docs, the per-step coverage and the rollback
    evidence in the same pull request. Run the fast gate per commit. The hosted
    checks run the full gate before the step counts as done

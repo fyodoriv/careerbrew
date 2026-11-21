@@ -323,7 +323,7 @@ fn inputs(root: &Path, step: &baseline::Step, program: &Path) -> Result<Inputs, 
     baseline::bind_env(&mut sources, step)?;
     Ok(Inputs {
         sources,
-        fixtures_sha256: baseline::fixtures_sha256(root)?,
+        fixtures_sha256: baseline::fixtures_sha256(root, step)?,
         candidate_sha256: capture_actions::digest(&binary),
     })
 }
@@ -578,6 +578,68 @@ mod controls {
         // measure appends the same file to these oracle args, so the oracle
         // must take `--all` last (`rust04.py --all <vectors-file>`).
         assert_eq!(step.oracle.last(), Some(&"--all"));
+    }
+
+    #[test]
+    fn mixed_pure_vector_fixture_records_are_refused() {
+        let (scratch, _) = scratch_root();
+        let root = scratch.path();
+        let real = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let registered = root.join("target/debug/careerbrew-purevec");
+        std::fs::create_dir_all(registered.parent().unwrap()).unwrap();
+        copy(&real.join("target/debug/careerbrew-purevec"), &registered);
+        let git = |args: &[&str]| {
+            let output = std::process::Command::new("/usr/bin/git")
+                .args(args)
+                .current_dir(root)
+                .env_clear()
+                .output()
+                .unwrap();
+            assert!(output.status.success(), "{args:?}: {output:?}");
+        };
+        git(&["init", "--quiet"]);
+        git(&["add", "."]);
+        git(&[
+            "-c",
+            "user.name=Synthetic",
+            "-c",
+            "user.email=synthetic@example.com",
+            "commit",
+            "--quiet",
+            "-m",
+            "initial",
+        ]);
+        let python = &real.join(".venv/bin/python");
+        let base = baseline::record(root, "rust-02", python, 1, true).unwrap();
+        let measured = record(root, "rust-02", python, &Source::Registered, 1, true).unwrap();
+        // Whitespace changes the fixture bytes without changing its vectors.
+        let fixture = root.join("xtask/tests/fixtures/purevec/hash.json");
+        let bytes = std::fs::read_to_string(&fixture).unwrap();
+        std::fs::write(&fixture, format!("{bytes}\n")).unwrap();
+        let verified = crate::depvec::record(
+            root,
+            crate::depvec::step("rust-02").unwrap(),
+            python,
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        assert_eq!(base["fixtures_sha256"], measured["fixtures_sha256"]);
+        assert_ne!(base["fixtures_sha256"], verified["fixtures_sha256"]);
+        assert_eq!(base["source_revision"], verified["source_revision"]);
+        assert_eq!(measured["candidate_sha256"], verified["candidate_sha256"]);
+        let floor = json!({
+            "cpu_floor_us": 0, "cpu_absolute_us": 0,
+            "rss_floor_bytes": 0, "rss_absolute_bytes": 0,
+        });
+        let error = crate::decide::verdict("rust-02", &base, &verified, &measured, Some(&floor))
+            .unwrap_err();
+        assert_eq!(
+            error,
+            "the verify record has another fixtures_sha256 than the baseline"
+        );
     }
 
     #[test]
