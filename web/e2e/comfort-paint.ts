@@ -110,7 +110,7 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
     return { targets, groups: groups.length, restore };
   }, scope);
 
-  const images: string[] = [];
+  const captures: { image: string; layout: { id: string; rects: Rect[] }[] }[] = [];
   try {
     if (prepared.targets.length > 0) {
       const capture = async () => {
@@ -125,17 +125,18 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
           return { id: `paint-${element.getAttribute("data-paint-target")}`, rects };
         }));
         const expected = prepared.targets.map(({ id, rects }) => ({ id, rects }));
-        const index = layout.findIndex((item, i) => JSON.stringify(item) !== JSON.stringify(expected[i]));
-        if (index >= 0 || layout.length !== expected.length) {
-          throw new Error(`BLOCKED: paint target layout changed during capture: ${JSON.stringify({ before: expected[index], after: layout[index], count: [expected.length, layout.length] })}`);
-        }
-        return (await page.screenshot({ fullPage: true, animations: "disabled" })).toString("base64");
+        const valid = layout.length === expected.length && layout.every((item, index) =>
+          item.id === expected[index].id && item.rects.length === expected[index].rects.length && item.rects.every((rect, n) =>
+            rect.width === expected[index].rects[n].width && rect.height === expected[index].rects[n].height));
+        if (!valid) throw new Error("BLOCKED: paint target identity or dimensions changed during capture");
+        const image = (await page.screenshot({ fullPage: true, animations: "disabled" })).toString("base64");
+        return { image, layout };
       };
-      images.push(await capture());
+      captures.push(await capture());
       for (let id = 0; id < prepared.groups; id++) {
         const group = page.locator(`[data-paint-group="${id}"]`);
         await group.evaluate((element: HTMLElement) => element.style.setProperty("visibility", "hidden", "important"));
-        images.push(await capture());
+        captures.push(await capture());
         // The final cleanup below restores every original inline style. Keep the
         // group hidden only for its own backdrop capture.
         await group.evaluate((element: HTMLElement) => element.style.removeProperty("visibility"));
@@ -158,7 +159,7 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
   }
   if (prepared.targets.length === 0) return [];
 
-  return page.evaluate(async ({ targets, images }): Promise<PaintRecord[]> => {
+  return page.evaluate(async ({ targets, captures }): Promise<PaintRecord[]> => {
     const { Color, getContrast } = (window as unknown as AxeWindow).axe.commons.color;
     const decode = async (encoded: string) => {
       const bytes = Uint8Array.from(atob(encoded), (char) => char.charCodeAt(0));
@@ -174,22 +175,19 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
       return pixels;
     };
     const decoded = [] as ImageData[];
-    for (const image of images) decoded.push(await decode(image));
-    const base = decoded[0];
-    if (decoded.some((image) => image.width < base.width || image.height < base.height)) {
-      const dimensions = decoded.map((image, index) => `${index}:${image.width}x${image.height}`).join(",");
-      return targets.map((target) => ({ id: target.id, text: target.text, verdict: "unknown", ratio: null, samples: 0, reason: `capture-lost-area:${dimensions}` }));
-    }
+    for (const capture of captures) decoded.push(await decode(capture.image));
+    const width = Math.max(...decoded.map((image) => image.width));
+    const height = Math.max(...decoded.map((image) => image.height));
     for (const [index, image] of decoded.entries()) {
-      if (image.width === base.width && image.height === base.height) continue;
-      // Crop only surplus outer rows/columns. The layout check above proves no
-      // target moved; a smaller capture remains a failure, never a guessed pass.
-      const data = new Uint8ClampedArray(base.width * base.height * 4);
-      for (let y = 0; y < base.height; y++) {
+      if (image.width === width && image.height === height) continue;
+      // Normalize to the union of all captures. Missing pixels remain transparent
+      // and fail the existing availability checks instead of becoming a pass.
+      const data = new Uint8ClampedArray(width * height * 4);
+      for (let y = 0; y < image.height; y++) {
         const start = y * image.width * 4;
-        data.set(image.data.subarray(start, start + base.width * 4), y * base.width * 4);
+        data.set(image.data.subarray(start, start + image.width * 4), y * width * 4);
       }
-      decoded[index] = new ImageData(data, base.width, base.height);
+      decoded[index] = new ImageData(data, width, height);
     }
     const pixel = (image: ImageData, x: number, y: number): AxeColor | null => {
       const px = Math.floor(x), py = Math.floor(y);
@@ -210,7 +208,7 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
       let worst: number | null = null;
       let detail: string | undefined;
       let samples = 0;
-      for (const rect of target.rects) {
+      for (const [rectIndex, rect] of target.rects.entries()) {
         for (let y = rect.y; y < rect.y + rect.height; y += 1) {
           for (let x = rect.x; x < rect.x + rect.width; x += 1) {
             const background = pixel(decoded[0], x, y);
@@ -220,7 +218,9 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
             }
             let effective = new Color(foreground.red, foreground.green, foreground.blue, foreground.alpha);
             for (const group of target.groups) {
-              const backdrop = pixel(decoded[group.id + 1], x, y);
+              const captured = captures[group.id + 1].layout.find((item) => item.id === target.id)?.rects[rectIndex];
+              if (!captured) return { id: target.id, text: target.text, verdict: "unknown", ratio: null, samples, reason: "opacity-target-unavailable" };
+              const backdrop = pixel(decoded[group.id + 1], x + captured.x - rect.x, y + captured.y - rect.y);
               if (!backdrop || backdrop.alpha !== 1) {
                 return { id: target.id, text: target.text, verdict: "unknown", ratio: null, samples, reason: "opacity-backdrop-unavailable" };
               }
@@ -251,5 +251,5 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
       }
       return { id: target.id, text: target.text, verdict: worst >= 4.5 ? "pass" : "fail", ratio: worst, samples, detail };
     });
-  }, { targets: prepared.targets, images });
+  }, { targets: prepared.targets, captures });
 }
