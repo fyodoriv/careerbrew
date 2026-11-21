@@ -1,0 +1,30 @@
+{
+  "method": "V2.2",
+  "groups": [
+    {
+      "id": 12,
+      "name": "original element and attribute selector topology",
+      "cases": [
+        { "html": "<!doctype html><html><head><style>img+span{display:none}</style></head><body><p>Visible <img src=\"not-read.png\" alt=\"Illustration\"><span>HIDDEN_SIBLING</span> ending.</p></body></html>", "expected": "Visible [Image: Illustration] ending.\n" },
+        { "html": "<!doctype html><html><head><style>p:has(img){text-transform:uppercase}</style></head><body><p>Mixed <img src=\"not-read.png\" alt=\"Literal mixed Alt\"> tail.</p></body></html>", "expected": "MIXED [Image: Literal mixed Alt] TAIL.\n" },
+        { "html": "<!doctype html><html><head><style>p:has(img)>span{display:none}</style></head><body><p>Visible<img style=\"display:none\" src=\"not-read.png\" alt=\"UNUSED_ALT\"><span>HIDDEN_AFTER_IMAGE_REMOVAL</span> ending.</p></body></html>", "expected": "Visible ending.\n" },
+        { "html": "<!doctype html><html><head><style>script:not([style])+span{display:none}</style></head><body><p>Visible <script type=\"application/json\">{\"value\":\"INERT_METADATA\"}</script><span>HIDDEN_AFTER_ATTRIBUTE_CHANGE</span> ending.</p></body></html>", "expected": "Visible ending.\n" },
+        { "html": "<!doctype html><html><head><style>span{display:none}html:has(head>meta) span{display:inline}</style></head><body><p>Visible <span>HIDDEN_AFTER_HEAD_CHANGE</span> ending.</p></body></html>", "expected": "Visible ending.\n" },
+        { "html": "<!doctype html><html><head><style>p>span:nth-child(2){display:none}</style></head><body><p>Visible <img src=\"not-read.png\" alt=\"Illustration\"><span>HIDDEN_SECOND_ELEMENT</span> ending.</p></body></html>", "expected": "Visible [Image: Illustration] ending.\n" }
+      ]
+    },
+    {
+      "id": 13,
+      "name": "native original-text fidelity and explicit insertion-effect refusals",
+      "cases": [
+        { "html": "<!doctype html><html><body><p style=\"text-transform:uppercase\">Before <img src=\"not-read.png\" alt=\"Exact  author alt  text\"> after.</p></body></html>", "expected": "BEFORE [Image: Exact  author alt  text] AFTER.\n" },
+        { "html": "<!doctype html><html><head><style>img+span{white-space:pre-wrap;text-transform:uppercase}</style></head><body><p>Before <img src=\"not-read.png\" alt=\"Illustration\"> <span>two  words\n  next line</span> after.</p></body></html>", "expected": "Before [Image: Illustration] TWO  WORDS\n  NEXT LINE after.\n" },
+        { "html": "<!doctype html><html><body><p style=\"text-transform:capitalize\">before <img src=\"not-read.png\" alt=\"literal Alt\"> after words.</p></body></html>", "expected": "Before [Image: literal Alt] After Words.\n" },
+        { "html": "<!doctype html><html><head><style>p::first-letter{text-transform:uppercase}</style></head><body><p><img src=\"not-read.png\" alt=\"Illustration\"> mixed words.</p></body></html>", "expected": "unavailable" },
+        { "html": "<!doctype html><html><head><style>p::first-line{font-weight:bold}</style></head><body><p>Before <img src=\"not-read.png\" alt=\"Illustration\"> after.</p></body></html>", "expected": "unavailable" },
+        { "html": "<!doctype html><html><head><style>p::fi\\72 st-letter{text-transform:uppercase}</style></head><body><p>Before <img src=\"not-read.png\" alt=\"Illustration\"> after.</p></body></html>", "expected": "unavailable" },
+        { "html": "<!doctype html><html><head><style>.box{container-type:inline-size;width:300px}@container (min-width:1px){p{text-transform:uppercase}}</style></head><body><div class=\"box\"><p>Before <img src=\"not-read.png\" alt=\"Illustration\"> after.</p></div></body></html>", "expected": "unavailable" }
+      ]
+    }
+  ]
+}
