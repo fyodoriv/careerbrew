@@ -150,7 +150,8 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
     const decoded = [] as ImageData[];
     for (const image of images) decoded.push(await decode(image));
     if (decoded.some((image) => image.width !== decoded[0].width || image.height !== decoded[0].height)) {
-      return targets.map((target) => ({ id: target.id, text: target.text, verdict: "unknown", ratio: null, samples: 0, reason: "capture-size-changed" }));
+      const dimensions = decoded.map((image, index) => `${index}:${image.width}x${image.height}`).join(",");
+      return targets.map((target) => ({ id: target.id, text: target.text, verdict: "unknown", ratio: null, samples: 0, reason: `capture-size-changed:${dimensions}` }));
     }
     const pixel = (image: ImageData, x: number, y: number): AxeColor | null => {
       const px = Math.floor(x), py = Math.floor(y);
