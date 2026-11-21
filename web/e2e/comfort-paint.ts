@@ -124,8 +124,10 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
           }
           return { id: `paint-${element.getAttribute("data-paint-target")}`, rects };
         }));
-        if (JSON.stringify(layout) !== JSON.stringify(prepared.targets.map(({ id, rects }) => ({ id, rects })))) {
-          throw new Error("BLOCKED: paint target layout changed during capture");
+        const expected = prepared.targets.map(({ id, rects }) => ({ id, rects }));
+        const index = layout.findIndex((item, i) => JSON.stringify(item) !== JSON.stringify(expected[i]));
+        if (index >= 0 || layout.length !== expected.length) {
+          throw new Error(`BLOCKED: paint target layout changed during capture: ${JSON.stringify({ before: expected[index], after: layout[index], count: [expected.length, layout.length] })}`);
         }
         return (await page.screenshot({ fullPage: true, animations: "disabled" })).toString("base64");
       };
