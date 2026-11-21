@@ -114,7 +114,6 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
   try {
     if (prepared.targets.length > 0) {
       const capture = async () => {
-        const image = (await page.screenshot({ fullPage: true, animations: "disabled" })).toString("base64");
         const layout = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>("[data-paint-target]")].map((element) => {
           const rects: Rect[] = [];
           for (const node of element.childNodes) {
@@ -128,7 +127,7 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
         if (JSON.stringify(layout) !== JSON.stringify(prepared.targets.map(({ id, rects }) => ({ id, rects })))) {
           throw new Error("BLOCKED: paint target layout changed during capture");
         }
-        return image;
+        return (await page.screenshot({ fullPage: true, animations: "disabled" })).toString("base64");
       };
       images.push(await capture());
       for (let id = 0; id < prepared.groups; id++) {
@@ -196,7 +195,7 @@ export async function measurePaint(page: Page, scope = "main"): Promise<PaintRec
       const offset = (py * image.width + px) * 4;
       return new Color(image.data[offset], image.data[offset + 1], image.data[offset + 2], image.data[offset + 3] / 255);
     };
-    return targets.map((target): PaintRecord => {
+    return targets.filter((target) => new Color().parseString(target.color).alpha > 0).map((target): PaintRecord => {
       let foreground: AxeColor;
       try {
         foreground = new Color().parseString(target.color);
