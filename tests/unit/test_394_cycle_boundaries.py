@@ -1,0 +1,193 @@
+"""Measure the saved review cycle's synthetic deadline boundaries."""
+
+import io
+import os
+import shlex
+import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
+
+import pytest
+
+from careerbrew.work import review_ask
+from careerbrew.workday import questions, review_cycle
+
+
+def test_review_recheck_receives_shared_deadline(monkeypatch):
+    seen = {}
+
+    def recheck(_url, *, deadline=None):
+        seen["deadline"] = deadline
+        return "open", "synthetic"
+
+    monkeypatch.setattr(review_ask, "recheck_pr", recheck)
+    row = {"recheck": "careerbrew:review-pr https://github.com/example/repo/pull/1", "source": "settings"}
+    assert questions.check_one(row, deadline=123.5) == ("open", "synthetic")
+    assert seen == {"deadline": 123.5}
+
+
+def test_slow_recheck_stops_at_requested_budget(monkeypatch):
+    row = {"recheck": "careerbrew:review-pr https://github.com/example/repo/pull/1", "step": "/review", "source": "owner"}
+    monkeypatch.setattr(questions, "open_records", lambda: [row])
+    release = threading.Event()
+    finished = threading.Event()
+
+    def slow(_row, **_kwargs):
+        release.wait(2)
+        finished.set()
+        return "open", "synthetic"
+
+    monkeypatch.setattr(questions, "check_one", slow)
+
+    def unexpected(*_args):
+        pytest.fail("inventory ran after the shared deadline")
+
+    monkeypatch.setattr(review_cycle, "_inventory", unexpected)
+    start = time.monotonic()
+    try:
+        assert review_cycle.run({"step": "/review", "from": "settings", "review_ask_cycle": "unused"}, 0.05) is False
+        assert not finished.is_set()
+        assert time.monotonic() - start < 1
+    finally:
+        release.set()
+    assert finished.wait(1)
+
+
+def test_cleanup_error_never_falls_into_popen_exit_wait(monkeypatch):
+    read, write = os.pipe()
+    os.close(write)
+
+    class Child:
+        pid = 424242
+
+        def __init__(self):
+            self.stdout = io.FileIO(read)
+
+        def wait(self, **_kwargs):
+            return 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            raise AssertionError("Popen.__exit__ waited after the cleanup error")
+
+    child = Child()
+    monkeypatch.setattr(review_cycle.subprocess, "Popen", lambda *_args, **_kwargs: child)
+
+    def fail_cleanup(_process):
+        raise PermissionError
+
+    monkeypatch.setattr(review_cycle, "_stop_owned_group", fail_cleanup)
+    with pytest.raises(PermissionError):
+        review_cycle._inventory("unused", 1)
+    assert child.stdout.closed
+
+
+def test_timed_out_inventory_owns_its_descendants(tmp_path):
+    ready, release, marker = (tmp_path / name for name in ("ready", "release", "marker"))
+    child = """import os,pathlib,sys,time
+ready, release, marker = map(pathlib.Path, sys.argv[1:])
+tmp = ready.with_suffix(".tmp")
+tmp.write_text(str(os.getpid()))
+tmp.replace(ready)
+deadline = time.monotonic() + 8
+while not release.exists() and time.monotonic() < deadline:
+    time.sleep(0.01)
+if release.exists(): marker.touch()
+"""
+    parent = "import subprocess,sys,time; subprocess.Popen([sys.executable, '-c', *sys.argv[1:]], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(6)"
+    command = shlex.join([sys.executable, "-c", parent, child, str(ready), str(release), str(marker)])
+    outcome = []
+
+    def run():
+        try:
+            review_cycle._inventory(command, 3)
+        except Exception as exc:
+            outcome.append(exc)
+
+    worker = threading.Thread(target=run, daemon=True)
+    worker.start()
+    try:
+        deadline = time.monotonic() + 2
+        while not ready.exists() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert ready.exists(), "synthetic child did not start in time"
+        worker.join(timeout=5)
+        assert not worker.is_alive()
+        assert len(outcome) == 1 and isinstance(outcome[0], subprocess.TimeoutExpired)
+        assert not marker.exists()
+        release.touch()
+        pid = int(ready.read_text())
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.02)
+        else:
+            pytest.fail("owned synthetic descendant survived the inventory timeout")
+        assert not marker.exists()
+    finally:
+        release.touch()
+        worker.join(timeout=7)
+        assert not worker.is_alive()
+
+
+def test_outer_timeout_owns_live_adapter_request(tmp_path, monkeypatch):
+    """The adapter must not hide its live GitHub request from the watch's process group."""
+    ready, release, marker = (tmp_path / name for name in ("ready", "release", "marker"))
+    child = """import os,pathlib,sys,time
+ready, release, marker = map(pathlib.Path, sys.argv[1:])
+tmp = ready.with_suffix('.tmp')
+tmp.write_text(str(os.getpid()))
+tmp.replace(ready)
+deadline = time.monotonic() + 8
+while not release.exists() and time.monotonic() < deadline:
+    time.sleep(0.01)
+if release.exists(): marker.touch()
+"""
+    parent = "import subprocess,sys,time; subprocess.Popen([sys.executable, '-c', *sys.argv[1:]], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(6)"
+    gh = tmp_path / "gh"
+    command = shlex.join([sys.executable, "-c", parent, child, str(ready), str(release), str(marker)])
+    gh.write_text(f"#!/bin/sh\nexec {command}\n")
+    gh.chmod(0o700)
+    monkeypatch.setenv("PATH", f"{tmp_path}:/usr/bin:/bin")
+    script = Path(__file__).resolve().parents[2] / "scripts/review-github-inventory.py"
+    outcome = []
+
+    def run():
+        try:
+            review_cycle._inventory(shlex.join([sys.executable, str(script), "example/review-demo"]), 3)
+        except Exception as exc:
+            outcome.append(exc)
+
+    worker = threading.Thread(target=run, daemon=True)
+    worker.start()
+    try:
+        deadline = time.monotonic() + 2
+        while not ready.exists() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert ready.exists(), "synthetic GitHub descendant did not start"
+        worker.join(timeout=5)
+        assert not worker.is_alive()
+        assert len(outcome) == 1 and isinstance(outcome[0], subprocess.TimeoutExpired)
+        release.touch()
+        pid = int(ready.read_text())
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.02)
+        else:
+            pytest.fail("adapter hid its live GitHub descendant from the outer owner")
+        assert not marker.exists()
+    finally:
+        release.touch()
+        worker.join(timeout=7)
+        assert not worker.is_alive()

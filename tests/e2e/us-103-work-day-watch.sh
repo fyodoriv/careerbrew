@@ -42,6 +42,30 @@ expect "$(cb day loop pass)" "/repo-watch unchanged" "a step whose watch input d
 echo two >"$SCRATCH/input.txt"
 expect "$(cb day loop pass)" "/repo-watch ok" "a changed watch input runs the step again"
 [ "$(grep -c x "$SCRATCH/ran")" = 2 ] || fail "the cycle ran $(grep -c x "$SCRATCH/ran") times, not 2"
+# An approved review inventory can offer one draft as a PR becomes ready.
+mkdir -p "$SCRATCH/plugin-review"
+cat >"$SCRATCH/plugin-review/careerbrew-plugin.yaml" <<YAML
+name: midday-review
+version: 1.0.0
+work_steps:
+  - {step: /midday-review, scope: review, review_ask_cycle: "cat $SCRATCH/review-inventory.json"}
+YAML
+write_review_inventory() {
+  cat >"$SCRATCH/review-inventory.json" <<JSON
+{"complete":true,"pull_requests":[{"url":"https://github.com/example/review-demo/pull/41","owned":true,"open":true,"draft":false,"checks_green":$1,"mergeable":true,"threads_resolved":true,"reviewer_requested":false,"review_submitted":false}]}
+JSON
+}
+cb plugin add "$SCRATCH/plugin-review" --allow-exec >/dev/null
+write_review_inventory false
+cb day loop pass >/dev/null
+expect "$(cb day question list)" "questions: 0 open" "failing checks create no review offer"
+write_review_inventory true
+out="$(cb day loop pass)"
+expect "$out" "/midday-review ok" "the watch pass reads the approved review inventory"
+refute "$out" "review-demo" "privacy: the watch output omits the PR link"
+expect "$(cb day question list)" "questions: 1 open" "a newly ready PR creates one review offer"
+cb day loop pass >/dev/null
+expect "$(cb day question list)" "questions: 1 open" "the next pass leaves one review offer"
 # Another pass holds the lock: a second one exits at once.
 "$ROOT/.venv/bin/python" -c "import fcntl,sys,time; f=open(sys.argv[1],'a+'); fcntl.flock(f,fcntl.LOCK_EX); open(sys.argv[2],'w').close(); time.sleep(20)" \
   "$CAREERBREW_HOME/day/.loop.lock" "$SCRATCH/held" &
