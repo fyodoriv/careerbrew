@@ -6,6 +6,7 @@ use fernet::Fernet;
 
 pub mod atomic;
 pub mod keyfile;
+pub mod lock;
 
 pub const MAGIC: &[u8] = b"CBV1\n";
 
