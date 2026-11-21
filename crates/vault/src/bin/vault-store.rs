@@ -299,6 +299,19 @@ fn run(args: &[String]) -> Result<String, String> {
             return Ok(String::new());
         }
     }
+    if let [op, key_file, root, id] = args {
+        if op == "receipt-request" {
+            let root = Path::new(root);
+            let key_file = Path::new(key_file);
+            let keys = |create: bool| synthetic::key_for_data(root, key_file, create);
+            let store = Store::new(root, true, &keys);
+            let runtime = synthetic::EventRuntime::new(&store, vec![id.clone()]);
+            Receipts::new(&store, &runtime)
+                .request("Synthetic mixed writer", "", "agent")
+                .map_err(|_| "receipt".to_string())?;
+            return Ok(String::new());
+        }
+    }
     if args
         .first()
         .is_some_and(|arg| arg == "data" || arg == "secret")

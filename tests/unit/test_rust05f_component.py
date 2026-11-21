@@ -145,6 +145,39 @@ def test_receipt_event_interruption_leaves_readable_state_and_releases_lock(stor
         assert len(store.read_json(home / "approvals.json")) == 2
 
 
+def test_mixed_receipt_writers_and_lock_free_reads(store_bin, tmp_path, monkeypatch):
+    root = tmp_path / "mixed-receipts"
+    env = synthetic_env(root)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    home = Path(env["CAREERBREW_HOME"])
+    key = Path(env["CAREERBREW_KEY_FILE"])
+    worker = "from careerbrew import approvals; approvals.request('Synthetic Python writer')"
+    children = [subprocess.Popen([sys.executable, "-c", worker], cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE) for _ in range(4)]
+    children += [
+        subprocess.Popen(
+            [store_bin, "receipt-request", key, home, f"rust{i:04d}"],
+            cwd=ROOT,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        for i in range(4)
+    ]
+    for child in children:
+        _, error = child.communicate(timeout=60)
+        assert child.returncode == 0, error.decode(errors="replace")
+    rows = approvals.validate_records(store.read_json(home / "approvals.json"))
+    assert len(rows) == 8
+    assert len({row["id"] for row in rows}) == 8
+    # A reader does not wait for the writer's flock; atomic replacement is its
+    # consistency boundary. The synthetic read runs while this process holds it.
+    with approvals._locked():
+        done = subprocess.run([store_bin, "read", key, home, home / "approvals.json"], env=env, capture_output=True, timeout=5)
+        assert done.returncode == 0
+        assert len(json.loads(done.stdout)) == 8
+
+
 def read_pty(master: int, child: subprocess.Popen, *, secret: str | None = None) -> bytes:
     output = bytearray()
     sent = False

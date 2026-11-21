@@ -207,9 +207,18 @@ fn cli_case(cases: &mut Vec<Value>, id: &str, outcome: Outcome) {
     cases.push(json!({"id": id, "exit": outcome.code, "stdout_sha256": sha(output.as_bytes())}));
 }
 
-struct EventRuntime<'a, 'root> {
+pub struct EventRuntime<'a, 'root> {
     store: &'a Store<'root>,
-    ids: RefCell<std::vec::IntoIter<&'static str>>,
+    ids: RefCell<std::vec::IntoIter<String>>,
+}
+
+impl<'a, 'root> EventRuntime<'a, 'root> {
+    pub fn new(store: &'a Store<'root>, ids: Vec<String>) -> Self {
+        Self {
+            store,
+            ids: RefCell::new(ids.into_iter()),
+        }
+    }
 }
 
 impl Runtime for EventRuntime<'_, '_> {
@@ -502,10 +511,7 @@ pub fn run_all(root: &Path, key_file: &Path) -> Result<Value, String> {
     );
     cases.push(json!({"id": "jsonl-noop-identity", "result": upsert_before == identity(&rows_path).map_err(|_| "identity")?}));
 
-    let runtime = EventRuntime {
-        store: &store,
-        ids: RefCell::new(vec!["a1b2c3d4", "e5f60718"].into_iter()),
-    };
+    let runtime = EventRuntime::new(&store, vec!["a1b2c3d4".into(), "e5f60718".into()]);
     let receipts = Receipts::new(&store, &runtime);
     let requested = receipts
         .request("  Synthetic   approval  ", " synthetic detail ", "agent")
