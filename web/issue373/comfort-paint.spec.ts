@@ -28,7 +28,7 @@ async function calibrate(page: Parameters<typeof measurePaint>[0]) {
     for (const control of CONTROLS) {
       const actual = measured.find((item) => item.text === control.text);
       expect(actual, control.text).toBeDefined();
-      expect(actual?.verdict, control.text).toBe(control.verdict);
+      expect(actual?.verdict, `${control.text}: ${JSON.stringify(actual)}`).toBe(control.verdict);
       expect(actual?.samples ?? 0, control.text).toBeGreaterThan(0);
       expect(actual?.ratio ?? 0, control.text).toBeGreaterThanOrEqual(control.min);
       expect(actual?.ratio ?? Infinity, control.text).toBeLessThanOrEqual(control.max);
