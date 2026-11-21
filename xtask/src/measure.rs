@@ -494,6 +494,7 @@ mod controls {
             "pyproject.toml",
             "uv.lock",
             "Cargo.lock",
+            "rust-toolchain.toml",
             "crates/cbcli",
             "scripts/gen-registry.py",
             "config/native-routes.txt",
