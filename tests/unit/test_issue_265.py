@@ -350,6 +350,30 @@ def test_a_pr_recheck_closes_only_on_a_merged_or_closed_answer(tmp_path, monkeyp
     assert [r["state"] for r in got["items"]] == [state, state], got
 
 
+def test_morning_recheck_cannot_close_a_changed_question(monkeypatch):
+    from datetime import date
+
+    first = "careerbrew:review-pr https://github.com/example/shop/pull/1"
+    second = "careerbrew:review-pr https://github.com/example/shop/pull/2"
+    q = questions.add("/review", "Draft a review ask?", recheck=first, source="owner")
+    monkeypatch.setenv("CAREERBREW_NOW", at("17:40"))
+    end.finish()
+    monkeypatch.setenv("CAREERBREW_NOW", at("09:00", NEXT))
+
+    def change_during_recheck(current):
+        replacement = questions.record(current["step"], current["text"], recheck=second, source=current["source"])
+        questions.save(replacement, date.fromisoformat(current["day"]))
+        return "closed", "reviewer requested"
+
+    monkeypatch.setattr(questions, "check_one", change_during_recheck)
+    got = end.morning()
+    current = next(row for row in questions.open_records() if row["id"] == q["id"])
+    assert current["recheck"] == second and not current["closed"]
+    row = next(item for item in got["items"] if item["id"] == q["id"])
+    assert row["state"] == "open"
+    assert q["id"] in {item["id"] for item in handoff.load(date.fromisoformat(DAY))}
+
+
 def test_a_second_day_start_does_not_fall_back_to_an_older_handoff(tmp_path, monkeypatch):
     handoff.add("waiting", "An old wait", day=__import__("datetime").date.fromisoformat("2026-10-27"))
     status.update("/review-prs", ["/review-prs"], status="done", link="https://github.com/example/shop/pull/12")

@@ -25,7 +25,7 @@ NAME = re.compile(r"^/?[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
 MAX_STEPS = 30
 # The fields a step may declare: order (#258; `longRunning` is read as `long_running`), then its proof and time limit (#259),
 # then its watch-loop entry and the inputs that re-run it (#264, `watch.check_fields`).
-FIELDS = ("scope", "after", "long_running", "uses", "verify", "timeout", "cycle", "watch", "about", "operator_turn")
+FIELDS = ("scope", "after", "long_running", "uses", "verify", "timeout", "cycle", "review_ask_cycle", "watch", "about", "operator_turn")
 MAX_ABOUT_WORDS = 15  # issue #311: one plain line that says what the step does
 # Named exclusive resources: two steps that list the same entry never run in the same stage.
 USE_KINDS = ("browser", "slack-draft", "file", "checkout")

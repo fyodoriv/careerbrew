@@ -297,14 +297,14 @@ def test_bad_cycle_or_watch_is_refused(raw, msg):
 
 
 def test_an_agent_sees_whether_a_step_has_a_cycle_not_its_command(tmp_path, capsys, monkeypatch):
-    _plugin(tmp_path, [{"step": "/repo-watch", "scope": "repo", "cycle": "check-internal-host", "watch": ["repo:~/apps/internal-repo"]}])
+    _plugin(tmp_path, [{"step": "/repo-watch", "scope": "repo", "cycle": "check-internal-host", "review_ask_cycle": "review-inventory internal-review-repo", "watch": ["repo:~/apps/internal-repo"]}])
     monkeypatch.setattr(cli, "may_show_business", lambda: False)
     capsys.readouterr()
     cli.main(["day", "run", "--json"])
     out = capsys.readouterr().out
-    assert "check-internal-host" not in out and "internal-repo" not in out
+    assert "check-internal-host" not in out and "internal-repo" not in out and "internal-review-repo" not in out
     step = next(s for s in json.loads(out)["steps"] if s["step"] == "/repo-watch")
-    assert step["cycle"] is True and step["watch"] == ["repo"]
+    assert step["cycle"] is True and step["review_ask_cycle"] is True and step["watch"] == ["repo"]
 
 
 def test_the_plan_points_the_agent_at_the_one_loop():

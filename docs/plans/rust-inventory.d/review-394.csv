@@ -1,0 +1,6 @@
+scripts/review-github-inventory.py,port,rust-16,Bounded GitHub review inventory adapter for the work-day watch cycle
+src/careerbrew/workday/review_cycle.py,port,rust-16,Deadline-bound review offers with invocation-owned inventory process cleanup
+tests/unit/test_394_cycle_boundaries.py,port,rust-27,Synthetic shared-deadline and owned-descendant regression controls
+tests/unit/test_issue_394.py,port,rust-27,Typed review recheck and transport compatibility controls
+tests/unit/test_issue_394_cycle.py,port,rust-27,Ordinary work-day review-offer integration controls
+tests/unit/test_review_github_inventory.py,port,rust-27,Pagination stability deadline and process-ownership controls
