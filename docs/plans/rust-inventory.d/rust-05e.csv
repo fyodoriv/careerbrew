@@ -1,0 +1,2 @@
+crates/vault/src/lock.rs,port,rust-05,rust-05e native advisory lock: flock on the sibling .{name}.lock like store.append_jsonl; sealed append is read add rewrite under the lock; no production dispatch
+tests/unit/test_rust05e_mixed_writers.py,port,rust-05,Port rust-05e mixed writer proof: 4 Python and 4 Rust writers append 1000 rows to one sealed jsonl; every id kept once; plain variant too

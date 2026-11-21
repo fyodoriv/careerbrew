@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 // `group` builds the sidebar sections: Plan (your work and goals), Job search, System (careerbrew itself) (#66).
 // `hint` is the one-line subtitle under each page title.
@@ -108,16 +108,16 @@ const STATE_EVENT = "careerbrew:hash-state";
 // The view's state in the hash and a setter. Lifecycle: the state lives in the URL of this browser tab; a reload
 // keeps it, and a link to another view (`#/<view>`) drops it.
 export function useHashState(): [HashState, (changes: Record<string, string | null>) => void] {
-  const [hash, setHash] = useState(() => window.location.hash);
-  useEffect(() => {
-    const on = () => setHash(window.location.hash);
-    window.addEventListener("hashchange", on);
-    window.addEventListener(STATE_EVENT, on);
+  const subscribe = useCallback((onChange: () => void) => {
+    window.addEventListener("hashchange", onChange);
+    window.addEventListener(STATE_EVENT, onChange);
     return () => {
-      window.removeEventListener("hashchange", on);
-      window.removeEventListener(STATE_EVENT, on);
+      window.removeEventListener("hashchange", onChange);
+      window.removeEventListener(STATE_EVENT, onChange);
     };
   }, []);
+  // React rechecks an external store around subscription, so a hash event cannot be lost before the effect runs.
+  const hash = useSyncExternalStore(subscribe, () => window.location.hash);
   const state = useMemo(() => parseState(hash), [hash]);
   const set = useCallback((changes: Record<string, string | null>) => {
     const next = withState(window.location.hash, changes);
