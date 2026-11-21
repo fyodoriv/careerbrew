@@ -88,6 +88,22 @@ impl<'de> Visitor<'de> for JsonVisitor {
     fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Canon, A::Error> {
         let mut pairs = Vec::new();
         while let Some(key) = map.next_key::<String>()? {
+            // serde_json's arbitrary-precision number adapter presents a
+            // number as this private one-entry map. No preserve_order feature
+            // is involved; ordinary maps still retain their visitor order.
+            if key == "$serde_json::private::Number" && pairs.is_empty() {
+                let number = map.next_value::<String>()?;
+                if number.contains(['.', 'e', 'E']) {
+                    return number
+                        .parse::<f64>()
+                        .map(Canon::Float)
+                        .map_err(serde::de::Error::custom);
+                }
+                return number
+                    .parse::<num_bigint::BigInt>()
+                    .map(Canon::Int)
+                    .map_err(serde::de::Error::custom);
+            }
             let JsonCanon(value) = map.next_value()?;
             insert(&mut pairs, Canon::Str(key), value);
         }

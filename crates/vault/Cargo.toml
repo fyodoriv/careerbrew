@@ -8,7 +8,7 @@ publish = false
 [dependencies]
 fernet = { version = "=0.2.2", default-features = false, features = ["rustcrypto", "fernet_danger_timestamps"] }
 base64 = "=0.22.1"
-serde_json = "=1.0.154"
+serde_json = { version = "=1.0.154", features = ["arbitrary_precision"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 yaml-rust2 = { version = "=0.13.0", default-features = false }
 num-bigint = "=0.5.1"
