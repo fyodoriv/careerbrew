@@ -11,7 +11,7 @@ use careerbrew_policy::approvals;
 use careerbrew_policy::vectors::Out;
 use careerbrew_policy::Rules;
 use num_bigint::BigInt;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub enum ReceiptError {
@@ -52,7 +52,7 @@ pub struct Receipts<'a, 'root> {
 }
 
 impl<'a, 'root> Receipts<'a, 'root> {
-    pub fn new(store: &'a Store<'a>, runtime: &'a dyn Runtime) -> Self {
+    pub fn new(store: &'a Store<'root>, runtime: &'a dyn Runtime) -> Self {
         Self {
             store,
             runtime,

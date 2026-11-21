@@ -1,10 +1,11 @@
 //! Synthetic-only transport for the rust-05 component checks. No production
 //! dispatch selects this binary. Usage errors exit 2 and refusals exit 1.
 
+use careerbrew_vault::atomic::StoreError;
 use careerbrew_vault::cli::{self, CliError, Editor, Terminal};
 use careerbrew_vault::receipts::{ReceiptError, Receipts, Runtime};
 use careerbrew_vault::secrets::{Adapter as SecretAdapter, SecretError};
-use careerbrew_vault::store::{Store, StoreError};
+use careerbrew_vault::store::Store;
 use careerbrew_vault::{atomic, data, keyfile, lock, synthetic};
 use std::io::{IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};

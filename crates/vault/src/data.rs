@@ -168,7 +168,7 @@ fn write_report(path: &Path, report: &Value) -> Result<(), String> {
         .map_err(|_| "report-open")?;
     file.write_all(report.to_string().as_bytes())
         .map_err(|_| "report-write")?;
-    file.write_all(b"\n").map_err(|_| "report-write")
+    file.write_all(b"\n").map_err(|_| "report-write".to_owned())
 }
 
 pub fn run_phase(
@@ -214,11 +214,9 @@ pub fn run_phase(
         }
         let actual_api = if serialized { "read_text" } else { api };
         let function = format!("careerbrew.store.{actual_api}");
-        let bound = bindings(
-            actual_api,
-            if serialized { &Map::new() } else { arguments },
-            relative,
-        )?;
+        let empty = Map::new();
+        let supplied = if serialized { &empty } else { arguments };
+        let bound = bindings(actual_api, supplied, relative)?;
         let arguments_sha256 = sha(ascii_json(&Value::Object(bound)).as_bytes());
         let (returned, text): (Value, Option<String>) = match actual_api {
             "read_text" => {
@@ -334,10 +332,11 @@ pub fn run_phase(
                 let (added, replaced) = store
                     .upsert_jsonl(&target, &rows, &fields)
                     .map_err(|_| "store-upsert-jsonl")?;
-                (
-                    json!({"kind": "tuple", "items": [added, replaced].iter().map(|value| json!({"kind": "int", "decimal": value.to_string()})).collect::<Vec<_>>()}),
-                    None,
-                )
+                let items: Vec<Value> = [added, replaced]
+                    .iter()
+                    .map(|value| json!({"kind": "int", "decimal": value.to_string()}))
+                    .collect();
+                (json!({"kind": "tuple", "items": items}), None)
             }
             "write_text_if_changed" => {
                 let Canon::Str(text) = decode(arguments.get("text").ok_or("argument-text")?)?

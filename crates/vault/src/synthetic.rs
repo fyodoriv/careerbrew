@@ -1,12 +1,13 @@
 //! Synthetic-only stateful rust-05 workload used by `vault-store --all`.
 //! It executes the native providers and emits only typed values and digests.
 
+use crate::atomic::StoreError;
 use crate::canon::Canon;
 use crate::cli::{self, CliError, Editor, Outcome, Terminal};
 use crate::keyfile::{self, KeyFacts};
 use crate::receipts::{ReceiptError, Receipts, Runtime};
 use crate::secrets::{self, Adapter as SecretAdapter, SecretError};
-use crate::store::{Store, StoreError};
+use crate::store::Store;
 use careerbrew_policy::vectors::Out;
 use num_bigint::BigInt;
 use serde_json::{json, Map, Value};
@@ -226,7 +227,10 @@ impl Runtime for EventRuntime<'_, '_> {
         "2026-03-01T09:30:00+00:00".into()
     }
     fn new_id(&self) -> String {
-        self.ids.borrow_mut().next().unwrap_or("00000000").into()
+        self.ids
+            .borrow_mut()
+            .next()
+            .unwrap_or_else(|| "00000000".to_owned())
     }
     fn emit(&self, event: &str, status: &str) -> Result<(), ReceiptError> {
         let row = Canon::Map(vec![
