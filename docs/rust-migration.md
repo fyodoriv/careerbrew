@@ -2058,11 +2058,11 @@ rejects every planted defect (wrong output, leaked canary, skipped test, slow
 path), accepts the unchanged oracle, and the inventory has 0 unassigned
 paths, and `migration self-test` (17 controls) and `inventory --check` pass in
 the hosted gate on `main` (run 44284505238, after #131). The real noise-floor
-values and descendants that leave the process group are deferred follow-ups,
-not part of the gate. The open items below either have their own tasks in
-`TASKS.md` (`rust-00-measure-noise-floors`, `rust-00-process-tree-escapees`,
-`rust-00-inventory-process-observation`) or say why they block nothing; none
-blocks `rust-01`.
+values are deferred follow-ups, not part of the gate. Complete descendant
+coverage remains a documented limit, not an activation claim. The open items
+below either have their own tasks in `TASKS.md`
+(`rust-00-measure-noise-floors`, `rust-00-inventory-process-observation`) or
+say why they block nothing; none blocks `rust-01`.
 
 Noise-floor runs (2026-11-20): the manual workflow
 [`noise-floor.yml`](../.github/workflows/noise-floor.yml) (`gh workflow run
@@ -2120,12 +2120,14 @@ are **component parity only** and switch nothing:
   built the image. Raw receipts stay local and are not in the repository.
 - Whole-process-tree resource collection is calibrated on one hosted run
   (44099007218: macOS 0.996x, Linux 0.972x; a second run is pending; see "Process-tree resource accounting"
-  below). It counts descendants that stay in the child's process group. A
-  descendant that calls `setsid` or `setpgid` is counted for CPU only on
-  Linux, and only when the measuring process can create a cgroup v2 under its
-  own (task `rust-00-process-tree-escapees`: code done, hosted proof
-  pending; see "Escapees: cgroup v2 CPU scope" below). macOS still misses
-  it, and no OS counts its peak RSS.
+  below). It counts descendants that stay in the child's process group. Hosted
+  Ubuntu could not create a delegated cgroup v2: PR 192's run 44718131412
+  recorded `method=subreaper-wait4 escaped_cpu_us=0 supported=false`. The
+  pre-registered pivot therefore marks escapee CPU accounting unsupported on
+  hosted Ubuntu and keeps the group-only fallback. A delegated cgroup on
+  another Linux host may count a `setsid` or `setpgid` descendant's CPU, but
+  that path has no hosted qualification. macOS still misses escapee CPU, and
+  no OS counts escapee peak RSS.
 - One full local gate on the old draft failed one owned-process cleanup test
   (all others passed). Its cause was never found. A later fast gate passed
   without explaining it. The hosted gate on `main` is green today; treat any
@@ -2307,7 +2309,24 @@ Registered before the hosted run. Scope: Linux tree CPU only.
 - **Anchor:** Linux cgroup v2 (`cgroup.procs`, `cgroup.events`, `cpu.stat`);
   Kalibera and Jones 2013 (ISMM).
 
-Observed: pending (no hosted run yet).
+Observed (hosted run 44718131412, PR 192 at `99ef5535`, native Ubuntu job
+136226651307):
+
+```text
+escapee "linux": method=subreaper-wait4 escaped_cpu_us=0 supported=false
+```
+
+All 15 resource tests passed, but the positive 225,000 to 450,000 us control
+did not run. A green capability-conditional test is not qualification. This
+record meets the pivot: escapee CPU accounting is **unsupported on hosted
+Ubuntu**. The group-only fallback stays, and this investigation stops without
+changing collector behavior or production activation. The exact-PID ownership
+rule and unrelated-child waitability control above stay unchanged.
+
+Final `rust-05` timing on hosted Ubuntu must therefore read `tree_*` as the
+owned child plus counted process-group members only. It must not claim CPU or
+peak RSS from descendants that leave the group. A workload that needs those
+escapees remains unqualified for whole-tree accounting.
 
 ### Noise floors and normalization rules (pre-registered 2026-11-17)
 
@@ -2438,8 +2457,7 @@ Jia and Harman 2011 (planted faults prove a check can fail).
 2. `rust-03` is active ([verdict](#rust-03-verdict)). Next: `rust-04`, and
    the real `rust-03` noise floors from hosted baselines (task
    `rust-00-measure-noise-floors`).
-3. Follow-ups that do not block a step: `rust-00-process-tree-escapees` and
-   `rust-00-inventory-process-observation`.
+3. Follow-up that does not block a step: `rust-00-inventory-process-observation`.
 
 ## Every module has an owner step
 
