@@ -1,0 +1,2 @@
+crates/vault/src/helpers.rs,port,rust-05,Component-only structure outlines digest keys and encrypted TTL cache helpers
+tests/unit/test_rust05h_component.py,keep-native,rust-00,Synthetic cross-engine store helpers key paths and issue-366 data-show controls

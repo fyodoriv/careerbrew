@@ -573,11 +573,12 @@ with no DTEND, zone-less (floating) times, and local times that a
 daylight-saving jump skips or repeats.
 
 Known gaps, not in the vectors yet (each is a rejected meaning until a later
-PR covers it): JSON floats that Python writes with an exponent (`1e+16`);
-`NaN` and `Infinity` in JSON; YAML merge keys (`<<`) and tags other than
+PR covers it): YAML merge keys (`<<`) and tags other than
 `!!str`; `.nan` (its sign bit differs by CPU in PyYAML); and writing YAML for
 a string that looks like a date or `1_000` (the `yaml-rust2` emitter does not
-quote these). Arbitrary-precision JSON/YAML integer reads, JSON integer
+quote these). JSON exponent forms, nonfinite floats and negative zero are
+covered by rust-05h component controls rather than new depvec vectors.
+Arbitrary-precision JSON/YAML integer reads, JSON integer
 writes and YAML datetime writes now have vectors (rust-05f).
 
 **Set `code-parse` (33 vectors):** does a teaching example parse, as
@@ -1383,8 +1384,7 @@ the crate until the rust-05 and rust-07 closure is native, so
     read, missing-key refusal without `create`, refusal when sealed data
     exists, `O_CREAT | O_EXCL` create at mode `0600`, and a race loser reads
     the winner's key (empty after 50 tries of 10 ms is an error).
-  - Gap: `~user/...` is not expanded (Python's `expanduser` does); only `~`
-    and `~/` are.
+  - The former `~user/...` gap is closed in rust-05h.
   - Unit tests sit in the module. No production dispatch and no Python
     cross-engine vectors yet.
 - **Sub-step `rust-05d` (cross-engine key, native atomic write, component
@@ -1478,8 +1478,9 @@ the crate until the rust-05 and rust-07 closure is native, so
     clock/version adapters, sorted plaintext JSON lines and the exact
     `CAREERBREW_EVENTS=off` early return before clock or writer adapters.
     Event-only float output matches `json.dumps`: NaN and infinities, negative
-    zero, fixed/scientific thresholds and padded exponents. Storage JSON keeps
-    its separate existing nonfinite refusal.
+    zero, fixed/scientific thresholds and padded exponents. Storage JSON's
+    former nonfinite refusal is closed in rust-05h; event bytes and finite
+    storage JSON retain their existing behavior.
   - `tests/oracles/rust05.py` now exercises these providers beside the existing
     receipts. The `receipt-events` case still contains only the original
     request and decision rows. `tests/unit/test_rust05g_component.py` checks
@@ -1487,8 +1488,58 @@ the crate until the rust-05 and rust-07 closure is native, so
     identity, sorted output, identifier boundaries, exact float bytes and
     privacy. All rust-05f cases and the ten DATA
     cases remain in the same verifier and measurement workload.
-  - Bulk vault/status/cache helpers remain out of scope. Production routes,
+  - Bulk vault/status helpers remain out of scope. Production routes,
     shipped crates and storage activation are unchanged.
+
+- **Sub-step `rust-05h` (store helpers, key paths and data-show paths,
+  component only):**
+  - `crates/vault/src/helpers.rs` ports `store.outline`, `store.digest` and
+    `store.cached`. Structure output retains insertion order, schema/data-key
+    rules, strict business-map masking, merged list/map sizes, scalar and
+    date/datetime types, JSON/YAML/JSONL line-only parse failures, text line
+    counts and sealed-file reporting without values. Python `$`'s one-terminal-
+    newline exception retains the original key text; 48/49-character and
+    one/two-newline controls pin the boundary. Digest keys retain each
+    part's sorted compact Python JSON, nonfinite floats, `default=str` and NUL
+    delimiter. The encrypted cache retains content-derived paths, fixed-clock
+    TTL checks, lazy compute, semantic values and exact hit identity.
+  - The shared `json_yaml` storage boundary now matches Python `json.loads`
+    and `json.dumps` for `NaN`, `Infinity`, `-Infinity`, negative zero and
+    exponent forms. A lexical adapter replaces only nonfinite tokens outside
+    strings for Serde validation and restores typed floats from the original
+    syntax; arbitrary-precision integers and ordinary strings retain their
+    existing paths. Real store write/read/no-op/outline and cached
+    miss/hit/fresh/expiry controls carry all seven numeric cases, including an
+    arbitrary-precision integer. A quoted-token near-miss proves strings stay
+    unchanged. YAML and event behavior are unchanged.
+  - `keyfile.rs` now expands `~user` and `~user/...` through the system account
+    database in addition to `~` and `~/`. An unknown named user raises the
+    native equivalent of Python's `RuntimeError`; the current account is
+    covered on both hosted operating systems. Repeated slashes and lexical
+    `..` suffixes retain Python's `Path.expanduser` result without an absolute
+    `join` discarding the selected home or canonicalization changing `..`.
+  - `cli.rs` adds component-only `cmd_data_show`. It removes one exact leading
+    `private/` only at this boundary, then retains canonical containment and
+    regular-file checks, restricted business output, personal-path allowlist,
+    structure-only `--keys`, line-only parse diagnostics and content-free
+    events. The Python issue-366 workload disables events and dynamically
+    denies process, socket and secret adapters. The native workload does not
+    claim equivalent dynamic host-denial proof; task
+    `rust-05h-native-host-denial` owns real three-channel instrumentation.
+    All four primary and eleven control groups compare
+    exact safe output and exit codes, and the whole synthetic parent snapshot
+    retains every file's bytes and mtime. The rust-05 verifier's invocation-
+    scoped observed-files walker records a retained symlink as the digest of
+    its `read_link` target bytes without following it, including a dangling-
+    link control. Shared capture and source-tree scans remain strict.
+  - `tests/oracles/rust05.py` and
+    `tests/unit/test_rust05h_component.py` compare the complete stateful
+    Python/Rust reports, including retained settings, events, receipts,
+    storage, no-op identities and all ten DATA cases. New source files are in
+    `docs/plans/rust-inventory.d/rust-05h.csv`; the rust-05 baseline and
+    semantic verifier bind them.
+  - Production Python and routes, shipped crates and activation tables are
+    unchanged. This slice does not close `rust-05` or activate storage.
 
 - **Sub-step `rust-05e` (native advisory lock, mixed writers, component
   only):**
@@ -2024,7 +2075,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | Path | Package | What it is | Production use |
 | --- | --- | --- | --- |
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
-| `crates/vault/` | `careerbrew-vault` | the `CBV1` codec, key/atomic/lock providers, rust-05f storage readers/writers, receipt IO and adapter-driven `data edit`/`secret set`, and rust-05g settings/general-event IO; synthetic `vault-store` transport only | none: component parity only |
+| `crates/vault/` | `careerbrew-vault` | the `CBV1` codec, key/atomic/lock providers, rust-05f storage readers/writers, receipt IO and adapter-driven `data edit`/`secret set`, rust-05g settings/general-event IO, and rust-05h outline/digest/cache helpers, named-user key paths and component `data show`; synthetic `vault-store` transport only | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
@@ -2726,7 +2777,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 #### rust-05: Port encrypted storage and transaction locks (5 files)
 
 - `src/careerbrew/` (5): `config_io.py`, `keyfile.py`, `secrets.py`, `store.py`, `vault.py`
-- CLI handlers it ports out of `cli.py` (2): `cmd_data_edit`, `cmd_secret_set`
+- CLI handlers it ports out of `cli.py` (3): `cmd_data_edit`, `cmd_data_show`, `cmd_secret_set`
 - Assertions it ports (1 test file, the files themselves are listed under `rust-27`): `test_issue_366.py`
 
 #### rust-06: Port backup, restore and cross-machine sync (2 files)

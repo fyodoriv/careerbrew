@@ -14,6 +14,8 @@ import hashlib
 import io
 import json
 import os
+import pwd
+import socket
 import stat
 import subprocess
 import sys
@@ -21,7 +23,7 @@ import types
 from pathlib import Path
 from typing import Any
 
-from careerbrew import approvals, cli, config_io, events, paths, secrets, store, vault
+from careerbrew import approvals, cli, config_io, events, keyfile, paths, secrets, store, vault
 
 CANARY = "SYNTHETIC-RUST05-CANARY-7Q9"
 SECRET = "SYNTHETIC-RUST05-SECRET-NOT-AN-AUTHENTICATION-VALUE"
@@ -123,6 +125,301 @@ def _cli_case(cases: list[dict[str, Any]], name: str, args: types.SimpleNamespac
     if CANARY in text or SECRET in text:
         raise RuntimeError("synthetic canary reached CLI output")
     cases.append({"id": name, "exit": code, "stdout_sha256": _sha(text)})
+
+
+def _nonfinite_numbers() -> dict[str, Any]:
+    return {
+        "nan": float("nan"),
+        "infinity": float("inf"),
+        "negative_infinity": float("-inf"),
+        "negative_zero": -0.0,
+        "exponent": 1e-7,
+        "high_scientific": 1e16,
+        "literal": "NaN Infinity -Infinity",
+        "big": 12089258196146291747061791208925819614629174706179,
+    }
+
+
+def _cached_result(pair: tuple[Any, bool]) -> dict[str, Any]:
+    value, hit = pair
+    return {"hit": hit, "sha256": _sha(json.dumps(value, sort_keys=True)), "numbers": _typed(value["numbers"])}
+
+
+def _outline_and_cache_cases(cases: list[dict[str, Any]], root: Path) -> None:
+    projects = root / "work" / "projects.yaml"
+    store.write_text(
+        projects,
+        f"""projects:
+  synthetic-project:
+    created_at: '2026-10-01T09:00:00Z'
+    stale_after_days: 7
+    sources:
+    - kind: doc
+      ref: r1
+  synthetic-project-two:
+    created_at: '2026-10-02T09:00:00Z'
+    owner: me
+people:
+  {CANARY}: 3
+""",
+    )
+    _call(cases, "outline-projects", lambda: store.outline(projects, strict=True))
+
+    state = root / "tutor" / "state.json"
+    store.write_text(
+        state,
+        json.dumps(
+            {
+                "cards": {
+                    "What is a heap? (explain it to a junior)": {"due": "2026-10-23", "reps": 2},
+                    CANARY: {"due": "2026-10-24", "reps": 1, "lapses": 0},
+                },
+                "by_id": {f"t{i:03d}": i for i in range(40)},
+                "rows": [[1, "a"], [2, None]],
+            }
+        ),
+    )
+    _call(cases, "outline-json", lambda: store.outline(state))
+
+    evidence = root / "work" / "evidence.jsonl"
+    store.write_text(
+        evidence,
+        "".join(json.dumps(row) + "\n" for row in ({"title": CANARY, "tags": ["delivery"]}, {"title": "second", "at": 3})),
+    )
+    _call(cases, "outline-jsonl", lambda: store.outline(evidence, strict=True))
+
+    day = root / "day" / "log" / "2026-10-20.md"
+    store.write_text(day, f"# Day\n\nShipped {CANARY}\n")
+    _call(cases, "outline-text", lambda: store.outline(day, strict=True))
+
+    bad_json = root / "work" / "bad-outline.json"
+    store.write_text(bad_json, '{"x":\n')
+    _call(cases, "outline-malformed-json", lambda: store.outline(bad_json, strict=True))
+    bad_jsonl = root / "work" / "bad-outline.jsonl"
+    store.write_text(bad_jsonl, '{"x": 1}\nnot-json\n')
+    _call(cases, "outline-malformed-jsonl", lambda: store.outline(bad_jsonl, strict=True))
+    bad_yaml = root / "work" / "bad-outline.yaml"
+    store.write_text(bad_yaml, f"rules:\n  - match: {CANARY}\n    bad: [unclosed\n")
+    _call(cases, "outline-malformed-yaml", lambda: store.outline(bad_yaml, strict=True))
+
+    nonfinite_path = root / "work" / "nonfinite.json"
+    nonfinite_value = _nonfinite_numbers()
+    _call(cases, "json-nonfinite-write", lambda: store.write_json(nonfinite_path, nonfinite_value))
+    _call(cases, "json-nonfinite-read", lambda: store.read_json(nonfinite_path))
+    nonfinite_before = _identity(nonfinite_path)
+    _call(
+        cases,
+        "json-nonfinite-noop",
+        lambda: store.write_json_if_changed(nonfinite_path, store.read_json(nonfinite_path)),
+    )
+    cases.append({"id": "json-nonfinite-noop-identity", "result": nonfinite_before == _identity(nonfinite_path)})
+    _call(cases, "outline-nonfinite", lambda: store.outline(nonfinite_path, strict=True))
+
+    key_48 = "k" * 48
+    for case_id, key in [
+        ("outline-key-48", key_48),
+        ("outline-key-48-newline", key_48 + "\n"),
+        ("outline-key-48-two-newlines", key_48 + "\n\n"),
+        ("outline-key-49", key_48 + "k"),
+        ("outline-key-49-newline", key_48 + "k\n"),
+    ]:
+        key_path = root / "work" / f"{case_id}.json"
+        store.write_text(key_path, json.dumps({key: 1}))
+        _call(cases, case_id, lambda path=key_path: store.outline(path)["keys"])
+
+    _call(
+        cases,
+        "digest-values",
+        lambda: store.digest(
+            "synthetic",
+            {"b": 2, "a": "café", "nan": float("nan"), "infinity": float("inf")},
+            [1, None, True, 1e-7, -0.0],
+            datetime.date(2026, 3, 1),
+            datetime.datetime(2026, 3, 1, 9, 30, tzinfo=datetime.UTC),
+        ),
+    )
+    _call(cases, "digest-empty", store.digest)
+
+    key_parts = ["rust05h", {"b": 2, "a": "café"}, 3]
+    cache_path = root / "cache" / f"{store.digest(*key_parts)}.json"
+
+    def unexpected_compute() -> Any:
+        raise AssertionError("a fresh cached value recomputed")
+
+    with _patched(store.time, time=lambda: 100.0):
+        missing = store.cached(key_parts, lambda: {"title": CANARY, "count": 1, "numbers": _nonfinite_numbers()})
+    _call(cases, "cached-miss", lambda: _cached_result(missing))
+    cache_before = _identity(cache_path)
+    with _patched(store.time, time=lambda: 100.0):
+        hit = store.cached(key_parts, unexpected_compute)
+    _call(cases, "cached-hit", lambda: _cached_result(hit))
+    cases.append({"id": "cached-hit-identity", "result": cache_before == _identity(cache_path)})
+    with _patched(store.time, time=lambda: 105.0):
+        fresh = store.cached(key_parts, unexpected_compute, ttl_seconds=10)
+    _call(cases, "cached-fresh", lambda: _cached_result(fresh))
+    with _patched(store.time, time=lambda: 111.5):
+        expired = store.cached(key_parts, lambda: {"title": CANARY, "count": 2, "numbers": _nonfinite_numbers()}, ttl_seconds=10)
+    _call(cases, "cached-expired", lambda: _cached_result(expired))
+
+
+def _key_path_cases(cases: list[dict[str, Any]]) -> None:
+    original = os.environ.get("CAREERBREW_KEY_FILE")
+    user = pwd.getpwuid(os.getuid())
+    expected_home = Path.home() / ".config" / "careerbrew" / "backup.key"
+    rows = [
+        ("key-path-home", "~", Path.home()),
+        ("key-path-home-file", "~/backup.key", Path.home() / "backup.key"),
+        ("key-path-home-repeated-slash", "~//backup.key", Path.home() / "backup.key"),
+        ("key-path-home-repeated-slashes", "~////nested//backup.key", Path.home() / "nested" / "backup.key"),
+        ("key-path-home-traversal-lexical", "~//../backup.key", Path.home() / ".." / "backup.key"),
+        ("key-path-empty-default", "", expected_home),
+        ("key-path-current-user", f"~{user.pw_name}", Path(user.pw_dir)),
+        ("key-path-current-user-file", f"~{user.pw_name}/backup.key", Path(user.pw_dir) / "backup.key"),
+        ("key-path-current-user-repeated-slash", f"~{user.pw_name}//backup.key", Path(user.pw_dir) / "backup.key"),
+        (
+            "key-path-current-user-repeated-slashes",
+            f"~{user.pw_name}///nested//backup.key",
+            Path(user.pw_dir) / "nested" / "backup.key",
+        ),
+        (
+            "key-path-current-user-traversal-lexical",
+            f"~{user.pw_name}//../backup.key",
+            Path(user.pw_dir) / ".." / "backup.key",
+        ),
+        (
+            "key-path-missing-user",
+            "~careerbrew-rust05h-no-such-user-7q9/backup.key",
+            Path("~careerbrew-rust05h-no-such-user-7q9/backup.key"),
+        ),
+    ]
+    try:
+        for name, value, expected in rows:
+            os.environ["CAREERBREW_KEY_FILE"] = value
+            _call(cases, name, lambda expected=expected: keyfile.key_path() == expected)
+    finally:
+        if original is None:
+            os.environ.pop("CAREERBREW_KEY_FILE", None)
+        else:
+            os.environ["CAREERBREW_KEY_FILE"] = original
+
+
+def _snapshot(root: Path) -> dict[str, tuple[bytes, int]]:
+    return {str(path.relative_to(root)): (path.read_bytes(), path.stat().st_mtime_ns) for path in root.rglob("*") if path.is_file()}
+
+
+def _data_show_cases(cases: list[dict[str, Any]], root: Path) -> None:
+    store.write_yaml(root / "profile.yaml", {"current_level": 3})
+    store.write_yaml(root / "cache" / "evidence" / "index.yaml", {"count": 7, "note": "synthetic-outline-value-366"})
+    store.write_yaml(root / "private" / "nested.yaml", {"nested_only": 11})
+    store.write_yaml(root / "privateish" / "literal.yaml", {"literal_only": 13})
+    outside = root.parent / "outside.yaml"
+    outside.write_text("outside: synthetic-outline-value-366\n", encoding="utf-8")
+    (root / "escape.yaml").symlink_to(outside)
+
+    def show(name: Any, *, keys: bool = False) -> dict[str, Any]:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            code = cli.main(["data", "show", str(name), *(["--keys"] if keys else [])])
+        text = output.getvalue().replace(str(root), "<data>").replace(str(outside), "<outside>")
+        if any(term in text for term in (CANARY, SECRET, "synthetic-outline-value-366")):
+            raise RuntimeError("synthetic value reached data-show output")
+        return {"exit": code, "stdout": text}
+
+    def result(reference: Any, alias: Any, passed: bool) -> dict[str, Any]:
+        return {"reference": reference, "alias": alias, "passed": passed}
+
+    attempts = []
+
+    def deny(*_args: Any, **_kwargs: Any) -> None:
+        attempts.append("forbidden host operation")
+        raise AssertionError("a host transport or secret resolver was called")
+
+    was_events = os.environ.get("CAREERBREW_EVENTS")
+    os.environ["CAREERBREW_EVENTS"] = "off"
+    try:
+        with (
+            _patched(subprocess, run=deny, Popen=deny),
+            _patched(socket, create_connection=deny),
+            _patched(socket.socket, connect=deny, connect_ex=deny, sendto=deny),
+            _patched(secrets, resolve=deny),
+        ):
+            before = _snapshot(root.parent)
+            reference = show("profile.yaml")
+            alias = show("private/profile.yaml")
+            cases.append(
+                {
+                    "id": "data-show-P01-personal",
+                    "result": result(reference, alias, reference == {"exit": 0, "stdout": "current_level: 3\n"} and alias == reference),
+                }
+            )
+            reference = show("cache/evidence/index.yaml", keys=True)
+            alias = show("private/cache/evidence/index.yaml", keys=True)
+            cases.append(
+                {
+                    "id": "data-show-P02-cache-keys",
+                    "result": result(
+                        reference,
+                        alias,
+                        reference["exit"] == 0 and reference["stdout"].splitlines()[1:] == ["count: int", "note: str"] and alias == reference,
+                    ),
+                }
+            )
+            reference = show("cache/evidence/index.yaml")
+            alias = show("private/cache/evidence/index.yaml")
+            cases.append(
+                {
+                    "id": "data-show-P03-cache-refusal",
+                    "result": result(reference, alias, reference["exit"] == 3 and "--keys" in reference["stdout"] and alias == reference),
+                }
+            )
+            alias = show("private/private/nested.yaml", keys=True)
+            lines = alias["stdout"].splitlines()
+            cases.append(
+                {
+                    "id": "data-show-P04-exact-once",
+                    "result": result(
+                        None,
+                        alias,
+                        alias["exit"] == 0 and lines[0].startswith("private/nested.yaml: yaml, encrypted on disk") and lines[1:] == ["nested_only: int"] and "11" not in alias["stdout"],
+                    ),
+                }
+            )
+
+            controls = {
+                "C01-personal": show("profile.yaml"),
+                "C02-cache-keys": show("cache/evidence/index.yaml", keys=True),
+                "C03-cache-refusal": show("cache/evidence/index.yaml"),
+                "C04-missing": show("private/missing.yaml"),
+                "C05-directory": show("private/cache"),
+                "C06-traversal": show("private/../outside.yaml"),
+                "C07-symlink": show("private/escape.yaml"),
+                "C08-absolute-inside": show(root / "profile.yaml"),
+                "C09-absolute-outside": show(outside),
+                "C12-root-directory": show("private/"),
+            }
+            passed = {
+                "C01-personal": controls["C01-personal"] == {"exit": 0, "stdout": "current_level: 3\n"},
+                "C02-cache-keys": controls["C02-cache-keys"]["exit"] == 0 and controls["C02-cache-keys"]["stdout"].splitlines()[1:] == ["count: int", "note: str"],
+                "C03-cache-refusal": controls["C03-cache-refusal"]["exit"] == 3 and "--keys" in controls["C03-cache-refusal"]["stdout"],
+                "C08-absolute-inside": controls["C08-absolute-inside"] == {"exit": 0, "stdout": "current_level: 3\n"},
+            }
+            for name in ("C04-missing", "C05-directory", "C06-traversal", "C07-symlink", "C09-absolute-outside", "C12-root-directory"):
+                passed[name] = controls[name]["exit"] == 1 and "no such data file" in controls[name]["stdout"]
+            for name, actual in controls.items():
+                cases.append({"id": f"data-show-{name}", "result": {"actual": actual, "passed": passed[name]}})
+
+            keys = show("privateish/literal.yaml", keys=True)
+            hidden = show("privateish/literal.yaml")
+            lookalike = keys["exit"] == 0 and keys["stdout"].splitlines()[1:] == ["literal_only: int"] and "13" not in keys["stdout"] and hidden["exit"] == 3 and "--keys" in hidden["stdout"] and "literal_only" not in hidden["stdout"]
+            cases.append({"id": "data-show-C11-lookalike", "result": {"keys": keys, "hidden": hidden, "passed": lookalike}})
+            cases.append({"id": "data-show-read-only", "result": before == _snapshot(root.parent)})
+            if attempts:
+                raise AssertionError("data show reached a denied host adapter")
+    finally:
+        if was_events is None:
+            os.environ.pop("CAREERBREW_EVENTS", None)
+        else:
+            os.environ["CAREERBREW_EVENTS"] = was_events
 
 
 def _run_all() -> dict[str, Any]:
@@ -298,6 +595,10 @@ def _run_all() -> dict[str, Any]:
         _call(cases, "event-off", lambda: events.emit("config.set", status="blocked"))
     os.environ["CAREERBREW_EVENTS"] = "on"
     cases.append({"id": "event-off-identity", "result": off_before == _identity(log)})
+
+    _outline_and_cache_cases(cases, root)
+    _key_path_cases(cases)
+    _data_show_cases(cases, root)
 
     cases.append({"id": "files", "result": _file_evidence(root, key_file)})
     return {"schema": "careerbrew-rust05-component-v1", "cases": cases}

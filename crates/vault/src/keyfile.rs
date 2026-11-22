@@ -5,9 +5,10 @@
 //! data exists), so this module never depends on later backup, config or
 //! event code. No production dispatch uses it yet.
 
-use std::ffi::OsString;
+use std::ffi::{CStr, CString, OsStr, OsString};
 use std::fs::OpenOptions;
 use std::io::{ErrorKind, Write};
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Component, Path, PathBuf};
 use std::time::Duration;
@@ -23,6 +24,8 @@ pub enum KeyError {
     MissingWithSealedData,
     /// Another writer left the key empty (Python: `OSError`).
     Empty(PathBuf),
+    /// `Path.expanduser` cannot resolve a named account (Python: `RuntimeError`).
+    UnknownUser,
     /// Any other file system error.
     Io(std::io::Error),
 }
@@ -46,6 +49,7 @@ impl std::fmt::Display for KeyError {
                 "backup key at {} is empty (fix: restore it from your password manager)",
                 p.display()
             ),
+            KeyError::UnknownUser => write!(f, "could not determine home directory"),
             KeyError::Io(e) => write!(f, "{e}"),
         }
     }
@@ -70,21 +74,94 @@ pub struct KeyFacts<'a> {
 }
 
 /// `keyfile.key_path`: the env path with `~` expanded, else the default.
-pub fn key_path(env_key_file: Option<&str>, home: &Path) -> PathBuf {
+pub fn key_path(env_key_file: Option<&str>, home: &Path) -> Result<PathBuf, KeyError> {
     match env_key_file {
         Some(v) if !v.is_empty() => expand_user(v, home),
-        _ => home.join(".config").join("careerbrew").join("backup.key"),
+        _ => Ok(home.join(".config").join("careerbrew").join("backup.key")),
     }
 }
 
-fn expand_user(value: &str, home: &Path) -> PathBuf {
-    if value == "~" {
-        return home.to_path_buf();
+/// Current account identity for the synthetic differential adapter. The
+/// account database's static result is copied into owned values immediately.
+pub fn current_user() -> Option<(String, PathBuf)> {
+    // SAFETY: getpwuid returns a process-owned static entry or null. Both
+    // pointers are checked and copied before another account-database call.
+    unsafe {
+        let entry = libc::getpwuid(libc::geteuid());
+        if entry.is_null() || (*entry).pw_name.is_null() || (*entry).pw_dir.is_null() {
+            return None;
+        }
+        let name = CStr::from_ptr((*entry).pw_name)
+            .to_string_lossy()
+            .into_owned();
+        let home = PathBuf::from(OsStr::from_bytes(
+            CStr::from_ptr((*entry).pw_dir).to_bytes(),
+        ));
+        Some((name, home))
     }
-    match value.strip_prefix("~/") {
-        Some(rest) => home.join(rest),
-        None => PathBuf::from(value),
+}
+
+fn user_home(user: &str) -> Option<PathBuf> {
+    let user = CString::new(user).ok()?;
+    let suggested = unsafe { libc::sysconf(libc::_SC_GETPW_R_SIZE_MAX) };
+    let mut size = if suggested > 0 {
+        suggested as usize
+    } else {
+        16_384
+    };
+    loop {
+        let mut buffer = vec![0_u8; size];
+        // SAFETY: `entry` and `buffer` are writable for this invocation;
+        // getpwnam_r writes `result` only for an entry owned by this call.
+        let (code, result, entry) = unsafe {
+            let mut entry: libc::passwd = std::mem::zeroed();
+            let mut result = std::ptr::null_mut();
+            let code = libc::getpwnam_r(
+                user.as_ptr(),
+                &mut entry,
+                buffer.as_mut_ptr().cast(),
+                buffer.len(),
+                &mut result,
+            );
+            (code, result, entry)
+        };
+        if code == libc::ERANGE && size < 1_048_576 {
+            size *= 2;
+            continue;
+        }
+        if code != 0 || result.is_null() || entry.pw_dir.is_null() {
+            return None;
+        }
+        // SAFETY: a successful result owns a NUL-terminated pw_dir pointer.
+        let bytes = unsafe { CStr::from_ptr(entry.pw_dir) }.to_bytes();
+        return Some(PathBuf::from(OsStr::from_bytes(bytes)));
     }
+}
+
+fn expanded_path(home: &Path, suffix: &str) -> PathBuf {
+    let mut bytes = home.as_os_str().as_bytes().to_vec();
+    while bytes.last() == Some(&b'/') {
+        bytes.pop();
+    }
+    bytes.extend_from_slice(suffix.as_bytes());
+    if bytes.is_empty() {
+        bytes.push(b'/');
+    }
+    PathBuf::from(OsString::from_vec(bytes))
+}
+
+fn expand_user(value: &str, home: &Path) -> Result<PathBuf, KeyError> {
+    if !value.starts_with('~') {
+        return Ok(PathBuf::from(value));
+    }
+    let end = value.find('/').unwrap_or(value.len());
+    let selected = if end == 1 {
+        home.to_path_buf()
+    } else {
+        let user = &value[1..end];
+        user_home(user).ok_or(KeyError::UnknownUser)?
+    };
+    Ok(expanded_path(&selected, &value[end..]))
 }
 
 /// `Path.resolve()` (non-strict): canonicalize the longest existing
@@ -144,7 +221,7 @@ fn strip(bytes: &[u8]) -> Vec<u8> {
 pub fn load_key(create: bool, path: Option<&Path>, facts: &KeyFacts) -> Result<Vec<u8>, KeyError> {
     let path = match path {
         Some(p) => p.to_path_buf(),
-        None => key_path(facts.env_key_file, facts.home),
+        None => key_path(facts.env_key_file, facts.home)?,
     };
     require_outside_data_root(&path, facts.data_root)?;
     if path.exists() {
@@ -212,13 +289,25 @@ mod tests {
     fn key_path_defaults_and_expands_the_env_value() {
         let home = Path::new("/synthetic-home");
         let default = home.join(".config/careerbrew/backup.key");
-        assert_eq!(key_path(None, home), default);
-        assert_eq!(key_path(Some(""), home), default);
-        assert_eq!(key_path(Some("~/k.key"), home), home.join("k.key"));
+        assert_eq!(key_path(None, home).unwrap(), default);
+        assert_eq!(key_path(Some(""), home).unwrap(), default);
+        assert_eq!(key_path(Some("~/k.key"), home).unwrap(), home.join("k.key"));
         assert_eq!(
-            key_path(Some("/abs/k.key"), home),
+            key_path(Some("~//k.key"), home).unwrap(),
+            home.join("k.key")
+        );
+        assert_eq!(
+            key_path(Some("~//../k.key"), home).unwrap(),
+            home.join("../k.key")
+        );
+        assert_eq!(
+            key_path(Some("/abs/k.key"), home).unwrap(),
             PathBuf::from("/abs/k.key")
         );
+        assert!(matches!(
+            key_path(Some("~careerbrew-no-such-user-7q9/k.key"), home),
+            Err(KeyError::UnknownUser)
+        ));
     }
 
     #[test]

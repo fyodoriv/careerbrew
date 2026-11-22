@@ -4,6 +4,8 @@
 use crate::{baseline, capture_actions, verify};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
+use std::os::unix::ffi::OsStrExt;
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::Command;
 
@@ -41,6 +43,49 @@ fn scan(folder: &Path, leaks: &mut BTreeSet<String>) -> Result<(), String> {
     Ok(())
 }
 
+fn observed_files(root: &Path, folder: &Path) -> Result<BTreeMap<String, String>, String> {
+    let mut found = BTreeMap::new();
+    for entry in std::fs::read_dir(folder).map_err(|_| "cannot list owned files")? {
+        let path = entry.map_err(|_| "cannot list owned entry")?.path();
+        let metadata =
+            std::fs::symlink_metadata(&path).map_err(|_| "cannot inspect owned entry")?;
+        let relative = path
+            .strip_prefix(root)
+            .map_err(|_| "entry escaped root")?
+            .to_string_lossy()
+            .into_owned();
+        if metadata.is_dir() {
+            found.insert(
+                relative,
+                format!("directory:{:o}", metadata.permissions().mode() & 0o777),
+            );
+            found.extend(observed_files(root, &path)?);
+        } else if metadata.is_file() {
+            let bytes = std::fs::read(&path).map_err(|_| "cannot read owned file")?;
+            found.insert(
+                relative,
+                format!(
+                    "file:{:o}:{}",
+                    metadata.permissions().mode() & 0o777,
+                    capture_actions::digest(&bytes)
+                ),
+            );
+        } else if metadata.file_type().is_symlink() {
+            let target = std::fs::read_link(&path).map_err(|_| "cannot read owned link")?;
+            found.insert(
+                relative,
+                format!(
+                    "symlink:{}",
+                    capture_actions::digest(target.as_os_str().as_bytes())
+                ),
+            );
+        } else {
+            return Err("unsupported owned entry".into());
+        }
+    }
+    Ok(found)
+}
+
 fn observe(
     root: &Path,
     program: &Path,
@@ -61,7 +106,7 @@ fn observe(
                 .into_owned(),
         );
     }
-    let before = capture_actions::files(&owned, &owned, None)?;
+    let before = observed_files(&owned, &owned)?;
     let mut command = Command::new(program);
     command
         .args(args)
@@ -69,7 +114,7 @@ fn observe(
         .env_clear()
         .envs(&environment);
     let (_, exit, stdout, stderr) = capture_actions::execute(command)?;
-    let after = capture_actions::files(&owned, &owned, None)?;
+    let after = observed_files(&owned, &owned)?;
     let writes = after
         .iter()
         .filter(|(path, value)| before.get(*path) != Some(*value))
@@ -273,6 +318,19 @@ pub fn record(
 mod tests {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    fn observed_files_hash_a_dangling_symlink_without_following_it() {
+        let scratch = tempfile::tempdir().unwrap();
+        let root = scratch.path();
+        std::fs::create_dir(root.join("data")).unwrap();
+        std::os::unix::fs::symlink("../missing-outside", root.join("data/escape.yaml")).unwrap();
+        let files = observed_files(root, root).unwrap();
+        assert_eq!(
+            files["data/escape.yaml"],
+            format!("symlink:{}", capture_actions::digest(b"../missing-outside"))
+        );
+    }
 
     #[test]
     fn planted_stdout_canary_is_a_privacy_leak() {

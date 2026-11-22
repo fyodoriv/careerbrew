@@ -1,6 +1,9 @@
 //! `cmd_data_edit` and `cmd_secret_set` behind injected adapters. These
 //! functions are component-only; the production Python handlers stay routed.
 
+use crate::canon::Canon;
+use crate::events::{self, Clock};
+use crate::helpers::{self, OutlineError};
 use crate::secrets::{self, Adapter as SecretAdapter};
 use crate::store::Store;
 use std::io::Write;
@@ -136,6 +139,117 @@ fn data_file(root: &Path, name: &str) -> Result<PathBuf, Outcome> {
         return Err(missing());
     }
     Ok(target)
+}
+
+pub fn cmd_data_show(
+    store: &Store,
+    name: &str,
+    keys: bool,
+    may_show_business: bool,
+    events_env: Option<&str>,
+    clock: &dyn Clock,
+) -> Result<Outcome, CliError> {
+    let name = name.strip_prefix("private/").unwrap_or(name);
+    let target = match data_file(store.root.as_path(), name) {
+        Ok(target) => target,
+        Err(outcome) => return Ok(outcome),
+    };
+    let root = store
+        .root
+        .canonicalize()
+        .map_err(|_| CliError("data-file"))?;
+    let relative = target
+        .strip_prefix(&root)
+        .map_err(|_| CliError("data-file"))?;
+    let rel = relative.to_string_lossy().replace('\\', "/");
+    let personal = relative.components().count() == 1
+        || relative.components().next().is_some_and(|part| {
+            matches!(
+                part.as_os_str().to_str(),
+                Some("jobs" | "tutor" | "prep" | "linkedin")
+            )
+        });
+    let hidden = !personal && !may_show_business;
+    let emit = |status: &str, items: Option<usize>| -> Result<(), CliError> {
+        let mut fields = vec![(Canon::Str("status".into()), Canon::Str(status.into()))];
+        if let Some(items) = items {
+            fields.push((
+                Canon::Str("items".into()),
+                Canon::Int(num_bigint::BigInt::from(items)),
+            ));
+        }
+        events::emit(
+            &store.root,
+            events_env,
+            "data.show",
+            &Canon::Map(fields),
+            clock,
+        )
+        .map_err(|_| CliError("data-event"))
+    };
+
+    if keys {
+        let outline = match helpers::outline(store, &target, hidden) {
+            Ok(outline) => outline,
+            Err(OutlineError::Store(crate::atomic::StoreError::Utf8)) => {
+                return Ok(Outcome::line(1, format!("{rel} is not a text file")))
+            }
+            Err(OutlineError::Store(_)) => return Err(CliError("data-read")),
+            Err(OutlineError::Value(message)) => {
+                return Ok(Outcome::line(1, format!("{rel}: {message}")))
+            }
+        };
+        let unit = if outline.kind == "jsonl" {
+            "record(s)"
+        } else {
+            "line(s)"
+        };
+        let note = if outline.kind == "text" {
+            " (no keys: not YAML, JSON, or JSONL)"
+        } else {
+            ""
+        };
+        let mut output = format!(
+            "{rel}: {}, {} on disk, {} {unit}{note}\n",
+            outline.kind,
+            if outline.sealed {
+                "encrypted"
+            } else {
+                "plaintext"
+            },
+            outline.count
+        );
+        for line in &outline.keys {
+            output.push_str(line);
+            output.push('\n');
+        }
+        emit("keys", Some(outline.keys.len()))?;
+        return Ok(Outcome {
+            code: 0,
+            stdout: output,
+        });
+    }
+    if hidden {
+        let output = Outcome::line(
+            3,
+            format!(
+                "{rel} may hold business data: its text prints only to your own terminal or the web app, or when a plugin policy sets agent_may_read_business. Agents can read files at the top of the data root and in jobs/, tutor/, prep/, linkedin/. For its structure: careerbrew data show {rel} --keys"
+            ),
+        );
+        emit("hidden", None)?;
+        return Ok(output);
+    }
+    let text = match store.read_text(&target, Some(""), true) {
+        Ok(text) => text.unwrap_or_default(),
+        Err(crate::atomic::StoreError::Utf8) => {
+            return Ok(Outcome::line(1, format!("{rel} is not a text file")))
+        }
+        Err(_) => return Err(CliError("data-read")),
+    };
+    let count = helpers::splitlines(&text).len();
+    let output = Outcome::line(0, text.trim_end_matches('\n'));
+    emit("text", Some(count))?;
+    Ok(output)
 }
 
 pub fn cmd_data_edit(

@@ -9,6 +9,7 @@ pub mod canon;
 pub mod cli;
 pub mod data;
 pub mod events;
+pub mod helpers;
 pub mod json_yaml;
 pub mod keyfile;
 pub mod lock;
