@@ -155,6 +155,7 @@ fn a_candidate_identical_to_the_oracle_passes() {
     // The HTTP side effects are a case of their own.
     assert_eq!(find("http:side-effects")["passed"], true);
     // The DATA contract: one case per corpus case, every phase compared.
+    // Under full scope the Python driver must run (never denied by no_python).
     for id in 1..=10 {
         let case = find(&format!("data:{id}"));
         assert_eq!(case["kind"], "data");
@@ -759,6 +760,98 @@ fn a_planted_canary_leak_counts_once_in_the_case_that_leaked() {
         .map(|case| case["case"].clone())
         .collect();
     assert_eq!(leaked, vec![serde_json::json!("data:2")]);
+}
+
+#[test]
+fn planted_data_stdout_canary_is_a_privacy_violation() {
+    let scratch = tempfile::tempdir().unwrap();
+    let leak = data_candidate(
+        scratch.path(),
+        &data_dispatch(
+            "",
+            "if [ \"$2\" = 2 ] && [ \"$3\" = reader ]; then printf 'SYNTHETIC-DATA-CANARY-8H3'; fi",
+        ),
+    );
+    let (code, value) = verify_with(scratch.path(), &leak);
+    assert_eq!(code, Some(1));
+    assert_eq!(value["failed_cases"], serde_json::json!(["data:2"]));
+    assert_eq!(value["violations"]["privacy"], 1);
+    assert!(!std::fs::read_to_string(scratch.path().join("verify.json"))
+        .unwrap()
+        .contains("SYNTHETIC-DATA-CANARY-8H3"));
+}
+
+#[test]
+fn planted_data_stderr_canary_is_a_privacy_violation() {
+    let scratch = tempfile::tempdir().unwrap();
+    let leak = data_candidate(
+        scratch.path(),
+        &data_dispatch(
+            "",
+            "if [ \"$2\" = 2 ] && [ \"$3\" = reader ]; then printf 'SYNTHETIC-DATA-CANARY-8H3' >&2; fi",
+        ),
+    );
+    let (code, value) = verify_with(scratch.path(), &leak);
+    assert_eq!(code, Some(1));
+    assert_eq!(value["failed_cases"], serde_json::json!(["data:2"]));
+    assert_eq!(value["violations"]["privacy"], 1);
+    assert!(!std::fs::read_to_string(scratch.path().join("verify.json"))
+        .unwrap()
+        .contains("SYNTHETIC-DATA-CANARY-8H3"));
+}
+
+#[test]
+fn planted_nonfinal_writer_stdout_canary_is_a_privacy_violation() {
+    let scratch = tempfile::tempdir().unwrap();
+    let leak = data_candidate(
+        scratch.path(),
+        &data_dispatch(
+            "",
+            "if [ \"$2\" = 2 ] && [ \"$3\" = writer ]; then printf 'SYNTHETIC-DATA-CANARY-8H3'; fi",
+        ),
+    );
+    let (code, value) = verify_with(scratch.path(), &leak);
+    assert_eq!(code, Some(1));
+    assert_eq!(value["failed_cases"], serde_json::json!(["data:2"]));
+    assert_eq!(value["violations"]["privacy"], 1);
+}
+
+#[test]
+fn repeated_data_stdout_canaries_count_in_each_case() {
+    let scratch = tempfile::tempdir().unwrap();
+    let leak = data_candidate(
+        scratch.path(),
+        &data_dispatch(
+            "",
+            "if [ \"$2\" = 2 ] || [ \"$2\" = 3 ]; then printf 'SYNTHETIC-DATA-CANARY-8H3'; fi",
+        ),
+    );
+    let (code, value) = verify_with(scratch.path(), &leak);
+    assert_eq!(code, Some(1));
+    assert_eq!(
+        value["failed_cases"],
+        serde_json::json!(["data:2", "data:3"])
+    );
+    assert_eq!(value["violations"]["privacy"], 2);
+}
+
+#[test]
+fn repeated_data_stderr_canaries_count_in_each_case() {
+    let scratch = tempfile::tempdir().unwrap();
+    let leak = data_candidate(
+        scratch.path(),
+        &data_dispatch(
+            "",
+            "if [ \"$2\" = 2 ] || [ \"$2\" = 3 ]; then printf 'SYNTHETIC-DATA-CANARY-8H3' >&2; fi",
+        ),
+    );
+    let (code, value) = verify_with(scratch.path(), &leak);
+    assert_eq!(code, Some(1));
+    assert_eq!(
+        value["failed_cases"],
+        serde_json::json!(["data:2", "data:3"])
+    );
+    assert_eq!(value["violations"]["privacy"], 2);
 }
 
 /// The frozen catalog the live `actions --json` oracle must print.

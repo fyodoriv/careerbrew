@@ -75,6 +75,14 @@ __pycache__/
 !/crates/vault/src/main.rs
 !/crates/vault/src/atomic.rs
 !/crates/vault/src/lock.rs
+!/crates/vault/src/canon.rs
+!/crates/vault/src/json_yaml.rs
+!/crates/vault/src/store.rs
+!/crates/vault/src/receipts.rs
+!/crates/vault/src/secrets.rs
+!/crates/vault/src/cli.rs
+!/crates/vault/src/data.rs
+!/crates/vault/src/synthetic.rs
 !/crates/vault/src/bin/
 !/crates/depvec/
 /crates/depvec/*
@@ -161,6 +169,7 @@ __pycache__/
 !/xtask/src/bin/store_supervisor_fixture.rs
 !/xtask/src/bin/resource_fixture.rs
 !/xtask/src/resources.rs
+!/xtask/src/rust05.rs
 !/xtask/src/sites.rs
 !/xtask/src/sites_tests.rs
 !/xtask/src/baseline.rs
@@ -191,6 +200,7 @@ __pycache__/
 !/xtask/tests/decide.rs
 !/xtask/tests/measure.rs
 !/xtask/tests/verify.rs
+!/xtask/tests/rust05.rs
 !/xtask/tests/depvec.rs
 !/xtask/tests/vecdriver.rs
 !/xtask/tests/rust04_verify.rs
