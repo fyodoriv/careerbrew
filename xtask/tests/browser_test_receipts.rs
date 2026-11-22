@@ -95,14 +95,29 @@ fn raw_report(executed: bool, identities: &[(&str, &str)]) -> String {
 }
 
 fn same_raw(discovery: &str, execution: &str) -> Output {
+    same_raw_with_context(discovery, execution, "raw reports")
+}
+
+fn same_raw_with_context(discovery: &str, execution: &str, context: &str) -> Output {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join("discovery.json"), discovery).unwrap();
     std::fs::write(dir.path().join("execution.json"), execution).unwrap();
     let expected = python(dir.path(), None);
     let actual = native(dir.path(), None);
-    assert_eq!(actual.stdout, expected.stdout);
-    assert_eq!(actual.stderr, expected.stderr);
-    assert_eq!(actual.status.code(), expected.status.code());
+    let diagnostics = format!(
+        "{context}: native status={:?}, native stderr={:?}; Python status={:?}, Python stderr={:?}",
+        actual.status,
+        String::from_utf8_lossy(&actual.stderr),
+        expected.status,
+        String::from_utf8_lossy(&expected.stderr)
+    );
+    assert_eq!(actual.stdout, expected.stdout, "{diagnostics}");
+    assert_eq!(actual.stderr, expected.stderr, "{diagnostics}");
+    assert_eq!(
+        actual.status.code(),
+        expected.status.code(),
+        "{diagnostics}"
+    );
     actual
 }
 
@@ -269,12 +284,33 @@ fn identity_limits_count_unicode_characters_on_both() {
 #[test]
 fn deep_nesting_has_accepted_and_rejected_controls_on_both_engines() {
     for depth in [128, 200, 800] {
-        let out = same_raw(&deep_report(false, depth), &deep_report(true, depth));
-        assert!(out.status.success(), "Python-valid depth {depth} must pass");
+        let context = format!("payload depth {depth}, total depth {}", depth + 1);
+        let out = same_raw_with_context(
+            &deep_report(false, depth),
+            &deep_report(true, depth),
+            &context,
+        );
+        assert!(
+            out.status.success(),
+            "{context}: native status={:?}, native stderr={:?}",
+            out.status,
+            String::from_utf8_lossy(&out.stderr)
+        );
     }
     for depth in [2_000, 20_000] {
-        let out = same_raw(&deep_report(false, depth), &deep_report(true, depth));
-        assert_eq!(out.status.code(), Some(1), "depth {depth} must fail");
+        let context = format!("payload depth {depth}, total depth {}", depth + 1);
+        let out = same_raw_with_context(
+            &deep_report(false, depth),
+            &deep_report(true, depth),
+            &context,
+        );
+        assert_eq!(
+            out.status.code(),
+            Some(1),
+            "{context}: native status={:?}, native stderr={:?}",
+            out.status,
+            String::from_utf8_lossy(&out.stderr)
+        );
     }
 }
 
