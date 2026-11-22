@@ -1,5 +1,6 @@
 mod baseline;
 mod baseline_verdict;
+mod browser_test_receipts;
 mod capture_actions;
 #[cfg(not(test))]
 mod capture_data;
@@ -70,6 +71,9 @@ fn main() -> ExitCode {
             + vecdriver::controls::run();
         println!("migration self-test: {passed} controls passed");
         return ExitCode::SUCCESS;
+    }
+    if args.first().is_some_and(|a| a == "browser-test-receipts") {
+        return browser_test_receipts::command(&args[1..]);
     }
     if args.first().is_some_and(|a| a == "check-docs") {
         return check_docs_command(&args[1..]);

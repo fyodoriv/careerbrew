@@ -1,0 +1,2 @@
+xtask/src/browser_test_receipts.rs,keep-native,rust-00,rust-27b slice 4: native Playwright discovery and execution identity check; no production dispatch
+xtask/tests/browser_test_receipts.rs,keep-native,rust-00,Python and Rust differential and filesystem controls for browser test receipts
