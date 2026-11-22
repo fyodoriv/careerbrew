@@ -99,6 +99,40 @@ fn cpu_burn_child_reports_cpu_time() {
     assert!(usage.user_cpu_us + usage.system_cpu_us > 0, "{usage:?}");
 }
 
+/// A concurrent invocation keeps ownership of its direct child, even after that
+/// child exits and another measurement is collecting its own escaped descendants.
+#[cfg(target_os = "linux")]
+#[test]
+fn a_measurement_does_not_reap_an_unrelated_child() {
+    let mut child = Command::new("/usr/bin/true")
+        .spawn()
+        .expect("unrelated child");
+    let pid = child.id() as libc::id_t;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+    loop {
+        let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
+        let result = unsafe {
+            libc::waitid(
+                libc::P_PID,
+                pid,
+                &mut info,
+                libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
+            )
+        };
+        assert_eq!(result, 0, "cannot observe unrelated child");
+        if unsafe { info.si_pid() } == pid {
+            break;
+        }
+        assert!(std::time::Instant::now() < deadline, "child did not exit");
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+    run(&["alloc", "0"]);
+    assert_eq!(
+        child.wait().expect("owner must reap its child").code(),
+        Some(0)
+    );
+}
+
 #[test]
 fn signaled_child_is_reported_and_never_a_pass() {
     let usage = run(&["sigkill"]);
