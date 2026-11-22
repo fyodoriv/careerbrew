@@ -73,6 +73,12 @@ pub const CANDIDATES: &[Candidate] = &[
         args: &["--all"],
         vectors: Some("tests/oracles/rust04_vectors.py"),
     },
+    Candidate {
+        step: "rust-05",
+        program: "target/release/vault-store",
+        args: &["--all"],
+        vectors: None,
+    },
 ];
 
 /// The cargo profile a registered candidate was built with, read from its

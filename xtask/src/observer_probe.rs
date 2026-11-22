@@ -1051,7 +1051,7 @@ else:
         assert!(receipt["raw_copy"]["ok"]["issues"]
             .as_array()
             .is_some_and(|issues| !issues.is_empty()));
-        assert!(receipt["cleanup"]["ok"].is_object());
+        assert!(receipt["cleanup"]["ok"].is_object(), "{receipt}");
     }
     #[test]
     fn o09_daemon_timeout_cannot_prove_attached_execution() {
@@ -1141,7 +1141,8 @@ else:
             assert!(dir.path().join("status-polled").exists());
             assert!(
                 !dir.path().join("raw-available").exists(),
-                "cleanup did not delete its source"
+                "cleanup did not delete its source: {}",
+                fs::read_to_string(dir.path().join("positive-receipt.json")).unwrap()
             );
             assert_eq!(
                 fs::read(dir.path().join("positive/stderr")).unwrap(),
@@ -1173,7 +1174,7 @@ else:
             assert!(receipt["qualification"]["error"].is_string());
             if mode == "copy-failure" {
                 assert!(receipt["raw_copy"]["error"].is_string());
-                assert!(receipt["cleanup"]["ok"].is_object());
+                assert!(receipt["cleanup"]["ok"].is_object(), "{receipt}");
             } else {
                 assert_eq!(receipt["raw_copy"]["ok"]["copy_completed"], true);
                 assert!(receipt["cleanup"]["error"].is_string());

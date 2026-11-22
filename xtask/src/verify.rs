@@ -53,7 +53,9 @@
 //! cannot see yet. A candidate that cannot run, times out or prints output
 //! that is not UTF-8 or too large fails its case. A step with no Rust
 //! candidate is refused, never passed.
-use crate::{baseline, capture_actions, capture_http, decide, depvec, normalize, vecdriver};
+use crate::{
+    baseline, capture_actions, capture_http, decide, depvec, normalize, rust05, vecdriver,
+};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -220,18 +222,18 @@ fn binary_sha256(path: &Path) -> Result<String, String> {
 
 /// Running violation counts, in `decide::VIOLATIONS` order of names.
 #[derive(Default)]
-struct Violations {
-    contract: u64,
-    privacy: u64,
-    authorization: u64,
-    role: u64,
-    side_effect: u64,
-    missing_writes: u64,
-    duplicate_writes: u64,
+pub(crate) struct Violations {
+    pub(crate) contract: u64,
+    pub(crate) privacy: u64,
+    pub(crate) authorization: u64,
+    pub(crate) role: u64,
+    pub(crate) side_effect: u64,
+    pub(crate) missing_writes: u64,
+    pub(crate) duplicate_writes: u64,
 }
 
 impl Violations {
-    fn total(&self) -> u64 {
+    pub(crate) fn total(&self) -> u64 {
         self.contract
             + self.privacy
             + self.authorization
@@ -241,7 +243,7 @@ impl Violations {
             + self.duplicate_writes
     }
 
-    fn to_json(&self) -> Value {
+    pub(crate) fn to_json(&self) -> Value {
         let mut map = serde_json::Map::new();
         for name in decide::VIOLATIONS {
             let count = match *name {
@@ -678,6 +680,7 @@ fn data_side(
     program: &Path,
     prefix: &[&str],
     fixture: &Value,
+    deny_python: bool,
 ) -> Result<Vec<DataCase>, String> {
     let canary = fixture["canary"].as_str().ok_or("data canary missing")?;
     let scratch = tempfile::tempdir().map_err(|_| "cannot create data home")?;
@@ -686,7 +689,18 @@ fn data_side(
         .canonicalize()
         .map_err(|_| "cannot canonicalize data home")?
         .join("owned");
-    let environment = data_home(root, &owned, fixture)?;
+    let mut environment = data_home(root, &owned, fixture)?;
+    if deny_python {
+        environment.remove("PYTHONPATH");
+        environment.insert(
+            "PYTHONHOME".to_owned(),
+            scratch
+                .path()
+                .join(NO_PYTHON_HOME)
+                .to_string_lossy()
+                .into_owned(),
+        );
+    }
     let mut results = Vec::new();
     let mut state = Trace::new();
     let mut leaks = BTreeSet::new();
@@ -697,6 +711,7 @@ fn data_side(
         let start_leaks = leaks.clone();
         let mut calls = Vec::new();
         let mut counts = BTreeMap::new();
+        let mut stream_leaked = false;
         for spec in case["phases"].as_array().ok_or("data phases missing")? {
             let role = spec["role"].as_str().ok_or("data role missing")?;
             let report = owned.join(format!("protocol/{id:0>2}-{role}-api.json"));
@@ -711,7 +726,10 @@ fn data_side(
                 .env("CAREERBREW_CAPTURE_ROOT", root)
                 .env("CAREERBREW_DATA_OWNED", &owned)
                 .env("CAREERBREW_DATA_REPORT", &report);
-            let ran = matches!(capture_actions::execute(command), Ok((_, Some(0), _, _)));
+            let (ran, stdout, stderr) = match capture_actions::execute(command) {
+                Ok((_, exit, stdout, stderr)) => (exit == Some(0), stdout, stderr),
+                Err(_) => (false, String::new(), String::new()),
+            };
             let projected = ran
                 .then(|| std::fs::read(&report).ok())
                 .flatten()
@@ -722,6 +740,11 @@ fn data_side(
             let mut after = Trace::new();
             leaks.clear();
             trace(&owned, &owned, canary, &mut after, &mut leaks)?;
+            // Stream ids stay content-free; the stream text and canary never
+            // enter the verify record or its diagnostics.
+            if stdout.contains(canary) || stderr.contains(canary) {
+                stream_leaked = true;
+            }
             for (path, entry) in &after {
                 if state.get(path) != Some(entry) {
                     *counts.entry(path.clone()).or_insert(0) += 1;
@@ -736,9 +759,10 @@ fn data_side(
             calls,
             writes: effects(&entries(&start), &entries(&state)),
             counts,
-            // Only paths that start to hold the canary in this case count, so
-            // a leak is charged once, to the case that made it.
-            leaked: !leaks.is_subset(&start_leaks),
+            // Only new file leaks use the snapshot rule. A stream finding in
+            // any phase counts for this case, including a repeated stream in
+            // a later case; transient output is never cleared with `leaks`.
+            leaked: stream_leaked || !leaks.is_subset(&start_leaks),
         });
     }
     Ok(results)
@@ -747,10 +771,11 @@ fn data_side(
 /// Runs the DATA corpus on the oracle twice (it must agree with itself
 /// across two fresh homes) and once on the candidate; pushes one entry per
 /// corpus case.
-fn data_cases(
+pub(crate) fn data_cases(
     root: &Path,
     python: &Path,
     candidate: &Path,
+    deny_python: bool,
     cases: &mut Vec<Value>,
     violations: &mut Violations,
 ) -> Result<(), String> {
@@ -759,17 +784,17 @@ fn data_cases(
     let driver = root.join(DATA_DRIVER);
     let driver = driver.to_str().ok_or("data driver path is not UTF-8")?;
     let oracle_prefix = ["-B", "-S", driver];
-    let oracle = data_side(root, python, &oracle_prefix, &fixture)?;
+    let oracle = data_side(root, python, &oracle_prefix, &fixture, false)?;
     if oracle
         .iter()
         .any(|case| case.leaked || case.calls.iter().any(Option::is_none))
     {
         return Err("the DATA oracle failed a phase; verify refused".into());
     }
-    if data_side(root, python, &oracle_prefix, &fixture)? != oracle {
+    if data_side(root, python, &oracle_prefix, &fixture, false)? != oracle {
         return Err("the DATA oracle differs across two fresh homes; verify refused".into());
     }
-    let served = data_side(root, candidate, &[DATA_FLAG], &fixture)?;
+    let served = data_side(root, candidate, &[DATA_FLAG], &fixture, deny_python)?;
     let ids = fixture["cases"].as_array().ok_or("data cases missing")?;
     for ((spec, expected), answer) in ids.iter().zip(&oracle).zip(&served) {
         let calls_match = answer.calls == expected.calls;
@@ -925,6 +950,13 @@ pub fn record(
     if test_scope.is_some_and(|scope| !TEST_SCOPES.contains(&scope)) {
         return Err("--test-scope must be full or allow-python".into());
     }
+    if id == "rust-05" {
+        if test_scope.is_some() || test_oracle.is_some() || wrong.is_some() || plant_write.is_some()
+        {
+            return Err("rust-05 does not accept generic verify test overrides".into());
+        }
+        return rust05::record(root, python, candidate);
+    }
     // A vector-driver step (rust-04): one generated file feeds both drivers.
     if let Some(step) = vecdriver::step(id) {
         if test_scope.is_some() || test_oracle.is_some() || plant_write.is_some() {
@@ -1057,7 +1089,14 @@ pub fn record(
         )?;
     }
     if data_on {
-        data_cases(root, python, &candidate, &mut cases, &mut violations)?;
+        data_cases(
+            root,
+            python,
+            &candidate,
+            deny_python,
+            &mut cases,
+            &mut violations,
+        )?;
     }
     if role_on {
         role_case(root, python, &candidate, &mut cases, &mut violations)?;
