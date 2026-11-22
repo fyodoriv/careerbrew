@@ -291,10 +291,12 @@ impl<'a> Store<'a> {
             let mut added = Vec::new();
             for (id, row) in &batch {
                 if let Some(slot) = out.iter_mut().find(|(known, _)| known == id) {
-                    if fields
-                        .iter()
-                        .any(|field| map_get(&slot.1, field) != map_get(row, field))
-                    {
+                    if fields.iter().any(|field| {
+                        // Python dict.get: a missing field and an explicit
+                        // JSON null both produce None.
+                        map_get(&slot.1, field).unwrap_or(&Canon::Null)
+                            != map_get(row, field).unwrap_or(&Canon::Null)
+                    }) {
                         slot.1 = row.clone();
                         if !replaced.contains(id) {
                             replaced.push(id.clone());
@@ -398,6 +400,40 @@ mod tests {
             (0, 0)
         );
         assert_eq!(std::fs::read(&path).unwrap(), before);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn upsert_missing_and_null_are_python_noops_but_a_real_change_rewrites() {
+        use std::os::unix::fs::MetadataExt;
+        let root = scratch("missing-null");
+        let keys = |_: bool| Ok(KEY.to_owned());
+        let store = Store::new(&root, true, &keys);
+        let path = root.join("rows.jsonl");
+        let missing = Canon::Map(vec![(Canon::Str("id".into()), Canon::Str("a".into()))]);
+        let explicit_null = Canon::Map(vec![
+            (Canon::Str("id".into()), Canon::Str("a".into())),
+            (Canon::Str("v".into()), Canon::Null),
+        ]);
+        store.write_jsonl(&path, &[missing]).unwrap();
+        let before = std::fs::read(&path).unwrap();
+        let metadata = std::fs::metadata(&path).unwrap();
+        let identity = (metadata.ino(), metadata.mtime(), metadata.mtime_nsec());
+        assert_eq!(
+            store.upsert_jsonl(&path, &[explicit_null], &["v"]).unwrap(),
+            (0, 0)
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+        let metadata = std::fs::metadata(&path).unwrap();
+        assert_eq!(
+            (metadata.ino(), metadata.mtime(), metadata.mtime_nsec()),
+            identity
+        );
+        assert_eq!(
+            store.upsert_jsonl(&path, &[row("a", 1)], &["v"]).unwrap(),
+            (0, 1)
+        );
+        assert_eq!(store.read_jsonl(&path, true).unwrap(), vec![row("a", 1)]);
         std::fs::remove_dir_all(root).unwrap();
     }
 

@@ -109,33 +109,186 @@ fn is_private_number_marker(value: &Canon) -> bool {
     }
 }
 
-/// Resolve Serde's private number map only when the same node in the typed
-/// parse is actually a number. A valid object with that user key stays a map,
-/// including an exact one-field numeric- or nonnumeric-string object.
-fn reconcile_json_numbers(value: &mut Canon, actual: &Value) -> Result<(), String> {
-    if let Value::Number(number) = actual {
+/// Syntax-only JSON context used to distinguish a number token from an
+/// ordinary object. It carries no strings except object keys and number text;
+/// Serde remains the value parser and validator.
+enum JsonContext {
+    Number(String),
+    Array(Vec<JsonContext>),
+    Object(Vec<(String, JsonContext)>),
+    Scalar,
+}
+
+struct JsonContextParser<'a> {
+    bytes: &'a [u8],
+    at: usize,
+}
+
+impl<'a> JsonContextParser<'a> {
+    fn parse(text: &'a str) -> Result<JsonContext, String> {
+        let mut parser = Self {
+            bytes: text.as_bytes(),
+            at: 0,
+        };
+        let value = parser.value()?;
+        parser.space();
+        if parser.at != parser.bytes.len() {
+            return Err("invalid JSON context".into());
+        }
+        Ok(value)
+    }
+
+    fn space(&mut self) {
+        while self
+            .bytes
+            .get(self.at)
+            .is_some_and(|byte| matches!(byte, b' ' | b'\n' | b'\r' | b'\t'))
+        {
+            self.at += 1;
+        }
+    }
+
+    fn value(&mut self) -> Result<JsonContext, String> {
+        self.space();
+        match self.bytes.get(self.at).copied() {
+            Some(b'{') => self.object(),
+            Some(b'[') => self.array(),
+            Some(b'"') => {
+                self.string()?;
+                Ok(JsonContext::Scalar)
+            }
+            Some(b'-' | b'0'..=b'9') => self.number(),
+            Some(b't' | b'f' | b'n') => {
+                self.at += 1;
+                while self.bytes.get(self.at).is_some_and(u8::is_ascii_alphabetic) {
+                    self.at += 1;
+                }
+                Ok(JsonContext::Scalar)
+            }
+            _ => Err("invalid JSON context value".into()),
+        }
+    }
+
+    fn string(&mut self) -> Result<String, String> {
+        let start = self.at;
+        if self.bytes.get(self.at) != Some(&b'"') {
+            return Err("JSON context key is not a string".into());
+        }
+        self.at += 1;
+        let mut escaped = false;
+        loop {
+            let Some(byte) = self.bytes.get(self.at).copied() else {
+                return Err("unclosed JSON context string".into());
+            };
+            self.at += 1;
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == b'"' {
+                break;
+            }
+        }
+        serde_json::from_str(&String::from_utf8_lossy(&self.bytes[start..self.at]))
+            .map_err(|_| "invalid JSON context string".to_owned())
+    }
+
+    fn number(&mut self) -> Result<JsonContext, String> {
+        let start = self.at;
+        self.at += 1;
+        while self.bytes.get(self.at).is_some_and(|byte| {
+            byte.is_ascii_digit() || matches!(byte, b'.' | b'e' | b'E' | b'+' | b'-')
+        }) {
+            self.at += 1;
+        }
+        let number = String::from_utf8_lossy(&self.bytes[start..self.at]).into_owned();
+        Ok(JsonContext::Number(number))
+    }
+
+    fn array(&mut self) -> Result<JsonContext, String> {
+        self.at += 1;
+        self.space();
+        let mut items = Vec::new();
+        if self.bytes.get(self.at) == Some(&b']') {
+            self.at += 1;
+            return Ok(JsonContext::Array(items));
+        }
+        loop {
+            items.push(self.value()?);
+            self.space();
+            match self.bytes.get(self.at) {
+                Some(b',') => self.at += 1,
+                Some(b']') => {
+                    self.at += 1;
+                    return Ok(JsonContext::Array(items));
+                }
+                _ => return Err("invalid JSON context array".into()),
+            }
+        }
+    }
+
+    fn object(&mut self) -> Result<JsonContext, String> {
+        self.at += 1;
+        self.space();
+        let mut items = Vec::new();
+        if self.bytes.get(self.at) == Some(&b'}') {
+            self.at += 1;
+            return Ok(JsonContext::Object(items));
+        }
+        loop {
+            self.space();
+            let key = self.string()?;
+            self.space();
+            if self.bytes.get(self.at) != Some(&b':') {
+                return Err("invalid JSON context object".into());
+            }
+            self.at += 1;
+            let value = self.value()?;
+            items.push((key, value));
+            self.space();
+            match self.bytes.get(self.at) {
+                Some(b',') => self.at += 1,
+                Some(b'}') => {
+                    self.at += 1;
+                    return Ok(JsonContext::Object(items));
+                }
+                _ => return Err("invalid JSON context object".into()),
+            }
+        }
+    }
+}
+
+/// Resolve Serde's private number map only where the original syntax has a
+/// number token. A valid object with that user key always stays a map.
+fn reconcile_json_numbers(value: &mut Canon, actual: &JsonContext) -> Result<(), String> {
+    if let JsonContext::Number(number) = actual {
         if is_private_number_marker(value) {
-            let text = number.to_string();
-            *value = if text.contains(['.', 'e', 'E']) {
-                Canon::Float(text.parse().map_err(|_| "invalid JSON number")?)
+            *value = if number.contains(['.', 'e', 'E']) {
+                Canon::Float(number.parse().map_err(|_| "invalid JSON number")?)
             } else {
-                Canon::Int(text.parse().map_err(|_| "invalid JSON integer")?)
+                Canon::Int(number.parse().map_err(|_| "invalid JSON integer")?)
             };
         }
         return Ok(());
     }
     match (value, actual) {
-        (Canon::List(items), Value::Array(actual)) => {
+        (Canon::List(items), JsonContext::Array(actual)) => {
             for (item, actual) in items.iter_mut().zip(actual) {
                 reconcile_json_numbers(item, actual)?;
             }
         }
-        (Canon::Map(items), Value::Object(actual)) => {
+        (Canon::Map(items), JsonContext::Object(actual)) => {
             for (key, value) in items {
                 let Canon::Str(key) = key else {
                     return Err("JSON map key is not text".into());
                 };
-                let actual = actual.get(key).ok_or("JSON map value is missing")?;
+                // Python's repeated-key rule is last value, first position.
+                let actual = actual
+                    .iter()
+                    .rev()
+                    .find(|(name, _)| name == key)
+                    .map(|(_, value)| value)
+                    .ok_or("JSON map value is missing")?;
                 reconcile_json_numbers(value, actual)?;
             }
         }
@@ -147,7 +300,7 @@ fn reconcile_json_numbers(value: &mut Canon, actual: &Value) -> Result<(), Strin
 pub fn json_read(text: &str) -> Result<Canon, String> {
     let JsonCanon(mut value) =
         serde_json::from_str::<JsonCanon>(text).map_err(|_| "invalid JSON".to_owned())?;
-    let actual = serde_json::from_str::<Value>(text).map_err(|_| "invalid JSON".to_owned())?;
+    let actual = JsonContextParser::parse(text)?;
     reconcile_json_numbers(&mut value, &actual)?;
     Ok(value)
 }

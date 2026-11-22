@@ -1079,7 +1079,7 @@ pub fn record(
             root,
             python,
             &candidate,
-            step.no_python,
+            deny_python,
             &mut cases,
             &mut violations,
         )?;

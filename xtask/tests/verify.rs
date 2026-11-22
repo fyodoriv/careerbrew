@@ -155,6 +155,7 @@ fn a_candidate_identical_to_the_oracle_passes() {
     // The HTTP side effects are a case of their own.
     assert_eq!(find("http:side-effects")["passed"], true);
     // The DATA contract: one case per corpus case, every phase compared.
+    // Under full scope the Python driver must run (never denied by no_python).
     for id in 1..=10 {
         let case = find(&format!("data:{id}"));
         assert_eq!(case["kind"], "data");
