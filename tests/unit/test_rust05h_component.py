@@ -99,6 +99,11 @@ def test_helpers_and_all_issue_366_groups_match_real_python(store_bin, tmp_path)
             "outline-malformed-json",
             "outline-malformed-jsonl",
             "outline-malformed-yaml",
+            "outline-key-48",
+            "outline-key-48-newline",
+            "outline-key-48-two-newlines",
+            "outline-key-49",
+            "outline-key-49-newline",
             "digest-values",
             "digest-empty",
             "cached-miss",
@@ -108,12 +113,17 @@ def test_helpers_and_all_issue_366_groups_match_real_python(store_bin, tmp_path)
             "cached-expired",
             "key-path-home",
             "key-path-home-file",
+            "key-path-home-repeated-slash",
+            "key-path-home-repeated-slashes",
+            "key-path-home-traversal-lexical",
             "key-path-empty-default",
             "key-path-current-user",
             "key-path-current-user-file",
+            "key-path-current-user-repeated-slash",
+            "key-path-current-user-repeated-slashes",
+            "key-path-current-user-traversal-lexical",
             "key-path-missing-user",
             "data-show-read-only",
-            "data-show-host-operations",
         } <= ids
         assert case(report, "outline-projects")["result"]["keys"] == [
             "projects: map[2]",
@@ -155,6 +165,11 @@ def test_helpers_and_all_issue_366_groups_match_real_python(store_bin, tmp_path)
         }
         for case_id in ("outline-malformed-json", "outline-malformed-jsonl", "outline-malformed-yaml"):
             assert case(report, case_id)["result"] == {"error": "ValueError"}
+        key_48 = "k" * 48
+        assert case(report, "outline-key-48")["result"] == [f"{key_48}: int"]
+        assert case(report, "outline-key-48-newline")["result"] == [f"{key_48}\n: int"]
+        for case_id in ("outline-key-48-two-newlines", "outline-key-49", "outline-key-49-newline"):
+            assert case(report, case_id)["result"] == ["*: int"]
         assert case(report, "digest-empty")["result"] == "e3b0c44298fc1c149afbf4c8"
         assert len(case(report, "digest-values")["result"]) == 24
         assert case(report, "cached-miss")["result"]["hit"] is False
@@ -165,9 +180,15 @@ def test_helpers_and_all_issue_366_groups_match_real_python(store_bin, tmp_path)
         for case_id in (
             "key-path-home",
             "key-path-home-file",
+            "key-path-home-repeated-slash",
+            "key-path-home-repeated-slashes",
+            "key-path-home-traversal-lexical",
             "key-path-empty-default",
             "key-path-current-user",
             "key-path-current-user-file",
+            "key-path-current-user-repeated-slash",
+            "key-path-current-user-repeated-slashes",
+            "key-path-current-user-traversal-lexical",
         ):
             assert case(report, case_id)["result"] is True
         assert case(report, "key-path-missing-user")["result"] == {"error": "RuntimeError"}
@@ -182,7 +203,6 @@ def test_helpers_and_all_issue_366_groups_match_real_python(store_bin, tmp_path)
         ]
         assert case(report, "data-show-P03-cache-refusal")["result"]["alias"]["exit"] == 3
         assert case(report, "data-show-read-only")["result"] is True
-        assert case(report, "data-show-host-operations")["result"] == []
         assert case(report, "receipt-events")["result"] == [
             {"event": "approvals.request", "status": "pending"},
             {"event": "approvals.decide", "status": "approved"},

@@ -8,7 +8,7 @@
 use std::ffi::{CStr, CString, OsStr, OsString};
 use std::fs::OpenOptions;
 use std::io::{ErrorKind, Write};
-use std::os::unix::ffi::OsStrExt;
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Component, Path, PathBuf};
 use std::time::Duration;
@@ -138,26 +138,30 @@ fn user_home(user: &str) -> Option<PathBuf> {
     }
 }
 
+fn expanded_path(home: &Path, suffix: &str) -> PathBuf {
+    let mut bytes = home.as_os_str().as_bytes().to_vec();
+    while bytes.last() == Some(&b'/') {
+        bytes.pop();
+    }
+    bytes.extend_from_slice(suffix.as_bytes());
+    if bytes.is_empty() {
+        bytes.push(b'/');
+    }
+    PathBuf::from(OsString::from_vec(bytes))
+}
+
 fn expand_user(value: &str, home: &Path) -> Result<PathBuf, KeyError> {
-    if value == "~" {
-        return Ok(home.to_path_buf());
-    }
-    if let Some(rest) = value.strip_prefix("~/") {
-        return Ok(home.join(rest));
-    }
-    let Some(rest) = value.strip_prefix('~') else {
+    if !value.starts_with('~') {
         return Ok(PathBuf::from(value));
-    };
-    let end = rest.find('/').unwrap_or(rest.len());
-    let user = &rest[..end];
-    let Some(user_home) = user_home(user) else {
-        return Err(KeyError::UnknownUser);
-    };
-    Ok(if end == rest.len() {
-        user_home
+    }
+    let end = value.find('/').unwrap_or(value.len());
+    let selected = if end == 1 {
+        home.to_path_buf()
     } else {
-        user_home.join(&rest[end + 1..])
-    })
+        let user = &value[1..end];
+        user_home(user).ok_or(KeyError::UnknownUser)?
+    };
+    Ok(expanded_path(&selected, &value[end..]))
 }
 
 /// `Path.resolve()` (non-strict): canonicalize the longest existing
@@ -288,6 +292,14 @@ mod tests {
         assert_eq!(key_path(None, home).unwrap(), default);
         assert_eq!(key_path(Some(""), home).unwrap(), default);
         assert_eq!(key_path(Some("~/k.key"), home).unwrap(), home.join("k.key"));
+        assert_eq!(
+            key_path(Some("~//k.key"), home).unwrap(),
+            home.join("k.key")
+        );
+        assert_eq!(
+            key_path(Some("~//../k.key"), home).unwrap(),
+            home.join("../k.key")
+        );
         assert_eq!(
             key_path(Some("/abs/k.key"), home).unwrap(),
             PathBuf::from("/abs/k.key")

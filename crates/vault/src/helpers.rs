@@ -62,7 +62,10 @@ fn outline_key(key: &Canon) -> bool {
     let Canon::Str(key) = key else {
         return false;
     };
-    let bytes = key.as_bytes();
+    // Python's `$` also matches immediately before one terminal newline.
+    // The original key, including that newline, remains the outline text.
+    let matched = key.strip_suffix('\n').unwrap_or(key);
+    let bytes = matched.as_bytes();
     (1..=48).contains(&bytes.len())
         && (bytes[0].is_ascii_alphabetic() || bytes[0] == b'_')
         && bytes[1..]

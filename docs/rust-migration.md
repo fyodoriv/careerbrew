@@ -1495,20 +1495,27 @@ the crate until the rust-05 and rust-07 closure is native, so
     `store.cached`. Structure output retains insertion order, schema/data-key
     rules, strict business-map masking, merged list/map sizes, scalar and
     date/datetime types, JSON/YAML/JSONL line-only parse failures, text line
-    counts and sealed-file reporting without values. Digest keys retain each
+    counts and sealed-file reporting without values. Python `$`'s one-terminal-
+    newline exception retains the original key text; 48/49-character and
+    one/two-newline controls pin the boundary. Digest keys retain each
     part's sorted compact Python JSON, nonfinite floats, `default=str` and NUL
     delimiter. The encrypted cache retains content-derived paths, fixed-clock
     TTL checks, lazy compute, semantic values and exact hit identity.
   - `keyfile.rs` now expands `~user` and `~user/...` through the system account
     database in addition to `~` and `~/`. An unknown named user raises the
     native equivalent of Python's `RuntimeError`; the current account is
-    covered on both hosted operating systems.
+    covered on both hosted operating systems. Repeated slashes and lexical
+    `..` suffixes retain Python's `Path.expanduser` result without an absolute
+    `join` discarding the selected home or canonicalization changing `..`.
   - `cli.rs` adds component-only `cmd_data_show`. It removes one exact leading
     `private/` only at this boundary, then retains canonical containment and
     regular-file checks, restricted business output, personal-path allowlist,
     structure-only `--keys`, line-only parse diagnostics and content-free
-    events. The issue-366 workload disables events and denies process, socket
-    and secret adapters. All four primary and eleven control groups compare
+    events. The Python issue-366 workload disables events and dynamically
+    denies process, socket and secret adapters. The native workload does not
+    claim equivalent dynamic host-denial proof; task
+    `rust-05h-native-host-denial` owns real three-channel instrumentation.
+    All four primary and eleven control groups compare
     exact safe output and exit codes, and the whole synthetic parent snapshot
     retains every file's bytes and mtime. The rust-05 verifier's invocation-
     scoped observed-files walker records a retained symlink as the digest of

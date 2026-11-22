@@ -470,6 +470,25 @@ fn outline_and_cache_cases(
         outline_value(store, &bad_yaml, true),
     );
 
+    let key_48 = "k".repeat(48);
+    for (id, key) in [
+        ("outline-key-48", key_48.clone()),
+        ("outline-key-48-newline", format!("{key_48}\n")),
+        ("outline-key-48-two-newlines", format!("{key_48}\n\n")),
+        ("outline-key-49", format!("{key_48}k")),
+        ("outline-key-49-newline", format!("{key_48}k\n")),
+    ] {
+        let path = root.join(format!("work/{id}.json"));
+        let value = Canon::Map(vec![(Canon::Str(key), int(1))]);
+        let text = json_yaml::json_compact_python(&value).map_err(|_| "outline-key")?;
+        store.write_text(&path, &text).map_err(|_| "outline-key")?;
+        call(
+            cases,
+            id,
+            outline_value(store, &path, false).map(|value| value["keys"].clone()),
+        );
+    }
+
     let digest_parts = vec![
         Canon::Str("synthetic".into()),
         map(&[
@@ -572,6 +591,21 @@ fn key_path_cases(cases: &mut Vec<Value>, root: &Path) -> Result<(), String> {
             "~/backup.key",
             home.join("backup.key"),
         ),
+        (
+            "key-path-home-repeated-slash",
+            "~//backup.key",
+            home.join("backup.key"),
+        ),
+        (
+            "key-path-home-repeated-slashes",
+            "~////nested//backup.key",
+            home.join("nested/backup.key"),
+        ),
+        (
+            "key-path-home-traversal-lexical",
+            "~//../backup.key",
+            home.join("../backup.key"),
+        ),
         ("key-path-empty-default", "", default),
         (
             "key-path-current-user",
@@ -582,6 +616,21 @@ fn key_path_cases(cases: &mut Vec<Value>, root: &Path) -> Result<(), String> {
             "key-path-current-user-file",
             &format!("~{user}/backup.key"),
             user_home.join("backup.key"),
+        ),
+        (
+            "key-path-current-user-repeated-slash",
+            &format!("~{user}//backup.key"),
+            user_home.join("backup.key"),
+        ),
+        (
+            "key-path-current-user-repeated-slashes",
+            &format!("~{user}///nested//backup.key"),
+            user_home.join("nested/backup.key"),
+        ),
+        (
+            "key-path-current-user-traversal-lexical",
+            &format!("~{user}//../backup.key"),
+            user_home.join("../backup.key"),
         ),
     ] {
         let actual = keyfile::key_path(Some(value), &home).ok();
@@ -844,7 +893,6 @@ fn data_show_cases(cases: &mut Vec<Value>, store: &Store, root: &Path) -> Result
         "result": {"keys": show_value(&keys), "hidden": show_value(&hidden), "passed": passed},
     }));
     cases.push(json!({"id": "data-show-read-only", "result": before == snapshot(base)?}));
-    cases.push(json!({"id": "data-show-host-operations", "result": Vec::<String>::new()}));
     Ok(())
 }
 

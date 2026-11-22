@@ -189,6 +189,18 @@ people:
     store.write_text(bad_yaml, f"rules:\n  - match: {CANARY}\n    bad: [unclosed\n")
     _call(cases, "outline-malformed-yaml", lambda: store.outline(bad_yaml, strict=True))
 
+    key_48 = "k" * 48
+    for case_id, key in [
+        ("outline-key-48", key_48),
+        ("outline-key-48-newline", key_48 + "\n"),
+        ("outline-key-48-two-newlines", key_48 + "\n\n"),
+        ("outline-key-49", key_48 + "k"),
+        ("outline-key-49-newline", key_48 + "k\n"),
+    ]:
+        key_path = root / "work" / f"{case_id}.json"
+        store.write_text(key_path, json.dumps({key: 1}))
+        _call(cases, case_id, lambda path=key_path: store.outline(path)["keys"])
+
     _call(
         cases,
         "digest-values",
@@ -231,9 +243,23 @@ def _key_path_cases(cases: list[dict[str, Any]]) -> None:
     rows = [
         ("key-path-home", "~", Path.home()),
         ("key-path-home-file", "~/backup.key", Path.home() / "backup.key"),
+        ("key-path-home-repeated-slash", "~//backup.key", Path.home() / "backup.key"),
+        ("key-path-home-repeated-slashes", "~////nested//backup.key", Path.home() / "nested" / "backup.key"),
+        ("key-path-home-traversal-lexical", "~//../backup.key", Path.home() / ".." / "backup.key"),
         ("key-path-empty-default", "", expected_home),
         ("key-path-current-user", f"~{user.pw_name}", Path(user.pw_dir)),
         ("key-path-current-user-file", f"~{user.pw_name}/backup.key", Path(user.pw_dir) / "backup.key"),
+        ("key-path-current-user-repeated-slash", f"~{user.pw_name}//backup.key", Path(user.pw_dir) / "backup.key"),
+        (
+            "key-path-current-user-repeated-slashes",
+            f"~{user.pw_name}///nested//backup.key",
+            Path(user.pw_dir) / "nested" / "backup.key",
+        ),
+        (
+            "key-path-current-user-traversal-lexical",
+            f"~{user.pw_name}//../backup.key",
+            Path(user.pw_dir) / ".." / "backup.key",
+        ),
         (
             "key-path-missing-user",
             "~careerbrew-rust05h-no-such-user-7q9/backup.key",
@@ -361,7 +387,8 @@ def _data_show_cases(cases: list[dict[str, Any]], root: Path) -> None:
             lookalike = keys["exit"] == 0 and keys["stdout"].splitlines()[1:] == ["literal_only: int"] and "13" not in keys["stdout"] and hidden["exit"] == 3 and "--keys" in hidden["stdout"] and "literal_only" not in hidden["stdout"]
             cases.append({"id": "data-show-C11-lookalike", "result": {"keys": keys, "hidden": hidden, "passed": lookalike}})
             cases.append({"id": "data-show-read-only", "result": before == _snapshot(root.parent)})
-            cases.append({"id": "data-show-host-operations", "result": attempts})
+            if attempts:
+                raise AssertionError("data show reached a denied host adapter")
     finally:
         if was_events is None:
             os.environ.pop("CAREERBREW_EVENTS", None)
