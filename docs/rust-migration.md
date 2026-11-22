@@ -1424,7 +1424,9 @@ the crate until the rust-05 and rust-07 closure is native, so
     `call_mismatches` phase/index/field ids; raw process output, paths and
     payload text stay out of the record. Reader defaults and `create_key` use
     the same typed argument encoding as Python, and direct controls compare all
-    25 bound argument values with the registered DATA fixture.
+    25 bound argument values with the registered DATA fixture. YAML writes omit
+    yaml-rust2's document-start marker, matching Python `safe_dump` bytes; the
+    case-4 serialized-text control pins the exact output.
     An integrated baseline/verify/measure/decide control builds the registered
     release candidate on a clean runner, keeps Python below the protocol
     minimum and never refuses matching identity. Its two explicit CLI

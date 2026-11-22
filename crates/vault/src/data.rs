@@ -426,4 +426,21 @@ mod tests {
         }
         assert_eq!(checked, 25);
     }
+
+    #[test]
+    fn yaml_serialized_bytes_match_python_safe_dump() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(Path::parent)
+            .unwrap();
+        let fixture: Value = serde_json::from_slice(
+            &std::fs::read(root.join("docs/plans/2026-11-05-rust-data-fixture-v1.json")).unwrap(),
+        )
+        .unwrap();
+        let value = decode(&fixture["cases"][3]["phases"][0]["arguments"]["data"]).unwrap();
+        assert_eq!(
+            crate::json_yaml::yaml_write(&value).unwrap(),
+            "at: 2026-03-01 09:30:00+00:00\ncount: 8\ndate: 2026-03-01\nenabled: true\nliteral: 'yes'\ntag_map:\n  iso: not-a-date\n  kind: date\n"
+        );
+    }
 }

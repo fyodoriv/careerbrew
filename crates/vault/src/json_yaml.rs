@@ -924,6 +924,10 @@ pub fn yaml_write(value: &Canon) -> Result<String, String> {
     YamlEmitter::new(&mut out)
         .dump(&to_yaml(value)?)
         .map_err(|_| "cannot write YAML".to_owned())?;
+    // yaml-rust2 always emits a document start; PyYAML safe_dump does not.
+    if out.starts_with("---\n") {
+        out.drain(..4);
+    }
     out.push('\n');
     Ok(out)
 }
