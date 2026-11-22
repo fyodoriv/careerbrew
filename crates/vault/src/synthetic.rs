@@ -4,9 +4,11 @@
 use crate::atomic::StoreError;
 use crate::canon::Canon;
 use crate::cli::{self, CliError, Editor, Outcome, Terminal};
+use crate::events::{self, Clock};
 use crate::keyfile::{self, KeyFacts};
 use crate::receipts::{ReceiptError, Receipts, Runtime};
 use crate::secrets::{self, Adapter as SecretAdapter, SecretError};
+use crate::settings;
 use crate::store::Store;
 use careerbrew_policy::vectors::Out;
 use num_bigint::BigInt;
@@ -26,12 +28,38 @@ pub fn sha(raw: &[u8]) -> String {
         .collect()
 }
 
+fn python_float_hex(value: f64) -> String {
+    if value.is_nan() {
+        return "nan".into();
+    }
+    if value.is_infinite() {
+        return if value.is_sign_negative() {
+            "-inf"
+        } else {
+            "inf"
+        }
+        .into();
+    }
+    let sign = if value.is_sign_negative() { "-" } else { "" };
+    if value == 0.0 {
+        return format!("{sign}0x0.0p+0");
+    }
+    let bits = value.abs().to_bits();
+    let exponent = ((bits >> 52) & 0x7ff) as i32;
+    let fraction = bits & ((1_u64 << 52) - 1);
+    if exponent == 0 {
+        format!("{sign}0x0.{fraction:013x}p-1022")
+    } else {
+        format!("{sign}0x1.{fraction:013x}p{:+}", exponent - 1023)
+    }
+}
+
 fn typed(value: &Canon) -> Value {
     match value {
         Canon::Null => Value::Null,
         Canon::Bool(value) => json!(value),
         Canon::Int(value) => json!({"int": value.to_string()}),
-        Canon::Float(value) => json!({"float": format!("{:016x}", value.to_bits())}),
+        Canon::Float(value) => json!({"float": python_float_hex(*value)}),
         Canon::Str(value) => json!(value),
         Canon::Date(value) => json!({"date": value}),
         Canon::DateTime(value) => json!({"datetime": value}),
@@ -245,6 +273,26 @@ impl Runtime for EventRuntime<'_, '_> {
         self.store
             .append_jsonl(&self.store.root.join("logs/events.jsonl"), &[row])?;
         Ok(())
+    }
+}
+
+struct FixedEventClock;
+impl Clock for FixedEventClock {
+    fn stamp(&self) -> String {
+        "2026-03-01T09:30:00Z".into()
+    }
+    fn version(&self) -> String {
+        "0.0.0".into()
+    }
+}
+
+struct DisabledEventClock;
+impl Clock for DisabledEventClock {
+    fn stamp(&self) -> String {
+        panic!("disabled events reached the stamp adapter")
+    }
+    fn version(&self) -> String {
+        panic!("disabled events reached the version adapter")
     }
 }
 
@@ -713,6 +761,178 @@ pub fn run_all(root: &Path, key_file: &Path) -> Result<Value, String> {
         })
         .collect();
     cases.push(json!({"id": "receipt-events", "result": event_rows}));
+
+    let settings_file = settings::settings_path(root);
+    cases.push(json!({
+        "id": "settings-path",
+        "result": settings_file.strip_prefix(root).map_err(|_| "settings-path")?.to_string_lossy(),
+    }));
+    call(
+        &mut cases,
+        "settings-missing",
+        settings::read_settings(&store)
+            .map(|value| typed(&value))
+            .map_err(|error| store_error(&error)),
+    );
+    std::fs::write(&settings_file, "").map_err(|_| "settings-empty")?;
+    call(
+        &mut cases,
+        "settings-empty",
+        settings::read_settings(&store)
+            .map(|value| typed(&value))
+            .map_err(|error| store_error(&error)),
+    );
+    let settings_value = map(&[
+        ("questions_per_day", int(3)),
+        ("work_hours", Canon::Float(7.5)),
+        ("notify_events", Canon::Bool(true)),
+        (
+            "nested",
+            map(&[("yes", Canon::Str("yes".into())), ("none", Canon::Null)]),
+        ),
+    ]);
+    call(
+        &mut cases,
+        "settings-write",
+        settings::write_settings(&store, &settings_value)
+            .map(|_| Value::Null)
+            .map_err(|error| store_error(&error)),
+    );
+    call(
+        &mut cases,
+        "settings-read",
+        settings::read_settings(&store)
+            .map(|value| typed(&value))
+            .map_err(|error| store_error(&error)),
+    );
+    let settings_before = identity(&settings_file).map_err(|_| "identity")?;
+    call(
+        &mut cases,
+        "settings-rewrite",
+        settings::write_settings(&store, &settings_value)
+            .map(|_| Value::Null)
+            .map_err(|error| store_error(&error)),
+    );
+    cases.push(json!({"id": "settings-write-rewrites", "result": settings_before["inode"] != identity(&settings_file).map_err(|_| "identity")?["inode"]}));
+
+    let clean_fields = map(&[
+        ("event", Canon::Str("config.set".into())),
+        ("status", Canon::Str("ok".into())),
+        ("error", Canon::Str("ValueError".into())),
+        ("source_kind", Canon::Str("HTTP".into())),
+        (
+            "count",
+            Canon::Int(
+                "1208925819614629174706179"
+                    .parse::<BigInt>()
+                    .map_err(|_| "int")?,
+            ),
+        ),
+        ("ratio", Canon::Float(1.5)),
+        ("enabled", Canon::Bool(true)),
+        ("note", Canon::Str(CANARY.into())),
+        ("nothing", Canon::Null),
+        ("items", Canon::List(vec![Canon::Str("dropped".into())])),
+        ("nested", map(&[("dropped", Canon::Bool(true))])),
+        ("too_long", Canon::Str("a".repeat(49))),
+    ]);
+    call(
+        &mut cases,
+        "event-clean",
+        events::clean(&clean_fields)
+            .map(|value| typed(&value))
+            .map_err(|_| "event-clean"),
+    );
+    call(
+        &mut cases,
+        "event-record",
+        events::record(
+            "config.set",
+            &map(&[
+                ("status", Canon::Str("ok".into())),
+                ("note", Canon::Str(CANARY.into())),
+            ]),
+            "2026-03-01T09:30:00Z",
+            "0.0.0",
+        )
+        .map(|value| typed(&value))
+        .map_err(|_| "event-record"),
+    );
+    call(
+        &mut cases,
+        "event-write-row",
+        events::write_row(root, &map(&[("b", int(1)), ("a", Canon::Str("x".into()))]))
+            .map(|_| Value::Null)
+            .map_err(|_| "event-write-row"),
+    );
+    let log = root.join("logs/events.jsonl");
+    let last_line = std::fs::read_to_string(&log)
+        .map_err(|_| "event-line")?
+        .lines()
+        .last()
+        .ok_or("event-line")?
+        .to_owned();
+    call(&mut cases, "event-write-row-line", Ok(json!(last_line)));
+    call(
+        &mut cases,
+        "event-emit-config",
+        events::emit(
+            root,
+            Some("on"),
+            "config.set",
+            &map(&[
+                ("status", Canon::Str("ok".into())),
+                ("note", Canon::Str(CANARY.into())),
+                ("count", int(2)),
+            ]),
+            &FixedEventClock,
+        )
+        .map(|_| Value::Null)
+        .map_err(|_| "event-emit"),
+    );
+    call(
+        &mut cases,
+        "event-emit-error",
+        events::emit(
+            root,
+            Some("on"),
+            "cli.error",
+            &map(&[
+                ("command", Canon::Str("config".into())),
+                ("error", Canon::Str("ValueError".into())),
+            ]),
+            &FixedEventClock,
+        )
+        .map(|_| Value::Null)
+        .map_err(|_| "event-emit"),
+    );
+    let all_lines = std::fs::read_to_string(&log)
+        .map_err(|_| "event-lines")?
+        .lines()
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    let lines = all_lines[all_lines.len().saturating_sub(3)..]
+        .iter()
+        .map(|line| json!(line))
+        .collect::<Vec<_>>();
+    call(&mut cases, "event-lines", Ok(Value::Array(lines)));
+
+    let off_before = identity(&log).map_err(|_| "identity")?;
+    call(
+        &mut cases,
+        "event-off",
+        events::emit(
+            root,
+            Some("off"),
+            "config.set",
+            &map(&[("status", Canon::Str("blocked".into()))]),
+            &DisabledEventClock,
+        )
+        .map(|_| Value::Null)
+        .map_err(|_| "event-off"),
+    );
+    cases.push(json!({"id": "event-off-identity", "result": off_before == identity(&log).map_err(|_| "identity")?}));
+
     cases.push(json!({"id": "files", "result": file_evidence(&store, root).map_err(|_| "files")?}));
     Ok(json!({"schema": "careerbrew-rust05-component-v1", "cases": cases}))
 }

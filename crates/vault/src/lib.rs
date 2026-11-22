@@ -8,11 +8,13 @@ pub mod atomic;
 pub mod canon;
 pub mod cli;
 pub mod data;
+pub mod events;
 pub mod json_yaml;
 pub mod keyfile;
 pub mod lock;
 pub mod receipts;
 pub mod secrets;
+pub mod settings;
 pub mod store;
 pub mod synthetic;
 

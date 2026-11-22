@@ -1,0 +1,3 @@
+crates/vault/src/settings.rs,port,rust-05,Component-only settings path and encrypted YAML settings IO
+crates/vault/src/events.rs,port,rust-05,Component-only content-free event cleaning recording and sorted JSONL append
+tests/unit/test_rust05g_component.py,keep-native,rust-00,Synthetic cross-engine settings and general-event component controls

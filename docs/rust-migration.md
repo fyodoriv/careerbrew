@@ -1465,6 +1465,25 @@ the crate until the rust-05 and rust-07 closure is native, so
     are registered as `unmeasured`. This slice does not close `rust-05` or
     activate storage.
 
+- **Sub-step `rust-05g` (native settings and general event IO, component
+  only):**
+  - `crates/vault/src/settings.rs` ports `settings_path`, `read_settings` and
+    `write_settings`. Missing, empty and other falsy YAML values read as no
+    overrides; writes retain the existing encrypted atomic replacement.
+  - `crates/vault/src/events.rs` ports general `clean`, `record`, `write_row`
+    and `emit`. It retains the string-key allowlist, lowercase error classes,
+    short lowercase identifiers, arbitrary-size integers, floats and booleans,
+    fixed clock/version adapters, sorted plaintext JSON lines and the exact
+    `CAREERBREW_EVENTS=off` early return before clock or writer adapters.
+  - `tests/oracles/rust05.py` now exercises these providers beside the existing
+    receipts. The `receipt-events` case still contains only the original
+    request and decision rows. `tests/unit/test_rust05g_component.py` checks
+    exact Python/Rust reports, sealed settings, rewrite and disabled-event
+    identity, sorted output and privacy. All rust-05f cases and the ten DATA
+    cases remain in the same verifier and measurement workload.
+  - Bulk vault/status/cache helpers remain out of scope. Production routes,
+    shipped crates and storage activation are unchanged.
+
 - **Sub-step `rust-05e` (native advisory lock, mixed writers, component
   only):**
   - `crates/vault/src/lock.rs` ports the `store.append_jsonl` lock: an
@@ -1999,7 +2018,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | Path | Package | What it is | Production use |
 | --- | --- | --- | --- |
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
-| `crates/vault/` | `careerbrew-vault` | the `CBV1` codec, key/atomic/lock providers and rust-05f storage readers/writers, receipt IO and adapter-driven `data edit`/`secret set`; synthetic `vault-store` transport only | none: component parity only |
+| `crates/vault/` | `careerbrew-vault` | the `CBV1` codec, key/atomic/lock providers, rust-05f storage readers/writers, receipt IO and adapter-driven `data edit`/`secret set`, and rust-05g settings/general-event IO; synthetic `vault-store` transport only | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
