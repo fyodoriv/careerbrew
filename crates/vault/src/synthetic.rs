@@ -840,11 +840,17 @@ impl ShowRunner<'_, '_> {
     }
 }
 
-fn show_result(reference: Option<&Show>, alias: &Show, passed: bool) -> Value {
+fn show_result(
+    reference: Option<&Show>,
+    alias: &Show,
+    passed: bool,
+    host_attempts: usize,
+) -> Value {
     json!({
         "reference": reference.map(show_value),
         "alias": show_value(alias),
         "passed": passed,
+        "host_attempts": host_attempts,
     })
 }
 
@@ -897,7 +903,12 @@ fn data_show_cases(cases: &mut Vec<Value>, store: &Store, root: &Path) -> Result
     };
     cases.push(json!({
         "id": "data-show-P01-personal",
-        "result": show_result(Some(&reference), &alias, reference == expected && alias == reference),
+        "result": show_result(
+            Some(&reference),
+            &alias,
+            reference == expected && alias == reference,
+            host.attempts(),
+        ),
     }));
 
     let reference = runner.show("cache/evidence/index.yaml", true)?;
@@ -909,6 +920,7 @@ fn data_show_cases(cases: &mut Vec<Value>, store: &Store, root: &Path) -> Result
             Some(&reference),
             &alias,
             reference.exit == 0 && reference_lines == ["count: int", "note: str"] && alias == reference,
+            host.attempts(),
         ),
     }));
 
@@ -920,6 +932,7 @@ fn data_show_cases(cases: &mut Vec<Value>, store: &Store, root: &Path) -> Result
             Some(&reference),
             &alias,
             reference.exit == 3 && reference.stdout.contains("--keys") && alias == reference,
+            host.attempts(),
         ),
     }));
 
@@ -934,6 +947,7 @@ fn data_show_cases(cases: &mut Vec<Value>, store: &Store, root: &Path) -> Result
                 && lines.first().is_some_and(|line| line.starts_with("private/nested.yaml: yaml, encrypted on disk"))
                 && lines.get(1..) == Some(["nested_only: int"].as_slice())
                 && !alias.stdout.contains("11"),
+            host.attempts(),
         ),
     }));
 
@@ -976,7 +990,7 @@ fn data_show_cases(cases: &mut Vec<Value>, store: &Store, root: &Path) -> Result
         };
         cases.push(json!({
             "id": format!("data-show-{id}"),
-            "result": {"actual": show_value(&actual), "passed": passed},
+            "result": {"actual": show_value(&actual), "passed": passed, "host_attempts": host.attempts()},
         }));
     }
 
@@ -990,7 +1004,7 @@ fn data_show_cases(cases: &mut Vec<Value>, store: &Store, root: &Path) -> Result
         && !hidden.stdout.contains("literal_only");
     cases.push(json!({
         "id": "data-show-C11-lookalike",
-        "result": {"keys": show_value(&keys), "hidden": show_value(&hidden), "passed": passed},
+        "result": {"keys": show_value(&keys), "hidden": show_value(&hidden), "passed": passed, "host_attempts": host.attempts()},
     }));
     cases.push(json!({"id": "data-show-read-only", "result": before == snapshot(base)?}));
     let read_only_attempts = host.attempts();

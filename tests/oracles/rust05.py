@@ -325,10 +325,10 @@ def _data_show_cases(cases: list[dict[str, Any]], root: Path) -> None:
             raise RuntimeError("synthetic value reached data-show output")
         return {"exit": code, "stdout": text}
 
-    def result(reference: Any, alias: Any, passed: bool) -> dict[str, Any]:
-        return {"reference": reference, "alias": alias, "passed": passed}
-
     attempts = []
+
+    def result(reference: Any, alias: Any, passed: bool) -> dict[str, Any]:
+        return {"reference": reference, "alias": alias, "passed": passed, "host_attempts": len(attempts)}
 
     def deny(channel: str):
         def denied(*_args: Any, **_kwargs: Any) -> None:
@@ -409,12 +409,12 @@ def _data_show_cases(cases: list[dict[str, Any]], root: Path) -> None:
             for name in ("C04-missing", "C05-directory", "C06-traversal", "C07-symlink", "C09-absolute-outside", "C12-root-directory"):
                 passed[name] = controls[name]["exit"] == 1 and "no such data file" in controls[name]["stdout"]
             for name, actual in controls.items():
-                cases.append({"id": f"data-show-{name}", "result": {"actual": actual, "passed": passed[name]}})
+                cases.append({"id": f"data-show-{name}", "result": {"actual": actual, "passed": passed[name], "host_attempts": len(attempts)}})
 
             keys = show("privateish/literal.yaml", keys=True)
             hidden = show("privateish/literal.yaml")
             lookalike = keys["exit"] == 0 and keys["stdout"].splitlines()[1:] == ["literal_only: int"] and "13" not in keys["stdout"] and hidden["exit"] == 3 and "--keys" in hidden["stdout"] and "literal_only" not in hidden["stdout"]
-            cases.append({"id": "data-show-C11-lookalike", "result": {"keys": keys, "hidden": hidden, "passed": lookalike}})
+            cases.append({"id": "data-show-C11-lookalike", "result": {"keys": keys, "hidden": hidden, "passed": lookalike, "host_attempts": len(attempts)}})
             cases.append({"id": "data-show-read-only", "result": before == _snapshot(root.parent)})
             read_only_attempts = len(attempts)
             if read_only_attempts:

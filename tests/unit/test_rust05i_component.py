@@ -96,6 +96,10 @@ def test_bulk_vault_status_and_native_host_denial_match_real_python(store_bin, t
             "socket": {"attempts": 1, "refused": True},
             "secret": {"attempts": 1, "refused": True},
         }
+        path_results = [row["result"] for row in report["cases"] if row["id"].startswith("data-show-") and row["id"] not in {"data-show-read-only", "data-show-host-denial"}]
+        assert len(path_results) == 15
+        assert all(result["host_attempts"] == 0 for result in path_results)
+
         enumeration = case(report, "bulk-enumeration-status")["result"]
         assert enumeration == {
             "paths": ["learn/synthetic/replay/07/near.txt", "work/plain.txt", "work/sealed.txt"],
