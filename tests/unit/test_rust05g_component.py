@@ -86,12 +86,22 @@ def test_settings_and_general_events_match_real_python(store_bin, tmp_path):
             "event-emit-config",
             "event-emit-error",
             "event-lines",
+            "event-write-float-row",
+            "event-write-float-line",
             "event-off",
             "event-off-identity",
         } <= ids
         assert case(report, "settings-write-rewrites")["result"] is True
         assert case(report, "event-off-identity")["result"] is True
         assert case(report, "event-write-row-line")["result"] == '{"a": "x", "b": 1}'
+        cleaned = case(report, "event-clean")["result"]
+        assert cleaned["status"] == "a" * 48
+        assert "command" not in cleaned
+        assert cleaned["route"] == "ok\n"
+        assert "action" not in cleaned
+        assert case(report, "event-write-float-line")["result"] == (
+            '{"exponent": 1e-07, "high_fixed": 1000000000000000.0, "high_scientific": 1e+16, "infinity": Infinity, "low_fixed": 0.0001, "low_scientific": 1e-05, "nan": NaN, "negative_infinity": -Infinity, "negative_zero": -0.0}'
+        )
         assert case(report, "receipt-events")["result"] == [
             {"event": "approvals.request", "status": "pending"},
             {"event": "approvals.decide", "status": "approved"},

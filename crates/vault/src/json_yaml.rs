@@ -322,21 +322,26 @@ fn json_string(text: &str) -> Result<String, String> {
     Ok(out)
 }
 
+pub(crate) type FloatWriter = fn(f64) -> Result<String, String>;
+
+fn storage_json_float(value: f64) -> Result<String, String> {
+    Ok(serde_json::Number::from_f64(value)
+        .ok_or("NaN and infinity are not supported")?
+        .to_string())
+}
+
 fn write_json_value(
     value: &Canon,
     out: &mut String,
     level: usize,
     pretty: bool,
+    float: FloatWriter,
 ) -> Result<(), String> {
     match value {
         Canon::Null => out.push_str("null"),
         Canon::Bool(v) => out.push_str(if *v { "true" } else { "false" }),
         Canon::Int(v) => out.push_str(&v.to_string()),
-        Canon::Float(v) => out.push_str(
-            &serde_json::Number::from_f64(*v)
-                .ok_or("NaN and infinity are not supported")?
-                .to_string(),
-        ),
+        Canon::Float(v) => out.push_str(&float(*v)?),
         Canon::Str(v) | Canon::Date(v) => out.push_str(&json_string(v)?),
         // `default=str` writes a datetime with a space, not a `T`.
         Canon::DateTime(v) => out.push_str(&json_string(&v.replacen('T', " ", 1))?),
@@ -356,7 +361,7 @@ fn write_json_value(
                 } else if index > 0 {
                     out.push(' ');
                 }
-                write_json_value(item, out, level + 2, pretty)?;
+                write_json_value(item, out, level + 2, pretty, float)?;
             }
             if pretty {
                 out.push('\n');
@@ -389,7 +394,7 @@ fn write_json_value(
                 }
                 out.push_str(&json_string(key)?);
                 out.push_str(": ");
-                write_json_value(value, out, level + 2, pretty)?;
+                write_json_value(value, out, level + 2, pretty, float)?;
             }
             if pretty {
                 out.push('\n');
@@ -405,14 +410,19 @@ fn write_json_value(
 /// size integers. Map order is sorted without Serde's `preserve_order`.
 pub fn json_write(value: &Canon) -> Result<String, String> {
     let mut out = String::new();
-    write_json_value(value, &mut out, 0, true)?;
+    write_json_value(value, &mut out, 0, true, storage_json_float)?;
     Ok(out)
 }
 
 /// One JSONL row: `json.dumps(row, sort_keys=True, default=str)`.
 pub fn json_line(value: &Canon) -> Result<String, String> {
+    json_line_with_float(value, storage_json_float)
+}
+
+/// Event IO supplies Python's float spelling without changing storage JSON.
+pub(crate) fn json_line_with_float(value: &Canon, float: FloatWriter) -> Result<String, String> {
     let mut out = String::new();
-    write_json_value(value, &mut out, 0, false)?;
+    write_json_value(value, &mut out, 0, false, float)?;
     out.push('\n');
     Ok(out)
 }
@@ -899,7 +909,9 @@ fn yaml_float(v: f64) -> String {
 
 fn to_yaml(value: &Canon) -> Result<Yaml, String> {
     Ok(match value {
-        Canon::Null => Yaml::Null,
+        // PyYAML safe_dump spells a null value `null`; yaml-rust2's Null emits `~`.
+        // Real keeps the spelling unquoted and reads back as the same null.
+        Canon::Null => Yaml::Real("null".into()),
         Canon::Bool(v) => Yaml::Boolean(*v),
         Canon::Int(v) => Yaml::Integer(i64::try_from(v).map_err(|_| "int out of range")?),
         // `Real` is written as is, unquoted.

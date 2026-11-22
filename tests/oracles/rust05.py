@@ -249,7 +249,10 @@ def _run_all() -> dict[str, Any]:
         lambda: events.clean(
             {
                 "event": "config.set",
-                "status": "ok",
+                "status": "a" * 48,
+                "command": "a" * 49,
+                "route": "ok\n",
+                "action": "ok\n\n",
                 "error": "ValueError",
                 "source_kind": "HTTP",
                 "count": 1208925819614629174706179,
@@ -259,7 +262,6 @@ def _run_all() -> dict[str, Any]:
                 "nothing": None,
                 "items": ["dropped"],
                 "nested": {"dropped": True},
-                "too_long": "a" * 49,
             }
         ),
     )
@@ -272,6 +274,19 @@ def _run_all() -> dict[str, Any]:
         _call(cases, "event-emit-config", lambda: events.emit("config.set", status="ok", note=CANARY, count=2))
         _call(cases, "event-emit-error", lambda: events.emit("cli.error", command="config", error="ValueError"))
     _call(cases, "event-lines", lambda: log.read_text(encoding="utf-8").splitlines()[-3:])
+    float_row = {
+        "nan": float("nan"),
+        "infinity": float("inf"),
+        "negative_infinity": float("-inf"),
+        "negative_zero": -0.0,
+        "exponent": 1e-7,
+        "low_fixed": 1e-4,
+        "low_scientific": 1e-5,
+        "high_fixed": 1e15,
+        "high_scientific": 1e16,
+    }
+    _call(cases, "event-write-float-row", lambda: events.write_row(float_row))
+    _call(cases, "event-write-float-line", lambda: log.read_text(encoding="utf-8").splitlines()[-1])
 
     off_before = _identity(log)
     os.environ["CAREERBREW_EVENTS"] = "off"

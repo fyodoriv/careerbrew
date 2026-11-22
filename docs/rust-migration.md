@@ -1469,17 +1469,23 @@ the crate until the rust-05 and rust-07 closure is native, so
   only):**
   - `crates/vault/src/settings.rs` ports `settings_path`, `read_settings` and
     `write_settings`. Missing, empty and other falsy YAML values read as no
-    overrides; writes retain the existing encrypted atomic replacement.
+    overrides; writes retain the existing encrypted atomic replacement and
+    PyYAML's `null` spelling.
   - `crates/vault/src/events.rs` ports general `clean`, `record`, `write_row`
     and `emit`. It retains the string-key allowlist, lowercase error classes,
-    short lowercase identifiers, arbitrary-size integers, floats and booleans,
-    fixed clock/version adapters, sorted plaintext JSON lines and the exact
+    short lowercase identifiers (including Python `$`'s one-terminal-newline
+    exception), arbitrary-size integers, floats and booleans, fixed
+    clock/version adapters, sorted plaintext JSON lines and the exact
     `CAREERBREW_EVENTS=off` early return before clock or writer adapters.
+    Event-only float output matches `json.dumps`: NaN and infinities, negative
+    zero, fixed/scientific thresholds and padded exponents. Storage JSON keeps
+    its separate existing nonfinite refusal.
   - `tests/oracles/rust05.py` now exercises these providers beside the existing
     receipts. The `receipt-events` case still contains only the original
     request and decision rows. `tests/unit/test_rust05g_component.py` checks
     exact Python/Rust reports, sealed settings, rewrite and disabled-event
-    identity, sorted output and privacy. All rust-05f cases and the ten DATA
+    identity, sorted output, identifier boundaries, exact float bytes and
+    privacy. All rust-05f cases and the ten DATA
     cases remain in the same verifier and measurement workload.
   - Bulk vault/status/cache helpers remain out of scope. Production routes,
     shipped crates and storage activation are unchanged.

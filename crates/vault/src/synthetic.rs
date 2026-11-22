@@ -817,7 +817,10 @@ pub fn run_all(root: &Path, key_file: &Path) -> Result<Value, String> {
 
     let clean_fields = map(&[
         ("event", Canon::Str("config.set".into())),
-        ("status", Canon::Str("ok".into())),
+        ("status", Canon::Str("a".repeat(48))),
+        ("command", Canon::Str("a".repeat(49))),
+        ("route", Canon::Str("ok\n".into())),
+        ("action", Canon::Str("ok\n\n".into())),
         ("error", Canon::Str("ValueError".into())),
         ("source_kind", Canon::Str("HTTP".into())),
         (
@@ -834,7 +837,6 @@ pub fn run_all(root: &Path, key_file: &Path) -> Result<Value, String> {
         ("nothing", Canon::Null),
         ("items", Canon::List(vec![Canon::Str("dropped".into())])),
         ("nested", map(&[("dropped", Canon::Bool(true))])),
-        ("too_long", Canon::Str("a".repeat(49))),
     ]);
     call(
         &mut cases,
@@ -916,6 +918,31 @@ pub fn run_all(root: &Path, key_file: &Path) -> Result<Value, String> {
         .map(|line| json!(line))
         .collect::<Vec<_>>();
     call(&mut cases, "event-lines", Ok(Value::Array(lines)));
+    let float_row = map(&[
+        ("nan", Canon::Float(f64::NAN)),
+        ("infinity", Canon::Float(f64::INFINITY)),
+        ("negative_infinity", Canon::Float(f64::NEG_INFINITY)),
+        ("negative_zero", Canon::Float(-0.0)),
+        ("exponent", Canon::Float(1e-7)),
+        ("low_fixed", Canon::Float(1e-4)),
+        ("low_scientific", Canon::Float(1e-5)),
+        ("high_fixed", Canon::Float(1e15)),
+        ("high_scientific", Canon::Float(1e16)),
+    ]);
+    call(
+        &mut cases,
+        "event-write-float-row",
+        events::write_row(root, &float_row)
+            .map(|_| Value::Null)
+            .map_err(|_| "event-write-float-row"),
+    );
+    let float_line = std::fs::read_to_string(&log)
+        .map_err(|_| "event-float-line")?
+        .lines()
+        .last()
+        .ok_or("event-float-line")?
+        .to_owned();
+    call(&mut cases, "event-write-float-line", Ok(json!(float_line)));
 
     let off_before = identity(&log).map_err(|_| "identity")?;
     call(
