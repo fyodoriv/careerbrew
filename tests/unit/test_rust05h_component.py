@@ -168,9 +168,9 @@ def test_helpers_and_all_issue_366_groups_match_real_python(store_bin, tmp_path)
             "key-path-empty-default",
             "key-path-current-user",
             "key-path-current-user-file",
-            "key-path-missing-user",
         ):
             assert case(report, case_id)["result"] is True
+        assert case(report, "key-path-missing-user")["result"] == {"error": "RuntimeError"}
         for group in PATH_GROUPS:
             result = case(report, f"data-show-{group}")["result"]
             assert result["passed"] is True, group

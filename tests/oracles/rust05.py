@@ -134,19 +134,21 @@ def _cached_result(pair: tuple[Any, bool]) -> dict[str, Any]:
 
 def _outline_and_cache_cases(cases: list[dict[str, Any]], root: Path) -> None:
     projects = root / "work" / "projects.yaml"
-    store.write_yaml(
+    store.write_text(
         projects,
-        {
-            "projects": {
-                "synthetic-project": {
-                    "created_at": "2026-10-01T09:00:00Z",
-                    "stale_after_days": 7,
-                    "sources": [{"kind": "doc", "ref": "r1"}],
-                },
-                "synthetic-project-two": {"created_at": "2026-10-02T09:00:00Z", "owner": "me"},
-            },
-            "people": {CANARY: 3},
-        },
+        f"""projects:
+  synthetic-project:
+    created_at: '2026-10-01T09:00:00Z'
+    stale_after_days: 7
+    sources:
+    - kind: doc
+      ref: r1
+  synthetic-project-two:
+    created_at: '2026-10-02T09:00:00Z'
+    owner: me
+people:
+  {CANARY}: 3
+""",
     )
     _call(cases, "outline-projects", lambda: store.outline(projects, strict=True))
 

@@ -1500,9 +1500,9 @@ the crate until the rust-05 and rust-07 closure is native, so
     delimiter. The encrypted cache retains content-derived paths, fixed-clock
     TTL checks, lazy compute, semantic values and exact hit identity.
   - `keyfile.rs` now expands `~user` and `~user/...` through the system account
-    database in addition to `~` and `~/`. An unknown user leaves the original
-    path unchanged, matching `Path.expanduser`; the current account is covered
-    on both hosted operating systems.
+    database in addition to `~` and `~/`. An unknown named user raises the
+    native equivalent of Python's `RuntimeError`; the current account is
+    covered on both hosted operating systems.
   - `cli.rs` adds component-only `cmd_data_show`. It removes one exact leading
     `private/` only at this boundary, then retains canonical containment and
     regular-file checks, restricted business output, personal-path allowlist,
@@ -1510,7 +1510,10 @@ the crate until the rust-05 and rust-07 closure is native, so
     events. The issue-366 workload disables events and denies process, socket
     and secret adapters. All four primary and eleven control groups compare
     exact safe output and exit codes, and the whole synthetic parent snapshot
-    retains every file's bytes and mtime.
+    retains every file's bytes and mtime. The rust-05 verifier's invocation-
+    scoped observed-files walker records a retained symlink as the digest of
+    its `read_link` target bytes without following it, including a dangling-
+    link control. Shared capture and source-tree scans remain strict.
   - `tests/oracles/rust05.py` and
     `tests/unit/test_rust05h_component.py` compare the complete stateful
     Python/Rust reports, including retained settings, events, receipts,

@@ -395,40 +395,13 @@ fn outline_and_cache_cases(
     root: &Path,
 ) -> Result<(), String> {
     let projects = root.join("work/projects.yaml");
-    let projects_value = map(&[
-        (
-            "projects",
-            map(&[
-                (
-                    "synthetic-project",
-                    map(&[
-                        ("created_at", Canon::Str("2026-10-01T09:00:00Z".into())),
-                        ("stale_after_days", int(7)),
-                        (
-                            "sources",
-                            Canon::List(vec![map(&[
-                                ("kind", Canon::Str("doc".into())),
-                                ("ref", Canon::Str("r1".into())),
-                            ])]),
-                        ),
-                    ]),
-                ),
-                (
-                    "synthetic-project-two",
-                    map(&[
-                        ("created_at", Canon::Str("2026-10-02T09:00:00Z".into())),
-                        ("owner", Canon::Str("me".into())),
-                    ]),
-                ),
-            ]),
-        ),
-        (
-            "people",
-            Canon::Map(vec![(Canon::Str(CANARY.into()), int(3))]),
-        ),
-    ]);
     store
-        .write_yaml(&projects, &projects_value)
+        .write_text(
+            &projects,
+            &format!(
+                "projects:\n  synthetic-project:\n    created_at: '2026-10-01T09:00:00Z'\n    stale_after_days: 7\n    sources:\n    - kind: doc\n      ref: r1\n  synthetic-project-two:\n    created_at: '2026-10-02T09:00:00Z'\n    owner: me\npeople:\n  {CANARY}: 3\n"
+            ),
+        )
         .map_err(|_| "projects")?;
     call(
         cases,
@@ -610,10 +583,16 @@ fn key_path_cases(cases: &mut Vec<Value>, root: &Path) -> Result<(), String> {
             &format!("~{user}/backup.key"),
             user_home.join("backup.key"),
         ),
-        ("key-path-missing-user", missing, PathBuf::from(missing)),
     ] {
-        cases.push(json!({"id": id, "result": keyfile::key_path(Some(value), &home) == expected}));
+        let actual = keyfile::key_path(Some(value), &home).ok();
+        cases.push(json!({"id": id, "result": actual == Some(expected)}));
     }
+    let missing_result = match keyfile::key_path(Some(missing), &home) {
+        Err(keyfile::KeyError::UnknownUser) => json!({"error": "RuntimeError"}),
+        Ok(_) => json!(false),
+        Err(_) => json!({"error": "OSError"}),
+    };
+    cases.push(json!({"id": "key-path-missing-user", "result": missing_result}));
     Ok(())
 }
 

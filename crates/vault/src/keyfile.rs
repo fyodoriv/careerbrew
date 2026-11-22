@@ -24,6 +24,8 @@ pub enum KeyError {
     MissingWithSealedData,
     /// Another writer left the key empty (Python: `OSError`).
     Empty(PathBuf),
+    /// `Path.expanduser` cannot resolve a named account (Python: `RuntimeError`).
+    UnknownUser,
     /// Any other file system error.
     Io(std::io::Error),
 }
@@ -47,6 +49,7 @@ impl std::fmt::Display for KeyError {
                 "backup key at {} is empty (fix: restore it from your password manager)",
                 p.display()
             ),
+            KeyError::UnknownUser => write!(f, "could not determine home directory"),
             KeyError::Io(e) => write!(f, "{e}"),
         }
     }
@@ -71,10 +74,10 @@ pub struct KeyFacts<'a> {
 }
 
 /// `keyfile.key_path`: the env path with `~` expanded, else the default.
-pub fn key_path(env_key_file: Option<&str>, home: &Path) -> PathBuf {
+pub fn key_path(env_key_file: Option<&str>, home: &Path) -> Result<PathBuf, KeyError> {
     match env_key_file {
         Some(v) if !v.is_empty() => expand_user(v, home),
-        _ => home.join(".config").join("careerbrew").join("backup.key"),
+        _ => Ok(home.join(".config").join("careerbrew").join("backup.key")),
     }
 }
 
@@ -135,26 +138,26 @@ fn user_home(user: &str) -> Option<PathBuf> {
     }
 }
 
-fn expand_user(value: &str, home: &Path) -> PathBuf {
+fn expand_user(value: &str, home: &Path) -> Result<PathBuf, KeyError> {
     if value == "~" {
-        return home.to_path_buf();
+        return Ok(home.to_path_buf());
     }
     if let Some(rest) = value.strip_prefix("~/") {
-        return home.join(rest);
+        return Ok(home.join(rest));
     }
     let Some(rest) = value.strip_prefix('~') else {
-        return PathBuf::from(value);
+        return Ok(PathBuf::from(value));
     };
     let end = rest.find('/').unwrap_or(rest.len());
     let user = &rest[..end];
     let Some(user_home) = user_home(user) else {
-        return PathBuf::from(value);
+        return Err(KeyError::UnknownUser);
     };
-    if end == rest.len() {
+    Ok(if end == rest.len() {
         user_home
     } else {
         user_home.join(&rest[end + 1..])
-    }
+    })
 }
 
 /// `Path.resolve()` (non-strict): canonicalize the longest existing
@@ -214,7 +217,7 @@ fn strip(bytes: &[u8]) -> Vec<u8> {
 pub fn load_key(create: bool, path: Option<&Path>, facts: &KeyFacts) -> Result<Vec<u8>, KeyError> {
     let path = match path {
         Some(p) => p.to_path_buf(),
-        None => key_path(facts.env_key_file, facts.home),
+        None => key_path(facts.env_key_file, facts.home)?,
     };
     require_outside_data_root(&path, facts.data_root)?;
     if path.exists() {
@@ -282,13 +285,17 @@ mod tests {
     fn key_path_defaults_and_expands_the_env_value() {
         let home = Path::new("/synthetic-home");
         let default = home.join(".config/careerbrew/backup.key");
-        assert_eq!(key_path(None, home), default);
-        assert_eq!(key_path(Some(""), home), default);
-        assert_eq!(key_path(Some("~/k.key"), home), home.join("k.key"));
+        assert_eq!(key_path(None, home).unwrap(), default);
+        assert_eq!(key_path(Some(""), home).unwrap(), default);
+        assert_eq!(key_path(Some("~/k.key"), home).unwrap(), home.join("k.key"));
         assert_eq!(
-            key_path(Some("/abs/k.key"), home),
+            key_path(Some("/abs/k.key"), home).unwrap(),
             PathBuf::from("/abs/k.key")
         );
+        assert!(matches!(
+            key_path(Some("~careerbrew-no-such-user-7q9/k.key"), home),
+            Err(KeyError::UnknownUser)
+        ));
     }
 
     #[test]
