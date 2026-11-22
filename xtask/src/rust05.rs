@@ -201,6 +201,7 @@ pub fn record(
     let candidate_sha256 =
         capture_actions::digest(&std::fs::read(&candidate).map_err(|_| "cannot read candidate")?);
     let hash = sources_sha256(root, step)?;
+    let evidence = baseline::evidence_hashes(root, step)?;
     let mut cases = Vec::new();
     let mut violations = verify::Violations::default();
     component_case(root, python, &candidate, &mut cases, &mut violations)?;
@@ -223,7 +224,7 @@ pub fn record(
         &mut violations,
     )?;
     verify::data_cases(root, python, &candidate, true, &mut cases, &mut violations)?;
-    if sources_sha256(root, step)? != hash {
+    if sources_sha256(root, step)? != hash || baseline::evidence_hashes(root, step)? != evidence {
         return Err("a relevant rust-05 source changed during verify".into());
     }
     if capture_actions::digest(&std::fs::read(&candidate).map_err(|_| "cannot read candidate")?)
@@ -246,6 +247,8 @@ pub fn record(
         "source_revision": baseline::revision(root)?,
         "source_tree_dirty": baseline::dirty(root)?,
         "sources_sha256": hash,
+        "evidence_sources_sha256": evidence.0,
+        "fixtures_sha256": evidence.1,
         "test_candidate": candidate_override.is_some(),
         "test_oracle": false,
         "candidate_sha256": candidate_sha256,

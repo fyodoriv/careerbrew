@@ -367,6 +367,17 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P1
 
+- [ ] rust-00: bind decide records to one source identity (@opencode-record-binding)
+  - **ID**: rust-00-bind-decide-records-to-one-source-identity
+  - **Details**: Bind baseline, verify and measure records to the same observed source revision, common relevant-source bytes and fixtures, and bind verify and measure to the same candidate bytes. Keep each producer's existing `sources_sha256` coverage unchanged; add a common `evidence_sources_sha256` from the baseline source set. The shared fixture identity covers HTTP fixtures, four explicitly registered pure-vector JSON files and the rust-05 DATA corpus. Refuse missing, malformed or mixed identity before writing a verdict; preserve every existing gate.
+  - **Files**: xtask/src/baseline.rs; xtask/src/verify.rs; xtask/src/depvec.rs; xtask/src/measure.rs; xtask/src/decide.rs; xtask/tests/baseline.rs; xtask/tests/verify.rs; xtask/tests/rust04_verify.rs; xtask/tests/measure.rs; xtask/tests/decide.rs; xtask/tests/rust04_decide.rs; xtask/tests/purevec.rs; xtask/tests/depvec.rs; xtask/src/rust05.rs; xtask/tests/rust05.rs; docs/rust-migration.md
+  - **Hypothesis**: binding observed record identity reduces accepted mixed-identity synthetic decisions from the 1 audited path to 0, while matching records still activate.
+  - **Measurement**: `gh pr checks <pr>`; the hosted native gate runs the decide, vector-driver, pure-vector, baseline, verify and measure controls on both OSes.
+  - **Success**: 0 accepted mismatched, missing or malformed identity controls; 100% of matching-record and prior verdict, resource, scope and privacy controls pass on both hosted OSes.
+  - **Pivot**: 1 accepted bad-identity control or 1 rejected matching control abandons this binding shape; retain fail-closed behavior and register a different common identity derived only from observed bytes.
+  - **Anchor**: Saltzer & Schroeder 1975 (fail-safe defaults); Jia & Harman 2011 (planted faults); Basili, Caldiera & Rombach 1994 (GQM).
+  - **Progress**: pre-registered 2026-11-21 at base `23a3914607be0fa0ec8bfe0b2d1ee45e6e38ec8f`; common observed identity and review controls are implemented. Reviews added the dependency-vector post-run candidate recheck and a real baseline/measure/verify mixed-fixture control. The shared fixture hash now includes four registered pure-vector JSON files and the rust-05 DATA corpus. Rust05 verify carries and rechecks shared evidence; an integrated rust05 record-chain control is registered. rustfmt, Clippy with warnings denied, docs drift, task lint and diff checks pass locally; hosted tests are pending. Task stays open until the hosted gates pass.
+
 - [ ] Pro data: a free sample of maintained data in the open tool
   - **ID**: pro-data-free-sample
   - **Details**: First task of the careerbrew income bet (a yearly licence for maintained data, tested by a priced waitlist). Ship a small free sample the open tool reads through the signed-plugin path: one public company ladder mapped to levels, and three sourced interview loops from `knowledge/research/`, each with a dated changelog line. The promotion and interview run pages show one static local link to the waitlist page (`pro_data_url` setting, empty by default, so nothing shows until the owner sets it). No hosted service, no network call, no buyer data.

@@ -650,6 +650,8 @@ fn data_home(
 struct DataCase {
     /// Per phase, the projected API calls, or None when the phase failed.
     calls: Vec<Option<Value>>,
+    /// Bounded content-free refusal ids for failed phases; never raw stderr.
+    errors: Vec<Option<String>>,
     /// The case's side effects against the state before it.
     writes: Writes,
     /// How many phases wrote each path.
@@ -657,9 +659,85 @@ struct DataCase {
     leaked: bool,
 }
 
+const MAX_DATA_CALLS: usize = 16;
+const MAX_DATA_REPORT_BYTES: u64 = 1_000_000;
+const MAX_CALL_MISMATCHES: usize = 16;
+
+/// Only fixed synthetic refusal identifiers may enter the content-free record.
+fn refusal_id(stderr: &str) -> String {
+    let kind = stderr
+        .strip_prefix("refused: ")
+        .and_then(|text| text.strip_suffix('\n'))
+        .unwrap_or_default();
+    let known = matches!(
+        kind,
+        "data-home"
+            | "data-fixture"
+            | "data-report"
+            | "typed-kind"
+            | "typed-bool"
+            | "typed-int"
+            | "typed-float"
+            | "typed-str"
+            | "typed-date"
+            | "typed-datetime"
+            | "typed-list"
+            | "typed-map"
+            | "typed-unsupported"
+            | "target-path"
+            | "target-symlink"
+            | "report-open"
+            | "report-write"
+            | "phase-identity"
+            | "fixture-read"
+            | "fixture-json"
+            | "fixture-cases"
+            | "phase-case"
+            | "fixture-phases"
+            | "phase-role"
+            | "phase-api"
+            | "phase-target"
+            | "phase-arguments"
+            | "ledger-purpose"
+            | "store-read-text"
+            | "store-read-json"
+            | "store-read-yaml"
+            | "store-read-jsonl"
+            | "argument-text"
+            | "argument-data"
+            | "argument-rows"
+            | "argument-fields"
+            | "store-write-text"
+            | "store-write-json"
+            | "store-write-yaml"
+            | "store-write-jsonl"
+            | "store-append-jsonl"
+            | "store-upsert-jsonl"
+            | "store-write-if-changed"
+            | "store-write-json-if-changed"
+            | "provider-identity"
+    );
+    if known {
+        kind.to_owned()
+    } else {
+        "unclassified".to_owned()
+    }
+}
+
+fn read_report(path: &Path) -> Option<Value> {
+    let metadata = std::fs::symlink_metadata(path).ok()?;
+    if !metadata.file_type().is_file() || metadata.len() > MAX_DATA_REPORT_BYTES {
+        return None;
+    }
+    serde_json::from_slice(&std::fs::read(path).ok()?).ok()
+}
+
 /// The fields of a phase report that both sides must match.
 fn project(report: &Value) -> Option<Value> {
     let calls = report["api_calls"].as_array()?;
+    if calls.is_empty() || calls.len() > MAX_DATA_CALLS {
+        return None;
+    }
     Some(json!(calls
         .iter()
         .map(|call| json!({
@@ -710,6 +788,7 @@ fn data_side(
         let start = state.clone();
         let start_leaks = leaks.clone();
         let mut calls = Vec::new();
+        let mut errors = Vec::new();
         let mut counts = BTreeMap::new();
         let mut stream_leaked = false;
         for spec in case["phases"].as_array().ok_or("data phases missing")? {
@@ -731,12 +810,13 @@ fn data_side(
                 Err(_) => (false, String::new(), String::new()),
             };
             let projected = ran
-                .then(|| std::fs::read(&report).ok())
+                .then(|| read_report(&report))
                 .flatten()
-                .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
                 .filter(|value| value["case"] == id && value["role"] == role)
                 .and_then(|value| project(&value));
             calls.push(projected);
+            let error = (!ran).then(|| refusal_id(&stderr));
+            errors.push(error);
             let mut after = Trace::new();
             leaks.clear();
             trace(&owned, &owned, canary, &mut after, &mut leaks)?;
@@ -757,6 +837,7 @@ fn data_side(
         }
         results.push(DataCase {
             calls,
+            errors,
             writes: effects(&entries(&start), &entries(&state)),
             counts,
             // Only new file leaks use the snapshot rule. A stream finding in
@@ -766,6 +847,94 @@ fn data_side(
         });
     }
     Ok(results)
+}
+
+/// Content-free DATA call comparison diagnostics: phase, ledger index and
+/// mismatched field ids only, never argument or return values.
+fn call_mismatches(expected: &[Option<Value>], actual: &[Option<Value>]) -> Vec<Value> {
+    let mut out = Vec::new();
+    let mut omitted = 0u64;
+    let mut emit = |entry: Value| {
+        if out.len() < MAX_CALL_MISMATCHES {
+            out.push(entry);
+        } else {
+            omitted += 1;
+        }
+    };
+    for (phase, (expected, actual)) in expected.iter().zip(actual).enumerate() {
+        match (expected, actual) {
+            (None, None) => {}
+            (Some(expected), Some(actual)) => {
+                let expected = expected.as_array().map(Vec::as_slice).unwrap_or(&[]);
+                let actual = actual.as_array().map(Vec::as_slice).unwrap_or(&[]);
+                for index in 0..expected.len().max(actual.len()) {
+                    match (expected.get(index), actual.get(index)) {
+                        (Some(expected), Some(actual)) => {
+                            let fields = [
+                                "function",
+                                "purpose",
+                                "target",
+                                "arguments_sha256",
+                                "returned",
+                            ]
+                            .into_iter()
+                            .filter(|field| expected[*field] != actual[*field])
+                            .map(Value::from)
+                            .collect::<Vec<_>>();
+                            if !fields.is_empty() {
+                                emit(json!({"phase": phase, "index": index, "fields": fields}));
+                            }
+                        }
+                        _ => emit(json!({"phase": phase, "index": index, "fields": ["presence"]})),
+                    }
+                }
+            }
+            _ => emit(json!({"phase": phase, "fields": ["report"]})),
+        }
+    }
+    drop(emit);
+    if omitted > 0 {
+        out.push(json!({"truncated": omitted}));
+    }
+    out
+}
+
+#[cfg(test)]
+mod data_diagnostic_tests {
+    use super::*;
+
+    #[test]
+    fn refusal_ids_never_copy_a_prefixed_canary_or_unknown_text() {
+        assert_eq!(refusal_id("refused: store-read-json\n"), "store-read-json");
+        assert_eq!(
+            refusal_id("refused: SYNTHETIC-DATA-CANARY-8H3\n"),
+            "unclassified"
+        );
+        assert_eq!(
+            refusal_id("refused: arbitrary-private-text\n"),
+            "unclassified"
+        );
+    }
+
+    #[test]
+    fn reports_and_mismatch_diagnostics_have_fixed_bounds() {
+        assert!(project(&json!({"api_calls": []})).is_none());
+        let calls = |count| {
+            (0..count)
+                .map(|_| json!({"function": "f"}))
+                .collect::<Vec<_>>()
+        };
+        assert!(project(&json!({"api_calls": calls(16)})).is_some());
+        assert!(project(&json!({"api_calls": calls(17)})).is_none());
+
+        let expected = vec![Some(json!([]))];
+        let actual = vec![Some(json!((0..32)
+            .map(|_| json!({"function": "f"}))
+            .collect::<Vec<_>>()))];
+        let mismatches = call_mismatches(&expected, &actual);
+        assert_eq!(mismatches.len(), MAX_CALL_MISMATCHES + 1);
+        assert_eq!(mismatches.last(), Some(&json!({"truncated": 16})));
+    }
 }
 
 /// Runs the DATA corpus on the oracle twice (it must agree with itself
@@ -798,6 +967,7 @@ pub(crate) fn data_cases(
     let ids = fixture["cases"].as_array().ok_or("data cases missing")?;
     for ((spec, expected), answer) in ids.iter().zip(&oracle).zip(&served) {
         let calls_match = answer.calls == expected.calls;
+        let call_mismatches = call_mismatches(&expected.calls, &answer.calls);
         let (extra, missing, changed) = diff(&expected.writes, &answer.writes);
         let duplicates: u64 = answer
             .counts
@@ -820,6 +990,8 @@ pub(crate) fn data_cases(
             "passed": passed,
             "phases": expected.calls.len(),
             "candidate_phases_ran": answer.calls.iter().filter(|c| c.is_some()).count(),
+            "candidate_errors": answer.errors.clone(),
+            "call_mismatches": call_mismatches,
             "calls_match": calls_match,
             "normalization": ["data-ciphertext"],
             "oracle_calls_sha256": digest(&expected.calls),
@@ -966,6 +1138,9 @@ pub fn record(
             );
         }
         let binary = candidate.map_or_else(|| root.join(step.candidate), Path::to_path_buf);
+        let registered = baseline::step(step.id)?;
+        let evidence = baseline::evidence_hashes(root, registered)?;
+        let candidate_sha256 = binary_sha256(&binary)?;
         let mut record = vecdriver::record(
             root,
             python,
@@ -982,8 +1157,18 @@ pub fn record(
                 plant_set: wrong,
             },
         )?;
+        if baseline::evidence_hashes(root, registered)? != evidence {
+            return Err("a relevant source changed during verify".into());
+        }
+        if binary_sha256(&binary)? != candidate_sha256 {
+            return Err("the candidate binary changed during verify".into());
+        }
         record["schema"] = json!(SCHEMA);
         record["step"] = json!(step.id);
+        record["source_revision"] = json!(baseline::revision(root)?);
+        record["evidence_sources_sha256"] = json!(evidence.0);
+        record["fixtures_sha256"] = json!(evidence.1);
+        record["candidate_sha256"] = json!(candidate_sha256);
         record["planted_wrong_vector"] = json!(wrong);
         vector_contract(&mut record)?;
         return Ok(record);
@@ -1035,6 +1220,7 @@ pub fn record(
         return Err("the candidate binary does not exist".into());
     }
     let hash = sources_sha256(root)?;
+    let evidence = baseline::evidence_hashes(root, step)?;
     let candidate_sha256 = binary_sha256(&candidate)?;
     // `full` is the surface every CLI step had before contracts were scoped
     // (HTTP, DATA and role, Python allowed, no registry projection: the HTTP
@@ -1099,7 +1285,7 @@ pub fn record(
             contracts.push(PROJECTION_CASE);
         }
     }
-    if sources_sha256(root)? != hash {
+    if sources_sha256(root)? != hash || baseline::evidence_hashes(root, step)? != evidence {
         return Err("a relevant source changed during verify".into());
     }
     if binary_sha256(&candidate)? != candidate_sha256 {
@@ -1120,6 +1306,8 @@ pub fn record(
         "source_revision": baseline::revision(root)?,
         "source_tree_dirty": baseline::dirty(root)?,
         "sources_sha256": hash,
+        "evidence_sources_sha256": evidence.0,
+        "fixtures_sha256": evidence.1,
         "test_candidate": test_candidate,
         "test_oracle": test_oracle.is_some(),
         "candidate_sha256": candidate_sha256,

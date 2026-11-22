@@ -136,6 +136,30 @@ fn a_wrong_vector_in_no_set_is_refused() {
 }
 
 #[test]
+fn candidate_change_during_verify_is_refused() {
+    let scratch = tempfile::tempdir().unwrap();
+    let candidate = scratch.path().join("candidate");
+    // Keep answering through the real candidate after changing this wrapper's
+    // bytes, so only the post-run identity check can refuse the record.
+    std::fs::write(
+        &candidate,
+        format!(
+            "#!/bin/sh\necho '# changed' >> \"$0\"\nexec '{}' \"$@\"\n",
+            depvec().display()
+        ),
+    )
+    .unwrap();
+    std::fs::set_permissions(&candidate, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let out = scratch.path().join("verify.json");
+    let run = verify(&candidate, &out, &[]);
+    assert_eq!(run.status.code(), Some(1), "{run:?}");
+    assert!(!out.exists());
+    assert!(
+        String::from_utf8_lossy(&run.stderr).contains("the candidate binary changed during verify")
+    );
+}
+
+#[test]
 fn a_candidate_that_cannot_answer_fails_every_case() {
     let scratch = tempfile::tempdir().unwrap();
     let candidate = scratch.path().join("candidate");

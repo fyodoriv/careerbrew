@@ -193,6 +193,8 @@ fn a_candidate_identical_to_the_oracle_passes() {
     assert_eq!(value["unobserved_violations"], serde_json::json!([]));
     assert_eq!(value["source_revision"].as_str().unwrap().len(), 40);
     assert_eq!(value["sources_sha256"].as_str().unwrap().len(), 64);
+    assert_eq!(value["evidence_sources_sha256"].as_str().unwrap().len(), 64);
+    assert_eq!(value["fixtures_sha256"].as_str().unwrap().len(), 64);
     assert_eq!(value["test_candidate"], true);
     assert_eq!(value["test_scope"], "full");
     assert_eq!(value["python_denied"], serde_json::Value::Null);

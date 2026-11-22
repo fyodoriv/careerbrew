@@ -65,6 +65,7 @@ fn registered_step_writes_a_valid_record() {
     assert_eq!(value["fixtures_sha256"].as_str().unwrap().len(), 64);
     assert_eq!(value["source_revision"].as_str().unwrap().len(), 40);
     assert_eq!(value["sources_sha256"].as_str().unwrap().len(), 64);
+    assert_eq!(value["evidence_sources_sha256"].as_str().unwrap().len(), 64);
     assert!(value["python_version"]
         .as_str()
         .unwrap()

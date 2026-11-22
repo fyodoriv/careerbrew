@@ -56,6 +56,13 @@ fn verify_on_rust_04_passes_over_every_oracle_set() {
     assert_eq!(record["kind"], "vector-driver");
     assert_eq!(record["candidate"]["kind"], "rust-binary");
     assert_eq!(record["candidate"]["plant"], "none");
+    assert_eq!(record["source_revision"].as_str().unwrap().len(), 40);
+    assert_eq!(
+        record["evidence_sources_sha256"].as_str().unwrap().len(),
+        64
+    );
+    assert_eq!(record["fixtures_sha256"].as_str().unwrap().len(), 64);
+    assert_eq!(record["candidate_sha256"].as_str().unwrap().len(), 64);
     assert_eq!(
         record["sets"],
         serde_json::json!([

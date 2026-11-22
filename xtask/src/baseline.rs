@@ -49,6 +49,9 @@ pub struct Step {
     /// Extra files, relative to the repo root, hashed into the baseline and
     /// measure source hash (a vector step's driver and the Python it reads).
     pub sources: &'static [&'static str],
+    /// Exact fixture files, relative to the repo root, whose bytes join the
+    /// shared evidence identity. Directories and unregistered files are not read.
+    pub fixtures: &'static [&'static str],
 }
 
 pub const STEPS: &[Step] = &[
@@ -76,6 +79,12 @@ pub const STEPS: &[Step] = &[
             "src/careerbrew/paths.py",
             "src/careerbrew/changes.py",
             "src/careerbrew/calendar.py",
+        ],
+        fixtures: &[
+            "xtask/tests/fixtures/purevec/clock.json",
+            "xtask/tests/fixtures/purevec/hash.json",
+            "xtask/tests/fixtures/purevec/paths.json",
+            "xtask/tests/fixtures/purevec/settings.json",
         ],
     },
     Step {
@@ -107,6 +116,7 @@ pub const STEPS: &[Step] = &[
             "scripts/gen-registry.py",
             "config/native-routes.txt",
         ],
+        fixtures: &[],
     },
     Step {
         // rust-05f is a stateful component workload. The real Python oracle
@@ -151,6 +161,7 @@ pub const STEPS: &[Step] = &[
             "crates/policy/src/vectors.rs",
             "xtask/src/rust05.rs",
         ],
+        fixtures: &["docs/plans/2026-11-05-rust-data-fixture-v1.json"],
     },
     Step {
         // rust-04 is a vector step (privacy, policy and approval decisions).
@@ -177,6 +188,7 @@ pub const STEPS: &[Step] = &[
             "src/careerbrew/approvals.py",
             "src/careerbrew/work/access.py",
         ],
+        fixtures: &[],
     },
 ];
 
@@ -275,6 +287,16 @@ fn hashed_sources(root: &Path, step: &Step) -> Result<Value, String> {
     Ok(sources)
 }
 
+/// The source and fixture identity every producer shares with `decide`.
+/// Producer-specific `sources_sha256` fields keep their separate coverage.
+pub(crate) fn evidence_hashes(root: &Path, step: &Step) -> Result<(String, String), String> {
+    let sources = hashed_sources(root, step)?;
+    Ok((
+        capture_actions::digest(sources.to_string().as_bytes()),
+        fixtures_sha256(root, step)?,
+    ))
+}
+
 /// Adds the step's extra environment to a source map, so a record's source
 /// hash also binds the environment its runs had. A step with no extra
 /// environment keeps its map unchanged.
@@ -304,9 +326,13 @@ pub(crate) fn hashed_sources_with(root: &Path, extra: &[&str]) -> Result<Value, 
     Ok(sources)
 }
 
-/// One hash over the HTTP fixtures the oracle environment points at.
-pub(crate) fn fixtures_sha256(root: &Path) -> Result<String, String> {
-    let files = capture_actions::files(root, &root.join("tests/fixtures/http"), None)?;
+/// One hash over the HTTP fixtures and the step's registered fixture files.
+pub(crate) fn fixtures_sha256(root: &Path, step: &Step) -> Result<String, String> {
+    let mut files = capture_actions::files(root, &root.join("tests/fixtures/http"), None)?;
+    for name in step.fixtures {
+        let bytes = std::fs::read(root.join(name)).map_err(|_| "evidence fixture missing")?;
+        files.insert((*name).to_owned(), capture_actions::digest(&bytes));
+    }
     Ok(capture_actions::digest(json!(files).to_string().as_bytes()))
 }
 
@@ -334,12 +360,12 @@ pub fn record(
     }
     let python_version = capture_actions::version(python)?;
     let sources = hashed_sources(root, step)?;
-    let fixtures = fixtures_sha256(root)?;
+    let fixtures = fixtures_sha256(root, step)?;
     let sources_sha256 = capture_actions::digest(sources.to_string().as_bytes());
     let args = step.oracle.iter().map(OsString::from).collect::<Vec<_>>();
     let (samples, summary, method) =
         sample(root, python, &args, runs, "oracle", "baseline", step.env)?;
-    if hashed_sources(root, step)? != sources || fixtures_sha256(root)? != fixtures {
+    if hashed_sources(root, step)? != sources || fixtures_sha256(root, step)? != fixtures {
         return Err("a relevant source changed during the baseline".into());
     }
     let (os, _) = resources::host_unit()?;
@@ -355,7 +381,8 @@ pub fn record(
         "python_version": python_version.trim(),
         "source_revision": revision(root)?,
         "source_tree_dirty": dirty(root)?,
-        "sources_sha256": sources_sha256,
+        "sources_sha256": sources_sha256.clone(),
+        "evidence_sources_sha256": sources_sha256,
         "fixtures_sha256": fixtures,
         "cache_state": CACHE_STATE,
         "meets_protocol_minimum": runs >= MIN_RUNS,

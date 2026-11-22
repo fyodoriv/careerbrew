@@ -111,8 +111,8 @@ fn bindings(
     out.insert("path".into(), target_value(relative));
     match api {
         "read_text" | "read_yaml" => {
-            out.insert("default".into(), Value::Null);
-            out.insert("create_key".into(), json!(true));
+            out.insert("default".into(), encode(&Canon::Null));
+            out.insert("create_key".into(), encode(&Canon::Bool(true)));
         }
         "read_json" => {
             out.insert(
@@ -122,12 +122,12 @@ fn bindings(
                     .map(decode)
                     .transpose()?
                     .map(|v| encode(&v))
-                    .unwrap_or(Value::Null),
+                    .unwrap_or_else(|| encode(&Canon::Null)),
             );
-            out.insert("create_key".into(), json!(true));
+            out.insert("create_key".into(), encode(&Canon::Bool(true)));
         }
         "read_jsonl" => {
-            out.insert("create_key".into(), json!(true));
+            out.insert("create_key".into(), encode(&Canon::Bool(true)));
         }
         _ => {
             for (name, value) in arguments {
@@ -381,4 +381,66 @@ pub fn run_phase(
         report_path,
         &json!({"schema": "careerbrew-data-phase-v1", "case": case_id, "role": role, "api_calls": calls}),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bindings_match_the_registered_typed_arguments() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(Path::parent)
+            .unwrap();
+        let fixture: Value = serde_json::from_slice(
+            &std::fs::read(root.join("docs/plans/2026-11-05-rust-data-fixture-v1.json")).unwrap(),
+        )
+        .unwrap();
+        let mut checked = 0;
+        for case in fixture["cases"].as_array().unwrap() {
+            for phase in case["phases"].as_array().unwrap() {
+                let api = phase["api"].as_str().unwrap();
+                let relative = phase["target"].as_str().unwrap();
+                let arguments = phase["arguments"].as_object().unwrap();
+                for call in phase["ledger"].as_array().unwrap() {
+                    let serialized = call["purpose"] == "serialized-bytes";
+                    let actual_api = if serialized { "read_text" } else { api };
+                    let empty = Map::new();
+                    let supplied = if serialized { &empty } else { arguments };
+                    let actual = Value::Object(bindings(actual_api, supplied, relative).unwrap());
+                    let mut expected = call["expected_bound_arguments"].clone();
+                    if matches!(
+                        actual_api,
+                        "read_text" | "read_json" | "read_yaml" | "read_jsonl"
+                    ) {
+                        expected
+                            .as_object_mut()
+                            .unwrap()
+                            .insert("create_key".into(), encode(&Canon::Bool(true)));
+                    }
+                    assert_eq!(actual, expected, "case {} api {actual_api}", case["case"]);
+                    checked += 1;
+                }
+            }
+        }
+        assert_eq!(checked, 25);
+    }
+
+    #[test]
+    fn yaml_serialized_bytes_match_python_safe_dump() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(Path::parent)
+            .unwrap();
+        let fixture: Value = serde_json::from_slice(
+            &std::fs::read(root.join("docs/plans/2026-11-05-rust-data-fixture-v1.json")).unwrap(),
+        )
+        .unwrap();
+        let value = decode(&fixture["cases"][3]["phases"][0]["arguments"]["data"]).unwrap();
+        assert_eq!(
+            crate::json_yaml::yaml_write(&value).unwrap(),
+            "at: 2026-03-01 09:30:00+00:00\ncount: 8\ndate: 2026-03-01\nenabled: true\nliteral: 'yes'\ntag_map:\n  iso: not-a-date\n  kind: date\n"
+        );
+    }
 }
