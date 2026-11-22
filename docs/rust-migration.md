@@ -1420,13 +1420,17 @@ the crate until the rust-05 and rust-07 closure is native, so
     never random ciphertext bytes. It also runs the ten DATA cases. Its record
     carries the shared evidence-source and fixture hashes, including the
     registered DATA corpus fixture, and rechecks those inputs after the runs.
-    Failed DATA phases expose only bounded `candidate_errors` refusal ids and
-    `call_mismatches` phase/index/field ids; raw process output, paths and
-    payload text stay out of the record. Reader defaults and `create_key` use
+    Failed DATA phases expose only allowlisted `candidate_errors` refusal ids
+    and `call_mismatches` phase/index/field ids; raw or unknown process output,
+    paths and payload text stay out of the record. Reports are regular files of
+    at most 1,000,000 bytes with 1 to 16 calls. At most 16 mismatch entries plus
+    one truncation count are retained. Reader defaults and `create_key` use
     the same typed argument encoding as Python, and direct controls compare all
     25 bound argument values with the registered DATA fixture. YAML writes omit
     yaml-rust2's document-start marker, matching Python `safe_dump` bytes; the
-    case-4 serialized-text control pins the exact output.
+    case-4 serialized-text control pins the exact output. Simple quoted YAML
+    scalars also use PyYAML's single-quote style rather than yaml-rust2's double
+    quotes; escaped or embedded-single-quote forms retain safe double quoting.
     An integrated baseline/verify/measure/decide control builds the registered
     release candidate on a clean runner, keeps Python below the protocol
     minimum and never refuses matching identity. Its two explicit CLI

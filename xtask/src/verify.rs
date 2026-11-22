@@ -659,9 +659,85 @@ struct DataCase {
     leaked: bool,
 }
 
+const MAX_DATA_CALLS: usize = 16;
+const MAX_DATA_REPORT_BYTES: u64 = 1_000_000;
+const MAX_CALL_MISMATCHES: usize = 16;
+
+/// Only fixed synthetic refusal identifiers may enter the content-free record.
+fn refusal_id(stderr: &str) -> String {
+    let kind = stderr
+        .strip_prefix("refused: ")
+        .and_then(|text| text.strip_suffix('\n'))
+        .unwrap_or_default();
+    let known = matches!(
+        kind,
+        "data-home"
+            | "data-fixture"
+            | "data-report"
+            | "typed-kind"
+            | "typed-bool"
+            | "typed-int"
+            | "typed-float"
+            | "typed-str"
+            | "typed-date"
+            | "typed-datetime"
+            | "typed-list"
+            | "typed-map"
+            | "typed-unsupported"
+            | "target-path"
+            | "target-symlink"
+            | "report-open"
+            | "report-write"
+            | "phase-identity"
+            | "fixture-read"
+            | "fixture-json"
+            | "fixture-cases"
+            | "phase-case"
+            | "fixture-phases"
+            | "phase-role"
+            | "phase-api"
+            | "phase-target"
+            | "phase-arguments"
+            | "ledger-purpose"
+            | "store-read-text"
+            | "store-read-json"
+            | "store-read-yaml"
+            | "store-read-jsonl"
+            | "argument-text"
+            | "argument-data"
+            | "argument-rows"
+            | "argument-fields"
+            | "store-write-text"
+            | "store-write-json"
+            | "store-write-yaml"
+            | "store-write-jsonl"
+            | "store-append-jsonl"
+            | "store-upsert-jsonl"
+            | "store-write-if-changed"
+            | "store-write-json-if-changed"
+            | "provider-identity"
+    );
+    if known {
+        kind.to_owned()
+    } else {
+        "unclassified".to_owned()
+    }
+}
+
+fn read_report(path: &Path) -> Option<Value> {
+    let metadata = std::fs::symlink_metadata(path).ok()?;
+    if !metadata.file_type().is_file() || metadata.len() > MAX_DATA_REPORT_BYTES {
+        return None;
+    }
+    serde_json::from_slice(&std::fs::read(path).ok()?).ok()
+}
+
 /// The fields of a phase report that both sides must match.
 fn project(report: &Value) -> Option<Value> {
     let calls = report["api_calls"].as_array()?;
+    if calls.is_empty() || calls.len() > MAX_DATA_CALLS {
+        return None;
+    }
     Some(json!(calls
         .iter()
         .map(|call| json!({
@@ -734,24 +810,12 @@ fn data_side(
                 Err(_) => (false, String::new(), String::new()),
             };
             let projected = ran
-                .then(|| std::fs::read(&report).ok())
+                .then(|| read_report(&report))
                 .flatten()
-                .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
                 .filter(|value| value["case"] == id && value["role"] == role)
                 .and_then(|value| project(&value));
             calls.push(projected);
-            let error = (!ran).then(|| {
-                let kind = stderr
-                    .strip_prefix("refused: ")
-                    .and_then(|text| text.strip_suffix('\n'))
-                    .filter(|kind| {
-                        (1..=64).contains(&kind.len())
-                            && kind.bytes().all(|byte| {
-                                byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_')
-                            })
-                    });
-                kind.unwrap_or("unclassified").to_owned()
-            });
+            let error = (!ran).then(|| refusal_id(&stderr));
             errors.push(error);
             let mut after = Trace::new();
             leaks.clear();
@@ -789,6 +853,14 @@ fn data_side(
 /// mismatched field ids only, never argument or return values.
 fn call_mismatches(expected: &[Option<Value>], actual: &[Option<Value>]) -> Vec<Value> {
     let mut out = Vec::new();
+    let mut omitted = 0u64;
+    let mut emit = |entry: Value| {
+        if out.len() < MAX_CALL_MISMATCHES {
+            out.push(entry);
+        } else {
+            omitted += 1;
+        }
+    };
     for (phase, (expected, actual)) in expected.iter().zip(actual).enumerate() {
         match (expected, actual) {
             (None, None) => {}
@@ -810,18 +882,59 @@ fn call_mismatches(expected: &[Option<Value>], actual: &[Option<Value>]) -> Vec<
                             .map(Value::from)
                             .collect::<Vec<_>>();
                             if !fields.is_empty() {
-                                out.push(json!({"phase": phase, "index": index, "fields": fields}));
+                                emit(json!({"phase": phase, "index": index, "fields": fields}));
                             }
                         }
-                        _ => out
-                            .push(json!({"phase": phase, "index": index, "fields": ["presence"]})),
+                        _ => emit(json!({"phase": phase, "index": index, "fields": ["presence"]})),
                     }
                 }
             }
-            _ => out.push(json!({"phase": phase, "fields": ["report"]})),
+            _ => emit(json!({"phase": phase, "fields": ["report"]})),
         }
     }
+    drop(emit);
+    if omitted > 0 {
+        out.push(json!({"truncated": omitted}));
+    }
     out
+}
+
+#[cfg(test)]
+mod data_diagnostic_tests {
+    use super::*;
+
+    #[test]
+    fn refusal_ids_never_copy_a_prefixed_canary_or_unknown_text() {
+        assert_eq!(refusal_id("refused: store-read-json\n"), "store-read-json");
+        assert_eq!(
+            refusal_id("refused: SYNTHETIC-DATA-CANARY-8H3\n"),
+            "unclassified"
+        );
+        assert_eq!(
+            refusal_id("refused: arbitrary-private-text\n"),
+            "unclassified"
+        );
+    }
+
+    #[test]
+    fn reports_and_mismatch_diagnostics_have_fixed_bounds() {
+        assert!(project(&json!({"api_calls": []})).is_none());
+        let calls = |count| {
+            (0..count)
+                .map(|_| json!({"function": "f"}))
+                .collect::<Vec<_>>()
+        };
+        assert!(project(&json!({"api_calls": calls(16)})).is_some());
+        assert!(project(&json!({"api_calls": calls(17)})).is_none());
+
+        let expected = vec![Some(json!([]))];
+        let actual = vec![Some(json!((0..32)
+            .map(|_| json!({"function": "f"}))
+            .collect::<Vec<_>>()))];
+        let mismatches = call_mismatches(&expected, &actual);
+        assert_eq!(mismatches.len(), MAX_CALL_MISMATCHES + 1);
+        assert_eq!(mismatches.last(), Some(&json!({"truncated": 16})));
+    }
 }
 
 /// Runs the DATA corpus on the oracle twice (it must agree with itself

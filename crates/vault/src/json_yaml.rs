@@ -919,6 +919,46 @@ fn to_yaml(value: &Canon) -> Result<Yaml, String> {
     })
 }
 
+/// PyYAML prefers single quotes for quote-required scalars when no escape or
+/// embedded single quote forces another style. yaml-rust2 always uses double.
+fn pyyaml_scalar_quotes(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] != b'"' {
+            out.push(bytes[i]);
+            i += 1;
+            continue;
+        }
+        let mut end = i + 1;
+        while end < bytes.len() {
+            match bytes[end] {
+                b'\\' => end += 2,
+                b'"' => break,
+                _ => end += 1,
+            }
+        }
+        if end >= bytes.len() {
+            out.extend_from_slice(&bytes[i..]);
+            break;
+        }
+        let content = &bytes[i + 1..end];
+        if !content
+            .iter()
+            .any(|byte| matches!(byte, b'\\' | b'\'') || *byte < 0x20)
+        {
+            out.push(b'\'');
+            out.extend_from_slice(content);
+            out.push(b'\'');
+        } else {
+            out.extend_from_slice(&bytes[i..=end]);
+        }
+        i = end + 1;
+    }
+    String::from_utf8(out).expect("quote style changes preserve UTF-8")
+}
+
 pub fn yaml_write(value: &Canon) -> Result<String, String> {
     let mut out = String::new();
     YamlEmitter::new(&mut out)
@@ -928,6 +968,7 @@ pub fn yaml_write(value: &Canon) -> Result<String, String> {
     if out.starts_with("---\n") {
         out.drain(..4);
     }
+    let mut out = pyyaml_scalar_quotes(&out);
     out.push('\n');
     Ok(out)
 }
