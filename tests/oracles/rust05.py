@@ -490,7 +490,10 @@ def _bulk_snapshot(root: Path) -> list[dict[str, Any]]:
         except Exception as exc:
             row["read_error"] = type(exc).__name__
         else:
-            row["sha256"] = hashlib.sha256(plain).hexdigest()
+            if not row["sealed"] and vault._is_fernet_token(path):
+                row["bundle"] = "fernet"
+            else:
+                row["sha256"] = hashlib.sha256(plain).hexdigest()
         rows.append(row)
     return rows
 

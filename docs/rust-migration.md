@@ -1523,10 +1523,11 @@ the crate until the rust-05 and rust-07 closure is native, so
     regular-file checks, restricted business output, personal-path allowlist,
     structure-only `--keys`, line-only parse diagnostics and content-free
     events. The Python issue-366 workload disables events and dynamically
-    denies process, socket and secret adapters. The native workload does not
-    claim equivalent dynamic host-denial proof; task
-    `rust-05h-native-host-denial` owns real three-channel instrumentation.
-    All four primary and eleven control groups compare
+    denies process, socket and secret adapters. The rust-05i follow-up adds
+    native invocation-scoped denied-host instrumentation: every component show
+    enters that scope, all 15 groups complete with zero attempts, and one
+    planted call per channel is observed and refused without executing its
+    operation. All four primary and eleven control groups compare
     exact safe output and exit codes, and the whole synthetic parent snapshot
     retains every file's bytes and mtime. The rust-05 verifier's invocation-
     scoped observed-files walker records a retained symlink as the digest of
@@ -1538,6 +1539,45 @@ the crate until the rust-05 and rust-07 closure is native, so
     storage, no-op identities and all ten DATA cases. New source files are in
     `docs/plans/rust-inventory.d/rust-05h.csv`; the rust-05 baseline and
     semantic verifier bind them.
+  - Production Python and routes, shipped crates and activation tables are
+    unchanged. This slice does not close `rust-05` or activate storage.
+
+- **Sub-step `rust-05i` (bulk vault/status and native denied-host controls,
+  component only):**
+  - `crates/vault/src/bulk.rs` ports `vault.files`, `status`, `seal_files`,
+    `encrypt_all` and `decrypt_all`. Enumeration is independent of encryption
+    mode, excludes plaintext-by-design directories, replay checkouts, symlinks
+    and lock/temp files, and retains sealable near-miss replay paths. Explicit
+    decryption includes real replay checkouts. Status reports mixed plaintext
+    and sealed counts without reading values into the report.
+  - Backup/sync suffix checks are case-insensitive; a raw Fernet bundle with no
+    suffix is recognized too. Every bundle refusal happens before marker or
+    file mutation. Encryption removes the marker only after that preflight;
+    decryption writes the exact marker only after every selected rewrite
+    succeeds. Missing keys are never replaced when sealed data exists; invalid
+    keys retain Python's `ValueError`, while missing or wrong-key sealed-data
+    refusals retain `VaultError`.
+  - Each changed file uses a unique `.<name>.<pid>.<hex>.vault.tmp` sibling,
+    becomes mode `0600`, and replaces the target atomically. A caught fault
+    removes its temp file, preserves earlier completed rewrites, and prevents
+    later targets from starting. Already-sealed encryption targets and already-
+    plaintext decryption targets retain their bytes, inode and mtime. Repeated
+    bulk operations retain those no-op identities; the marker is the only
+    deliberate repeat-decryption write.
+  - `cli.rs` now has an invocation-scoped `HostOperations` adapter for native
+    component data show. The denied adapter counts process, socket and secret
+    attempts and refuses them without running the supplied operation. All 15
+    issue-366 groups enter real show scopes with zero attempts; three planted
+    calls each record one refused attempt. This is dynamic adapter evidence,
+    not a claim from static source shape or an empty synthetic result.
+  - `tests/oracles/rust05.py` and
+    `tests/unit/test_rust05i_component.py` compare 19 bulk cases plus the
+    denied-host case, including semantic state digests, modes, key presence,
+    marker state, failure ordering and mutation-free refusals. Raw Fernet
+    bundle output is normalized as a semantic bundle marker rather than
+    hashing random token bytes. Every rust-05f/g/h case and all ten DATA cases
+    remain in the same verifier and measurement workload. New source files are
+    in `docs/plans/rust-inventory.d/rust-05i.csv` and the rust-05 evidence hash.
   - Production Python and routes, shipped crates and activation tables are
     unchanged. This slice does not close `rust-05` or activate storage.
 
@@ -2075,7 +2115,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | Path | Package | What it is | Production use |
 | --- | --- | --- | --- |
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
-| `crates/vault/` | `careerbrew-vault` | the `CBV1` codec, key/atomic/lock providers, rust-05f storage readers/writers, receipt IO and adapter-driven `data edit`/`secret set`, rust-05g settings/general-event IO, and rust-05h outline/digest/cache helpers, named-user key paths and component `data show`; synthetic `vault-store` transport only | none: component parity only |
+| `crates/vault/` | `careerbrew-vault` | the `CBV1` codec, key/atomic/lock providers, rust-05f storage readers/writers, receipt IO and adapter-driven `data edit`/`secret set`, rust-05g settings/general-event IO, rust-05h outline/digest/cache helpers, named-user key paths and component `data show`, and rust-05i bulk vault/status operations plus dynamic denied-host controls; synthetic `vault-store` transport only | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |

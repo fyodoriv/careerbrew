@@ -5,6 +5,7 @@ use base64::Engine;
 use fernet::Fernet;
 
 pub mod atomic;
+pub mod bulk;
 pub mod canon;
 pub mod cli;
 pub mod data;
@@ -18,6 +19,7 @@ pub mod secrets;
 pub mod settings;
 pub mod store;
 pub mod synthetic;
+mod synthetic_bulk;
 
 pub const MAGIC: &[u8] = b"CBV1\n";
 

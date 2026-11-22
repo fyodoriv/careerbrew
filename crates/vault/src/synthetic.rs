@@ -3,7 +3,7 @@
 
 use crate::atomic::StoreError;
 use crate::canon::Canon;
-use crate::cli::{self, CliError, Editor, Outcome, Terminal};
+use crate::cli::{self, CliError, Editor, HostOperations, Outcome, Terminal};
 use crate::events::{self, Clock};
 use crate::helpers;
 use crate::json_yaml;
@@ -16,7 +16,7 @@ use careerbrew_policy::vectors::Out;
 use num_bigint::BigInt;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
@@ -24,7 +24,7 @@ use std::path::{Path, PathBuf};
 pub const CANARY: &str = "SYNTHETIC-RUST05-CANARY-7Q9";
 pub const SECRET: &str = "SYNTHETIC-RUST05-SECRET-NOT-AN-AUTHENTICATION-VALUE";
 
-pub fn sha(raw: &[u8]) -> String {
+pub(crate) fn sha(raw: &[u8]) -> String {
     Sha256::digest(raw)
         .iter()
         .map(|b| format!("{b:02x}"))
@@ -128,7 +128,7 @@ fn receipt_error(error: &ReceiptError) -> &'static str {
     }
 }
 
-fn identity(path: &Path) -> Result<Value, StoreError> {
+pub(crate) fn identity(path: &Path) -> Result<Value, StoreError> {
     let metadata = std::fs::metadata(path)?;
     Ok(json!({
         "sha256": sha(&std::fs::read(path)?),
@@ -705,6 +705,58 @@ fn key_path_cases(cases: &mut Vec<Value>, root: &Path) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Default)]
+struct DeniedHost {
+    scopes: Cell<usize>,
+    process: Cell<usize>,
+    socket: Cell<usize>,
+    secret: Cell<usize>,
+}
+
+impl DeniedHost {
+    fn attempts(&self) -> usize {
+        self.process.get() + self.socket.get() + self.secret.get()
+    }
+
+    fn deny(counter: &Cell<usize>, kind: &'static str) -> Result<(), CliError> {
+        counter.set(counter.get() + 1);
+        Err(CliError(kind))
+    }
+
+    fn planted(
+        &self,
+        channel: &str,
+        operation: Result<(), CliError>,
+        executed: bool,
+        before: usize,
+    ) -> Value {
+        let after = match channel {
+            "process" => self.process.get(),
+            "socket" => self.socket.get(),
+            _ => self.secret.get(),
+        };
+        json!({"attempts": after - before, "refused": operation.is_err() && !executed})
+    }
+}
+
+impl HostOperations for DeniedHost {
+    fn data_show_scope(&self) {
+        self.scopes.set(self.scopes.get() + 1);
+    }
+
+    fn process(&self, _: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError> {
+        Self::deny(&self.process, "host-process-denied")
+    }
+
+    fn socket(&self, _: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError> {
+        Self::deny(&self.socket, "host-socket-denied")
+    }
+
+    fn secret(&self, _: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError> {
+        Self::deny(&self.secret, "host-secret-denied")
+    }
+}
+
 type Snapshot = BTreeMap<String, (Vec<u8>, i64, i64)>;
 
 fn snapshot_walk(base: &Path, folder: &Path, files: &mut Snapshot) -> Result<(), String> {
@@ -752,29 +804,40 @@ fn show_value(show: &Show) -> Value {
     json!({"exit": show.exit, "stdout": show.stdout})
 }
 
-fn show(
-    store: &Store,
-    root: &Path,
-    outside: &Path,
-    name: &str,
-    keys: bool,
-) -> Result<Show, String> {
-    let outcome = cli::cmd_data_show(store, name, keys, false, Some("off"), &DisabledEventClock)
+struct ShowRunner<'a, 'root> {
+    store: &'a Store<'root>,
+    root: &'a Path,
+    outside: &'a Path,
+    host: &'a DeniedHost,
+}
+
+impl ShowRunner<'_, '_> {
+    fn show(&self, name: &str, keys: bool) -> Result<Show, String> {
+        let outcome = cli::cmd_data_show_with_host(
+            self.store,
+            name,
+            keys,
+            false,
+            Some("off"),
+            &DisabledEventClock,
+            self.host,
+        )
         .map_err(|_| "data-show")?;
-    let stdout = outcome
-        .stdout
-        .replace(&root.to_string_lossy().into_owned(), "<data>")
-        .replace(&outside.to_string_lossy().into_owned(), "<outside>");
-    if stdout.contains(CANARY)
-        || stdout.contains(SECRET)
-        || stdout.contains("synthetic-outline-value-366")
-    {
-        return Err("data-show-privacy".into());
+        let stdout = outcome
+            .stdout
+            .replace(&self.root.to_string_lossy().into_owned(), "<data>")
+            .replace(&self.outside.to_string_lossy().into_owned(), "<outside>");
+        if stdout.contains(CANARY)
+            || stdout.contains(SECRET)
+            || stdout.contains("synthetic-outline-value-366")
+        {
+            return Err("data-show-privacy".into());
+        }
+        Ok(Show {
+            exit: outcome.code,
+            stdout,
+        })
     }
-    Ok(Show {
-        exit: outcome.code,
-        stdout,
-    })
 }
 
 fn show_result(reference: Option<&Show>, alias: &Show, passed: bool) -> Value {
@@ -817,10 +880,17 @@ fn data_show_cases(cases: &mut Vec<Value>, store: &Store, root: &Path) -> Result
     let outside = base.join("outside.yaml");
     std::fs::write(&outside, "outside: synthetic-outline-value-366\n").map_err(|_| "outside")?;
     std::os::unix::fs::symlink(&outside, root.join("escape.yaml")).map_err(|_| "symlink")?;
+    let host = DeniedHost::default();
+    let runner = ShowRunner {
+        store,
+        root,
+        outside: &outside,
+        host: &host,
+    };
     let before = snapshot(base)?;
 
-    let reference = show(store, root, &outside, "profile.yaml", false)?;
-    let alias = show(store, root, &outside, "private/profile.yaml", false)?;
+    let reference = runner.show("profile.yaml", false)?;
+    let alias = runner.show("private/profile.yaml", false)?;
     let expected = Show {
         exit: 0,
         stdout: "current_level: 3\n".into(),
@@ -830,14 +900,8 @@ fn data_show_cases(cases: &mut Vec<Value>, store: &Store, root: &Path) -> Result
         "result": show_result(Some(&reference), &alias, reference == expected && alias == reference),
     }));
 
-    let reference = show(store, root, &outside, "cache/evidence/index.yaml", true)?;
-    let alias = show(
-        store,
-        root,
-        &outside,
-        "private/cache/evidence/index.yaml",
-        true,
-    )?;
+    let reference = runner.show("cache/evidence/index.yaml", true)?;
+    let alias = runner.show("private/cache/evidence/index.yaml", true)?;
     let reference_lines = reference.stdout.lines().skip(1).collect::<Vec<_>>();
     cases.push(json!({
         "id": "data-show-P02-cache-keys",
@@ -848,14 +912,8 @@ fn data_show_cases(cases: &mut Vec<Value>, store: &Store, root: &Path) -> Result
         ),
     }));
 
-    let reference = show(store, root, &outside, "cache/evidence/index.yaml", false)?;
-    let alias = show(
-        store,
-        root,
-        &outside,
-        "private/cache/evidence/index.yaml",
-        false,
-    )?;
+    let reference = runner.show("cache/evidence/index.yaml", false)?;
+    let alias = runner.show("private/cache/evidence/index.yaml", false)?;
     cases.push(json!({
         "id": "data-show-P03-cache-refusal",
         "result": show_result(
@@ -865,7 +923,7 @@ fn data_show_cases(cases: &mut Vec<Value>, store: &Store, root: &Path) -> Result
         ),
     }));
 
-    let alias = show(store, root, &outside, "private/private/nested.yaml", true)?;
+    let alias = runner.show("private/private/nested.yaml", true)?;
     let lines = alias.stdout.lines().collect::<Vec<_>>();
     cases.push(json!({
         "id": "data-show-P04-exact-once",
@@ -882,46 +940,28 @@ fn data_show_cases(cases: &mut Vec<Value>, store: &Store, root: &Path) -> Result
     let absolute_inside = root.join("profile.yaml").to_string_lossy().into_owned();
     let absolute_outside = outside.to_string_lossy().into_owned();
     let controls = vec![
-        (
-            "C01-personal",
-            show(store, root, &outside, "profile.yaml", false)?,
-        ),
+        ("C01-personal", runner.show("profile.yaml", false)?),
         (
             "C02-cache-keys",
-            show(store, root, &outside, "cache/evidence/index.yaml", true)?,
+            runner.show("cache/evidence/index.yaml", true)?,
         ),
         (
             "C03-cache-refusal",
-            show(store, root, &outside, "cache/evidence/index.yaml", false)?,
+            runner.show("cache/evidence/index.yaml", false)?,
         ),
-        (
-            "C04-missing",
-            show(store, root, &outside, "private/missing.yaml", false)?,
-        ),
-        (
-            "C05-directory",
-            show(store, root, &outside, "private/cache", false)?,
-        ),
+        ("C04-missing", runner.show("private/missing.yaml", false)?),
+        ("C05-directory", runner.show("private/cache", false)?),
         (
             "C06-traversal",
-            show(store, root, &outside, "private/../outside.yaml", false)?,
+            runner.show("private/../outside.yaml", false)?,
         ),
-        (
-            "C07-symlink",
-            show(store, root, &outside, "private/escape.yaml", false)?,
-        ),
-        (
-            "C08-absolute-inside",
-            show(store, root, &outside, &absolute_inside, false)?,
-        ),
+        ("C07-symlink", runner.show("private/escape.yaml", false)?),
+        ("C08-absolute-inside", runner.show(&absolute_inside, false)?),
         (
             "C09-absolute-outside",
-            show(store, root, &outside, &absolute_outside, false)?,
+            runner.show(&absolute_outside, false)?,
         ),
-        (
-            "C12-root-directory",
-            show(store, root, &outside, "private/", false)?,
-        ),
+        ("C12-root-directory", runner.show("private/", false)?),
     ];
     for (id, actual) in controls {
         let passed = match id {
@@ -940,8 +980,8 @@ fn data_show_cases(cases: &mut Vec<Value>, store: &Store, root: &Path) -> Result
         }));
     }
 
-    let keys = show(store, root, &outside, "privateish/literal.yaml", true)?;
-    let hidden = show(store, root, &outside, "privateish/literal.yaml", false)?;
+    let keys = runner.show("privateish/literal.yaml", true)?;
+    let hidden = runner.show("privateish/literal.yaml", false)?;
     let passed = keys.exit == 0
         && keys.stdout.lines().skip(1).collect::<Vec<_>>() == ["literal_only: int"]
         && !keys.stdout.contains("13")
@@ -953,6 +993,41 @@ fn data_show_cases(cases: &mut Vec<Value>, store: &Store, root: &Path) -> Result
         "result": {"keys": show_value(&keys), "hidden": show_value(&hidden), "passed": passed},
     }));
     cases.push(json!({"id": "data-show-read-only", "result": before == snapshot(base)?}));
+    let read_only_attempts = host.attempts();
+    if read_only_attempts != 0 || host.scopes.get() == 0 {
+        return Err("data-show-host-scope".into());
+    }
+
+    let before_process = host.process.get();
+    let mut process_executed = false;
+    let process_result = host.process(&mut || {
+        process_executed = true;
+        Ok(())
+    });
+    let process = host.planted("process", process_result, process_executed, before_process);
+    let before_socket = host.socket.get();
+    let mut socket_executed = false;
+    let socket_result = host.socket(&mut || {
+        socket_executed = true;
+        Ok(())
+    });
+    let socket = host.planted("socket", socket_result, socket_executed, before_socket);
+    let before_secret = host.secret.get();
+    let mut secret_executed = false;
+    let secret_result = host.secret(&mut || {
+        secret_executed = true;
+        Ok(())
+    });
+    let secret = host.planted("secret", secret_result, secret_executed, before_secret);
+    cases.push(json!({
+        "id": "data-show-host-denial",
+        "result": {
+            "read_only_attempts": read_only_attempts,
+            "process": process,
+            "socket": socket,
+            "secret": secret,
+        },
+    }));
     Ok(())
 }
 
@@ -1555,6 +1630,7 @@ pub fn run_all(root: &Path, key_file: &Path) -> Result<Value, String> {
     outline_and_cache_cases(&mut cases, &store, root)?;
     key_path_cases(&mut cases, root)?;
     data_show_cases(&mut cases, &store, root)?;
+    crate::synthetic_bulk::run(&mut cases, root)?;
 
     cases.push(json!({"id": "files", "result": file_evidence(&store, root).map_err(|_| "files")?}));
     Ok(json!({"schema": "careerbrew-rust05-component-v1", "cases": cases}))

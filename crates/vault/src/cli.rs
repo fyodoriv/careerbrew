@@ -39,6 +39,31 @@ pub trait Editor {
     fn run(&mut self, argv: &[String]) -> Result<(), CliError>;
 }
 
+/// Invocation-scoped host capabilities for component `data show`.
+///
+/// The denied implementation records each attempted operation and returns an
+/// error without running its closure. Entering a show scope is not an attempt.
+pub trait HostOperations {
+    fn data_show_scope(&self);
+    fn process(&self, operation: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError>;
+    fn socket(&self, operation: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError>;
+    fn secret(&self, operation: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError>;
+}
+
+struct UnrestrictedHost;
+impl HostOperations for UnrestrictedHost {
+    fn data_show_scope(&self) {}
+    fn process(&self, operation: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError> {
+        operation()
+    }
+    fn socket(&self, operation: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError> {
+        operation()
+    }
+    fn secret(&self, operation: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError> {
+        operation()
+    }
+}
+
 /// Python's `shlex.split` for an editor command: whitespace splits unquoted
 /// text, quotes group it, and backslash follows POSIX double-quote rules.
 pub fn editor_argv(text: &str) -> Result<Vec<String>, CliError> {
@@ -149,6 +174,27 @@ pub fn cmd_data_show(
     events_env: Option<&str>,
     clock: &dyn Clock,
 ) -> Result<Outcome, CliError> {
+    cmd_data_show_with_host(
+        store,
+        name,
+        keys,
+        may_show_business,
+        events_env,
+        clock,
+        &UnrestrictedHost,
+    )
+}
+
+pub fn cmd_data_show_with_host(
+    store: &Store,
+    name: &str,
+    keys: bool,
+    may_show_business: bool,
+    events_env: Option<&str>,
+    clock: &dyn Clock,
+    host: &dyn HostOperations,
+) -> Result<Outcome, CliError> {
+    host.data_show_scope();
     let name = name.strip_prefix("private/").unwrap_or(name);
     let target = match data_file(store.root.as_path(), name) {
         Ok(target) => target,
