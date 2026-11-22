@@ -111,7 +111,7 @@ fn bindings(
     out.insert("path".into(), target_value(relative));
     match api {
         "read_text" | "read_yaml" => {
-            out.insert("default".into(), Value::Null);
+            out.insert("default".into(), encode(&Canon::Null));
             out.insert("create_key".into(), json!(true));
         }
         "read_json" => {
@@ -122,7 +122,7 @@ fn bindings(
                     .map(decode)
                     .transpose()?
                     .map(|v| encode(&v))
-                    .unwrap_or(Value::Null),
+                    .unwrap_or_else(|| encode(&Canon::Null)),
             );
             out.insert("create_key".into(), json!(true));
         }
@@ -381,4 +381,39 @@ pub fn run_phase(
         report_path,
         &json!({"schema": "careerbrew-data-phase-v1", "case": case_id, "role": role, "api_calls": calls}),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn writer_bindings_match_the_registered_typed_arguments() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let fixture: Value = serde_json::from_slice(
+            &std::fs::read(root.join("docs/plans/2026-11-05-rust-data-fixture-v1.json")).unwrap(),
+        )
+        .unwrap();
+        let mut checked = 0;
+        for case in fixture["cases"].as_array().unwrap() {
+            for phase in case["phases"].as_array().unwrap() {
+                if phase["role"] != "writer" {
+                    continue;
+                }
+                let api = phase["api"].as_str().unwrap();
+                let relative = phase["target"].as_str().unwrap();
+                let arguments = phase["arguments"].as_object().unwrap();
+                let actual = Value::Object(bindings(api, arguments, relative).unwrap());
+                for call in phase["ledger"].as_array().unwrap() {
+                    assert_eq!(
+                        actual, call["expected_bound_arguments"],
+                        "case {} api {api}",
+                        case["case"]
+                    );
+                    checked += 1;
+                }
+            }
+        }
+        assert_eq!(checked, 9);
+    }
 }
