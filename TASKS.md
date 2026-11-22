@@ -367,6 +367,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P1
 
+- [ ] rust-05g: native settings IO and general event IO, component only
+  - **ID**: rust-05g-settings-events
+  - **Details**: From base `76d034fa9d4e7c5ec6fa878c99c1bf1747a07503`, port `config_io.settings_path`, `read_settings` and `write_settings`, plus general `events.clean`, `record`, `write_row`, sorting and `CAREERBREW_EVENTS=off` behavior into the synthetic `crates/vault` candidate. Exercise real Python and Rust providers in fresh synthetic homes with invocation-scoped clock/version adapters. Preserve all rust-05f receipt events, storage modes, locks, atomic replacement, no-op identity, privacy canaries and all ten DATA cases. Register the new source files and inventory fragment. Do not add bulk vault/status/cache helpers, change production routes or shipped crates, or enable production dispatch.
+  - **Files**: crates/vault/src/; tests/oracles/rust05.py; tests/unit/test_rust05g_component.py; tests/unit/test_rust05f_component.py if needed; xtask/src/baseline.rs; xtask/src/rust05.rs; docs/plans/rust-inventory.d/rust-05g.csv; docs/rust-migration.md; TASKS.md
+  - **Hypothesis**: extending the existing stateful oracle and native adapter raises exact settings/general-event component coverage from the baseline 0 native cases to 100% of the registered cases, with no change to the existing storage, receipt, CLI or DATA behavior, because both engines call the same provider contracts over isolated synthetic state.
+  - **Measurement**: on hosted CI, `heavy-run uv run pytest -q tests/unit/test_rust05g_component.py tests/unit/test_rust05f_component.py`; then `gh pr checks <pr>` for the full rust-05 semantic verifier, its ten DATA cases and both operating-system gates.
+  - **Success**: 100% of registered Python/Rust settings and general-event reports match exactly; 10/10 DATA cases and every retained rust-05f case pass; 0 plaintext canary exits, mode changes, lost no-op identities, receipt-event changes or writes while `CAREERBREW_EVENTS=off`; production routes and shipped-crate declarations have 0 changed lines.
+  - **Pivot**: 1 or more semantic/output mismatches, DATA or retained-case failures, privacy/mode/no-op regressions, disabled-event writes, or production-boundary changes rejects this adapter shape; keep Python production dispatch and register a narrower provider boundary instead of weakening the comparison.
+  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Saltzer & Schroeder 1975 (fail-safe defaults).
+
 - [ ] rust-00: bind decide records to one source identity (@opencode-record-binding)
   - **ID**: rust-00-bind-decide-records-to-one-source-identity
   - **Details**: Bind baseline, verify and measure records to the same observed source revision, common relevant-source bytes and fixtures, and bind verify and measure to the same candidate bytes. Keep each producer's existing `sources_sha256` coverage unchanged; add a common `evidence_sources_sha256` from the baseline source set. The shared fixture identity covers HTTP fixtures, four explicitly registered pure-vector JSON files and the rust-05 DATA corpus. Refuse missing, malformed or mixed identity before writing a verdict; preserve every existing gate.
