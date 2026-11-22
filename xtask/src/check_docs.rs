@@ -231,7 +231,9 @@ mod tests {
 
     #[test]
     fn bre_ranges_negation_and_escaped_specials_match() {
-        assert!(bre_matches(b"(braket.md)", b"(br[ak]et.md)"));
+        assert!(bre_matches(b"(braet.md)", b"(br[ak]et.md)"));
+        assert!(bre_matches(b"(brket.md)", b"(br[ak]et.md)"));
+        assert!(!bre_matches(b"(braket.md)", b"(br[ak]et.md)"));
         assert!(!bre_matches(b"(br[ak]et.md)", b"(br[ak]et.md)"));
         assert!(bre_matches(b"abc", b"[^z]*"));
         assert!(bre_matches(b"a*", r"a\*".as_bytes()));

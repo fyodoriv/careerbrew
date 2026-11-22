@@ -137,8 +137,16 @@ fn a_dot_in_a_name_matches_any_character_on_both() {
 
 #[test]
 fn a_bracket_expression_matches_a_member_on_both() {
-    // The doc name supplies `[ak]`; the row supplies the matching `a`.
-    assert!(doc_case("br[ak]et.md", "(braket.md)").status.success());
+    // The doc name supplies `[ak]`; the row supplies one matching `a`.
+    assert!(doc_case("br[ak]et.md", "(braet.md)").status.success());
+}
+
+#[test]
+fn a_bracket_expression_does_not_match_two_members_on_both() {
+    assert_eq!(
+        doc_case("br[ak]et.md", "(braket.md)").status.code(),
+        Some(1)
+    );
 }
 
 #[test]
@@ -147,6 +155,22 @@ fn a_bracket_expression_does_not_match_literal_brackets_on_both() {
         doc_case("br[ak]et.md", "(br[ak]et.md)").status.code(),
         Some(1)
     );
+}
+
+#[test]
+fn an_unclosed_bracket_preserves_grep_stderr_on_both() {
+    let out = doc_case("bad[.md", "(bad[.md)");
+    assert_eq!(out.status.code(), Some(1));
+    assert!(!out.stderr.is_empty());
+}
+
+#[test]
+fn a_trailing_backslash_preserves_grep_stderr_on_both() {
+    let dir = repo();
+    write(dir.path(), r"tests/e2e/us-02-bad\", "# US-02\n");
+    let out = same(dir.path());
+    assert_eq!(out.status.code(), Some(1));
+    assert!(!out.stderr.is_empty());
 }
 
 #[test]
