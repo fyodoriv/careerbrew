@@ -137,6 +137,12 @@ fn deep_report(executed: bool, depth: usize) -> String {
     report
 }
 
+fn deep_report_with_total_depth(executed: bool, total_depth: usize) -> String {
+    assert!(total_depth > 0);
+    // The root report object is the first container on the ignored-value path.
+    deep_report(executed, total_depth - 1)
+}
+
 #[test]
 fn matching_reports_pass_with_the_exact_success_line() {
     let out = same(report(false), report(true));
@@ -269,6 +275,39 @@ fn deep_nesting_has_accepted_and_rejected_controls_on_both_engines() {
     for depth in [2_000, 20_000] {
         let out = same_raw(&deep_report(false, depth), &deep_report(true, depth));
         assert_eq!(out.status.code(), Some(1), "depth {depth} must fail");
+    }
+}
+
+#[test]
+fn native_guard_is_exact_while_python_accepts_both_safety_boundary_inputs() {
+    for total_depth in [900, 901] {
+        let dir = tempfile::tempdir().unwrap();
+        let discovery = deep_report_with_total_depth(false, total_depth);
+        let execution = deep_report_with_total_depth(true, total_depth);
+        std::fs::write(dir.path().join("discovery.json"), discovery).unwrap();
+        std::fs::write(dir.path().join("execution.json"), execution).unwrap();
+        let expected = python(dir.path(), None);
+        assert!(
+            expected.status.success(),
+            "CPython must accept total depth {total_depth}"
+        );
+        let actual = native(dir.path(), None);
+        if total_depth == 900 {
+            assert!(
+                actual.status.success(),
+                "native rejected total depth 900: {:?}",
+                String::from_utf8_lossy(&actual.stderr)
+            );
+            assert_eq!(actual.stdout, expected.stdout);
+            assert!(actual.stderr.is_empty());
+        } else {
+            assert_eq!(actual.status.code(), Some(1));
+            assert!(actual.stdout.is_empty());
+            assert_eq!(
+                actual.stderr,
+                b"browser test receipts: incomplete or mismatched reports\n"
+            );
+        }
     }
 }
 

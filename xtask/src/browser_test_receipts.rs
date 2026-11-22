@@ -13,7 +13,8 @@ use std::process::ExitCode;
 // CPython's default recursion limit is 1,000. Stay below it and parse on a
 // dedicated stack; the lexical depth check rejects hostile inputs iteratively.
 const MAX_JSON_DEPTH: usize = 900;
-const PARSER_STACK_BYTES: usize = 16 * 1024 * 1024;
+// Hosted debug builds exhausted 16 MiB below this cap; 64 MiB covers depth 900.
+const PARSER_STACK_BYTES: usize = 64 * 1024 * 1024;
 const SENTINEL: char = '\u{e000}';
 const ENCODED_SENTINEL: &str = "\\ue000";
 const LITERAL_SENTINEL: &str = "\\ue000\\u0000";
