@@ -5,9 +5,10 @@
 //! data exists), so this module never depends on later backup, config or
 //! event code. No production dispatch uses it yet.
 
-use std::ffi::OsString;
+use std::ffi::{CStr, CString, OsStr, OsString};
 use std::fs::OpenOptions;
 use std::io::{ErrorKind, Write};
+use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Component, Path, PathBuf};
 use std::time::Duration;
@@ -77,13 +78,82 @@ pub fn key_path(env_key_file: Option<&str>, home: &Path) -> PathBuf {
     }
 }
 
+/// Current account identity for the synthetic differential adapter. The
+/// account database's static result is copied into owned values immediately.
+pub fn current_user() -> Option<(String, PathBuf)> {
+    // SAFETY: getpwuid returns a process-owned static entry or null. Both
+    // pointers are checked and copied before another account-database call.
+    unsafe {
+        let entry = libc::getpwuid(libc::geteuid());
+        if entry.is_null() || (*entry).pw_name.is_null() || (*entry).pw_dir.is_null() {
+            return None;
+        }
+        let name = CStr::from_ptr((*entry).pw_name)
+            .to_string_lossy()
+            .into_owned();
+        let home = PathBuf::from(OsStr::from_bytes(
+            CStr::from_ptr((*entry).pw_dir).to_bytes(),
+        ));
+        Some((name, home))
+    }
+}
+
+fn user_home(user: &str) -> Option<PathBuf> {
+    let user = CString::new(user).ok()?;
+    let suggested = unsafe { libc::sysconf(libc::_SC_GETPW_R_SIZE_MAX) };
+    let mut size = if suggested > 0 {
+        suggested as usize
+    } else {
+        16_384
+    };
+    loop {
+        let mut buffer = vec![0_u8; size];
+        // SAFETY: `entry` and `buffer` are writable for this invocation;
+        // getpwnam_r writes `result` only for an entry owned by this call.
+        let (code, result, entry) = unsafe {
+            let mut entry: libc::passwd = std::mem::zeroed();
+            let mut result = std::ptr::null_mut();
+            let code = libc::getpwnam_r(
+                user.as_ptr(),
+                &mut entry,
+                buffer.as_mut_ptr().cast(),
+                buffer.len(),
+                &mut result,
+            );
+            (code, result, entry)
+        };
+        if code == libc::ERANGE && size < 1_048_576 {
+            size *= 2;
+            continue;
+        }
+        if code != 0 || result.is_null() || entry.pw_dir.is_null() {
+            return None;
+        }
+        // SAFETY: a successful result owns a NUL-terminated pw_dir pointer.
+        let bytes = unsafe { CStr::from_ptr(entry.pw_dir) }.to_bytes();
+        return Some(PathBuf::from(OsStr::from_bytes(bytes)));
+    }
+}
+
 fn expand_user(value: &str, home: &Path) -> PathBuf {
     if value == "~" {
         return home.to_path_buf();
     }
-    match value.strip_prefix("~/") {
-        Some(rest) => home.join(rest),
-        None => PathBuf::from(value),
+    if let Some(rest) = value.strip_prefix("~/") {
+        return home.join(rest);
+    }
+    let Some(rest) = value.strip_prefix('~') else {
+        return PathBuf::from(value);
+    };
+    let end = rest.find('/').unwrap_or(rest.len());
+    let user = &rest[..end];
+    let Some(user_home) = user_home(user) else {
+        return PathBuf::from(value);
+    };
+    if end == rest.len() {
+        user_home
+    } else {
+        user_home.join(&rest[end + 1..])
     }
 }
 

@@ -3,7 +3,7 @@
 
 use crate::atomic::StoreError;
 use crate::canon::Canon;
-use crate::json_yaml::json_line_with_float;
+use crate::json_yaml::{json_line_with_float, python_json_float};
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -51,72 +51,7 @@ fn identifier(value: &str) -> bool {
 }
 
 fn python_event_float(value: f64) -> String {
-    if value.is_nan() {
-        return "NaN".into();
-    }
-    if value == f64::INFINITY {
-        return "Infinity".into();
-    }
-    if value == f64::NEG_INFINITY {
-        return "-Infinity".into();
-    }
-    let sign = if value.is_sign_negative() { "-" } else { "" };
-    if value == 0.0 {
-        return format!("{sign}0.0");
-    }
-
-    // Serde/Ryu supplies the shortest round-tripping digits. Re-layout those
-    // digits with Python repr's fixed/scientific thresholds and exponent pad.
-    let text = serde_json::Number::from_f64(value)
-        .expect("finite floats have a JSON number")
-        .to_string();
-    let unsigned = text.strip_prefix('-').unwrap_or(&text);
-    let exponent_at = unsigned.find(['e', 'E']);
-    let (mantissa, exponent) = match exponent_at {
-        Some(index) => (
-            &unsigned[..index],
-            unsigned[index + 1..]
-                .parse::<i32>()
-                .expect("Serde float exponents are integers"),
-        ),
-        None => (unsigned, 0),
-    };
-    let point = mantissa.find('.').unwrap_or(mantissa.len());
-    let raw = mantissa.replace('.', "");
-    let leading = raw.bytes().take_while(|byte| *byte == b'0').count();
-    let digits = raw[leading..].trim_end_matches('0');
-    let decimal_exponent = point as i32 + exponent - leading as i32 - 1;
-
-    if !(-4..16).contains(&decimal_exponent) {
-        let mut out = String::from(sign);
-        out.push_str(&digits[..1]);
-        if digits.len() > 1 {
-            out.push('.');
-            out.push_str(&digits[1..]);
-        }
-        let exponent_sign = if decimal_exponent < 0 { '-' } else { '+' };
-        out.push_str(&format!("e{exponent_sign}{:02}", decimal_exponent.abs()));
-        return out;
-    }
-
-    let mut out = String::from(sign);
-    if decimal_exponent < 0 {
-        out.push_str("0.");
-        out.push_str(&"0".repeat((-decimal_exponent - 1) as usize));
-        out.push_str(digits);
-        return out;
-    }
-    let integer_digits = (decimal_exponent + 1) as usize;
-    if digits.len() <= integer_digits {
-        out.push_str(digits);
-        out.push_str(&"0".repeat(integer_digits - digits.len()));
-        out.push_str(".0");
-    } else {
-        out.push_str(&digits[..integer_digits]);
-        out.push('.');
-        out.push_str(&digits[integer_digits..]);
-    }
-    out
+    python_json_float(value)
 }
 
 fn event_json_float(value: f64) -> Result<String, String> {

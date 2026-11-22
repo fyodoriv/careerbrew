@@ -324,6 +324,80 @@ fn json_string(text: &str) -> Result<String, String> {
 
 pub(crate) type FloatWriter = fn(f64) -> Result<String, String>;
 
+/// Python `json.dumps`'s float spelling, shared by event JSON and digest keys.
+pub(crate) fn python_json_float(value: f64) -> String {
+    if value.is_nan() {
+        return "NaN".into();
+    }
+    if value == f64::INFINITY {
+        return "Infinity".into();
+    }
+    if value == f64::NEG_INFINITY {
+        return "-Infinity".into();
+    }
+    let sign = if value.is_sign_negative() { "-" } else { "" };
+    if value == 0.0 {
+        return format!("{sign}0.0");
+    }
+
+    // Serde/Ryu supplies the shortest round-tripping digits. Re-layout those
+    // digits with Python repr's fixed/scientific thresholds and exponent pad.
+    let text = serde_json::Number::from_f64(value)
+        .expect("finite floats have a JSON number")
+        .to_string();
+    let unsigned = text.strip_prefix('-').unwrap_or(&text);
+    let exponent_at = unsigned.find(['e', 'E']);
+    let (mantissa, exponent) = match exponent_at {
+        Some(index) => (
+            &unsigned[..index],
+            unsigned[index + 1..]
+                .parse::<i32>()
+                .expect("Serde float exponents are integers"),
+        ),
+        None => (unsigned, 0),
+    };
+    let point = mantissa.find('.').unwrap_or(mantissa.len());
+    let raw = mantissa.replace('.', "");
+    let leading = raw.bytes().take_while(|byte| *byte == b'0').count();
+    let digits = raw[leading..].trim_end_matches('0');
+    let decimal_exponent = point as i32 + exponent - leading as i32 - 1;
+
+    if !(-4..16).contains(&decimal_exponent) {
+        let mut out = String::from(sign);
+        out.push_str(&digits[..1]);
+        if digits.len() > 1 {
+            out.push('.');
+            out.push_str(&digits[1..]);
+        }
+        let exponent_sign = if decimal_exponent < 0 { '-' } else { '+' };
+        out.push_str(&format!("e{exponent_sign}{:02}", decimal_exponent.abs()));
+        return out;
+    }
+
+    let mut out = String::from(sign);
+    if decimal_exponent < 0 {
+        out.push_str("0.");
+        out.push_str(&"0".repeat((-decimal_exponent - 1) as usize));
+        out.push_str(digits);
+        return out;
+    }
+    let integer_digits = (decimal_exponent + 1) as usize;
+    if digits.len() <= integer_digits {
+        out.push_str(digits);
+        out.push_str(&"0".repeat(integer_digits - digits.len()));
+        out.push_str(".0");
+    } else {
+        out.push_str(&digits[..integer_digits]);
+        out.push('.');
+        out.push_str(&digits[integer_digits..]);
+    }
+    out
+}
+
+fn python_json_float_result(value: f64) -> Result<String, String> {
+    Ok(python_json_float(value))
+}
+
 fn storage_json_float(value: f64) -> Result<String, String> {
     Ok(serde_json::Number::from_f64(value)
         .ok_or("NaN and infinity are not supported")?
@@ -412,6 +486,22 @@ pub fn json_write(value: &Canon) -> Result<String, String> {
     let mut out = String::new();
     write_json_value(value, &mut out, 0, true, storage_json_float)?;
     Ok(out)
+}
+
+/// One compact value with Python's `json.dumps(..., sort_keys=True,
+/// default=str)` spelling, including nonfinite floats. `store.digest` uses
+/// this independently of storage JSON's nonfinite refusal.
+pub fn json_compact_python(value: &Canon) -> Result<String, String> {
+    let mut out = String::new();
+    write_json_value(value, &mut out, 0, false, python_json_float_result)?;
+    Ok(out)
+}
+
+/// Source line for the public structure-only parse diagnostic.
+pub fn json_error_line(text: &str) -> Option<usize> {
+    serde_json::from_str::<Value>(text)
+        .err()
+        .map(|error| error.line())
 }
 
 /// One JSONL row: `json.dumps(row, sort_keys=True, default=str)`.
@@ -532,6 +622,16 @@ pub fn yaml_read(text: &str) -> Result<Canon, String> {
         1 => Ok(builder.docs.remove(0)),
         _ => Err("more than one document".into()),
     }
+}
+
+/// PyYAML-style line-only parse information; parser details never reach the
+/// structure-only output.
+pub fn yaml_error_line(text: &str) -> Option<usize> {
+    let mut builder = Builder::default();
+    Parser::new_from_str(text)
+        .load(&mut builder, true)
+        .err()
+        .map(|error| error.marker().line())
 }
 
 /// PyYAML's implicit resolvers for a plain scalar, in its order: bool,

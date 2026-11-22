@@ -222,6 +222,40 @@ fn native_cli(args: &[String]) -> Result<String, String> {
                 .map_err(|error| error.0.to_string())?;
             Ok(format!("{}\u{1}{}", outcome.code, outcome.stdout))
         }
+        [data, show, name] if data == "data" && show == "show" => {
+            let root = owned_root()?;
+            let key_file = root.parent().ok_or("home")?.join("keys/backup.key");
+            let keys = |create: bool| synthetic::key_for_data(&root, &key_file, create);
+            let store = Store::new(&root, true, &keys);
+            let events = std::env::var("CAREERBREW_EVENTS").ok();
+            let outcome = cli::cmd_data_show(
+                &store,
+                name,
+                false,
+                std::io::stdout().is_terminal(),
+                events.as_deref(),
+                &synthetic::FixedEventClock,
+            )
+            .map_err(|error| error.0.to_string())?;
+            Ok(format!("{}\u{1}{}", outcome.code, outcome.stdout))
+        }
+        [data, show, name, keys] if data == "data" && show == "show" && keys == "--keys" => {
+            let root = owned_root()?;
+            let key_file = root.parent().ok_or("home")?.join("keys/backup.key");
+            let keys = |create: bool| synthetic::key_for_data(&root, &key_file, create);
+            let store = Store::new(&root, true, &keys);
+            let events = std::env::var("CAREERBREW_EVENTS").ok();
+            let outcome = cli::cmd_data_show(
+                &store,
+                name,
+                true,
+                std::io::stdout().is_terminal(),
+                events.as_deref(),
+                &synthetic::FixedEventClock,
+            )
+            .map_err(|error| error.0.to_string())?;
+            Ok(format!("{}\u{1}{}", outcome.code, outcome.stdout))
+        }
         [secret, set, service] if secret == "secret" && set == "set" => {
             let mut terminal = ProcessTerminal::new();
             let outcome = cli::cmd_secret_set(service, &mut terminal, &ProcessSecrets)

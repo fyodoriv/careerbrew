@@ -150,7 +150,7 @@ def test_helpers_and_all_issue_366_groups_match_real_python(store_bin, tmp_path)
         assert case(report, "outline-text")["result"] == {
             "kind": "text",
             "sealed": True,
-            "count": 3,
+            "count": {"int": "3"},
             "keys": [],
         }
         for case_id in ("outline-malformed-json", "outline-malformed-jsonl", "outline-malformed-yaml"):
