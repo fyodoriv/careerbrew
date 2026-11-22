@@ -282,7 +282,7 @@ fn identity_limits_count_unicode_characters_on_both() {
 }
 
 #[test]
-fn deep_nesting_has_accepted_and_rejected_controls_on_both_engines() {
+fn python_valid_deep_nesting_passes_on_both_engines() {
     for depth in [128, 200, 800] {
         let context = format!("payload depth {depth}, total depth {}", depth + 1);
         let out = same_raw_with_context(
@@ -297,19 +297,40 @@ fn deep_nesting_has_accepted_and_rejected_controls_on_both_engines() {
             String::from_utf8_lossy(&out.stderr)
         );
     }
+}
+
+#[test]
+fn over_cutoff_nesting_fails_closed_without_misstating_python_behavior() {
     for depth in [2_000, 20_000] {
         let context = format!("payload depth {depth}, total depth {}", depth + 1);
-        let out = same_raw_with_context(
-            &deep_report(false, depth),
-            &deep_report(true, depth),
-            &context,
-        );
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("discovery.json"), deep_report(false, depth)).unwrap();
+        std::fs::write(dir.path().join("execution.json"), deep_report(true, depth)).unwrap();
+        if depth == 2_000 {
+            let expected = python(dir.path(), None);
+            assert!(
+                expected.status.success(),
+                "{context}: hosted CPython accepts this input: {:?}",
+                String::from_utf8_lossy(&expected.stderr)
+            );
+            assert_eq!(
+                expected.stdout,
+                b"browser test receipts: all discovered tests passed once\n"
+            );
+            assert!(expected.stderr.is_empty());
+        }
+        let actual = native(dir.path(), None);
         assert_eq!(
-            out.status.code(),
+            actual.status.code(),
             Some(1),
             "{context}: native status={:?}, native stderr={:?}",
-            out.status,
-            String::from_utf8_lossy(&out.stderr)
+            actual.status,
+            String::from_utf8_lossy(&actual.stderr)
+        );
+        assert!(actual.stdout.is_empty(), "{context}");
+        assert_eq!(
+            actual.stderr, b"browser test receipts: incomplete or mismatched reports\n",
+            "{context}"
         );
     }
 }
