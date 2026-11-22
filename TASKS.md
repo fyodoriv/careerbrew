@@ -503,17 +503,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Anchor**: Linux `strace` exec tracing; Basili, Caldiera & Rombach 1994 (GQM).
   - **Progress**: slice 1 done: `cargo xtask migration inventory --exec-check <trace-file> --root <dir>` (`xtask/src/exec_map.rs`) maps exec targets to inventory rows and reports the planted unlisted script. Slice 2 extracts successful `execve` targets from complete fixed-protocol traces and records them in the positive observer receipt. Offline byte-pinned v7 replay has 1 external target and 0 unassigned; positive mapping and planted-unlisted controls cover the comparison. Left: run a released live probe over the gate stories and record their unassigned count; apply the fixed-sample pivot only if that tracing exceeds 3x gate time.
 
-- [ ] `rust-00`: count descendants that leave the process group
-  - **ID**: rust-00-process-tree-escapees
-  - **Details**: The tree collector counts only process-group members (`docs/rust-migration.md` "Process-tree resource accounting"). A descendant that calls `setsid` or `setpgid`, and a parent that left the group, are not counted; a parent that never exits keeps the Linux call polling. A cgroup v2 scope per call (Linux) would close this gap.
-  - **Progress**: 2026-11-20: Linux cgroup v2 CPU scope with a fallback, fixture mode `escape`, control `a_descendant_that_calls_setsid_is_counted_by_the_cgroup` (records `supported=`). Left: read the hosted `ubuntu-24.04` record; on `supported=false`, apply the pivot. macOS escapees and escapee peak RSS stay uncounted.
-  - **Files**: xtask/src/resources.rs; xtask/tests/resources.rs; docs/rust-migration.md
-  - **Hypothesis**: a cgroup collector counts a `setsid` descendant's 300 ms CPU burn within 0.75x to 1.5x on Linux, where the group collector reports about 0.
-  - **Measurement**: `cargo test -p careerbrew-xtask --test resources` on hosted `gate (ubuntu-24.04)`, with a `setsid` burn control.
-  - **Success**: the control counts 225 to 450 ms and all existing controls pass.
-  - **Pivot**: if hosted runners cannot create a delegated cgroup, document the gap as unsupported and stop.
-  - **Anchor**: Linux cgroup v2 (`cpu.stat`, `memory.peak`); Kalibera & Jones 2013 (ISMM).
-
 - [ ] careerbrew uses levels.fyi data for job search and interview prep
   - **ID**: levels-fyi-integration
   - **Details**: Integrate levels.fyi sources and tools end to end: (1) job finding: its job listings and compensation data feed `careerbrew-job-hunt` ranking (pay band, level mapping across companies); (2) interview prep: its interview and leveling guides feed `careerbrew-interview-coach` and `knowledge/research/interview-research.yaml` strategy rules. First check its terms of use and any official API or export; record the allowed access per source in the `docs/integrations.md` terms column. If a source forbids automated access, use only what the owner opens by hand (browser research skill) and say so. Add a platform in `src/careerbrew/jobs/platforms.py` with an HTTP fixture in `tests/fixtures/http/`, a story and e2e test, and an eval case. Job-hunt commands stay blocked on a corporate machine.
