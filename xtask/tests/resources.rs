@@ -107,14 +107,14 @@ fn a_measurement_does_not_reap_an_unrelated_child() {
     let mut child = Command::new("/usr/bin/true")
         .spawn()
         .expect("unrelated child");
-    let pid = child.id() as libc::id_t;
+    let pid = child.id() as libc::pid_t;
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
     loop {
         let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
         let result = unsafe {
             libc::waitid(
                 libc::P_PID,
-                pid,
+                pid as libc::id_t,
                 &mut info,
                 libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
             )
