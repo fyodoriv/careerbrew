@@ -148,8 +148,12 @@ pub fn story_paths(text: &[u8]) -> Vec<String> {
 
 /// `grep -q <pat>` with a POSIX BRE, one line at a time.
 pub fn bre_matches(text: &[u8], pat: &[u8]) -> bool {
-    let Some(regex) = Bre::new(pat) else {
-        return false;
+    let regex = match Bre::new(pat) {
+        Ok(regex) => regex,
+        Err(error) => {
+            eprintln!("grep: {error}");
+            return false;
+        }
     };
     text.split(|&c| c == b'\n').any(|line| regex.is_match(line))
 }
@@ -158,16 +162,16 @@ pub fn bre_matches(text: &[u8], pat: &[u8]) -> bool {
 struct Bre(libc::regex_t);
 
 impl Bre {
-    fn new(pat: &[u8]) -> Option<Self> {
-        let pat = CString::new(pat).ok()?;
+    fn new(pat: &[u8]) -> Result<Self, String> {
+        let pat = CString::new(pat).expect("filename patterns cannot contain NUL");
         let mut regex = MaybeUninit::zeroed();
         // SAFETY: `regex` points to writable storage and `pat` is NUL-terminated.
         let status = unsafe { libc::regcomp(regex.as_mut_ptr(), pat.as_ptr(), 0) };
         if status != 0 {
-            return None;
+            return Err(regex_error(status, regex.as_ptr()));
         }
         // SAFETY: successful regcomp initialized this exact storage.
-        Some(Self(unsafe { regex.assume_init() }))
+        Ok(Self(unsafe { regex.assume_init() }))
     }
 
     fn is_match(&self, line: &[u8]) -> bool {
@@ -193,6 +197,21 @@ impl Bre {
                 libc::REG_STARTEND,
             ) == 0
         }
+    }
+}
+
+/// Return the same platform diagnostic that grep obtains from `regerror`.
+fn regex_error(status: libc::c_int, regex: *const libc::regex_t) -> String {
+    // SAFETY: status came from regcomp with this regex storage. A zero buffer
+    // size ignores the pointer; the second call writes into the sized buffer.
+    unsafe {
+        let size = libc::regerror(status, regex, std::ptr::null_mut(), 0);
+        let mut buffer = vec![0_u8; size];
+        libc::regerror(status, regex, buffer.as_mut_ptr().cast(), size);
+        if buffer.last() == Some(&0) {
+            buffer.pop();
+        }
+        String::from_utf8_lossy(&buffer).into_owned()
     }
 }
 
