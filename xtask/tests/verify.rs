@@ -761,6 +761,44 @@ fn a_planted_canary_leak_counts_once_in_the_case_that_leaked() {
     assert_eq!(leaked, vec![serde_json::json!("data:2")]);
 }
 
+#[test]
+fn planted_data_stdout_canary_is_a_privacy_violation() {
+    let scratch = tempfile::tempdir().unwrap();
+    let leak = data_candidate(
+        scratch.path(),
+        &data_dispatch(
+            "",
+            "if [ \"$2\" = 2 ] && [ \"$3\" = reader ]; then printf 'SYNTHETIC-DATA-CANARY-8H3'; fi",
+        ),
+    );
+    let (code, value) = verify_with(scratch.path(), &leak);
+    assert_eq!(code, Some(1));
+    assert_eq!(value["failed_cases"], serde_json::json!(["data:2"]));
+    assert_eq!(value["violations"]["privacy"], 1);
+    assert!(!std::fs::read_to_string(scratch.path().join("verify.json"))
+        .unwrap()
+        .contains("SYNTHETIC-DATA-CANARY-8H3"));
+}
+
+#[test]
+fn planted_data_stderr_canary_is_a_privacy_violation() {
+    let scratch = tempfile::tempdir().unwrap();
+    let leak = data_candidate(
+        scratch.path(),
+        &data_dispatch(
+            "",
+            "if [ \"$2\" = 2 ] && [ \"$3\" = reader ]; then printf 'SYNTHETIC-DATA-CANARY-8H3' >&2; fi",
+        ),
+    );
+    let (code, value) = verify_with(scratch.path(), &leak);
+    assert_eq!(code, Some(1));
+    assert_eq!(value["failed_cases"], serde_json::json!(["data:2"]));
+    assert_eq!(value["violations"]["privacy"], 1);
+    assert!(!std::fs::read_to_string(scratch.path().join("verify.json"))
+        .unwrap()
+        .contains("SYNTHETIC-DATA-CANARY-8H3"));
+}
+
 /// The frozen catalog the live `actions --json` oracle must print.
 fn reference() -> PathBuf {
     root().join("xtask/tests/fixtures/capture/actions-reference-indie-v5.json")

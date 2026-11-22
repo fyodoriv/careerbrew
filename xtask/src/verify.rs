@@ -725,7 +725,10 @@ fn data_side(
                 .env("CAREERBREW_CAPTURE_ROOT", root)
                 .env("CAREERBREW_DATA_OWNED", &owned)
                 .env("CAREERBREW_DATA_REPORT", &report);
-            let ran = matches!(capture_actions::execute(command), Ok((_, Some(0), _, _)));
+            let (ran, stdout, stderr) = match capture_actions::execute(command) {
+                Ok((_, exit, stdout, stderr)) => (exit == Some(0), stdout, stderr),
+                Err(_) => (false, String::new(), String::new()),
+            };
             let projected = ran
                 .then(|| std::fs::read(&report).ok())
                 .flatten()
@@ -736,6 +739,14 @@ fn data_side(
             let mut after = Trace::new();
             leaks.clear();
             trace(&owned, &owned, canary, &mut after, &mut leaks)?;
+            // Stream ids stay content-free; the stream text and canary never
+            // enter the verify record or its diagnostics.
+            if stdout.contains(canary) {
+                leaks.insert("stdout".to_owned());
+            }
+            if stderr.contains(canary) {
+                leaks.insert("stderr".to_owned());
+            }
             for (path, entry) in &after {
                 if state.get(path) != Some(entry) {
                     *counts.entry(path.clone()).or_insert(0) += 1;

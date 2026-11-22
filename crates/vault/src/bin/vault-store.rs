@@ -186,7 +186,7 @@ impl SecretAdapter for ProcessSecrets {
         child
             .stdin
             .take()
-            .ok_or_else(|| SecretError::keychain_write())?
+            .ok_or_else(SecretError::keychain_write)?
             .write_all((line + "\n").as_bytes())
             .map_err(|_| SecretError::keychain_write())?;
         if child

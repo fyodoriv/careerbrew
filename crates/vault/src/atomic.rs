@@ -146,8 +146,8 @@ pub fn write_text_if_changed(
     text: &str,
 ) -> Result<bool, StoreError> {
     match std::fs::read(path) {
-        Ok(stored) => match crate::open(key, &stored) {
-            Ok(plain) => {
+        Ok(stored) => {
+            if let Ok(plain) = crate::open(key, &stored) {
                 // Python's `vault.decode` validates UTF-8. Only VaultError is
                 // caught; a UnicodeDecodeError propagates without a rewrite.
                 let decoded = String::from_utf8(plain).map_err(|_| StoreError::Utf8)?;
@@ -155,8 +155,7 @@ pub fn write_text_if_changed(
                     return Ok(false);
                 }
             }
-            Err(_) => {}
-        },
+        }
         Err(e) if e.kind() == ErrorKind::NotFound => {}
         Err(e) => return Err(e.into()),
     }

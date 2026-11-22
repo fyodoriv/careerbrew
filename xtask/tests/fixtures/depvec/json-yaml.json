@@ -806,6 +806,16 @@
    "id": "json-read-private-number-key-plus-field",
    "op": "json-read",
    "input": "{\"$serde_json::private::Number\":\"1\",\"x\":2}"
+  },
+  {
+   "id": "json-read-private-number-key-one-numeric-field",
+   "op": "json-read",
+   "input": "{\"$serde_json::private::Number\":\"1\"}"
+  },
+  {
+   "id": "json-read-private-number-key-one-nonnumeric-field",
+   "op": "json-read",
+   "input": "{\"$serde_json::private::Number\":\"synthetic\"}"
   }
  ]
 }

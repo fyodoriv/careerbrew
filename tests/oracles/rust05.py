@@ -181,8 +181,10 @@ def _run_all() -> dict[str, Any]:
     _call(cases, "jsonl-upsert-noop", lambda: store.upsert_jsonl(rows_path, [{"id": "b", "v": 20}], ["v"]))
     cases.append({"id": "jsonl-noop-identity", "result": upsert_before == _identity(rows_path)})
 
-    ids = iter(["a1b2c3d4" + "0" * 24, "e5f60718" + "0" * 24])
-    with _patched(approvals.uuid, uuid4=lambda: types.SimpleNamespace(hex=next(ids))), _patched(events, stamp=lambda: "2026-03-01T09:30:00Z", _version=lambda: "0.0.0"):
+    # Exactly one request needs an id. A fixed value avoids an iterator's
+    # StopIteration crossing into the real decision providers.
+    new_id = "a1b2c3d4" + "0" * 24
+    with _patched(approvals.uuid, uuid4=lambda: types.SimpleNamespace(hex=new_id)), _patched(events, stamp=lambda: "2026-03-01T09:30:00Z", _version=lambda: "0.0.0"):
         requested = _call(cases, "receipt-request", lambda: approvals.request("  Synthetic   approval  ", " synthetic detail ", "agent"))
         _call(cases, "receipt-pending", approvals.pending)
         _call(cases, "receipt-decide", lambda: approvals.decide(requested["id"], "approved", " synthetic note "))

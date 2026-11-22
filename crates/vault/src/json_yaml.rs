@@ -88,38 +88,10 @@ impl<'de> Visitor<'de> for JsonVisitor {
     fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Canon, A::Error> {
         let mut pairs = Vec::new();
         while let Some(key) = map.next_key::<String>()? {
-            // serde_json's arbitrary-precision number adapter presents a
-            // number as this private one-entry map. Prove that shape by
-            // consuming the end marker: an ordinary object can start with the
-            // same key and have more fields.
-            if key == "$serde_json::private::Number" && pairs.is_empty() {
-                let JsonCanon(number) = map.next_value()?;
-                if let Some(next_key) = map.next_key::<String>()? {
-                    insert(&mut pairs, Canon::Str(key), number);
-                    let JsonCanon(value) = map.next_value()?;
-                    insert(&mut pairs, Canon::Str(next_key), value);
-                    continue;
-                }
-                let number = match number {
-                    Canon::Str(number) => number,
-                    other => {
-                        // A one-field ordinary object whose value is not text
-                        // cannot be the internal number representation.
-                        insert(&mut pairs, Canon::Str(key), other);
-                        return Ok(Canon::Map(pairs));
-                    }
-                };
-                if number.contains(['.', 'e', 'E']) {
-                    return number
-                        .parse::<f64>()
-                        .map(Canon::Float)
-                        .map_err(serde::de::Error::custom);
-                }
-                return number
-                    .parse::<num_bigint::BigInt>()
-                    .map(Canon::Int)
-                    .map_err(serde::de::Error::custom);
-            }
+            // Keep every map as user data here. Serde's private arbitrary
+            // precision number map is indistinguishable from a one-field
+            // ordinary object at this layer, so json_read resolves it with
+            // contextual evidence from a second typed parse.
             let JsonCanon(value) = map.next_value()?;
             insert(&mut pairs, Canon::Str(key), value);
         }
@@ -127,10 +99,57 @@ impl<'de> Visitor<'de> for JsonVisitor {
     }
 }
 
+fn is_private_number_marker(value: &Canon) -> bool {
+    match value {
+        Canon::Map(pairs) if pairs.len() == 1 => matches!(
+            &pairs[0],
+            (Canon::Str(key), Canon::Str(_)) if key == "$serde_json::private::Number"
+        ),
+        _ => false,
+    }
+}
+
+/// Resolve Serde's private number map only when the same node in the typed
+/// parse is actually a number. A valid object with that user key stays a map,
+/// including an exact one-field numeric- or nonnumeric-string object.
+fn reconcile_json_numbers(value: &mut Canon, actual: &Value) -> Result<(), String> {
+    if let Value::Number(number) = actual {
+        if is_private_number_marker(value) {
+            let text = number.to_string();
+            *value = if text.contains(['.', 'e', 'E']) {
+                Canon::Float(text.parse().map_err(|_| "invalid JSON number")?)
+            } else {
+                Canon::Int(text.parse().map_err(|_| "invalid JSON integer")?)
+            };
+        }
+        return Ok(());
+    }
+    match (value, actual) {
+        (Canon::List(items), Value::Array(actual)) => {
+            for (item, actual) in items.iter_mut().zip(actual) {
+                reconcile_json_numbers(item, actual)?;
+            }
+        }
+        (Canon::Map(items), Value::Object(actual)) => {
+            for (key, value) in items {
+                let Canon::Str(key) = key else {
+                    return Err("JSON map key is not text".into());
+                };
+                let actual = actual.get(key).ok_or("JSON map value is missing")?;
+                reconcile_json_numbers(value, actual)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 pub fn json_read(text: &str) -> Result<Canon, String> {
-    serde_json::from_str::<JsonCanon>(text)
-        .map(|JsonCanon(value)| value)
-        .map_err(|_| "invalid JSON".to_owned())
+    let JsonCanon(mut value) =
+        serde_json::from_str::<JsonCanon>(text).map_err(|_| "invalid JSON".to_owned())?;
+    let actual = serde_json::from_str::<Value>(text).map_err(|_| "invalid JSON".to_owned())?;
+    reconcile_json_numbers(&mut value, &actual)?;
+    Ok(value)
 }
 
 /// Python's `ensure_ascii` over one already quoted JSON string.

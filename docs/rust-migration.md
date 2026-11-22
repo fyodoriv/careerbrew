@@ -541,7 +541,7 @@ Every step below shares these rules. They are not repeated in each step.
 4. Add the inventory rows for the new source files and stage them together.
 5. Add the crate rows to the decision table below.
 
-**Set `json-yaml` (50 vectors):** `json-read` (`json.loads`, key order,
+**Set `json-yaml` (52 vectors):** `json-read` (`json.loads`, key order,
 repeated keys, Unicode, surrogate pairs, ints to 64 bits, floats, errors),
 `json-write` (the exact `store._json_text` bytes: sorted keys, 2-space
 indent, `ensure_ascii`, `default=str` dates), `yaml-read` (old data under
@@ -1429,9 +1429,9 @@ the crate until the rust-05 and rust-07 closure is native, so
     a fake `security` executable. It covers semantic cross-engine reads,
     malformed input, no-op identity, crash points before/after temp write and
     rename, event interruption, retry and lock release. Differential controls
-    also cover an ordinary object with serde_json's private number key plus
-    another field, planted stderr canaries, exact getpass newline output and
-    POSIX `a\q` editor parsing. A hard kill may leave a temp sibling; no
+    also cover exact one-field and multi-field objects with serde_json's
+    private number key, planted component/DATA stdout and stderr canaries,
+    exact getpass newline output and POSIX `a\q` editor parsing. A hard kill may leave a temp sibling; no
     stronger cleanup is claimed.
   - Production dispatch and `scripts/rust-shipped-crates.txt` are unchanged.
     HTTP and role contracts remain scoped out. macOS and Linux noise floors

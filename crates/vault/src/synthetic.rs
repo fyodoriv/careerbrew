@@ -294,7 +294,7 @@ fn walk(
             Ok(text) => {
                 let text = text.unwrap_or_default();
                 row["text_sha256"] = json!(sha(text.as_bytes()));
-                row["utf8_bytes"] = json!(text.as_bytes().len());
+                row["utf8_bytes"] = json!(text.len());
             }
             Err(StoreError::Utf8) => {
                 row["raw_sha256"] = json!(sha(&raw));
