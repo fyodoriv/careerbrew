@@ -456,6 +456,7 @@ fn sources(root: &Path) -> Result<Value, String> {
         "xtask/src/main.rs",
         "xtask/src/capture_http.rs",
         "xtask/src/baseline_verdict.rs",
+        "xtask/src/exec_map.rs",
         "xtask/src/inventory.rs",
         "xtask/src/trial_plan.rs",
         "xtask/src/toolchain_identity.rs",
@@ -807,7 +808,8 @@ fn fault_controls(docker: &mut Docker, image: &str, out: &Path) -> Result<Value,
 fn trace_decision(mode: &str, traces: &BTreeMap<u32, String>) -> Result<Value, String> {
     match (mode, parser::observe(traces)?) {
         ("positive", parser::Observation::Complete(verdict)) => {
-            Ok(json!({"accepted":true,"events":verdict.events}))
+            let targets = parser::exec_targets(traces)?;
+            Ok(json!({"accepted":true,"events":verdict.events,"exec_targets":targets}))
         }
         (
             "negative",

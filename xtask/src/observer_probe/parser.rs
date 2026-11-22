@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug)]
 pub struct Verdict {
@@ -180,6 +180,64 @@ fn hex_length(value: &str) -> Option<usize> {
         return None;
     }
     Some(bytes.len() / 4)
+}
+
+fn exec_path(value: &str) -> Result<String, String> {
+    let bytes = value
+        .strip_prefix('"')
+        .and_then(|value| value.strip_suffix('"'))
+        .ok_or("exec target is not a quoted hex string")?
+        .as_bytes();
+    let (chunks, remainder) = bytes.as_chunks::<4>();
+    if !remainder.is_empty()
+        || !chunks.iter().all(|chunk| {
+            chunk[0] == b'\\' && chunk[1] == b'x' && chunk[2..].iter().all(u8::is_ascii_hexdigit)
+        })
+    {
+        return Err("exec target is not a complete hex string".into());
+    }
+    let mut decoded = Vec::with_capacity(chunks.len());
+    for chunk in chunks {
+        let digits = std::str::from_utf8(&chunk[2..]).map_err(|_| "non-ASCII exec target hex")?;
+        let byte = u8::from_str_radix(digits, 16).map_err(|_| "invalid exec target hex")?;
+        if byte == 0 {
+            return Err("exec target contains NUL".into());
+        }
+        decoded.push(byte);
+    }
+    String::from_utf8(decoded).map_err(|_| "exec target is not UTF-8".into())
+}
+
+/// Extract successful execve targets from complete fixed-protocol traces.
+/// Failed executions start no process. Malformed records and unsupported
+/// target encodings refuse the whole observation.
+pub fn exec_targets(traces: &BTreeMap<u32, String>) -> Result<BTreeSet<String>, String> {
+    if traces.is_empty()
+        || traces.contains_key(&0)
+        || traces.values().map(String::len).sum::<usize>() > 8 * 1024 * 1024
+    {
+        return Err("missing or oversized trace".into());
+    }
+    let mut targets = BTreeSet::new();
+    for trace in traces.values() {
+        for call in rows(trace)? {
+            if call.name != "execve" {
+                continue;
+            }
+            if call.args.len() != 3 {
+                return Err("malformed execve".into());
+            }
+            let target = exec_path(&call.args[0])?;
+            match integer(&call) {
+                Some(0) if call.result == "0" => {
+                    targets.insert(target);
+                }
+                Some(result) if result < 0 => {}
+                _ => return Err("unsupported execve result".into()),
+            }
+        }
+    }
+    Ok(targets)
 }
 fn effects(calls: &[Call], expected: &EffectExpectation) -> Result<(), String> {
     // Descriptor bindings have one traced-PID scan scope. Only constructors grant them.

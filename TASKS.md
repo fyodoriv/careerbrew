@@ -470,7 +470,7 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if the cache adds more than 20 s to the job or the hash check can be skipped on a hit, drop the cache and use a bounded retry.
   - **Anchor**: Forsgren, Humble & Kim 2018, *Accelerate* (change failure rate); SLSA v1.0 (pinned, verified build inputs).
 
-- [ ] `rust-00`: observe the processes a run really starts, for the inventory
+- [ ] `rust-00`: observe the processes a run really starts, for the inventory (@opencode-rust-observer)
   - **ID**: rust-00-inventory-process-observation
   - **Details**: The inventory finds executable paths, embedded code and entry points by reading files (`inventory --check`, `--sites-check`). It does not see an interpreter or tool a run starts at runtime from a computed path. Trace the exec calls of the gate's own stories with the Linux observer (`docs/rust-migration.md` "Linux observer") and compare them with the inventory.
   - **Files**: xtask/src/inventory.rs; xtask/src/observer.rs; docs/plans/2026-11-01-rust-code-inventory.csv; docs/rust-migration.md
@@ -479,7 +479,7 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Success**: 0 unassigned exec targets on the traced stories, and the planted control is reported.
   - **Pivot**: if tracing the stories costs more than 3x the gate's time, trace a fixed sample of stories and record that the observation is partial.
   - **Anchor**: Linux `strace` exec tracing; Basili, Caldiera & Rombach 1994 (GQM).
-  - **Progress**: slice 1 done: `cargo xtask migration inventory --exec-check <trace-file> --root <dir>` (`xtask/src/exec_map.rs`) maps exec targets to inventory rows and reports the planted unlisted script. Left: extract `execve` targets from an observer trace of the gate stories, run it, and record the unassigned count.
+  - **Progress**: slice 1 done: `cargo xtask migration inventory --exec-check <trace-file> --root <dir>` (`xtask/src/exec_map.rs`) maps exec targets to inventory rows and reports the planted unlisted script. Slice 2 extracts successful `execve` targets from complete fixed-protocol traces and records them in the positive observer receipt. Offline byte-pinned v7 replay has 1 external target and 0 unassigned; positive mapping and planted-unlisted controls cover the comparison. Left: run a released live probe over the gate stories and record their unassigned count; apply the fixed-sample pivot only if that tracing exceeds 3x gate time.
 
 - [ ] `rust-00`: count descendants that leave the process group
   - **ID**: rust-00-process-tree-escapees

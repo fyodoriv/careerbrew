@@ -1,6 +1,8 @@
+#[path = "../src/exec_map.rs"]
+mod exec_map;
 #[path = "../src/observer_probe/parser.rs"]
 mod parser;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 fn hex(s: &str) -> String {
     format!(
         "\"{}\"",
@@ -518,5 +520,101 @@ fn replay_actual_semantic_refusals() {
     assert!(
         parser::verify(&extra).is_err(),
         "accepted extra mutation in actual pair"
+    );
+}
+
+fn exec_trace(target: &str, result: &str) -> String {
+    format!(
+        "execve({}, [{}], 0x0 /* 0 vars */) = {result}\nexit_group(0) = ?\n+++ exited with 0 +++\n",
+        hex(target),
+        hex(target)
+    )
+}
+
+#[test]
+fn replay_exec_targets_compare_against_the_inventory() {
+    let targets = parser::exec_targets(&actual_v7_pair()).unwrap();
+    let inventory = BTreeSet::from(["probe/parent.py".to_owned()]);
+    let report = exec_map::compare_targets(targets.iter().map(String::as_str), "/work", &inventory);
+    assert_eq!((report.assigned, report.external), (0, 1));
+    assert!(report.unassigned.is_empty());
+    assert_eq!(
+        targets.into_iter().collect::<Vec<_>>(),
+        ["/usr/local/bin/python"]
+    );
+}
+
+#[test]
+fn successful_observer_exec_targets_map_to_inventory_rows() {
+    let traces = [
+        (30, exec_trace("/work/scripts/check.sh", "0")),
+        (31, exec_trace("/usr/bin/python3", "0")),
+    ]
+    .into();
+    let targets = parser::exec_targets(&traces).unwrap();
+    let inventory = BTreeSet::from(["scripts/check.sh".to_owned()]);
+    let report = exec_map::compare_targets(targets.iter().map(String::as_str), "/work", &inventory);
+    assert_eq!((report.assigned, report.external), (1, 1));
+    assert!(report.unassigned.is_empty());
+}
+
+#[test]
+fn a_planted_unlisted_observer_exec_is_unassigned() {
+    let traces = [(30, exec_trace("/work/scripts/planted.sh", "0"))].into();
+    let targets = parser::exec_targets(&traces).unwrap();
+    let inventory = BTreeSet::from(["scripts/check.sh".to_owned()]);
+    let report = exec_map::compare_targets(targets.iter().map(String::as_str), "/work", &inventory);
+    assert_eq!(
+        report.unassigned.into_iter().collect::<Vec<_>>(),
+        ["/work/scripts/planted.sh"]
+    );
+}
+
+#[test]
+fn a_failed_execve_is_not_a_started_process() {
+    let traces = [(
+        30,
+        exec_trace(
+            "/work/scripts/planted.sh",
+            "-1 ENOENT (No such file or directory)",
+        ),
+    )]
+    .into();
+    assert!(parser::exec_targets(&traces).unwrap().is_empty());
+}
+
+#[test]
+fn exec_target_extraction_fails_closed() {
+    let valid = exec_trace("/work/scripts/check.sh", "0");
+    let malformed = [
+        valid.replacen(&hex("/work/scripts/check.sh"), r#""\x2f\xzz""#, 1),
+        valid.replacen(
+            &hex("/work/scripts/check.sh"),
+            r#""/work/scripts/check.sh""#,
+            1,
+        ),
+        valid.replacen(&hex("/work/scripts/check.sh"), r#""\xff""#, 1),
+        valid.replace(", 0x0 /* 0 vars */", ""),
+        valid.replace(" = 0\n", " = ?\n"),
+        valid.trim_end().to_owned(),
+    ];
+    for trace in malformed {
+        let traces = [(30, trace)].into();
+        assert!(parser::exec_targets(&traces).is_err());
+    }
+}
+
+#[test]
+fn execve_argv_is_not_an_exec_target() {
+    let trace = format!(
+        "execve({}, [{}], 0x0 /* 0 vars */) = 0\nexit_group(0) = ?\n+++ exited with 0 +++\n",
+        hex("/usr/bin/python3"),
+        hex("/work/scripts/planted.sh")
+    );
+    let traces = [(30, trace)].into();
+    let targets = parser::exec_targets(&traces).unwrap();
+    assert_eq!(
+        targets.into_iter().collect::<Vec<_>>(),
+        ["/usr/bin/python3"]
     );
 }
