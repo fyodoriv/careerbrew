@@ -31,6 +31,26 @@ use std::process::Command;
 #[test]
 fn rust_05_baseline_verify_measure_and_decide_share_identity() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let candidate = root.join("target/release/vault-store");
+    let build = Command::new("cargo")
+        .args([
+            "build",
+            "--locked",
+            "--offline",
+            "--release",
+            "-p",
+            "careerbrew-vault",
+            "--bin",
+            "vault-store",
+        ])
+        .current_dir(root)
+        .output()
+        .unwrap();
+    assert!(build.status.success(), "{build:?}");
+    assert!(
+        candidate.is_file(),
+        "the clean-runner release candidate is missing"
+    );
     let python = root.join(".venv/bin/python");
     let scratch = tempfile::tempdir().unwrap();
     let base = scratch.path().join("baseline.json");

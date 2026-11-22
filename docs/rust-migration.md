@@ -1420,8 +1420,9 @@ the crate until the rust-05 and rust-07 closure is native, so
     never random ciphertext bytes. It also runs the ten DATA cases. Its record
     carries the shared evidence-source and fixture hashes, including the
     registered DATA corpus fixture, and rechecks those inputs after the runs.
-    An integrated baseline/verify/measure/decide control keeps Python below the
-    protocol minimum and never refuses matching identity. Its two explicit CLI
+    An integrated baseline/verify/measure/decide control builds the registered
+    release candidate on a clean runner, keeps Python below the protocol
+    minimum and never refuses matching identity. Its two explicit CLI
     refusal cases allow only the observed exits 1 and 3.
   - `crates/vault/src/store.rs` composes the existing key, codec, atomic and
     lock providers. It covers missing defaults, lazy keys, nofollow reads,
