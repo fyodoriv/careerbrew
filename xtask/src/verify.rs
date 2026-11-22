@@ -650,6 +650,8 @@ fn data_home(
 struct DataCase {
     /// Per phase, the projected API calls, or None when the phase failed.
     calls: Vec<Option<Value>>,
+    /// Bounded content-free refusal ids for failed phases; never raw stderr.
+    errors: Vec<Option<String>>,
     /// The case's side effects against the state before it.
     writes: Writes,
     /// How many phases wrote each path.
@@ -710,6 +712,7 @@ fn data_side(
         let start = state.clone();
         let start_leaks = leaks.clone();
         let mut calls = Vec::new();
+        let mut errors = Vec::new();
         let mut counts = BTreeMap::new();
         let mut stream_leaked = false;
         for spec in case["phases"].as_array().ok_or("data phases missing")? {
@@ -737,6 +740,19 @@ fn data_side(
                 .filter(|value| value["case"] == id && value["role"] == role)
                 .and_then(|value| project(&value));
             calls.push(projected);
+            let error = (!ran).then(|| {
+                let kind = stderr
+                    .strip_prefix("refused: ")
+                    .and_then(|text| text.strip_suffix('\n'))
+                    .filter(|kind| {
+                        (1..=64).contains(&kind.len())
+                            && kind.bytes().all(|byte| {
+                                byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_')
+                            })
+                    });
+                kind.unwrap_or("unclassified").to_owned()
+            });
+            errors.push(error);
             let mut after = Trace::new();
             leaks.clear();
             trace(&owned, &owned, canary, &mut after, &mut leaks)?;
@@ -757,6 +773,7 @@ fn data_side(
         }
         results.push(DataCase {
             calls,
+            errors,
             writes: effects(&entries(&start), &entries(&state)),
             counts,
             // Only new file leaks use the snapshot rule. A stream finding in
@@ -820,6 +837,7 @@ pub(crate) fn data_cases(
             "passed": passed,
             "phases": expected.calls.len(),
             "candidate_phases_ran": answer.calls.iter().filter(|c| c.is_some()).count(),
+            "candidate_errors": answer.errors.clone(),
             "calls_match": calls_match,
             "normalization": ["data-ciphertext"],
             "oracle_calls_sha256": digest(&expected.calls),

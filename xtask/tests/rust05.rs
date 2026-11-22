@@ -73,7 +73,23 @@ fn rust_05_baseline_verify_measure_and_decide_share_identity() {
         .env_remove("CAREERBREW_HOME")
         .output()
         .unwrap();
-    assert!(run.status.success(), "{run:?}");
+    let diagnostics = std::fs::read(&verified)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        .map(|record| {
+            record["cases"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|case| case["case"].as_str().is_some_and(|id| id.starts_with("data:")))
+                .map(|case| serde_json::json!({"case": case["case"], "errors": case["candidate_errors"]}))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    assert!(
+        run.status.success(),
+        "{run:?}; DATA errors: {diagnostics:?}"
+    );
     let measured = scratch.path().join("measure.json");
     let run = Command::new(env!("CARGO_BIN_EXE_careerbrew-xtask"))
         .args(["migration", "measure", "--step", "rust-05", "--python"])
