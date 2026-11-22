@@ -272,6 +272,18 @@ mod tests {
     use std::os::unix::fs::PermissionsExt;
 
     #[test]
+    fn planted_stdout_canary_is_a_privacy_leak() {
+        let scratch = tempfile::tempdir().unwrap();
+        let script = scratch.path().join("stdout-control.sh");
+        std::fs::write(&script, format!("#!/bin/sh\nprintf '%s\\n' '{CANARY}'\n")).unwrap();
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let observed = observe(root, &script, &[], false).unwrap();
+        assert_eq!(observed.exit, Some(0));
+        assert!(observed.leaked, "stdout canary escaped the privacy scan");
+    }
+
+    #[test]
     fn planted_stderr_canary_is_a_privacy_leak() {
         let scratch = tempfile::tempdir().unwrap();
         let script = scratch.path().join("stderr-control.sh");

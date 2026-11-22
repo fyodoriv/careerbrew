@@ -711,6 +711,7 @@ fn data_side(
         let start_leaks = leaks.clone();
         let mut calls = Vec::new();
         let mut counts = BTreeMap::new();
+        let mut stream_leaked = false;
         for spec in case["phases"].as_array().ok_or("data phases missing")? {
             let role = spec["role"].as_str().ok_or("data role missing")?;
             let report = owned.join(format!("protocol/{id:0>2}-{role}-api.json"));
@@ -741,11 +742,8 @@ fn data_side(
             trace(&owned, &owned, canary, &mut after, &mut leaks)?;
             // Stream ids stay content-free; the stream text and canary never
             // enter the verify record or its diagnostics.
-            if stdout.contains(canary) {
-                leaks.insert("stdout".to_owned());
-            }
-            if stderr.contains(canary) {
-                leaks.insert("stderr".to_owned());
+            if stdout.contains(canary) || stderr.contains(canary) {
+                stream_leaked = true;
             }
             for (path, entry) in &after {
                 if state.get(path) != Some(entry) {
@@ -761,9 +759,10 @@ fn data_side(
             calls,
             writes: effects(&entries(&start), &entries(&state)),
             counts,
-            // Only paths that start to hold the canary in this case count, so
-            // a leak is charged once, to the case that made it.
-            leaked: !leaks.is_subset(&start_leaks),
+            // Only new file leaks use the snapshot rule. A stream finding in
+            // any phase counts for this case, including a repeated stream in
+            // a later case; transient output is never cleared with `leaks`.
+            leaked: stream_leaked || !leaks.is_subset(&start_leaks),
         });
     }
     Ok(results)
