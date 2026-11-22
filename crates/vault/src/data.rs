@@ -389,7 +389,10 @@ mod tests {
 
     #[test]
     fn writer_bindings_match_the_registered_typed_arguments() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(Path::parent)
+            .unwrap();
         let fixture: Value = serde_json::from_slice(
             &std::fs::read(root.join("docs/plans/2026-11-05-rust-data-fixture-v1.json")).unwrap(),
         )
