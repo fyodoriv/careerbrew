@@ -2253,8 +2253,11 @@ Review gaps closed (PR 113 review):
 - **Member whose parent left the group (Linux).** When `wait4(-pgid)` says
   `ECHILD`, the collector checks the group with `kill(-pgid, 0)` and keeps
   waiting while a member lives; that member comes back to the subreaper when
-  its parent exits. The parent that left the group is reaped with
-  `waitid(P_ALL, WNOWAIT)` then `waitpid`, so no zombie stays, but it is not counted. Any
+  its parent exits. The parent that left the group is not counted. It is reaped
+  only when the invocation's cgroup observed its PID. The fallback does not use
+  `waitid(P_ALL)`: it cannot distinguish that parent from an unrelated direct
+  child owned by a parallel invocation, so an unproved parent can stay waitable
+  until the measuring process exits. Any
   `kill` error other than `ESRCH` is an error, not an empty group. If that
   parent never exits (a daemon), the call polls every 2 ms forever. Control
   (Linux only): `a_member_whose_parent_left_the_group_is_counted`.

@@ -8,7 +8,8 @@
 //! On Linux a member whose parent left the group is waited for until that
 //! parent exits and the member comes back to the subreaper. If that parent
 //! never exits (a daemon), the call polls every 2 ms and never returns.
-//! The parent that left the group is reaped (no zombie stays) but not counted.
+//! The parent that left the group is reaped only when this call's cgroup saw its
+//! PID. The fallback cannot distinguish it from unrelated direct children.
 //! On Linux with cgroup v2, each call also tries to start the child in its own
 //! new cgroup under the measuring process's cgroup. When that works, the tree
 //! CPU fields take the larger of the group sum and the cgroup's `cpu.stat`,
@@ -270,9 +271,6 @@ fn collect_tree(pgid: libc::pid_t, unit: RssUnit) -> Result<Tree, String> {
             // to us when that parent exits. Wait while the group still has a
             // member; a failed signal-0 check (ESRCH) means it is empty.
             Some(libc::ECHILD) => {
-                // A parent that left the group was reparented to us; reap it
-                // so no zombie stays. It is not a member, so it is not counted.
-                reap_strays(pgid);
                 // SAFETY: signal 0 only checks that the group has a member.
                 if unsafe { libc::kill(-pgid, 0) } != 0 {
                     let gone = std::io::Error::last_os_error();
@@ -293,34 +291,6 @@ fn collect_tree(pgid: libc::pid_t, unit: RssUnit) -> Result<Tree, String> {
                 ))
             }
         }
-    }
-}
-
-/// Linux: reap, without blocking, every exited child of ours outside the
-/// group (a parent that called `setsid`). Their usage is not counted; members
-/// are only peeked (`WNOWAIT`) and stay for `wait4(-pgid)`.
-#[cfg(target_os = "linux")]
-fn reap_strays(pgid: libc::pid_t) {
-    loop {
-        // SAFETY: siginfo_t is plain data; waitid fills it. WNOWAIT only
-        // peeks, so a group member is left for `wait4(-pgid)` to count.
-        let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
-        let flags = libc::WEXITED | libc::WNOHANG | libc::WNOWAIT;
-        let got = unsafe { libc::waitid(libc::P_ALL, 0, &mut info, flags) };
-        if got != 0 {
-            if std::io::Error::last_os_error().raw_os_error() == Some(libc::EINTR) {
-                continue;
-            }
-            return;
-        }
-        // SAFETY: waitid filled si_pid for an exited child.
-        let pid = unsafe { info.si_pid() };
-        if pid <= 0 || unsafe { libc::getpgid(pid) } == pgid {
-            return;
-        }
-        let mut status: libc::c_int = 0;
-        // SAFETY: reaps the exited non-member peeked above.
-        unsafe { libc::waitpid(pid, &mut status, libc::WNOHANG) };
     }
 }
 
