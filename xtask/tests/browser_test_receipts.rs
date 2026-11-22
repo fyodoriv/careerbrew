@@ -76,6 +76,67 @@ fn same(discovery: Value, execution: Value) -> Output {
     actual
 }
 
+fn raw_report(executed: bool, identities: &[(&str, &str)]) -> String {
+    let specs = identities
+        .iter()
+        .map(|(id, project)| {
+            let test = if executed {
+                format!(
+                    r#"{{"projectId":{project},"expectedStatus":"passed","status":"expected","results":[{{"status":"passed","retry":0}}]}}"#
+                )
+            } else {
+                format!(r#"{{"projectId":{project},"expectedStatus":"passed"}}"#)
+            };
+            format!(r#"{{"id":{id},"tests":[{test}]}}"#)
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(r#"{{"errors":[],"suites":[{{"specs":[{specs}],"suites":[]}}]}}"#)
+}
+
+fn same_raw(discovery: &str, execution: &str) -> Output {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("discovery.json"), discovery).unwrap();
+    std::fs::write(dir.path().join("execution.json"), execution).unwrap();
+    let expected = python(dir.path(), None);
+    let actual = native(dir.path(), None);
+    assert_eq!(actual.stdout, expected.stdout);
+    assert_eq!(actual.stderr, expected.stderr);
+    assert_eq!(actual.status.code(), expected.status.code());
+    actual
+}
+
+fn raw_receipts(discovery: &str, execution: &str) -> (Vec<u8>, Vec<u8>) {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("discovery.json"), discovery).unwrap();
+    std::fs::write(dir.path().join("execution.json"), execution).unwrap();
+    let expected_receipt = dir.path().join("python.json");
+    let actual_receipt = dir.path().join("native.json");
+    let expected = python(dir.path(), Some(&expected_receipt));
+    let actual = native(dir.path(), Some(&actual_receipt));
+    assert_eq!(actual.stdout, expected.stdout);
+    assert_eq!(actual.stderr, expected.stderr);
+    assert_eq!(actual.status.code(), expected.status.code());
+    assert!(actual.status.success());
+    (
+        std::fs::read(expected_receipt).unwrap(),
+        std::fs::read(actual_receipt).unwrap(),
+    )
+}
+
+fn deep_report(executed: bool, depth: usize) -> String {
+    let mut nested = String::with_capacity(depth * 2 + 1);
+    nested.extend(std::iter::repeat_n('[', depth));
+    nested.push('0');
+    nested.extend(std::iter::repeat_n(']', depth));
+    let mut report = report(executed).to_string();
+    report.pop();
+    report.push_str(",\"ignored\":");
+    report.push_str(&nested);
+    report.push('}');
+    report
+}
+
 #[test]
 fn matching_reports_pass_with_the_exact_success_line() {
     let out = same(report(false), report(true));
@@ -197,6 +258,121 @@ fn identity_limits_count_unicode_characters_on_both() {
     discovery["suites"][0]["specs"] = Value::Array(discovery_specs);
     execution["suites"][0]["specs"] = Value::Array(execution_specs);
     assert_eq!(same(discovery, execution).status.code(), Some(1));
+}
+
+#[test]
+fn deep_nesting_has_accepted_and_rejected_controls_on_both_engines() {
+    for depth in [128, 200, 800] {
+        let out = same_raw(&deep_report(false, depth), &deep_report(true, depth));
+        assert!(out.status.success(), "Python-valid depth {depth} must pass");
+    }
+    for depth in [2_000, 20_000] {
+        let out = same_raw(&deep_report(false, depth), &deep_report(true, depth));
+        assert_eq!(out.status.code(), Some(1), "depth {depth} must fail");
+    }
+}
+
+#[test]
+fn lone_surrogates_have_exact_python_identities_and_receipt_bytes() {
+    for (id, project, expected) in [
+        (
+            r#""\ud800""#,
+            r#""chromium""#,
+            r#"{"version": 1, "identities": [["\ud800", "chromium"]]}"#,
+        ),
+        (
+            r#""a\udfffb""#,
+            r#""chromium""#,
+            r#"{"version": 1, "identities": [["a\udfffb", "chromium"]]}"#,
+        ),
+        (
+            r#""us-72""#,
+            r#""\udc00""#,
+            r#"{"version": 1, "identities": [["us-72", "\udc00"]]}"#,
+        ),
+    ] {
+        let discovery = raw_report(false, &[(id, project)]);
+        let execution = raw_report(true, &[(id, project)]);
+        let (python, native) = raw_receipts(&discovery, &execution);
+        assert_eq!(native, python);
+        assert_eq!(native, expected.as_bytes());
+    }
+}
+
+#[test]
+fn valid_pairs_and_literal_non_bmp_are_the_same_python_codepoint() {
+    let pair = r#""\ud83d\ude00""#;
+    let literal = r#""😀""#;
+    let expected = br#"{"version": 1, "identities": [["\ud83d\ude00", "chromium"]]}"#;
+    for (discovery_id, execution_id) in [(pair, literal), (literal, pair)] {
+        let discovery = raw_report(false, &[(discovery_id, r#""chromium""#)]);
+        let execution = raw_report(true, &[(execution_id, r#""chromium""#)]);
+        let (python, native) = raw_receipts(&discovery, &execution);
+        assert_eq!(native, python);
+        assert_eq!(native, expected);
+    }
+}
+
+#[test]
+fn sentinel_like_literals_and_escape_near_misses_do_not_collide() {
+    let lone = raw_receipts(
+        &raw_report(false, &[(r#""\ud800""#, r#""chromium""#)]),
+        &raw_report(true, &[(r#""\ud800""#, r#""chromium""#)]),
+    )
+    .1;
+    for id in [
+        r#""\ue000""#,
+        "\"\"",
+        r#""\ue000\u0000""#,
+        "\"\u{1d800}\"",
+        r#""\u1d800""#,
+        r#""\\ud800""#,
+        r#""\ud800\ud800\udc00""#,
+    ] {
+        let (python, native) = raw_receipts(
+            &raw_report(false, &[(id, r#""chromium""#)]),
+            &raw_report(true, &[(id, r#""chromium""#)]),
+        );
+        assert_eq!(native, python, "near-miss {id:?}");
+        assert_ne!(native, lone, "near-miss collapsed into a lone surrogate");
+    }
+
+    let escaped = raw_report(false, &[(r#""\ue000""#, r#""chromium""#)]);
+    let literal = raw_report(true, &[("\"\"", r#""chromium""#)]);
+    let (python, native) = raw_receipts(&escaped, &literal);
+    assert_eq!(native, python);
+    assert_eq!(
+        native,
+        br#"{"version": 1, "identities": [["\ue000", "chromium"]]}"#
+    );
+}
+
+#[test]
+fn receipts_sort_all_python_codepoints_including_lone_surrogates() {
+    let ids = [r#""😀""#, r#""\ue000""#, r#""\ud800""#, r#""z""#];
+    let discovery_identities = ids.map(|id| (id, r#""chromium""#));
+    let discovery = raw_report(false, &discovery_identities);
+    let execution = raw_report(true, &discovery_identities);
+    let (python, native) = raw_receipts(&discovery, &execution);
+    assert_eq!(native, python);
+    assert_eq!(
+        native,
+        br#"{"version": 1, "identities": [["z", "chromium"], ["\ud800", "chromium"], ["\ue000", "chromium"], ["\ud83d\ude00", "chromium"]]}"#
+    );
+}
+
+#[test]
+fn surrogate_codepoint_limits_match_python() {
+    for escape in [r#"\ud800"#, r#"\ud83d\ude00"#] {
+        for (count, success) in [(256, true), (257, false)] {
+            let id = format!("\"{}\"", escape.repeat(count));
+            let out = same_raw(
+                &raw_report(false, &[(&id, r#""chromium""#)]),
+                &raw_report(true, &[(&id, r#""chromium""#)]),
+            );
+            assert_eq!(out.status.success(), success, "{escape:?} x {count}");
+        }
+    }
 }
 
 #[test]
