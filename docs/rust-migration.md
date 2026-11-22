@@ -1422,9 +1422,9 @@ the crate until the rust-05 and rust-07 closure is native, so
     registered DATA corpus fixture, and rechecks those inputs after the runs.
     Failed DATA phases expose only bounded `candidate_errors` refusal ids and
     `call_mismatches` phase/index/field ids; raw process output, paths and
-    payload text stay out of the record. Reader defaults use the same typed-null
-    argument encoding as Python, and direct writer controls compare every bound
-    argument value with the registered DATA fixture.
+    payload text stay out of the record. Reader defaults and `create_key` use
+    the same typed argument encoding as Python, and direct controls compare all
+    25 bound argument values with the registered DATA fixture.
     An integrated baseline/verify/measure/decide control builds the registered
     release candidate on a clean runner, keeps Python below the protocol
     minimum and never refuses matching identity. Its two explicit CLI
