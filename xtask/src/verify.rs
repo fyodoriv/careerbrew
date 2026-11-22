@@ -785,6 +785,45 @@ fn data_side(
     Ok(results)
 }
 
+/// Content-free DATA call comparison diagnostics: phase, ledger index and
+/// mismatched field ids only, never argument or return values.
+fn call_mismatches(expected: &[Option<Value>], actual: &[Option<Value>]) -> Vec<Value> {
+    let mut out = Vec::new();
+    for (phase, (expected, actual)) in expected.iter().zip(actual).enumerate() {
+        match (expected, actual) {
+            (None, None) => {}
+            (Some(expected), Some(actual)) => {
+                let expected = expected.as_array().map(Vec::as_slice).unwrap_or(&[]);
+                let actual = actual.as_array().map(Vec::as_slice).unwrap_or(&[]);
+                for index in 0..expected.len().max(actual.len()) {
+                    match (expected.get(index), actual.get(index)) {
+                        (Some(expected), Some(actual)) => {
+                            let fields = [
+                                "function",
+                                "purpose",
+                                "target",
+                                "arguments_sha256",
+                                "returned",
+                            ]
+                            .into_iter()
+                            .filter(|field| expected[*field] != actual[*field])
+                            .map(Value::from)
+                            .collect::<Vec<_>>();
+                            if !fields.is_empty() {
+                                out.push(json!({"phase": phase, "index": index, "fields": fields}));
+                            }
+                        }
+                        _ => out
+                            .push(json!({"phase": phase, "index": index, "fields": ["presence"]})),
+                    }
+                }
+            }
+            _ => out.push(json!({"phase": phase, "fields": ["report"]})),
+        }
+    }
+    out
+}
+
 /// Runs the DATA corpus on the oracle twice (it must agree with itself
 /// across two fresh homes) and once on the candidate; pushes one entry per
 /// corpus case.
@@ -815,6 +854,7 @@ pub(crate) fn data_cases(
     let ids = fixture["cases"].as_array().ok_or("data cases missing")?;
     for ((spec, expected), answer) in ids.iter().zip(&oracle).zip(&served) {
         let calls_match = answer.calls == expected.calls;
+        let call_mismatches = call_mismatches(&expected.calls, &answer.calls);
         let (extra, missing, changed) = diff(&expected.writes, &answer.writes);
         let duplicates: u64 = answer
             .counts
@@ -838,6 +878,7 @@ pub(crate) fn data_cases(
             "phases": expected.calls.len(),
             "candidate_phases_ran": answer.calls.iter().filter(|c| c.is_some()).count(),
             "candidate_errors": answer.errors.clone(),
+            "call_mismatches": call_mismatches,
             "calls_match": calls_match,
             "normalization": ["data-ciphertext"],
             "oracle_calls_sha256": digest(&expected.calls),

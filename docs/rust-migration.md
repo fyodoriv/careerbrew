@@ -1420,8 +1420,9 @@ the crate until the rust-05 and rust-07 closure is native, so
     never random ciphertext bytes. It also runs the ten DATA cases. Its record
     carries the shared evidence-source and fixture hashes, including the
     registered DATA corpus fixture, and rechecks those inputs after the runs.
-    Failed DATA phases expose only bounded `candidate_errors` refusal ids;
-    raw process output, paths and payload text stay out of the record.
+    Failed DATA phases expose only bounded `candidate_errors` refusal ids and
+    `call_mismatches` phase/index/field ids; raw process output, paths and
+    payload text stay out of the record.
     An integrated baseline/verify/measure/decide control builds the registered
     release candidate on a clean runner, keeps Python below the protocol
     minimum and never refuses matching identity. Its two explicit CLI

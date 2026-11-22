@@ -81,8 +81,28 @@ fn rust_05_baseline_verify_measure_and_decide_share_identity() {
                 .as_array()
                 .into_iter()
                 .flatten()
-                .filter(|case| case["case"].as_str().is_some_and(|id| id.starts_with("data:")))
-                .map(|case| serde_json::json!({"case": case["case"], "errors": case["candidate_errors"]}))
+                .filter(|case| {
+                    case["case"]
+                        .as_str()
+                        .is_some_and(|id| id.starts_with("data:"))
+                })
+                .map(|case| {
+                    serde_json::json!({
+                        "case": case["case"],
+                        "errors": case["candidate_errors"],
+                        "phases": case["phases"],
+                        "candidate_phases_ran": case["candidate_phases_ran"],
+                        "calls_match": case["calls_match"],
+                        "writes_match": case["writes_match"],
+                        "extra_writes": case["extra_writes"],
+                        "missing_writes": case["missing_writes"],
+                        "changed_writes": case["changed_writes"],
+                        "duplicate_writes": case["duplicate_writes"],
+                        "oracle_calls_sha256": case["oracle_calls_sha256"],
+                        "candidate_calls_sha256": case["candidate_calls_sha256"],
+                        "call_mismatches": case["call_mismatches"]
+                    })
+                })
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
