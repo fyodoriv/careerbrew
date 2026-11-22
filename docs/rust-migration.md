@@ -203,7 +203,8 @@ stays blocked.
    or different harness coverage; those producer-specific values are not
    expected to match. The shared fixture hash covers the HTTP fixture tree and
    each exact path in `baseline::Step::fixtures`: today the four pure-vector
-   JSON files for `rust-02`. It never reads an unregistered vector-fixture path.
+   JSON files for `rust-02` and the DATA corpus for `rust-05`. It never reads
+   an unregistered fixture path.
 6. **Close the step.** Update docs, the per-step coverage and the rollback
    evidence in the same pull request. Run the fast gate per commit. The hosted
    checks run the full gate before the step counts as done
@@ -1416,8 +1417,12 @@ the crate until the rust-05 and rust-07 closure is native, so
     stateful `--all` workload; `target/release/vault-store --all` is the
     registered measure candidate. The custom `xtask/src/rust05.rs` verifier
     compares typed values, decrypted-content digests, modes and envelopes,
-    never random ciphertext bytes. It also runs the ten DATA cases. Its two
-    explicit CLI refusal cases allow only the observed exits 1 and 3.
+    never random ciphertext bytes. It also runs the ten DATA cases. Its record
+    carries the shared evidence-source and fixture hashes, including the
+    registered DATA corpus fixture, and rechecks those inputs after the runs.
+    An integrated baseline/verify/measure/decide control keeps Python below the
+    protocol minimum and never refuses matching identity. Its two explicit CLI
+    refusal cases allow only the observed exits 1 and 3.
   - `crates/vault/src/store.rs` composes the existing key, codec, atomic and
     lock providers. It covers missing defaults, lazy keys, nofollow reads,
     plaintext replay rules and one-lock JSONL append/upsert transactions.

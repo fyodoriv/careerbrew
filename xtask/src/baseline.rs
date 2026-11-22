@@ -161,6 +161,7 @@ pub const STEPS: &[Step] = &[
             "crates/policy/src/vectors.rs",
             "xtask/src/rust05.rs",
         ],
+        fixtures: &["docs/plans/2026-11-05-rust-data-fixture-v1.json"],
     },
     Step {
         // rust-04 is a vector step (privacy, policy and approval decisions).
