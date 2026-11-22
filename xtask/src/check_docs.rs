@@ -6,16 +6,17 @@
 //! 3. every regular file `tests/e2e/us-*` is named in `docs/user-stories.md`,
 //!    and names its own story id (`us-01-x.sh` says `US-01`).
 //!
-//! The script's `grep -q` patterns are basic regular expressions; here `.`
-//! matches any one character and every other character is literal. A file
-//! name with another BRE special (`[`, `*`, `^`, `$`, `\`) is a known gap.
-//! Names are sorted bytewise, like the script under `LC_ALL=C`.
+//! The script's `grep -q` patterns use the platform's POSIX basic regular
+//! expression engine. Names are sorted bytewise, like the script under
+//! `LC_ALL=C`.
+use std::ffi::CString;
+use std::mem::MaybeUninit;
 use std::path::Path;
 
 /// One output line per problem, then the pass line when there is none.
 pub fn check(repo: &Path) -> (Vec<String>, bool) {
     let mut out = Vec::new();
-    let read = |p: &str| std::fs::read(repo.join(p)).ok();
+    let read = |p: &str| std::fs::read(repo.join(p));
     let readme = read("docs/README.md");
 
     let mut docs = list(&repo.join("docs"), |n| n.ends_with(".md"));
@@ -28,10 +29,7 @@ pub fn check(repo: &Path) -> (Vec<String>, bool) {
             continue;
         }
         let pat = format!("({base})");
-        if !readme
-            .as_deref()
-            .is_some_and(|t| bre_lite(t, pat.as_bytes()))
-        {
+        if !grep_file(&readme, "docs/README.md", pat.as_bytes()) {
             out.push(format!(
                 "check-docs: docs/{base} has no row in docs/README.md"
             ));
@@ -39,7 +37,13 @@ pub fn check(repo: &Path) -> (Vec<String>, bool) {
     }
 
     let stories = read("docs/user-stories.md");
-    let mut named = story_paths(stories.as_deref().unwrap_or_default());
+    let mut named = match &stories {
+        Ok(text) => story_paths(text),
+        Err(error) => {
+            grep_error("docs/user-stories.md", error);
+            Vec::new()
+        }
+    };
     named.sort();
     named.dedup();
     for t in &named {
@@ -55,10 +59,7 @@ pub fn check(repo: &Path) -> (Vec<String>, bool) {
         if !repo.join(&t).is_file() {
             continue;
         }
-        if !stories
-            .as_deref()
-            .is_some_and(|s| bre_lite(s, t.as_bytes()))
-        {
+        if !grep_file(&stories, "docs/user-stories.md", t.as_bytes()) {
             out.push(format!(
                 "check-docs: {t} is not listed in docs/user-stories.md"
             ));
@@ -66,8 +67,7 @@ pub fn check(repo: &Path) -> (Vec<String>, bool) {
         let digits: String = base[3..].chars().take_while(char::is_ascii_digit).collect();
         if !digits.is_empty() {
             let id = format!("US-{digits}");
-            let body = read(&t).unwrap_or_default();
-            if !bre_lite(&body, id.as_bytes()) {
+            if !grep_file(&read(&t), &t, id.as_bytes()) {
                 out.push(format!("check-docs: {t} does not name its story {id}"));
             }
         }
@@ -78,6 +78,25 @@ pub fn check(repo: &Path) -> (Vec<String>, bool) {
         out.push("check-docs: docs match the code".to_string());
     }
     (out, ok)
+}
+
+/// Match one grep call against a previously read file, retaining its diagnostic.
+fn grep_file(file: &std::io::Result<Vec<u8>>, path: &str, pat: &[u8]) -> bool {
+    match file {
+        Ok(text) => bre_matches(text, pat),
+        Err(error) => {
+            grep_error(path, error);
+            false
+        }
+    }
+}
+
+fn grep_error(path: &str, error: &std::io::Error) {
+    if error.kind() == std::io::ErrorKind::NotFound {
+        eprintln!("grep: {path}: No such file or directory");
+    } else {
+        eprintln!("grep: {path}: {error}");
+    }
 }
 
 /// File names in `dir` that pass `keep`, sorted bytewise; hidden names
@@ -127,19 +146,85 @@ pub fn story_paths(text: &[u8]) -> Vec<String> {
     found
 }
 
-/// `grep -q <pat>` for a pattern whose only special character is `.`.
-pub fn bre_lite(text: &[u8], pat: &[u8]) -> bool {
-    text.split(|&c| c == b'\n').any(|line| {
-        pat.len() <= line.len()
-            && line
-                .windows(pat.len())
-                .any(|w| w.iter().zip(pat).all(|(&c, &p)| p == b'.' || c == p))
-    })
+/// `grep -q <pat>` with a POSIX BRE, one line at a time.
+pub fn bre_matches(text: &[u8], pat: &[u8]) -> bool {
+    let regex = match Bre::new(pat) {
+        Ok(regex) => regex,
+        Err(error) => {
+            eprintln!("grep: {error}");
+            return false;
+        }
+    };
+    text.split(|&c| c == b'\n').any(|line| regex.is_match(line))
+}
+
+/// An invocation-scoped compiled BRE; `Drop` releases its libc allocations.
+struct Bre(libc::regex_t);
+
+impl Bre {
+    fn new(pat: &[u8]) -> Result<Self, String> {
+        let pat = CString::new(pat).expect("filename patterns cannot contain NUL");
+        let mut regex = MaybeUninit::zeroed();
+        // SAFETY: `regex` points to writable storage and `pat` is NUL-terminated.
+        let status = unsafe { libc::regcomp(regex.as_mut_ptr(), pat.as_ptr(), 0) };
+        if status != 0 {
+            return Err(regex_error(status, regex.as_ptr()));
+        }
+        // SAFETY: successful regcomp initialized this exact storage.
+        Ok(Self(unsafe { regex.assume_init() }))
+    }
+
+    fn is_match(&self, line: &[u8]) -> bool {
+        let Ok(len) = libc::regoff_t::try_from(line.len()) else {
+            return false;
+        };
+        // REG_STARTEND bounds the read; the trailing NUL also satisfies regexec.
+        let mut input = Vec::with_capacity(line.len() + 1);
+        input.extend_from_slice(line);
+        input.push(0);
+        let mut range = libc::regmatch_t {
+            rm_so: 0,
+            rm_eo: len,
+        };
+        // SAFETY: the compiled regex and input outlive this call; `range` is
+        // writable and REG_STARTEND makes its initial bounds the input range.
+        unsafe {
+            libc::regexec(
+                &self.0,
+                input.as_ptr().cast(),
+                1,
+                &mut range,
+                libc::REG_STARTEND,
+            ) == 0
+        }
+    }
+}
+
+/// Return the same platform diagnostic that grep obtains from `regerror`.
+fn regex_error(status: libc::c_int, regex: *const libc::regex_t) -> String {
+    // SAFETY: status came from regcomp with this regex storage. A zero buffer
+    // size ignores the pointer; the second call writes into the sized buffer.
+    unsafe {
+        let size = libc::regerror(status, regex, std::ptr::null_mut(), 0);
+        let mut buffer = vec![0_u8; size];
+        libc::regerror(status, regex, buffer.as_mut_ptr().cast(), size);
+        if buffer.last() == Some(&0) {
+            buffer.pop();
+        }
+        String::from_utf8_lossy(&buffer).into_owned()
+    }
+}
+
+impl Drop for Bre {
+    fn drop(&mut self) {
+        // SAFETY: this owner holds one successfully compiled regex and drops once.
+        unsafe { libc::regfree(&mut self.0) }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{bre_lite, story_paths};
+    use super::{bre_matches, story_paths};
 
     #[test]
     fn story_paths_end_on_a_word_character() {
@@ -150,7 +235,27 @@ mod tests {
 
     #[test]
     fn a_dot_matches_any_character() {
-        assert!(bre_lite(b"x (aXmd) y", b"(a.md)"));
-        assert!(!bre_lite(b"(a\n.md)", b"(a.md)"));
+        assert!(bre_matches(b"x (aXmd) y", b"(a.md)"));
+        assert!(!bre_matches(b"(a\n.md)", b"(a.md)"));
+    }
+
+    #[test]
+    fn bre_anchors_apply_only_at_the_pattern_edges() {
+        assert!(bre_matches(b"alpha", b"^alpha"));
+        assert!(!bre_matches(b"xalpha", b"^alpha"));
+        assert!(bre_matches(b"alpha", b"alpha$"));
+        assert!(!bre_matches(b"alphax", b"alpha$"));
+        assert!(bre_matches(b"x^y$z", b"x^y$z"));
+    }
+
+    #[test]
+    fn bre_ranges_negation_and_escaped_specials_match() {
+        assert!(bre_matches(b"(braet.md)", b"(br[ak]et.md)"));
+        assert!(bre_matches(b"(brket.md)", b"(br[ak]et.md)"));
+        assert!(!bre_matches(b"(braket.md)", b"(br[ak]et.md)"));
+        assert!(!bre_matches(b"(br[ak]et.md)", b"(br[ak]et.md)"));
+        assert!(bre_matches(b"abc", b"[^z]*"));
+        assert!(bre_matches(b"a*", r"a\*".as_bytes()));
+        assert!(!bre_matches(b"aa", r"a\*".as_bytes()));
     }
 }
