@@ -21,7 +21,7 @@ import types
 from pathlib import Path
 from typing import Any
 
-from careerbrew import approvals, cli, events, paths, secrets, store, vault
+from careerbrew import approvals, cli, config_io, events, paths, secrets, store, vault
 
 CANARY = "SYNTHETIC-RUST05-CANARY-7Q9"
 SECRET = "SYNTHETIC-RUST05-SECRET-NOT-AN-AUTHENTICATION-VALUE"
@@ -225,6 +225,80 @@ def _run_all() -> dict[str, Any]:
 
     event_rows = [json.loads(line) for line in (root / "logs" / "events.jsonl").read_text(encoding="utf-8").splitlines()]
     cases.append({"id": "receipt-events", "result": [{"event": row["event"], "status": row["status"]} for row in event_rows]})
+
+    settings = config_io.settings_path()
+    cases.append({"id": "settings-path", "result": settings.relative_to(root).as_posix()})
+    _call(cases, "settings-missing", config_io.read_settings)
+    settings.write_text("", encoding="utf-8")
+    _call(cases, "settings-empty", config_io.read_settings)
+    settings_value = {
+        "questions_per_day": 3,
+        "work_hours": 7.5,
+        "notify_events": True,
+        "nested": {"yes": "yes", "none": None},
+    }
+    _call(cases, "settings-write", lambda: config_io.write_settings(settings_value))
+    _call(cases, "settings-read", config_io.read_settings)
+    settings_before = _identity(settings)
+    _call(cases, "settings-rewrite", lambda: config_io.write_settings(settings_value))
+    cases.append({"id": "settings-write-rewrites", "result": settings_before["inode"] != _identity(settings)["inode"]})
+
+    _call(
+        cases,
+        "event-clean",
+        lambda: events.clean(
+            {
+                "event": "config.set",
+                "status": "a" * 48,
+                "command": "a" * 49,
+                "route": "ok\n",
+                "action": "ok\n\n",
+                "error": "ValueError",
+                "source_kind": "HTTP",
+                "count": 1208925819614629174706179,
+                "ratio": 1.5,
+                "enabled": True,
+                "note": CANARY,
+                "nothing": None,
+                "items": ["dropped"],
+                "nested": {"dropped": True},
+            }
+        ),
+    )
+    with _patched(events, stamp=lambda: "2026-03-01T09:30:00Z", _version=lambda: "0.0.0"):
+        _call(cases, "event-record", lambda: events.record("config.set", status="ok", note=CANARY))
+    _call(cases, "event-write-row", lambda: events.write_row({"b": 1, "a": "x"}))
+    log = root / "logs" / "events.jsonl"
+    _call(cases, "event-write-row-line", lambda: log.read_text(encoding="utf-8").splitlines()[-1])
+    with _patched(events, stamp=lambda: "2026-03-01T09:30:00Z", _version=lambda: "0.0.0"):
+        _call(cases, "event-emit-config", lambda: events.emit("config.set", status="ok", note=CANARY, count=2))
+        _call(cases, "event-emit-error", lambda: events.emit("cli.error", command="config", error="ValueError"))
+    _call(cases, "event-lines", lambda: log.read_text(encoding="utf-8").splitlines()[-3:])
+    float_row = {
+        "nan": float("nan"),
+        "infinity": float("inf"),
+        "negative_infinity": float("-inf"),
+        "negative_zero": -0.0,
+        "exponent": 1e-7,
+        "low_fixed": 1e-4,
+        "low_scientific": 1e-5,
+        "high_fixed": 1e15,
+        "high_scientific": 1e16,
+    }
+    _call(cases, "event-write-float-row", lambda: events.write_row(float_row))
+    _call(cases, "event-write-float-line", lambda: log.read_text(encoding="utf-8").splitlines()[-1])
+
+    off_before = _identity(log)
+    os.environ["CAREERBREW_EVENTS"] = "off"
+
+    def unexpected_event_work(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("disabled events reached a clock, version or writer adapter")
+
+    with _patched(events, stamp=unexpected_event_work, _version=unexpected_event_work, write_row=unexpected_event_work):
+        _call(cases, "event-off", lambda: events.emit("config.set", status="blocked"))
+    os.environ["CAREERBREW_EVENTS"] = "on"
+    cases.append({"id": "event-off-identity", "result": off_before == _identity(log)})
+
     cases.append({"id": "files", "result": _file_evidence(root, key_file)})
     return {"schema": "careerbrew-rust05-component-v1", "cases": cases}
 

@@ -9,6 +9,8 @@ fn rust_05_registers_the_release_candidate_and_effective_inputs() {
     for source in [
         "tests/oracles/rust05.py",
         "crates/vault/src/store.rs",
+        "crates/vault/src/settings.rs",
+        "crates/vault/src/events.rs",
         "crates/vault/src/receipts.rs",
         "crates/vault/src/cli.rs",
         "crates/vault/src/secrets.rs",
