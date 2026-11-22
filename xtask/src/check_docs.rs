@@ -153,4 +153,22 @@ mod tests {
         assert!(bre_lite(b"x (aXmd) y", b"(a.md)"));
         assert!(!bre_lite(b"(a\n.md)", b"(a.md)"));
     }
+
+    #[test]
+    fn bre_anchors_apply_only_at_the_pattern_edges() {
+        assert!(bre_lite(b"alpha", b"^alpha"));
+        assert!(!bre_lite(b"xalpha", b"^alpha"));
+        assert!(bre_lite(b"alpha", b"alpha$"));
+        assert!(!bre_lite(b"alphax", b"alpha$"));
+        assert!(bre_lite(b"x^y$z", b"x^y$z"));
+    }
+
+    #[test]
+    fn bre_ranges_negation_and_escaped_specials_match() {
+        assert!(bre_lite(b"(braket.md)", b"(br[ak]et.md)"));
+        assert!(!bre_lite(b"(br[ak]et.md)", b"(br[ak]et.md)"));
+        assert!(bre_lite(b"abc", b"[^z]*"));
+        assert!(bre_lite(b"a*", r"a\*".as_bytes()));
+        assert!(!bre_lite(b"aa", r"a\*".as_bytes()));
+    }
 }

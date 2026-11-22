@@ -1,6 +1,7 @@
 //! Parity controls for `cargo xtask check-docs` (rust-27b slice 3): each
 //! test builds a synthetic temp repo, copies `scripts/check-docs.sh` into
-//! it, and checks the native command prints the same stdout and exit code.
+//! it, and checks the native command prints the same stdout, stderr and exit
+//! code.
 use std::path::Path;
 use std::process::{Command, Output};
 
@@ -49,12 +50,35 @@ fn same(root: &Path) -> Output {
     let mut n = Command::new(XTASK);
     n.arg("check-docs").arg("--repo").arg(root);
     let native = run(n);
-    assert_eq!(
-        String::from_utf8_lossy(&native.stdout),
-        String::from_utf8_lossy(&script.stdout)
-    );
+    assert_eq!(native.stdout, script.stdout);
+    assert_eq!(native.stderr, script.stderr);
     assert_eq!(native.status.code(), script.status.code());
     native
+}
+
+/// Add one unusual doc name and its candidate README row to the base repo.
+fn doc_case(name: &str, row: &str) -> Output {
+    let dir = repo();
+    write(dir.path(), &format!("docs/{name}"), "# Synthetic\n");
+    let readme = dir.path().join("docs/README.md");
+    let mut text = std::fs::read_to_string(&readme).unwrap();
+    text.push_str(row);
+    text.push('\n');
+    std::fs::write(readme, text).unwrap();
+    same(dir.path())
+}
+
+/// Use a path ending in `$` so the script's unquoted BRE has an end anchor.
+fn dollar_case(story_line: &str) -> Output {
+    let dir = repo();
+    write(
+        dir.path(),
+        "docs/user-stories.md",
+        &format!("US-01: tests/e2e/us-01-start.sh\nUS-02: {story_line}\n"),
+    );
+    write(dir.path(), "tests/e2e/us-02-dollar", "# US-02\n");
+    write(dir.path(), "tests/e2e/us-02-dollar$", "# US-02\n");
+    same(dir.path())
 }
 
 #[test]
@@ -112,11 +136,71 @@ fn a_dot_in_a_name_matches_any_character_on_both() {
 }
 
 #[test]
+fn a_bracket_expression_matches_a_member_on_both() {
+    // The doc name supplies `[ak]`; the row supplies the matching `a`.
+    assert!(doc_case("br[ak]et.md", "(braket.md)").status.success());
+}
+
+#[test]
+fn a_bracket_expression_does_not_match_literal_brackets_on_both() {
+    assert_eq!(
+        doc_case("br[ak]et.md", "(br[ak]et.md)").status.code(),
+        Some(1)
+    );
+}
+
+#[test]
+fn a_star_repeats_the_previous_character_on_both() {
+    // `r*` admits zero `r` characters; it is not a literal filename star.
+    assert!(doc_case("star*.md", "(sta.md)").status.success());
+}
+
+#[test]
+fn a_star_does_not_match_a_literal_star_on_both() {
+    assert_eq!(doc_case("star*.md", "(star*.md)").status.code(), Some(1));
+}
+
+#[test]
+fn a_caret_inside_a_generated_pattern_stays_literal_on_both() {
+    assert!(doc_case("caret^.md", "(caret^.md)").status.success());
+}
+
+#[test]
+fn a_final_dollar_anchors_a_story_pattern_on_both() {
+    assert!(dollar_case("tests/e2e/us-02-dollar").status.success());
+}
+
+#[test]
+fn a_final_dollar_does_not_match_a_literal_dollar_on_both() {
+    assert_eq!(
+        dollar_case("tests/e2e/us-02-dollar$").status.code(),
+        Some(1)
+    );
+}
+
+#[test]
+fn a_backslash_escapes_the_next_character_on_both() {
+    assert!(doc_case(r"back\.md", "(back.md)").status.success());
+}
+
+#[test]
+fn an_escaped_dot_does_not_match_a_literal_backslash_on_both() {
+    assert_eq!(doc_case(r"back\.md", r"(back\.md)").status.code(), Some(1));
+}
+
+#[test]
 fn missing_index_files_fail_on_both() {
     let dir = repo();
     std::fs::remove_file(dir.path().join("docs/README.md")).unwrap();
     std::fs::remove_file(dir.path().join("docs/user-stories.md")).unwrap();
-    assert_eq!(same(dir.path()).status.code(), Some(1));
+    let out = same(dir.path());
+    assert_eq!(out.status.code(), Some(1));
+    assert_eq!(
+        out.stderr,
+        b"grep: docs/README.md: No such file or directory\n\
+          grep: docs/user-stories.md: No such file or directory\n\
+          grep: docs/user-stories.md: No such file or directory\n"
+    );
 }
 
 #[test]
