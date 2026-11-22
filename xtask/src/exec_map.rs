@@ -17,13 +17,24 @@ pub struct Report {
 }
 
 pub fn compare(trace: &str, root: &str, inventory: &BTreeSet<String>) -> Report {
+    compare_targets(
+        trace
+            .lines()
+            .map(str::trim_end)
+            .filter(|line| !line.is_empty()),
+        root,
+        inventory,
+    )
+}
+
+pub fn compare_targets<'a>(
+    targets: impl IntoIterator<Item = &'a str>,
+    root: &str,
+    inventory: &BTreeSet<String>,
+) -> Report {
     let root = root.trim_end_matches('/');
     let mut report = Report::default();
-    let targets: BTreeSet<&str> = trace
-        .lines()
-        .map(str::trim_end)
-        .filter(|line| !line.is_empty())
-        .collect();
+    let targets: BTreeSet<&str> = targets.into_iter().collect();
     for target in targets {
         let unmappable =
             !target.starts_with('/') || target.split('/').any(|part| part == "." || part == "..");

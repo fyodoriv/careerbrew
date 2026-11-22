@@ -2141,8 +2141,16 @@ are **component parity only** and switch nothing:
   --root <dir>` reads one absolute exec target per line, counts a target under
   `--root` that is an inventory row as assigned and one outside it as external,
   and prints every other target as unassigned (exit 1; refused input exit 2).
-  A relative target or one with a `.` or `..` part counts as unassigned. Not
-  yet done: extracting the targets from an observer trace of the gate stories.
+  A relative target or one with a `.` or `..` part counts as unassigned.
+  Slice 2 (2026-11-21) adds strict extraction of successful `execve` targets
+  from complete fixed-protocol traces. The positive observer receipt records
+  them as `observation.exec_targets`; failed executions start no process, and
+  malformed or unsupported records refuse the whole observation. Offline replay
+  of the byte-pinned v7 fixture extracts `/usr/local/bin/python` and compares it
+  as one external target with 0 unassigned. Controls also map a listed `/work`
+  script and report a planted unlisted script. No live gate-story trace has run:
+  the 0-unassigned result covers only the registered synthetic replay, not the
+  task's full story hypothesis.
 
 ### Owned-child resource accounting (pre-registered 2026-11-16)
 
