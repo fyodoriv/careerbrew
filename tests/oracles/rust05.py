@@ -127,9 +127,22 @@ def _cli_case(cases: list[dict[str, Any]], name: str, args: types.SimpleNamespac
     cases.append({"id": name, "exit": code, "stdout_sha256": _sha(text)})
 
 
+def _nonfinite_numbers() -> dict[str, Any]:
+    return {
+        "nan": float("nan"),
+        "infinity": float("inf"),
+        "negative_infinity": float("-inf"),
+        "negative_zero": -0.0,
+        "exponent": 1e-7,
+        "high_scientific": 1e16,
+        "literal": "NaN Infinity -Infinity",
+        "big": 12089258196146291747061791208925819614629174706179,
+    }
+
+
 def _cached_result(pair: tuple[Any, bool]) -> dict[str, Any]:
     value, hit = pair
-    return {"hit": hit, "sha256": _sha(json.dumps(value, sort_keys=True))}
+    return {"hit": hit, "sha256": _sha(json.dumps(value, sort_keys=True)), "numbers": _typed(value["numbers"])}
 
 
 def _outline_and_cache_cases(cases: list[dict[str, Any]], root: Path) -> None:
@@ -189,6 +202,19 @@ people:
     store.write_text(bad_yaml, f"rules:\n  - match: {CANARY}\n    bad: [unclosed\n")
     _call(cases, "outline-malformed-yaml", lambda: store.outline(bad_yaml, strict=True))
 
+    nonfinite_path = root / "work" / "nonfinite.json"
+    nonfinite_value = _nonfinite_numbers()
+    _call(cases, "json-nonfinite-write", lambda: store.write_json(nonfinite_path, nonfinite_value))
+    _call(cases, "json-nonfinite-read", lambda: store.read_json(nonfinite_path))
+    nonfinite_before = _identity(nonfinite_path)
+    _call(
+        cases,
+        "json-nonfinite-noop",
+        lambda: store.write_json_if_changed(nonfinite_path, store.read_json(nonfinite_path)),
+    )
+    cases.append({"id": "json-nonfinite-noop-identity", "result": nonfinite_before == _identity(nonfinite_path)})
+    _call(cases, "outline-nonfinite", lambda: store.outline(nonfinite_path, strict=True))
+
     key_48 = "k" * 48
     for case_id, key in [
         ("outline-key-48", key_48),
@@ -221,7 +247,7 @@ people:
         raise AssertionError("a fresh cached value recomputed")
 
     with _patched(store.time, time=lambda: 100.0):
-        missing = store.cached(key_parts, lambda: {"title": CANARY, "count": 1})
+        missing = store.cached(key_parts, lambda: {"title": CANARY, "count": 1, "numbers": _nonfinite_numbers()})
     _call(cases, "cached-miss", lambda: _cached_result(missing))
     cache_before = _identity(cache_path)
     with _patched(store.time, time=lambda: 100.0):
@@ -232,7 +258,7 @@ people:
         fresh = store.cached(key_parts, unexpected_compute, ttl_seconds=10)
     _call(cases, "cached-fresh", lambda: _cached_result(fresh))
     with _patched(store.time, time=lambda: 111.5):
-        expired = store.cached(key_parts, lambda: {"title": CANARY, "count": 2}, ttl_seconds=10)
+        expired = store.cached(key_parts, lambda: {"title": CANARY, "count": 2, "numbers": _nonfinite_numbers()}, ttl_seconds=10)
     _call(cases, "cached-expired", lambda: _cached_result(expired))
 
 

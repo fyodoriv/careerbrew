@@ -124,6 +124,52 @@ struct JsonContextParser<'a> {
     at: usize,
 }
 
+/// Replace only Python's three nonfinite number tokens outside strings.
+/// Serde still validates every other token and the complete sanitized JSON.
+fn sanitize_nonfinite(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut at = 0;
+    let mut quoted = false;
+    let mut escaped = false;
+    while at < bytes.len() {
+        let byte = bytes[at];
+        if quoted {
+            out.push(byte);
+            at += 1;
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == b'"' {
+                quoted = false;
+            }
+            continue;
+        }
+        if byte == b'"' {
+            quoted = true;
+            out.push(byte);
+            at += 1;
+            continue;
+        }
+        let rest = &bytes[at..];
+        if rest.starts_with(b"NaN") {
+            out.extend_from_slice(b"null");
+            at += 3;
+        } else if rest.starts_with(b"-Infinity") {
+            out.extend_from_slice(b"null");
+            at += 9;
+        } else if rest.starts_with(b"Infinity") {
+            out.extend_from_slice(b"null");
+            at += 8;
+        } else {
+            out.push(byte);
+            at += 1;
+        }
+    }
+    String::from_utf8(out).expect("UTF-8 input and ASCII replacements stay UTF-8")
+}
+
 impl<'a> JsonContextParser<'a> {
     fn parse(text: &'a str) -> Result<JsonContext, String> {
         let mut parser = Self {
@@ -150,6 +196,9 @@ impl<'a> JsonContextParser<'a> {
 
     fn value(&mut self) -> Result<JsonContext, String> {
         self.space();
+        if let Some(value) = self.nonfinite() {
+            return Ok(value);
+        }
         match self.bytes.get(self.at).copied() {
             Some(b'{') => self.object(),
             Some(b'[') => self.array(),
@@ -167,6 +216,16 @@ impl<'a> JsonContextParser<'a> {
             }
             _ => Err("invalid JSON context value".into()),
         }
+    }
+
+    fn nonfinite(&mut self) -> Option<JsonContext> {
+        for token in ["NaN", "-Infinity", "Infinity"] {
+            if self.bytes[self.at..].starts_with(token.as_bytes()) {
+                self.at += token.len();
+                return Some(JsonContext::Number(token.into()));
+            }
+        }
+        None
     }
 
     fn string(&mut self) -> Result<String, String> {
@@ -262,6 +321,21 @@ impl<'a> JsonContextParser<'a> {
 /// number token. A valid object with that user key always stays a map.
 fn reconcile_json_numbers(value: &mut Canon, actual: &JsonContext) -> Result<(), String> {
     if let JsonContext::Number(number) = actual {
+        match number.as_str() {
+            "NaN" => {
+                *value = Canon::Float(f64::NAN);
+                return Ok(());
+            }
+            "Infinity" => {
+                *value = Canon::Float(f64::INFINITY);
+                return Ok(());
+            }
+            "-Infinity" => {
+                *value = Canon::Float(f64::NEG_INFINITY);
+                return Ok(());
+            }
+            _ => {}
+        }
         if is_private_number_marker(value) {
             *value = if number.contains(['.', 'e', 'E']) {
                 Canon::Float(number.parse().map_err(|_| "invalid JSON number")?)
@@ -298,8 +372,9 @@ fn reconcile_json_numbers(value: &mut Canon, actual: &JsonContext) -> Result<(),
 }
 
 pub fn json_read(text: &str) -> Result<Canon, String> {
+    let sanitized = sanitize_nonfinite(text);
     let JsonCanon(mut value) =
-        serde_json::from_str::<JsonCanon>(text).map_err(|_| "invalid JSON".to_owned())?;
+        serde_json::from_str::<JsonCanon>(&sanitized).map_err(|_| "invalid JSON".to_owned())?;
     let actual = JsonContextParser::parse(text)?;
     reconcile_json_numbers(&mut value, &actual)?;
     Ok(value)
@@ -399,9 +474,7 @@ fn python_json_float_result(value: f64) -> Result<String, String> {
 }
 
 fn storage_json_float(value: f64) -> Result<String, String> {
-    Ok(serde_json::Number::from_f64(value)
-        .ok_or("NaN and infinity are not supported")?
-        .to_string())
+    Ok(python_json_float(value))
 }
 
 fn write_json_value(
@@ -489,8 +562,8 @@ pub fn json_write(value: &Canon) -> Result<String, String> {
 }
 
 /// One compact value with Python's `json.dumps(..., sort_keys=True,
-/// default=str)` spelling, including nonfinite floats. `store.digest` uses
-/// this independently of storage JSON's nonfinite refusal.
+/// default=str)` spelling, including nonfinite floats. Storage JSON, event
+/// JSON and digest keys share this Python float contract.
 pub fn json_compact_python(value: &Canon) -> Result<String, String> {
     let mut out = String::new();
     write_json_value(value, &mut out, 0, false, python_json_float_result)?;
@@ -499,7 +572,7 @@ pub fn json_compact_python(value: &Canon) -> Result<String, String> {
 
 /// Source line for the public structure-only parse diagnostic.
 pub fn json_error_line(text: &str) -> Option<usize> {
-    serde_json::from_str::<Value>(text)
+    serde_json::from_str::<Value>(&sanitize_nonfinite(text))
         .err()
         .map(|error| error.line())
 }

@@ -96,6 +96,11 @@ def test_helpers_and_all_issue_366_groups_match_real_python(store_bin, tmp_path)
             "outline-json",
             "outline-jsonl",
             "outline-text",
+            "json-nonfinite-write",
+            "json-nonfinite-read",
+            "json-nonfinite-noop",
+            "json-nonfinite-noop-identity",
+            "outline-nonfinite",
             "outline-malformed-json",
             "outline-malformed-jsonl",
             "outline-malformed-yaml",
@@ -163,6 +168,30 @@ def test_helpers_and_all_issue_366_groups_match_real_python(store_bin, tmp_path)
             "count": {"int": "3"},
             "keys": [],
         }
+        expected_numbers = {
+            "nan": {"float": "nan"},
+            "infinity": {"float": "inf"},
+            "negative_infinity": {"float": "-inf"},
+            "negative_zero": {"float": (-0.0).hex()},
+            "exponent": {"float": (1e-7).hex()},
+            "high_scientific": {"float": (1e16).hex()},
+            "literal": "NaN Infinity -Infinity",
+            "big": {"int": "12089258196146291747061791208925819614629174706179"},
+        }
+        assert case(report, "json-nonfinite-write")["result"] is None
+        assert case(report, "json-nonfinite-read")["result"] == expected_numbers
+        assert case(report, "json-nonfinite-noop")["result"] is False
+        assert case(report, "json-nonfinite-noop-identity")["result"] is True
+        assert case(report, "outline-nonfinite")["result"]["keys"] == [
+            "big: int",
+            "exponent: float",
+            "high_scientific: float",
+            "infinity: float",
+            "literal: str",
+            "nan: float",
+            "negative_infinity: float",
+            "negative_zero: float",
+        ]
         for case_id in ("outline-malformed-json", "outline-malformed-jsonl", "outline-malformed-yaml"):
             assert case(report, case_id)["result"] == {"error": "ValueError"}
         key_48 = "k" * 48
@@ -176,6 +205,8 @@ def test_helpers_and_all_issue_366_groups_match_real_python(store_bin, tmp_path)
         assert case(report, "cached-hit")["result"]["hit"] is True
         assert case(report, "cached-fresh")["result"]["hit"] is True
         assert case(report, "cached-expired")["result"]["hit"] is False
+        for case_id in ("cached-miss", "cached-hit", "cached-fresh", "cached-expired"):
+            assert case(report, case_id)["result"]["numbers"] == expected_numbers
         assert case(report, "cached-hit-identity")["result"] is True
         for case_id in (
             "key-path-home",

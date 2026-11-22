@@ -573,11 +573,12 @@ with no DTEND, zone-less (floating) times, and local times that a
 daylight-saving jump skips or repeats.
 
 Known gaps, not in the vectors yet (each is a rejected meaning until a later
-PR covers it): JSON floats that Python writes with an exponent (`1e+16`);
-`NaN` and `Infinity` in JSON; YAML merge keys (`<<`) and tags other than
+PR covers it): YAML merge keys (`<<`) and tags other than
 `!!str`; `.nan` (its sign bit differs by CPU in PyYAML); and writing YAML for
 a string that looks like a date or `1_000` (the `yaml-rust2` emitter does not
-quote these). Arbitrary-precision JSON/YAML integer reads, JSON integer
+quote these). JSON exponent forms, nonfinite floats and negative zero are
+covered by rust-05h component controls rather than new depvec vectors.
+Arbitrary-precision JSON/YAML integer reads, JSON integer
 writes and YAML datetime writes now have vectors (rust-05f).
 
 **Set `code-parse` (33 vectors):** does a teaching example parse, as
@@ -1477,8 +1478,9 @@ the crate until the rust-05 and rust-07 closure is native, so
     clock/version adapters, sorted plaintext JSON lines and the exact
     `CAREERBREW_EVENTS=off` early return before clock or writer adapters.
     Event-only float output matches `json.dumps`: NaN and infinities, negative
-    zero, fixed/scientific thresholds and padded exponents. Storage JSON keeps
-    its separate existing nonfinite refusal.
+    zero, fixed/scientific thresholds and padded exponents. Storage JSON's
+    former nonfinite refusal is closed in rust-05h; event bytes and finite
+    storage JSON retain their existing behavior.
   - `tests/oracles/rust05.py` now exercises these providers beside the existing
     receipts. The `receipt-events` case still contains only the original
     request and decision rows. `tests/unit/test_rust05g_component.py` checks
@@ -1501,6 +1503,15 @@ the crate until the rust-05 and rust-07 closure is native, so
     part's sorted compact Python JSON, nonfinite floats, `default=str` and NUL
     delimiter. The encrypted cache retains content-derived paths, fixed-clock
     TTL checks, lazy compute, semantic values and exact hit identity.
+  - The shared `json_yaml` storage boundary now matches Python `json.loads`
+    and `json.dumps` for `NaN`, `Infinity`, `-Infinity`, negative zero and
+    exponent forms. A lexical adapter replaces only nonfinite tokens outside
+    strings for Serde validation and restores typed floats from the original
+    syntax; arbitrary-precision integers and ordinary strings retain their
+    existing paths. Real store write/read/no-op/outline and cached
+    miss/hit/fresh/expiry controls carry all seven numeric cases, including an
+    arbitrary-precision integer. A quoted-token near-miss proves strings stay
+    unchanged. YAML and event behavior are unchanged.
   - `keyfile.rs` now expands `~user` and `~user/...` through the system account
     database in addition to `~` and `~/`. An unknown named user raises the
     native equivalent of Python's `RuntimeError`; the current account is

@@ -383,10 +383,38 @@ fn outline_value(store: &Store, path: &Path, strict: bool) -> Result<Value, &'st
         })
 }
 
+fn nonfinite_numbers() -> Canon {
+    map(&[
+        ("nan", Canon::Float(f64::NAN)),
+        ("infinity", Canon::Float(f64::INFINITY)),
+        ("negative_infinity", Canon::Float(f64::NEG_INFINITY)),
+        ("negative_zero", Canon::Float(-0.0)),
+        ("exponent", Canon::Float(1e-7)),
+        ("high_scientific", Canon::Float(1e16)),
+        ("literal", Canon::Str("NaN Infinity -Infinity".into())),
+        (
+            "big",
+            Canon::Int(
+                "12089258196146291747061791208925819614629174706179"
+                    .parse()
+                    .expect("the synthetic big integer is valid"),
+            ),
+        ),
+    ])
+}
+
 fn cached_value(value: &(Canon, bool)) -> Result<Value, &'static str> {
+    let Canon::Map(items) = &value.0 else {
+        return Err("cache-value");
+    };
+    let numbers = items
+        .iter()
+        .find(|(key, _)| matches!(key, Canon::Str(key) if key == "numbers"))
+        .map(|(_, value)| value)
+        .ok_or("cache-numbers")?;
     let mut text = json_yaml::json_line(&value.0).map_err(|_| "cache-json")?;
     text.pop();
-    Ok(json!({"hit": value.1, "sha256": sha(text.as_bytes())}))
+    Ok(json!({"hit": value.1, "sha256": sha(text.as_bytes()), "numbers": typed(numbers)}))
 }
 
 fn outline_and_cache_cases(
@@ -470,6 +498,36 @@ fn outline_and_cache_cases(
         outline_value(store, &bad_yaml, true),
     );
 
+    let nonfinite_path = root.join("work/nonfinite.json");
+    let nonfinite_value = nonfinite_numbers();
+    call(
+        cases,
+        "json-nonfinite-write",
+        store
+            .write_json(&nonfinite_path, &nonfinite_value)
+            .map(|_| Value::Null)
+            .map_err(|error| store_error(&error)),
+    );
+    let nonfinite_read = store
+        .read_json(&nonfinite_path, Canon::Null, true)
+        .map_err(|_| "json-nonfinite-read")?;
+    call(cases, "json-nonfinite-read", Ok(typed(&nonfinite_read)));
+    let nonfinite_before = identity(&nonfinite_path).map_err(|_| "identity")?;
+    call(
+        cases,
+        "json-nonfinite-noop",
+        store
+            .write_json_if_changed(&nonfinite_path, &nonfinite_read)
+            .map(|value| json!(value))
+            .map_err(|error| store_error(&error)),
+    );
+    cases.push(json!({"id": "json-nonfinite-noop-identity", "result": nonfinite_before == identity(&nonfinite_path).map_err(|_| "identity")?}));
+    call(
+        cases,
+        "outline-nonfinite",
+        outline_value(store, &nonfinite_path, true),
+    );
+
     let key_48 = "k".repeat(48);
     for (id, key) in [
         ("outline-key-48", key_48.clone()),
@@ -537,6 +595,7 @@ fn outline_and_cache_cases(
             Ok(map(&[
                 ("title", Canon::Str(CANARY.into())),
                 ("count", int(1)),
+                ("numbers", nonfinite_numbers()),
             ]))
         },
     )
@@ -571,6 +630,7 @@ fn outline_and_cache_cases(
             Ok(map(&[
                 ("title", Canon::Str(CANARY.into())),
                 ("count", int(2)),
+                ("numbers", nonfinite_numbers()),
             ]))
         },
     )
