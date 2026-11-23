@@ -2099,6 +2099,25 @@ the crate until the rust-05 and rust-07 closure is native, so
   the same source, with CPU/RSS p95 at most 1.10 times the paired oracle. Any
   missing contention, counter violation, extra-path rejection or resource excess
   keeps Python. Production activation remains unchanged.
+- **Review-correction acceptance (2026-11-23, macOS):** clean measured source
+  `45b03e87ec2df31e1e4915acb0a72cb9bd25fbf4`; evidence-source hash
+  `efafe802b692394c5648a95f1ea7a5d922403b630aa6c7698e2c5dc8b727f832`;
+  fixture hash `5a22d252c0cd1fd4e2235907960fa9b7570ea1dd348af41f9bcb9ec715cf4895`;
+  release-candidate SHA-256
+  `b95dc95a60db6cf03e289b3ca4a2603661e5ec427e32e5cac4a7eb48d3f4a817`.
+  Verify passes 6/6 with zero violations. The real transaction workload records
+  1,000 operations, 250 contentions and 250 holder saves, with zero cross-session
+  writes, stale claims or conflicting saves; its forced-write control makes the
+  cross-session and conflict counters nonzero. The expected-path duplicate
+  control records duplicate count 2 with zero contract, side-effect, missing-write
+  or privacy violations. Baseline: 30 runs. Measurement: 30 unique, uncached
+  pairs in each regime. Cold CPU p95 was 2,906,440 to 1,242,809 microseconds;
+  warm was 2,780,748 to 1,260,299. Cold tree-RSS p95 was 63,094,784 to
+  11,894,784 bytes; warm was 62,980,096 to 11,927,552. Each ratio is below 1.10.
+  `decide` returned component-only `activate` with no reasons. Fresh extra,
+  missing and duplicate controls each returned `keep-python` with
+  `verify-check-failed` and `verify-violation`. Production routes, shipped crates
+  and activation remain unchanged.
 
 ### rust-11: Port project imports, exact source links and memory sync
 
