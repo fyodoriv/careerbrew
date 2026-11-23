@@ -2118,6 +2118,20 @@ the crate until the rust-05 and rust-07 closure is native, so
   missing and duplicate controls each returned `keep-python` with
   `verify-check-failed` and `verify-violation`. Production routes, shipped crates
   and activation remain unchanged.
+- **Hosted-review fixture acceptance (2026-11-23, macOS):** clean measured source
+  `167a283f2968736f624afbd2c1f7ebcafd733a12`; evidence-source hash
+  `8ac6130001aa8bee78290993fc9d7527c7f61a22677e408f940976e2566fd402`;
+  fixture hash `5a22d252c0cd1fd4e2235907960fa9b7570ea1dd348af41f9bcb9ec715cf4895`;
+  release-candidate SHA-256
+  `cdbd0fceb92c34d1ef65fef9c31958d64552f2c83a5ae12f8d64cd76d5af92b9`.
+  Both engines select the `pr-8` run by identity and report it quiet. Verify passes
+  6/6 with zero violations. Baseline: 30 runs. Measurement: 30 unique, uncached
+  pairs in each regime. Cold CPU p95 was 2,819,397 to 1,232,401 microseconds;
+  warm was 2,854,529 to 1,235,597. Cold tree-RSS p95 was 63,160,320 to
+  12,173,312 bytes; warm was 63,160,320 to 12,206,080. Each ratio is below 1.10.
+  `decide` returned component-only `activate`; fresh extra, missing and duplicate
+  controls returned `keep-python`. The crate table marks `careerbrew-sessions`
+  `none: component parity only`; routes, shipped crates and activation are unchanged.
 
 ### rust-11: Port project imports, exact source links and memory sync
 
