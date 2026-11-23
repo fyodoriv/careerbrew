@@ -1828,6 +1828,25 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native connectors and recurrence.
 - **Gate:** 100% of source and recurrence vectors agree; 0 wrong-host
   credentials, duplicate cursor items or cross-source suppression.
+- **Component pre-registration (2026-11-23):** source base
+  `027f9d80f4884f3758df535a837c033d8dcbc0e0`. Six differential groups cover
+  HTTP/auth/host and redirect policy; connector evidence and bounded cursors;
+  ICS/Graph calendar recurrence; Graph/JMAP/IMAP mail metadata and
+  classification; source-local failures and literal-secret refusal; and the
+  owned `connect` CLI handler. The suite replays every registered current
+  fixture identity and adds only synthetic cursor, recurrence and refusal
+  variants. It never uses a live account.
+- **Comparison and normalization:** exact typed JSON stdout and exit status;
+  semantic filesystem state and per-phase write counts. Owned paths normalize
+  to `<owned>`, sealed records to type markers, and generated credentials never
+  enter a report. No byte normalization hides a contract difference.
+- **Prediction:** 100% agreement with zero privacy, policy, role,
+  source-isolation, side-effect, missing-write or duplicate-write violations.
+  Native process-tree CPU p95 and peak RSS stay at or below 1.10 times the
+  matching baseline in both cache regimes. Both noise floors start unmeasured,
+  so the ratio remains fail-closed. Any disagreement, violation or higher ratio
+  keeps Python and requires a newly registered approach. This is component
+  parity only: production routes, shipped crates and activation stay unchanged.
 
 ### rust-09: Port projects, priorities and promises
 
