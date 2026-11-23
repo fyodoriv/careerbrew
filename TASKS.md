@@ -111,17 +111,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: any contract disagreement, privacy violation or missing/duplicate write, or CPU/RSS ratio >1.10 B, blocks rollout. Rework the adapter or dependency, register the new approach and remeasure; keep the last verified handler. Preparation fails on any accepted planted defect or unsupported required contract.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
 
-- [ ] Rust migration: Port HTTP sources, calendar and mail
-  - **ID**: rust-08
-  - **Blocked**: prerequisite: rust-05, rust-07 must land and pass its acceptance gates first
-  - **Details**: Port bounded HTTP, retries, errors, auth/host validation, cursor handling, calendars and recurrence. Replay current recorded synthetic HTTP fixtures without live accounts. Preserve source-local failure isolation and terms restrictions. Follow the measured Rust migration plan in `docs/rust-migration.md`: step `rust-08` in "Work breakdown" (its inputs, outputs and gate), "Scope", and "Measurement protocol for every step". This step also owns `tests/fixtures/http/` (every host folder except the feed and team-feed folders and the sign-in host) and `tests/fixtures/calendar/` ("Every module has an owner step" in the same page). Split large capabilities into independently measured PRs. Port this capability's CLI handlers and the assertions of its test files in this step, and route its own commands to native code when its activation closure is native; do not defer them to rust-26 or rust-27 ("Every module has an owner step" lists them). A component-only result does not enable production dispatch: the plan's full native activation closure must be measured before switching.
-  - **Files**: src/careerbrew/connectors.py; calendar.py; mail.py
-  - **Hypothesis**: replacing this slice preserves 100% of its registered behavior with 0 privacy/policy/side-effect violations; native CPU-time p95 and peak RSS stay at or below 1.10 times measured baseline B. Preparation steps instead prove their harness/dependency controls before any product switch. No current speed result is claimed.
-  - **Measurement**: After rust-00 creates the harness: `heavy-run --exclusive cargo xtask migration baseline --step rust-08`, `heavy-run cargo xtask migration verify --step rust-08`, `heavy-run --exclusive cargo xtask migration measure --step rust-08 --pairs 30`, then `cargo xtask migration decide --step rust-08`. Commit the baseline and prediction before implementation.
-  - **Success**: 100% source/recurrence vectors agree; 0 wrong-host credentials, duplicate cursor items or cross-source suppression. All applicable shared parity/resource gates pass; whole-repo fast/full checks remain green.
-  - **Pivot**: any contract disagreement, privacy violation or missing/duplicate write, or CPU/RSS ratio >1.10 B, blocks rollout. Rework the adapter or dependency, register the new approach and remeasure; keep the last verified handler. Preparation fails on any accepted planted defect or unsupported required contract.
-  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
-
 - [ ] Rust migration: Port projects, priorities and promises
   - **ID**: rust-09
   - **Blocked**: prerequisite: rust-05, rust-07 must land and pass its acceptance gates first

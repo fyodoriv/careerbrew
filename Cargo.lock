@@ -234,6 +234,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "careerbrew-sources"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "careerbrew-setup",
+ "careerbrew-vault",
+ "chrono",
+ "chrono-tz",
+ "icalendar",
+ "regex",
+ "rrule",
+ "serde_json",
+]
+
+[[package]]
 name = "careerbrew-vault"
 version = "0.1.0"
 dependencies = [

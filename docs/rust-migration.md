@@ -9,9 +9,10 @@ repository can do any step from this page and the task block.
   actions` routes to `careerbrew-native` since `rust-03` activated
   (2026-11-19, [rust-03 verdict](#rust-03-verdict)). No other gain is claimed. See [Current state](#current-state) and
   [State of rust-00](#state-of-rust-00).
-- **Next task:** `rust-07` (plugin, machine and account setup).
-  `rust-00`, `rust-01` and `rust-02` are done (2026-11-18), and `rust-03` is
-  done (2026-11-19); their follow-ups are tasks in `TASKS.md`.
+- **Next task:** `rust-09` (projects, priorities and promises).
+  `rust-00` through `rust-08` have their recorded preparation or component
+  results; only the `rust-03` action catalog is active in production. Follow-ups
+  and later activation closure remain tasks in `TASKS.md`.
 - **How to read it:** the [goal](#goal-and-vision) and [decision](#decision-and-rejected-alternatives),
   then the [measurement protocol](#measurement-protocol-for-every-step), then
   [build order versus production activation](#build-order-versus-production-activation),
@@ -1828,6 +1829,83 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native connectors and recurrence.
 - **Gate:** 100% of source and recurrence vectors agree; 0 wrong-host
   credentials, duplicate cursor items or cross-source suppression.
+- **Component pre-registration (2026-11-23):** source base
+  `027f9d80f4884f3758df535a837c033d8dcbc0e0`. Six differential groups cover
+  HTTP/auth/host and redirect policy; connector evidence and bounded cursors;
+  ICS/Graph calendar recurrence; Graph/JMAP/IMAP mail metadata and
+  classification; source-local failures and literal-secret refusal; and the
+  owned `connect` CLI handler. The suite replays every registered current
+  fixture identity and adds only synthetic cursor, recurrence and refusal
+  variants. It never uses a live account.
+- **Comparison and normalization:** exact typed JSON stdout and exit status;
+  semantic filesystem state and per-phase write counts. Owned paths normalize
+  to `<owned>`, sealed records to type markers, and generated credentials never
+  enter a report. No byte normalization hides a contract difference.
+- **Prediction:** 100% agreement with zero privacy, policy, role,
+  source-isolation, side-effect, missing-write or duplicate-write violations.
+  Native process-tree CPU p95 and peak RSS stay at or below 1.10 times the
+  matching baseline in both cache regimes. Both noise floors start unmeasured,
+  so the ratio remains fail-closed. Any disagreement, violation or higher ratio
+  keeps Python and requires a newly registered approach. This is component
+  parity only: production routes, shipped crates and activation stay unchanged.
+- **Component oracle baseline before native implementation (2026-11-23, macOS):**
+  clean source revision `f00bc99357183904149c99288ef55418e4a0dd01`; 30 runs;
+  CPU p50/p95 276,371/296,157 microseconds and tree-RSS p50/p95
+  56,655,872/56,868,864 bytes. Evidence-source hash
+  `ce97203f9f8a41ac40ee32676a098ef973ff08cf2ab7c96cf8e16f2499241b60`;
+  fixture hash `6c6e83b98ed7ef0a84d82f6477a29704679d0eb44d5758b858a0e3f19d1f4439`.
+  This is the pre-native prediction record, not a speed result.
+- **Component implementation:** `crates/sources` provides bounded recorded HTTP,
+  host and redirect authorization, source evidence and cursor adapters, ICS/Graph
+  recurrence, Graph/JMAP/IMAP metadata, source-local failure isolation and the
+  `connect` component handler. `sources-component` is synthetic-only. The custom
+  verifier compares exact typed output, semantic writes and per-phase write
+  transitions; planted extra, missing and duplicate writes must fail. Production
+  Python, native routes, shipped crates and activation tables are unchanged.
+- **Component measurement (2026-11-23, macOS):**
+  - Clean source revision `23992167c93f1218f64a27c1b392833ee7b4fff8`.
+    All three records share evidence-source hash
+    `58289a84b6bcfded6e9f75829261fd46b1b059b5f8fb9d2c3640f1b6a80c5339`
+    and fixture hash
+    `6c6e83b98ed7ef0a84d82f6477a29704679d0eb44d5758b858a0e3f19d1f4439`.
+    Verify and measure share release-candidate SHA-256
+    `b4d1b4a1ba70be850a1d66b2a4554d3cbd275f11ceb90bba6d23d5c429c2771f`.
+  - Baseline: 30 runs. Verify: 6/6 checks with zero contract, privacy, role,
+    authorization, side-effect, missing-write or duplicate-write violations.
+    Measurement: 30 unique, uncached pairs in each regime.
+  - Cold CPU p95 was 292,729 to 12,072 microseconds; warm was 294,053 to
+    11,926. Cold tree-RSS p95 was 56,934,400 to 9,977,856 bytes; warm was
+    56,508,416 to 9,994,240. Each ratio is below 1.10. The unmeasured noise
+    floors keep the ratio fail-closed.
+  - `migration decide --step rust-08` returned `activate` with no reasons.
+    Real extra, missing and duplicate native-write controls each returned
+    `keep-python` with `verify-check-failed` and `verify-violation`; their
+    side-effect, missing-write and duplicate-write counters respectively are
+    nonzero. This is the component verdict only. Production source, calendar,
+    mail and storage routes remain unchanged; activation still needs the
+    complete native closure, fresh acceptance records and rollback evidence.
+- **Review-correction pre-registration:** restrictive `allowed_hosts` controls
+  cover connector, calendar, mail and `connect` calls; moved and cancelled
+  RECURRENCE-ID controls cross the 2026-11-01 DST boundary; mail near-misses
+  include `assessments` and `offering`. These controls fail the original
+  candidate. Success keeps every prior vector and adds zero differential or
+  privacy violations. Any host-policy bypass, duplicate master/exception,
+  classification drift or resource ratio above 1.10 rejects the correction.
+  Fresh baseline, verify, measure and decide records are required after the
+  source change. Production activation remains unchanged.
+- **Review-correction acceptance (2026-11-23, macOS):** clean source revision
+  `a51632d96f3e570d783ec787bee4973fda67d93d`; evidence-source hash
+  `4053bb14602326c5300fd7524639017f021d47d7ac4ae3e668a3ed7e7eb7435d`;
+  fixture hash
+  `6c6e83b98ed7ef0a84d82f6477a29704679d0eb44d5758b858a0e3f19d1f4439`;
+  release-candidate SHA-256
+  `c21fb93ac40451bb17367d3ab4f25dcb7149ca8e586a79209ee7a8e4162d6c05`.
+  Verify passes 6/6 with zero violations. Cold CPU p95 is 319,796 to 15,015
+  microseconds; warm is 351,931 to 16,159. Cold tree-RSS p95 is 58,458,112 to
+  11,304,960 bytes; warm is 58,425,344 to 11,485,184. All 30 pairs per regime
+  meet the 1.10 limit and `decide` returns component-only `activate`. Fresh
+  extra, missing and duplicate write controls return `keep-python` with their
+  respective counters nonzero. No route or activation state changes.
 
 ### rust-09: Port projects, priorities and promises
 
@@ -2299,6 +2377,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
 | `crates/vault/` | `careerbrew-vault` | the `CBV1` codec, key/atomic/lock providers, rust-05f storage readers/writers, receipt IO and adapter-driven `data edit`/`secret set`, rust-05g settings/general-event IO, rust-05h outline/digest/cache helpers, named-user key paths and component `data show`, and rust-05i bulk vault/status operations plus dynamic denied-host controls; synthetic `vault-store` transport only | none: component parity only |
 | `crates/setup/` | `careerbrew-setup` | the rust-07 plugin, machine, OAuth reference, MCP repair, self-update and workflow component, with all eleven owned handler adapters; synthetic `setup-component` transport only | none: component parity only |
+| `crates/sources/` | `careerbrew-sources` | the rust-08 bounded recorded HTTP, source cursor, calendar recurrence, mail metadata and `connect` component; synthetic `sources-component` transport only | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
@@ -3050,6 +3129,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 - `tests/fixtures/http/www.googleapis.com/` (3): `drive_v3_files.json`, `drive_v3_files_doc-prd-1.json`, `drive_v3_files_doc-prd-1_comments.json`
 - CLI handlers it ports out of `cli.py` (1): `cmd_connect`
 - Assertions it ports (5 test files, the files themselves are listed under `rust-27`): `us-42-connect.sh`, `test_connect_wizard.py`, `test_issue_199.py`, `test_jira_connector.py`, `test_outlook_connector.py`
+- Native crate it adds (`keep-native` in the inventory): `crates/sources/` (`http.rs`, `connectors.rs`, `calendar.rs`, `mail.rs`, `cli.rs`, `synthetic.rs`, `lib.rs` and `bin/sources-component.rs`), plus `tests/oracles/rust08.py`, `tests/unit/test_rust08_component.py`, `xtask/src/rust08.rs` and `xtask/tests/rust08.rs`.
 
 #### rust-09: Port projects, priorities and promises (9 files)
 
