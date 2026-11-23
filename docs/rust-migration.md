@@ -2041,6 +2041,13 @@ the crate until the rust-05 and rust-07 closure is native, so
   each regime; any contract mismatch, cross-session write, stale claim,
   conflicting target save or resource excess keeps Python. This is component
   parity only: production dispatch, shipped crates and activation do not change.
+- **Component oracle baseline before native implementation (2026-11-23, macOS):**
+  clean source revision `1570ead209ecb4f6f8e1aa44fe23e96f5e26ab96`; 30 runs;
+  CPU p50/p95 738,892/764,237 microseconds and tree-RSS p50/p95
+  60,456,960/61,063,168 bytes. Evidence-source hash
+  `ddcc848972979ac44fecb2d4e867ac30ad8e66276fe479c4688d69ba3dbdd429`;
+  fixture hash `7d57e9b013641666e53d3a910d072222add8ec7041bade0ed0eee56dc67e797a`.
+  This is the pre-native prediction record, not a speed result.
 
 ### rust-11: Port project imports, exact source links and memory sync
 
