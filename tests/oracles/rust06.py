@@ -465,7 +465,42 @@ def _sync_plugin_ladder(base: Path) -> dict[str, Any]:
         sync.import_bundle(bundle)
     except Exception as exc:
         result["symlink"] = {"error": type(exc).__name__, "unchanged": symlink_before == corporate.evidence()}
+    (plugin / "ladders" / "link.yaml").unlink()
+    malformed = {"id": "synthetic-eng", "name": "Synthetic engineering", "levels": ["e4", "e5"], "competencies": [{"id": "delivery", "name": "Delivery", "weight": 1, "signals": {}, "expect": {"e4": 1}, "descriptions": []}]}
+    store.write_yaml(plugin / "ladders" / "custom.yaml", malformed)
+    malformed_before = corporate.evidence()
+    try:
+        sync.import_bundle(bundle)
+    except Exception as exc:
+        result["malformed"] = {"error": type(exc).__name__, "unchanged": malformed_before == corporate.evidence()}
     return result
+
+
+def _sync_user_ladder(base: Path) -> dict[str, Any]:
+    personal = Workspace(base, "sync-user-personal")
+    store.write_yaml(personal.root / "settings.yaml", {"ladder": "user-eng", "target_level": "u2"})
+    key = sync.pair_init()
+    bundle = personal.base / "user.cbsync"
+    sync.export(bundle)
+    corporate = Workspace(base, "sync-user-corporate")
+    machine.set_role("corporate")
+    sync.pair_join(key)
+    path = corporate.root / "ladders" / "user.yaml"
+    store.write_yaml(
+        path,
+        {
+            "id": "user-eng",
+            "name": "User engineering",
+            "levels": ["u1", "u2"],
+            "competencies": [{"id": "delivery", "name": "Delivery", "weight": 1, "signals": {}, "expect": {"u1": 1, "u2": 2}, "descriptions": {"u1": "synthetic"}, "examples": {"u2": "synthetic"}}],
+        },
+    )
+    assert path.read_bytes().startswith(vault.MAGIC)
+    imported = sync.import_bundle(bundle)
+    from careerbrew.work import promo
+
+    loaded = promo.ladders()["user-eng"]
+    return {"imported": imported, "settings": store.read_yaml(corporate.root / "settings.yaml", {}), "origin": loaded["origin"], "source": path.relative_to(corporate.root).as_posix(), "encrypted": path.read_bytes().startswith(vault.MAGIC)}
 
 
 def _cli_handlers(base: Path) -> dict[str, Any]:
@@ -498,9 +533,9 @@ def _cli_handlers(base: Path) -> dict[str, Any]:
     return outputs
 
 
-def run_all() -> dict[str, Any]:
+def run_all(selected: str | None = None) -> dict[str, Any]:
     base = Path(os.environ["CAREERBREW_HOME"]) / "rust06-workload"
-    base.mkdir(parents=True)
+    base.mkdir(parents=True, exist_ok=True)
     cases: list[dict[str, Any]] = []
     for name, fn in [
         ("archive-roundtrip", _archive_roundtrip),
@@ -513,8 +548,11 @@ def run_all() -> dict[str, Any]:
         ("sync-rejections", _sync_rejections),
         ("sync-allowlist", _sync_allowlist),
         ("sync-plugin-ladder", _sync_plugin_ladder),
+        ("sync-user-ladder", _sync_user_ladder),
         ("cli-handlers", _cli_handlers),
     ]:
+        if selected is not None and name != selected:
+            continue
         _call(cases, name, lambda fn=fn: fn(base))
     text = json.dumps({"cases": cases}, sort_keys=True, separators=(",", ":"))
     if CANARY in text:
@@ -523,9 +561,30 @@ def run_all() -> dict[str, Any]:
 
 
 def main() -> int:
-    if sys.argv[1:] != ["--all"]:
+    args = sys.argv[1:]
+    if args == ["--all"]:
+        selected = None
+    elif len(args) == 2 and args[0] == "--case" and args[1]:
+        selected = args[1]
+    else:
         return 2
-    sys.stdout.write(run_all()["text"])
+    known = {
+        "archive-roundtrip",
+        "archive-rejections",
+        "archive-paths",
+        "archive-corporate",
+        "archive-key-guards",
+        "archive-targets",
+        "sync-roundtrip",
+        "sync-rejections",
+        "sync-allowlist",
+        "sync-plugin-ladder",
+        "sync-user-ladder",
+        "cli-handlers",
+    }
+    if selected is not None and selected not in known:
+        return 2
+    sys.stdout.write(run_all(selected)["text"])
     return 0
 
 

@@ -191,6 +191,8 @@ pub fn import_bundle(
     store: &Store,
     ladders: &BTreeMap<String, Ladder>,
 ) -> Result<Value, SyncError> {
+    std::fs::create_dir_all(root)?;
+    let _ = std::fs::set_permissions(root, std::fs::Permissions::from_mode(0o700));
     let raw = std::fs::read(source)?;
     let cipher = cipher(pair_key, root)?;
     let token =

@@ -12,11 +12,38 @@ use std::process::Command;
 const CANARY: &str = "SYNTHETIC-RUST06-CANARY-7Q9";
 const ORACLE: &str = "tests/oracles/rust06.py";
 
-#[derive(Default)]
-struct Observation {
-    exit: Option<i32>,
+const CASE_IDS: &[&str] = &[
+    "archive-roundtrip",
+    "archive-rejections",
+    "archive-paths",
+    "archive-corporate",
+    "archive-key-guards",
+    "archive-targets",
+    "sync-roundtrip",
+    "sync-rejections",
+    "sync-allowlist",
+    "sync-plugin-ladder",
+    "sync-user-ladder",
+    "cli-handlers",
+];
+
+#[derive(Clone, PartialEq)]
+struct TraceEntry {
+    semantic: String,
+    inode: u64,
+    mtime: i64,
+    mtime_nsec: i64,
+}
+
+type Trace = BTreeMap<String, TraceEntry>;
+type Writes = BTreeMap<String, String>;
+
+struct Phase {
+    id: &'static str,
+    ran: bool,
     stdout: String,
-    writes: BTreeMap<String, String>,
+    writes: Writes,
+    counts: BTreeMap<String, u64>,
     leaked: bool,
 }
 
@@ -40,7 +67,21 @@ fn scan(folder: &Path, leaks: &mut BTreeSet<String>) -> Result<(), String> {
     Ok(())
 }
 
-fn observed_files(root: &Path, folder: &Path) -> Result<BTreeMap<String, String>, String> {
+fn normalized_path(path: &str) -> String {
+    path.split('/')
+        .map(|part| {
+            if part.starts_with("careerbrew-") && part.ends_with(".cbk") {
+                "careerbrew-<archive>.cbk"
+            } else {
+                part
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+fn observed_files(root: &Path, folder: &Path) -> Result<Trace, String> {
+    use std::os::unix::fs::MetadataExt;
     let mut found = BTreeMap::new();
     if !folder.exists() {
         return Ok(found);
@@ -49,53 +90,134 @@ fn observed_files(root: &Path, folder: &Path) -> Result<BTreeMap<String, String>
         let path = entry.map_err(|_| "cannot list owned entry")?.path();
         let metadata =
             std::fs::symlink_metadata(&path).map_err(|_| "cannot inspect owned entry")?;
-        let relative = path
-            .strip_prefix(root)
-            .map_err(|_| "entry escaped root")?
-            .to_string_lossy()
-            .into_owned();
-        if metadata.is_dir() {
-            found.insert(
-                relative,
-                format!("directory:{:o}", metadata.permissions().mode() & 0o777),
-            );
-            found.extend(observed_files(root, &path)?);
+        let relative = normalized_path(
+            &path
+                .strip_prefix(root)
+                .map_err(|_| "entry escaped root")?
+                .to_string_lossy(),
+        );
+        let semantic = if metadata.is_dir() {
+            format!("directory:{:o}", metadata.permissions().mode() & 0o777)
         } else if metadata.is_file() {
             let bytes = std::fs::read(&path).map_err(|_| "cannot read owned file")?;
-            found.insert(
-                relative,
-                format!(
-                    "file:{:o}:{}",
-                    metadata.permissions().mode() & 0o777,
-                    capture_actions::digest(&bytes)
-                ),
-            );
+            let mode = metadata.permissions().mode() & 0o777;
+            // Registered random-value normalization: sealed records, bundle
+            // ciphertext and generated key bytes carry a type marker. Plaintext
+            // files keep their exact content digest.
+            let content = if bytes.starts_with(b"CBV1\n") {
+                "sealed".to_owned()
+            } else if relative.ends_with(".cbk")
+                || relative.ends_with(".cbsync")
+                || relative.ends_with("keys/backup.key")
+                || relative.ends_with("keys/pair.key")
+            {
+                "random".to_owned()
+            } else if relative.ends_with(".yaml") || relative.ends_with(".yml") {
+                std::str::from_utf8(&bytes)
+                    .ok()
+                    .and_then(|text| careerbrew_vault::json_yaml::yaml_read(text).ok())
+                    .map(|value| {
+                        format!(
+                            "yaml:{}",
+                            capture_actions::digest(value.to_json().to_string().as_bytes())
+                        )
+                    })
+                    .unwrap_or_else(|| capture_actions::digest(&bytes))
+            } else if relative.ends_with(".json") {
+                std::str::from_utf8(&bytes)
+                    .ok()
+                    .and_then(|text| careerbrew_vault::json_yaml::json_read(text).ok())
+                    .map(|value| {
+                        format!(
+                            "json:{}",
+                            capture_actions::digest(value.to_json().to_string().as_bytes())
+                        )
+                    })
+                    .unwrap_or_else(|| capture_actions::digest(&bytes))
+            } else {
+                capture_actions::digest(&bytes)
+            };
+            format!("file:{mode:o}:{content}")
         } else if metadata.file_type().is_symlink() {
             let target = std::fs::read_link(&path).map_err(|_| "cannot read owned link")?;
-            found.insert(
-                relative,
-                format!(
-                    "symlink:{}",
-                    capture_actions::digest(target.as_os_str().as_bytes())
-                ),
-            );
+            let target = if target.is_absolute() {
+                target
+                    .strip_prefix(root)
+                    .map_err(|_| "absolute link target escaped its owned root")?
+                    .as_os_str()
+            } else {
+                target.as_os_str()
+            };
+            format!("symlink:{}", capture_actions::digest(target.as_bytes()))
         } else {
             return Err("unsupported owned entry".into());
+        };
+        found.insert(
+            relative,
+            TraceEntry {
+                semantic,
+                inode: metadata.ino(),
+                mtime: metadata.mtime(),
+                mtime_nsec: metadata.mtime_nsec(),
+            },
+        );
+        if metadata.is_dir() {
+            found.extend(observed_files(root, &path)?);
         }
     }
     Ok(found)
 }
 
-fn observe(
+fn semantic(trace: &Trace) -> Writes {
+    trace
+        .iter()
+        .map(|(path, entry)| (path.clone(), entry.semantic.clone()))
+        .collect()
+}
+
+fn write_counts(before: &Trace, after: &Trace) -> BTreeMap<String, u64> {
+    let mut counts = BTreeMap::new();
+    for (path, entry) in after {
+        if before.get(path) != Some(entry) {
+            *counts.entry(path.clone()).or_insert(0) += 1;
+        }
+    }
+    for path in before.keys().filter(|path| !after.contains_key(*path)) {
+        *counts.entry(path.clone()).or_insert(0) += 1;
+    }
+    counts
+}
+
+fn diff(oracle: &Writes, candidate: &Writes) -> (u64, u64, u64) {
+    let extra = candidate
+        .keys()
+        .filter(|path| !oracle.contains_key(*path))
+        .count() as u64;
+    let missing = oracle
+        .keys()
+        .filter(|path| !candidate.contains_key(*path))
+        .count() as u64;
+    let changed = oracle
+        .iter()
+        .filter(|(path, value)| candidate.get(*path).is_some_and(|other| other != *value))
+        .count() as u64;
+    (extra, missing, changed)
+}
+
+fn writes_sha256(writes: &Writes) -> String {
+    capture_actions::digest(json!(writes).to_string().as_bytes())
+}
+
+fn component_side(
     root: &Path,
     program: &Path,
-    args: &[&str],
-    deny_python: bool,
-) -> Result<Observation, String> {
+    native: bool,
+    plant: Option<&str>,
+) -> Result<Vec<Phase>, String> {
     let scratch = tempfile::tempdir().map_err(|_| "cannot create rust-06 home")?;
     let owned = scratch.path().join("owned");
     let mut environment = capture_actions::owned_environment(root, &owned)?;
-    if deny_python {
+    if native {
         environment.remove("PYTHONPATH");
         environment.insert(
             "PYTHONHOME".into(),
@@ -105,71 +227,126 @@ fn observe(
                 .to_string_lossy()
                 .into_owned(),
         );
-    }
-    let before = observed_files(&owned, &owned)?;
-    let mut command = Command::new(program);
-    command
-        .args(args)
-        .current_dir(root)
-        .env_clear()
-        .envs(&environment);
-    let (_, exit, stdout, stderr) = capture_actions::execute(command)?;
-    let after = observed_files(&owned, &owned)?;
-    let writes = after
-        .iter()
-        .filter(|(path, value)| before.get(*path) != Some(*value))
-        .map(|(path, value)| {
-            (
-                path.clone(),
-                value.split(':').next().unwrap_or("entry").to_owned(),
-            )
-        })
-        .collect();
-    let mut leaks = BTreeSet::new();
-    if owned.exists() {
-        scan(&owned, &mut leaks)?;
-    }
-    for (stream, text) in [("stdout", &stdout), ("stderr", &stderr)] {
-        if text.contains(CANARY) {
-            leaks.insert(format!("{stream}-canary"));
+        if let Some(plant) = plant {
+            environment.insert("CAREERBREW_RUST06_PLANT_WRITE".into(), plant.into());
         }
     }
-    Ok(Observation {
-        exit,
-        stdout,
-        writes,
-        leaked: !leaks.is_empty(),
-    })
+    let mut phases = Vec::new();
+    let mut state = observed_files(&owned, &owned)?;
+    for id in CASE_IDS {
+        let mut command = Command::new(program);
+        if native {
+            command.args(["--case", id]);
+        } else {
+            command.args(["-I", "-B", ORACLE, "--case", id]);
+        }
+        command.current_dir(root).env_clear().envs(&environment);
+        let (_, exit, stdout, stderr) = capture_actions::execute(command)?;
+        let after = observed_files(&owned, &owned)?;
+        let counts = write_counts(&state, &after);
+        let mut leaks = BTreeSet::new();
+        scan(&owned, &mut leaks)?;
+        if stdout.contains(CANARY) || stderr.contains(CANARY) {
+            leaks.insert("stream-canary".into());
+        }
+        phases.push(Phase {
+            id,
+            ran: exit == Some(0),
+            stdout,
+            writes: semantic(&after),
+            counts,
+            leaked: !leaks.is_empty(),
+        });
+        state = after;
+    }
+    Ok(phases)
 }
 
-fn component_case(
+fn component_cases(
     root: &Path,
     python: &Path,
     candidate: &Path,
+    plant: Option<&str>,
     cases: &mut Vec<Value>,
     violations: &mut verify::Violations,
 ) -> Result<(), String> {
-    let oracle = observe(root, python, &["-I", "-B", ORACLE, "--all"], false)?;
-    if oracle.exit != Some(0) || oracle.leaked {
-        return Err("the rust-06 Python oracle failed or leaked; verify refused".into());
+    let oracle = component_side(root, python, false, None)?;
+    if oracle.iter().any(|phase| !phase.ran || phase.leaked) {
+        let failed = oracle
+            .iter()
+            .filter(|phase| !phase.ran || phase.leaked)
+            .map(|phase| phase.id)
+            .collect::<Vec<_>>();
+        return Err(format!(
+            "the rust-06 Python oracle failed or leaked at {failed:?}; verify refused"
+        ));
     }
-    let answer = observe(root, candidate, &["--all"], true)?;
-    let matched = answer.exit == Some(0) && answer.stdout.as_bytes() == oracle.stdout.as_bytes();
-    violations.contract += u64::from(!matched);
-    violations.privacy += u64::from(answer.leaked);
-    cases.push(json!({
-        "case": "backup-sync-component",
-        "kind": "rust-06-component",
-        "passed": matched && !answer.leaked,
-        "exit_matches": answer.exit == Some(0),
-        "semantic_match": answer.stdout.as_bytes() == oracle.stdout.as_bytes(),
-        "comparison": "typed-results+semantic-state+handlers+allowlists",
-        "oracle_sha256": capture_actions::digest(oracle.stdout.as_bytes()),
-        "candidate_sha256": capture_actions::digest(answer.stdout.as_bytes()),
-        "oracle_writes": oracle.writes.len(),
-        "candidate_writes": answer.writes.len(),
-        "canary_leaked": answer.leaked,
-    }));
+    let answer = component_side(root, candidate, true, plant)?;
+    for (expected, actual) in oracle.iter().zip(&answer) {
+        let matched = actual.ran && actual.stdout.as_bytes() == expected.stdout.as_bytes();
+        let (extra, missing, changed) = diff(&expected.writes, &actual.writes);
+        let duplicates = actual
+            .counts
+            .iter()
+            .map(|(path, count)| {
+                count.saturating_sub(expected.counts.get(path).copied().unwrap_or(0))
+            })
+            .sum::<u64>();
+        let changed_paths = expected
+            .writes
+            .iter()
+            .filter(|(path, value)| {
+                actual
+                    .writes
+                    .get(*path)
+                    .is_some_and(|other| other != *value)
+            })
+            .map(|(path, _)| path.clone())
+            .collect::<Vec<_>>();
+        let passed = matched && extra + missing + changed + duplicates == 0 && !actual.leaked;
+        violations.contract += u64::from(!matched);
+        violations.side_effect += extra + changed;
+        violations.missing_writes += missing;
+        violations.duplicate_writes += duplicates;
+        violations.privacy += u64::from(actual.leaked);
+        if !matched && expected.id == "archive-corporate" {
+            violations.role += 1;
+        }
+        if !matched
+            && matches!(
+                expected.id,
+                "archive-targets"
+                    | "sync-rejections"
+                    | "sync-allowlist"
+                    | "sync-plugin-ladder"
+                    | "sync-user-ladder"
+            )
+        {
+            violations.authorization += 1;
+        }
+        cases.push(json!({
+            "case": format!("component:{}", expected.id),
+            "kind": "rust-06-component-phase",
+            "passed": passed,
+            "exit_matches": actual.ran,
+            "semantic_match": actual.stdout.as_bytes() == expected.stdout.as_bytes(),
+            "comparison": "typed-results+semantic-write-map+phase-write-counts",
+            "normalization": ["archive-name", "sealed-record", "bundle-ciphertext", "generated-key"],
+            "oracle_sha256": capture_actions::digest(expected.stdout.as_bytes()),
+            "candidate_sha256": capture_actions::digest(actual.stdout.as_bytes()),
+            "writes_match": extra + missing + changed == 0,
+            "oracle_writes": expected.writes.len(),
+            "candidate_writes": actual.writes.len(),
+            "extra_writes": extra,
+            "missing_writes": missing,
+            "changed_writes": changed,
+            "changed_write_paths": changed_paths,
+            "duplicate_writes": duplicates,
+            "oracle_writes_sha256": writes_sha256(&expected.writes),
+            "candidate_writes_sha256": writes_sha256(&actual.writes),
+            "canary_leaked": actual.leaked,
+        }));
+    }
     Ok(())
 }
 
@@ -365,6 +542,7 @@ pub fn record(
     root: &Path,
     python: &Path,
     candidate_override: Option<&Path>,
+    plant: Option<&str>,
 ) -> Result<Value, String> {
     let step = baseline::step("rust-06")?;
     if !python.is_absolute() {
@@ -383,7 +561,7 @@ pub fn record(
     let evidence = baseline::evidence_hashes(root, step)?;
     let mut cases = Vec::new();
     let mut violations = verify::Violations::default();
-    component_case(root, python, &candidate, &mut cases, &mut violations)?;
+    component_cases(root, python, &candidate, plant, &mut cases, &mut violations)?;
     cross_engine_case(root, python, &candidate, &mut cases, &mut violations)?;
     if sources_sha256(root, step)? != hash || baseline::evidence_hashes(root, step)? != evidence {
         return Err("a relevant rust-06 source changed during verify".into());
@@ -424,8 +602,8 @@ pub fn record(
         "violations": violations.to_json(),
         "unobserved_violations": verify::UNOBSERVED,
         "missing_contracts": ["http", "data", "role"],
-        "side_effects_observed": "semantic-state+real-cross-engine-restore",
-        "writes_traced": "component-and-cross-engine",
+        "side_effects_observed": "semantic-write-map+phase-write-counts+real-cross-engine-restore",
+        "writes_traced": "every-component-phase",
         "cases": cases,
     }))
 }

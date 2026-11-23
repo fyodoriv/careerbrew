@@ -25,6 +25,7 @@ CASES = {
     "sync-rejections",
     "sync-allowlist",
     "sync-plugin-ladder",
+    "sync-user-ladder",
     "cli-handlers",
 }
 
@@ -119,6 +120,13 @@ def test_archive_sync_and_handler_contracts_match_real_python(candidate, tmp_pat
         assert plugin["source"] == "plugins/synthetic/ladders/custom.yaml"
         assert plugin["escape"] == {"error": "PluginError", "unchanged": True}
         assert plugin["symlink"] == {"error": "PluginError", "unchanged": True}
+        assert plugin["malformed"] == {"error": "LadderError", "unchanged": True}
+        user = case(report, "sync-user-ladder")
+        assert user["imported"] == {"from": "personal", "added": {"int": "2"}, "ignored": {"int": "0"}}
+        assert user["settings"] == {"ladder": "user-eng", "target_level": "u2"}
+        assert user["origin"] == "user"
+        assert user["source"] == "ladders/user.yaml"
+        assert user["encrypted"] is True
         handlers = case(report, "cli-handlers")
         assert set(handlers) == {"data-status", "backup-create", "backup-verify", "backup-restore", "pair-join", "sync-export", "sync-import"}
         assert all(row["exit"] == {"int": "0"} for row in handlers.values())

@@ -1130,11 +1130,13 @@ pub fn record(
         return rust05::record(root, python, candidate);
     }
     if id == "rust-06" {
-        if test_scope.is_some() || test_oracle.is_some() || wrong.is_some() || plant_write.is_some()
-        {
+        if test_scope.is_some() || test_oracle.is_some() || wrong.is_some() {
             return Err("rust-06 does not accept generic verify test overrides".into());
         }
-        return rust06::record(root, python, candidate);
+        if plant_write.is_some_and(|plant| !matches!(plant, "extra" | "missing" | "duplicate")) {
+            return Err("rust-06 write control must be extra, missing or duplicate".into());
+        }
+        return rust06::record(root, python, candidate, plant_write);
     }
     // A vector-driver step (rust-04): one generated file feeds both drivers.
     if let Some(step) = vecdriver::step(id) {

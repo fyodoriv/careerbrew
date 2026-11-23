@@ -153,6 +153,8 @@ fn collect_files(root: &Path, folder: &Path, found: &mut Vec<PathBuf>) -> Result
 /// Create the uncompressed tar bytes. Symlinks stay out; hard links become
 /// independent regular files, matching Python's dereference=True.
 pub fn archive(root: &Path) -> Result<Vec<u8>, BackupError> {
+    std::fs::create_dir_all(root)?;
+    let _ = std::fs::set_permissions(root, std::fs::Permissions::from_mode(0o700));
     let mut files = Vec::new();
     if root.exists() {
         collect_files(root, root, &mut files)?;

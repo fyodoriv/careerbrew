@@ -244,6 +244,7 @@ dependencies = [
 name = "careerbrew-xtask"
 version = "0.1.0"
 dependencies = [
+ "careerbrew-vault",
  "libc",
  "serde",
  "serde_json",

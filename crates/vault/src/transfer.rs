@@ -190,6 +190,73 @@ fn plugin_resource_files(root: &Path, item: &str) -> Result<Vec<PathBuf>, Transf
     Ok(files)
 }
 
+fn ladder_error() -> TransferError {
+    TransferError::new("LadderError", "invalid ladder")
+}
+
+fn truthy(value: &Canon) -> bool {
+    match value {
+        Canon::Null => false,
+        Canon::Bool(value) => *value,
+        Canon::Int(value) => *value != num_bigint::BigInt::from(0),
+        Canon::Float(value) => *value != 0.0,
+        Canon::Str(value) | Canon::Date(value) | Canon::DateTime(value) => !value.is_empty(),
+        Canon::List(items) => !items.is_empty(),
+        Canon::Map(items) => !items.is_empty(),
+    }
+}
+
+fn map_has(map: &Canon, key: &Canon) -> bool {
+    let Canon::Map(items) = map else {
+        return false;
+    };
+    items.iter().any(|(name, _)| name == key)
+}
+
+fn validate_ladder(value: &Canon) -> Result<(String, Vec<String>), TransferError> {
+    let Canon::Map(_) = value else {
+        return Err(ladder_error());
+    };
+    let Some(Canon::Str(id)) = map_get(value, "id").filter(|value| truthy(value)) else {
+        return Err(ladder_error());
+    };
+    let Some(Canon::List(levels)) = map_get(value, "levels").filter(|value| truthy(value)) else {
+        return Err(ladder_error());
+    };
+    let Some(Canon::List(competencies)) =
+        map_get(value, "competencies").filter(|value| truthy(value))
+    else {
+        return Err(ladder_error());
+    };
+    for competency in competencies {
+        let Canon::Map(_) = competency else {
+            return Err(ladder_error());
+        };
+        for key in ["id", "name", "weight", "signals", "expect"] {
+            if map_get(competency, key).is_none() {
+                return Err(ladder_error());
+            }
+        }
+        let expect = map_get(competency, "expect").unwrap();
+        if levels.iter().any(|level| !map_has(expect, level)) {
+            return Err(ladder_error());
+        }
+        for key in ["descriptions", "examples"] {
+            if map_get(competency, key).is_some_and(|value| !matches!(value, Canon::Map(_))) {
+                return Err(ladder_error());
+            }
+        }
+    }
+    let levels = levels
+        .iter()
+        .filter_map(|level| match level {
+            Canon::Str(level) => Some(level.clone()),
+            _ => None,
+        })
+        .collect();
+    Ok((id.clone(), levels))
+}
+
 impl Context {
     pub fn from_env() -> Result<Self, TransferError> {
         let root = std::env::var_os("CAREERBREW_HOME")
@@ -472,26 +539,13 @@ impl Context {
             files.sort();
             sources.extend(files.into_iter().map(|path| ("user".to_owned(), path)));
         }
+        let store = self.store();
         let mut out = BTreeMap::new();
         for (origin, path) in sources {
-            let text = std::fs::read_to_string(&path)?;
-            let value = crate::json_yaml::yaml_read(&text)
-                .map_err(|_| TransferError::new("LadderError", "invalid ladder"))?;
-            let Some(Canon::Str(id)) = map_get(&value, "id") else {
-                return Err(TransferError::new("LadderError", "invalid ladder"));
-            };
-            let Some(Canon::List(levels)) = map_get(&value, "levels") else {
-                return Err(TransferError::new("LadderError", "invalid ladder"));
-            };
-            let levels = levels
-                .iter()
-                .map(|level| match level {
-                    Canon::Str(level) => Ok(level.clone()),
-                    _ => Err(TransferError::new("LadderError", "invalid ladder level")),
-                })
-                .collect::<Result<Vec<_>, _>>()?;
+            let value = store.read_yaml(&path, Canon::Map(Vec::new()), true)?;
+            let (id, levels) = validate_ladder(&value)?;
             out.insert(
-                id.clone(),
+                id,
                 sync::Ladder {
                     levels,
                     origin,

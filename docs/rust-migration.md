@@ -1655,14 +1655,19 @@ the crate until the rust-05 and rust-07 closure is native, so
     the exact Python set, including `pCloud Drive` and `Sync`, for both create
     and restore.
   - Ladder reads follow Python's source order: base resources, sorted locked
-    plugins, then user ladders. The plugin adapter reads each lock entry and
-    manifest, carries `origin` and source path, and rejects missing, escaping or
-    symlinked resources before import. A differential case applies a valid
-    plugin ladder and level, then proves both refusal paths.
-  - `tests/oracles/rust06.py` and `synthetic_transfer.rs` run eleven stateful
+    plugins, then user ladders. Every source uses the encrypting store and its
+    key adapter, including user ladders. The plugin adapter reads each lock
+    entry and manifest, carries `origin` and source path, and rejects missing,
+    escaping or symlinked resources before import. Validation requires id,
+    levels and competencies, every competency field, an expectation per level,
+    and mapping-shaped descriptions/examples. Differential cases apply valid
+    plugin and encrypted user ladders, then prove escape, symlink and malformed
+    resource refusals.
+  - `tests/oracles/rust06.py` and `synthetic_transfer.rs` run twelve stateful
     groups: roundtrip and conflicts, strict rejection, malicious names and
     links, corporate restore, key/target guards, sync roundtrip/refusals,
-    import allowlists, plugin ladders and all seven successful handler outputs. `xtask` also
+    import allowlists, plugin ladders, user ladders and all seven successful
+    handler outputs. `xtask` also
     creates a real archive with each engine, then verifies and restores it with
     the other. Both directions compare restored content and modes directly.
   - Random Fernet ciphertext and gzip bytes are not compared. The report uses
@@ -1670,6 +1675,17 @@ the crate until the rust-05 and rust-07 closure is native, so
     error classes. Only the volatile archive timestamp/hash in CLI output is
     normalized, to `careerbrew-<archive>.cbk`; no other output is normalized.
     Reports contain no key, bundle plaintext or synthetic record text.
+  - Verify runs every group as a phase in one owned synthetic home. It compares
+    each phase's semantic write map and per-path write counts, including inode
+    and modification time for same-byte rewrites. Extra, changed, missing and
+    duplicate writes increment their own counters; policy output mismatches
+    also increment role or authorization. Real extra, missing and duplicate
+    native-write plants must each make `decide` return `keep-python`.
+  - Write normalization is explicit: archive names, generated keys, sealed
+    records and bundle ciphertext become type markers; plaintext YAML/JSON is
+    hashed by parsed typed value; other plaintext keeps its content hash. A
+    symlink target is normalized only after proving it stays inside the owned
+    root. No absolute path or private value enters the record.
   - The step binds the Python oracle and call closure, native adapters, reused
     rust-05 providers, harness sources, candidate bytes and the generic ladder
     fixture. Baseline, verify and measure share source revision, evidence-source
@@ -1677,26 +1693,10 @@ the crate until the rust-05 and rust-07 closure is native, so
     noise floors remain `unmeasured`, so the 1.10 ratio applies fail-closed.
   - Production Python, `config/native-routes.txt`, shipped crates and activation
     tables are unchanged. Component parity does not activate backup or sync.
-- **Component measurement after review fixes (2026-11-23, macOS):**
-  - Clean source revision `c1910a6b22532b2f27c0f665143b1e18cac945e0`.
-    All three records share evidence-source hash
-    `e03fb0c137c7732d026a47423428e4a0a300bce84529f9b4ea4f208122a04d32`
-    and fixture hash
-    `6d97d35d117ce9225bb95ac1d92dd2376b02fb25b588a5ea73f94526dcb82ad5`.
-    Verify and measure share release-candidate SHA-256
-    `be9d1be360fba5917677dccc5417889d6cf7ffc3e736fe27e12aa6cb1306395d`.
-    The earlier `394f7641` verdict is superseded and does not cover these bytes.
-  - Baseline: 30 runs. Verify: 2/2 checks with 0 contract, privacy, role,
-    authorization, side-effect, missing-write or duplicate-write violations.
-    Measurement: 30 unique, uncached pairs in each regime.
-  - Cold CPU p95 was 278,334 to 72,858 microseconds; warm was 281,922 to
-    75,425. Paired cold tree-RSS maximum was 49,135,616 to 8,437,760 bytes;
-    warm was 46,809,088 to 8,437,760. Each ratio is below 1.10. The
-    unmeasured noise floors keep the ratio fail-closed.
-  - `migration decide --step rust-06` returned `activate` with no reasons.
-    This is the component verdict only. Production backup, sync and storage
-    routes remain Python; activation still needs the complete native closure,
-    fresh acceptance records and rollback evidence.
+- **Measurement state:** the earlier `c1910a6b` candidate verdict is superseded
+  by the encrypted-ladder, full-validation and write-evidence fixes. It is not
+  evidence for the changed bytes. A new clean-source chain and planted-write
+  decisions are required.
 
 ### rust-07: Port plugin, machine and account setup
 

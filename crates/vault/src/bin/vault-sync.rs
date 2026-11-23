@@ -91,6 +91,18 @@ fn main() -> ExitCode {
             }
         };
     }
+    if args.len() == 2 && args[0] == "--case" {
+        return match careerbrew_vault::synthetic_transfer::run_case(&args[1]) {
+            Ok(output) => {
+                print!("{output}");
+                ExitCode::SUCCESS
+            }
+            Err(error) => {
+                eprintln!("vault-sync: {error}");
+                ExitCode::from(1)
+            }
+        };
+    }
     match run(&args) {
         Ok(output) => {
             print!("{output}");

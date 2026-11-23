@@ -962,7 +962,72 @@ fn sync_plugin_ladder(base: &Path) -> CaseResult<Value> {
         "symlink".into(),
         json!({"error": linked.err().unwrap_or("accepted"), "unchanged": symlink_before == corporate.evidence(&corporate.root)?}),
     );
+    std::fs::remove_file(plugin.join("ladders/link.yaml")).map_err(io)?;
+    let malformed = crate::json_yaml::yaml_read(
+        "id: synthetic-eng\nname: Synthetic engineering\nlevels: [e4, e5]\ncompetencies:\n  - {id: delivery, name: Delivery, weight: 1, signals: {}, expect: {e4: 1}, descriptions: []}\n",
+    )
+    .map_err(|_| "YAMLError")?;
+    write_yaml(&corporate, &plugin.join("ladders/custom.yaml"), malformed)?;
+    let malformed_before = corporate.evidence(&corporate.root)?;
+    let invalid = import_with_loaded_ladders(&corporate, &bundle);
+    out.as_object_mut().unwrap().insert(
+        "malformed".into(),
+        json!({"error": invalid.err().unwrap_or("accepted"), "unchanged": malformed_before == corporate.evidence(&corporate.root)?}),
+    );
     Ok(out)
+}
+
+fn sync_user_ladder(base: &Path) -> CaseResult<Value> {
+    let personal = Workspace::new(base, "sync-user-personal")?;
+    write_yaml(
+        &personal,
+        &personal.root.join("settings.yaml"),
+        Canon::Map(vec![
+            (Canon::Str("ladder".into()), Canon::Str("user-eng".into())),
+            (Canon::Str("target_level".into()), Canon::Str("u2".into())),
+        ]),
+    )?;
+    let pair_key = sync::pair_init(&personal.pair, &personal.root).map_err(|error| error.class)?;
+    let bundle = personal.base.join("user.cbsync");
+    sync::export(
+        &bundle,
+        &personal.root,
+        &personal.pair,
+        Role::Personal,
+        "2026-03-01T09:30:00+00:00",
+        &personal.store()?,
+    )
+    .map_err(|error| error.class)?;
+    let corporate = Workspace::new(base, "sync-user-corporate")?;
+    set_corporate(&corporate, "corporate")?;
+    sync::pair_join(&corporate.pair, &corporate.root, &pair_key).map_err(|error| error.class)?;
+    let path = corporate.root.join("ladders/user.yaml");
+    let ladder = crate::json_yaml::yaml_read(
+        "id: user-eng\nname: User engineering\nlevels: [u1, u2]\ncompetencies:\n  - {id: delivery, name: Delivery, weight: 1, signals: {}, expect: {u1: 1, u2: 2}, descriptions: {u1: synthetic}, examples: {u2: synthetic}}\n",
+    )
+    .map_err(|_| "YAMLError")?;
+    write_yaml(&corporate, &path, ladder)?;
+    let imported = import_with_loaded_ladders(&corporate, &bundle)?;
+    let settings = corporate
+        .store()?
+        .read_yaml(
+            &corporate.root.join("settings.yaml"),
+            Canon::Map(Vec::new()),
+            true,
+        )
+        .map_err(|_| "OSError")?;
+    let ladders = corporate
+        .context()?
+        .ladders()
+        .map_err(|error| error.class)?;
+    let loaded = ladders.get("user-eng").ok_or("LadderError")?;
+    Ok(json!({
+        "imported": typed(imported),
+        "settings": canon_output(&settings),
+        "origin": loaded.origin.clone(),
+        "source": loaded.source.strip_prefix(&corporate.root).unwrap_or(&loaded.source).to_string_lossy().replace('\\', "/"),
+        "encrypted": std::fs::read(&path).map_err(io)?.starts_with(crate::MAGIC),
+    }))
 }
 
 fn normalize_archive_names(text: &str) -> String {
@@ -1082,7 +1147,29 @@ fn python_json_ascii(text: &str) -> String {
 
 type CaseFn = fn(&Path) -> CaseResult<Value>;
 
-pub fn run_all() -> Result<String, String> {
+fn plant_write(base: &Path, selected: &str) -> Result<(), String> {
+    let Ok(plant) = std::env::var("CAREERBREW_RUST06_PLANT_WRITE") else {
+        return Ok(());
+    };
+    if plant == "duplicate" && selected == "archive-rejections" {
+        let path = base.join("archive-roundtrip/data/profile.yaml");
+        let bytes = std::fs::read(&path).map_err(|_| "plant".to_owned())?;
+        return std::fs::write(path, bytes).map_err(|_| "plant".into());
+    }
+    if plant == "duplicate" || selected != "archive-roundtrip" {
+        return Ok(());
+    }
+    match plant.as_str() {
+        "extra" => {
+            std::fs::write(base.join("planted-extra"), b"synthetic").map_err(|_| "plant".into())
+        }
+        "missing" => std::fs::remove_file(base.join("archive-roundtrip/data/profile.yaml"))
+            .map_err(|_| "plant".into()),
+        _ => Err("plant".into()),
+    }
+}
+
+pub fn run_selected(selected: Option<&str>) -> Result<String, String> {
     let root = std::env::var_os("CAREERBREW_HOME")
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
@@ -1100,14 +1187,19 @@ pub fn run_all() -> Result<String, String> {
         ("sync-rejections", sync_rejections),
         ("sync-allowlist", sync_allowlist),
         ("sync-plugin-ladder", sync_plugin_ladder),
+        ("sync-user-ladder", sync_user_ladder),
         ("cli-handlers", cli_handlers),
     ];
     let mut cases = Vec::new();
     for (name, function) in functions {
+        if selected.is_some_and(|selected| selected != *name) {
+            continue;
+        }
         let result = match function(&base) {
             Ok(value) => typed(value),
             Err(error) => json!({"error": error}),
         };
+        plant_write(&base, name)?;
         cases.push(json!({"id": name, "result": result}));
     }
     let text = python_json_ascii(
@@ -1117,4 +1209,29 @@ pub fn run_all() -> Result<String, String> {
         return Err("privacy".into());
     }
     Ok(text)
+}
+
+pub fn run_all() -> Result<String, String> {
+    run_selected(None)
+}
+
+pub fn run_case(case: &str) -> Result<String, String> {
+    const IDS: &[&str] = &[
+        "archive-roundtrip",
+        "archive-rejections",
+        "archive-paths",
+        "archive-corporate",
+        "archive-key-guards",
+        "archive-targets",
+        "sync-roundtrip",
+        "sync-rejections",
+        "sync-allowlist",
+        "sync-plugin-ladder",
+        "sync-user-ladder",
+        "cli-handlers",
+    ];
+    if !IDS.contains(&case) {
+        return Err("case".into());
+    }
+    run_selected(Some(case))
 }
