@@ -52,6 +52,16 @@ fn run_all() -> Result<String, String> {
     Ok(text + "\n")
 }
 
+fn run_bulk_faults() -> Result<String, String> {
+    let root = owned_root()?;
+    let report = synthetic::run_bulk_faults(&root)?;
+    let text = report.to_string();
+    if text.contains(synthetic::CANARY) || text.contains(synthetic::SECRET) {
+        return Err("privacy".into());
+    }
+    Ok(text + "\n")
+}
+
 struct ProcessEditor;
 impl Editor for ProcessEditor {
     fn run(&mut self, argv: &[String]) -> Result<(), CliError> {
@@ -306,6 +316,9 @@ fn run(args: &[String]) -> Result<String, String> {
     if args == ["--all"] {
         return run_all();
     }
+    if args == ["--bulk-faults"] {
+        return run_bulk_faults();
+    }
     if let [flag, trial, case, role] = args {
         if flag == "--careerbrew-data-contract" {
             let owned = data_home()?;
@@ -427,7 +440,7 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Err(kind) if kind == "usage" => {
-            eprintln!("usage: vault-store --all | read|write|write-if-changed|append <key-file> <data-root> <file> [seal|plain]");
+            eprintln!("usage: vault-store --all | --bulk-faults | read|write|write-if-changed|append <key-file> <data-root> <file> [seal|plain]");
             ExitCode::from(2)
         }
         Err(kind) => {
