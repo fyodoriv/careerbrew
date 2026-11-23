@@ -169,6 +169,37 @@ pub const STEPS: &[Step] = &[
         fixtures: &["docs/plans/2026-11-05-rust-data-fixture-v1.json"],
     },
     Step {
+        // rust-06 is a stateful, component-only backup/sync workload. Its
+        // custom verifier also orchestrates both cross-engine restore directions.
+        id: "rust-06",
+        oracle: &["-I", "-B", "tests/oracles/rust06.py", "--all"],
+        cases: &[],
+        candidate: Some("target/release/vault-sync"),
+        http_contract: false,
+        data_contract: false,
+        role_contract: false,
+        registry_projection: false,
+        no_python: true,
+        env: &[],
+        sources: &[
+            "tests/oracles/rust06.py",
+            "src/careerbrew/backup.py",
+            "src/careerbrew/sync.py",
+            "src/careerbrew/cli.py",
+            "src/careerbrew/paths.py",
+            "src/careerbrew/keyfile.py",
+            "src/careerbrew/store.py",
+            "src/careerbrew/vault.py",
+            "src/careerbrew/machine.py",
+            "src/careerbrew/plugins.py",
+            "src/careerbrew/goals.py",
+            "src/careerbrew/work/promo.py",
+            "src/careerbrew/events.py",
+            "src/careerbrew/calendar.py",
+        ],
+        fixtures: &["knowledge/ladders/generic-swe.yaml"],
+    },
+    Step {
         // rust-04 is a vector step (privacy, policy and approval decisions).
         // Its Python oracle `--all` runs every set over the generator's
         // vectors in one isolated process. `verify` routes the step to the

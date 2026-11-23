@@ -1,0 +1,3 @@
+tests/oracles/rust06.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-06 differential gate
+tests/unit/test_rust06_component.py,keep-native,rust-00,rust-06 native component and cross-engine assertions
+xtask/tests/rust06.rs,keep-native,rust-00,rust-06 registration and evidence identity controls
