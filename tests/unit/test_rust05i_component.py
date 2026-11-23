@@ -1,7 +1,8 @@
-"""rust-05i bulk vault/status parity and dynamic native host denial."""
+"""rust-05i bulk parity, native host denial, and synthetic boundary faults."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -15,6 +16,8 @@ ROOT = Path(__file__).resolve().parents[2]
 ORACLE = ROOT / "tests" / "oracles" / "rust05.py"
 CANARY = b"SYNTHETIC-RUST05-CANARY-7Q9"
 SECRET = b"SYNTHETIC-RUST05-SECRET-NOT-AN-AUTHENTICATION-VALUE"
+PLAIN_SHA = hashlib.sha256(b"synthetic bulk record\n").hexdigest()
+MARKER_SHA = hashlib.sha256(b"encryption at rest is off for this data root; `careerbrew data encrypt` turns it on\n").hexdigest()
 BULK_CASES = {
     "bulk-enumeration-status",
     "bulk-status-environment-off",
@@ -164,3 +167,62 @@ def test_bulk_vault_status_and_native_host_denial_match_real_python(store_bin, t
 
         answers.append(done.stdout)
     assert answers[0] == answers[1]
+
+
+def test_native_bulk_boundary_faults_stop_cleanly_and_retry(store_bin, tmp_path):
+    done = subprocess.run(
+        [str(store_bin), "--bulk-faults"],
+        cwd=ROOT,
+        env=synthetic_env(tmp_path / "native-faults"),
+        capture_output=True,
+        timeout=120,
+    )
+    assert done.returncode == 0, done.stderr.decode(errors="replace")
+    assert CANARY not in done.stdout + done.stderr
+    assert SECRET not in done.stdout + done.stderr
+    report = json.loads(done.stdout)
+    ids = [row["id"] for row in report["cases"]]
+    expected = {f"bulk-{operation}-{point}-{suffix}" for operation in ("seal-files", "encrypt-all", "decrypt-all") for point in ("write", "flush", "chmod", "rename") for suffix in ("fault", "retry")} | {
+        "bulk-seal-files-concurrent-mutation"
+    }
+    assert len(ids) == len(set(ids))
+    assert set(ids) == expected
+
+    for operation in ("seal-files", "encrypt-all", "decrypt-all"):
+        final_sealed = operation != "decrypt-all"
+        for point in ("write", "flush", "chmod", "rename"):
+            failed = case(report, f"bulk-{operation}-{point}-fault")
+            assert failed["result"] == {"error": "OSError"}
+            assert not any(row["path"].endswith(".tmp") for row in failed["state"])
+            completed = state(failed, "work/a.txt")
+            assert completed["sealed"] is final_sealed
+            assert completed["mode"] == "600"
+            assert completed["sha256"] == PLAIN_SHA
+            assert failed["failed_unchanged"] is True
+            assert failed["later_unchanged"] is True
+            for name in ("b", "c"):
+                unchanged = state(failed, f"work/{name}.txt")
+                assert unchanged["sealed"] is not final_sealed
+                assert unchanged["mode"] == "640"
+                assert unchanged["sha256"] == PLAIN_SHA
+            assert (".plaintext" in {row["path"] for row in failed["state"]}) is False
+
+            retried = case(report, f"bulk-{operation}-{point}-retry")
+            assert retried["result"] == {"int": "2"}
+            assert not any(row["path"].endswith(".tmp") for row in retried["state"])
+            for name in ("a", "b", "c"):
+                readable = state(retried, f"work/{name}.txt")
+                assert readable["sealed"] is final_sealed
+                assert readable["mode"] == "600"
+                assert readable["sha256"] == PLAIN_SHA
+            assert (".plaintext" in {row["path"] for row in retried["state"]}) is (operation == "decrypt-all")
+            if operation == "decrypt-all":
+                assert state(retried, ".plaintext")["sha256"] == MARKER_SHA
+
+    mutated = case(report, "bulk-seal-files-concurrent-mutation")
+    assert mutated["result"] == {"count": {"int": "1"}, "mutated": True}
+    replaced = state(mutated, "work/target.txt")
+    assert replaced["sealed"] is True
+    assert replaced["mode"] == "600"
+    assert replaced["sha256"] == PLAIN_SHA
+    assert not any(row["path"].endswith(".tmp") for row in mutated["state"])

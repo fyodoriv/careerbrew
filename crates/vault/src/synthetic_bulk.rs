@@ -1,7 +1,7 @@
 //! Synthetic rust-05i whole-vault scenarios. Reports contain paths, modes,
 //! semantic content digests and typed errors only.
 
-use crate::bulk::{self, BulkError};
+use crate::bulk::{self, BulkError, RewritePoint};
 use crate::store::Store;
 use crate::synthetic::{identity, key_for_data, sha};
 use serde_json::{json, Value};
@@ -190,6 +190,19 @@ fn listed_paths(store: &Store, root: &Path) -> Result<Vec<String>, BulkError> {
         .collect::<Result<Vec<_>, _>>()?;
     result.sort();
     Ok(result)
+}
+
+fn operation(
+    name: &str,
+    store: &Store,
+    targets: &[PathBuf],
+    fault: impl FnMut(&Path, RewritePoint) -> Result<(), BulkError>,
+) -> Result<usize, BulkError> {
+    match name {
+        "seal-files" => bulk::seal_files_with(store, targets, fault),
+        "encrypt-all" => bulk::encrypt_all_with_targets(store, targets, fault),
+        _ => bulk::decrypt_all_with_targets(store, targets, fault),
+    }
 }
 
 pub(crate) fn run(cases: &mut Vec<Value>, data_root: &Path) -> Result<(), String> {
@@ -529,18 +542,14 @@ pub(crate) fn run(cases: &mut Vec<Value>, data_root: &Path) -> Result<(), String
                     key_file,
                     store,
                     || {
-                        let fault = |path: &Path| {
-                            if path == targets[1] {
+                        let fault = |path: &Path, point: RewritePoint| {
+                            if path == targets[1] && point == RewritePoint::Temp {
                                 Err(BulkError::Io)
                             } else {
                                 Ok(())
                             }
                         };
-                        let count = match operation_name {
-                            "seal-files" => bulk::seal_files_with(store, &targets, fault),
-                            "encrypt-all" => bulk::encrypt_all_with_targets(store, &targets, fault),
-                            _ => bulk::decrypt_all_with_targets(store, &targets, fault),
-                        }?;
+                        let count = operation(operation_name, store, &targets, fault)?;
                         Ok(typed_count(count))
                     },
                     None,
@@ -548,5 +557,110 @@ pub(crate) fn run(cases: &mut Vec<Value>, data_root: &Path) -> Result<(), String
             },
         )?;
     }
+    Ok(())
+}
+
+pub(crate) fn run_faults(cases: &mut Vec<Value>, data_root: &Path) -> Result<(), String> {
+    let base = data_root.parent().ok_or("bulk-home")?.join("bulk-faults");
+    let points = [
+        ("write", RewritePoint::Write),
+        ("flush", RewritePoint::Flush),
+        ("chmod", RewritePoint::Chmod),
+        ("rename", RewritePoint::Rename),
+    ];
+    for operation_name in ["seal-files", "encrypt-all", "decrypt-all"] {
+        for (point_name, point) in points {
+            scenario(
+                &base,
+                &format!("{operation_name}-{point_name}"),
+                true,
+                |root, key_file, store| {
+                    let targets = ["a", "b", "c"]
+                        .map(|name| root.join(format!("work/{name}.txt")))
+                        .to_vec();
+                    for target in &targets {
+                        if operation_name == "decrypt-all" {
+                            sealed_file(target, PLAIN.as_bytes(), store)?;
+                        } else {
+                            plain_file(target, PLAIN)?;
+                        }
+                    }
+                    if operation_name == "encrypt-all" {
+                        plain_file(&root.join(bulk::MARKER), "synthetic existing marker\n")?;
+                    }
+                    let failed_before = identity(&targets[1]).map_err(|_| "bulk-identity")?;
+                    let later_before = identity(&targets[2]).map_err(|_| "bulk-identity")?;
+                    record(
+                        cases,
+                        &format!("bulk-{operation_name}-{point_name}-fault"),
+                        root,
+                        key_file,
+                        store,
+                        || {
+                            let fault = |path: &Path, at: RewritePoint| {
+                                if path == targets[1] && at == point {
+                                    Err(BulkError::Io)
+                                } else {
+                                    Ok(())
+                                }
+                            };
+                            operation(operation_name, store, &targets, fault).map(typed_count)
+                        },
+                        None,
+                    )?;
+                    let row = cases.last_mut().ok_or("bulk-fault-record")?;
+                    row["failed_unchanged"] =
+                        json!(identity(&targets[1]).map_err(|_| "bulk-identity")? == failed_before);
+                    row["later_unchanged"] =
+                        json!(identity(&targets[2]).map_err(|_| "bulk-identity")? == later_before);
+                    record(
+                        cases,
+                        &format!("bulk-{operation_name}-{point_name}-retry"),
+                        root,
+                        key_file,
+                        store,
+                        || {
+                            operation(operation_name, store, &targets, |_, _| Ok(()))
+                                .map(typed_count)
+                        },
+                        None,
+                    )
+                },
+            )?;
+        }
+    }
+
+    scenario(
+        &base,
+        "concurrent-mutation",
+        true,
+        |root, key_file, store| {
+            let target = plain_file(&root.join("work/target.txt"), PLAIN)?;
+            let mut mutated = false;
+            record(
+                cases,
+                "bulk-seal-files-concurrent-mutation",
+                root,
+                key_file,
+                store,
+                || {
+                    let count = operation(
+                        "seal-files",
+                        store,
+                        std::slice::from_ref(&target),
+                        |path, point| {
+                            if path == target && point == RewritePoint::Rename {
+                                std::fs::write(path, "synthetic concurrent mutation\n")?;
+                                mutated = true;
+                            }
+                            Ok(())
+                        },
+                    )?;
+                    Ok(json!({"count": typed_count(count), "mutated": mutated}))
+                },
+                None,
+            )
+        },
+    )?;
     Ok(())
 }

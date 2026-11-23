@@ -334,16 +334,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P1
 
-- [ ] rust-05i follow-up: prove bulk mid-write and rename fault behavior
-  - **ID**: rust-05i-bulk-fault-coverage
-  - **Details**: PR #215 proves fail-stop ordering before temporary-file creation, but not a write, flush, chmod or rename fault after work starts. Add synthetic fault-injection cases for each native bulk rewrite boundary, including temp cleanup, completed-prefix preservation, later-target refusal, marker rules and retry/readability. Test concurrent mutation separately; do not claim whole-vault transactionality because each file is replaced independently. Production storage remains disabled.
-  - **Files**: crates/vault/src/bulk.rs; crates/vault/src/synthetic_bulk.rs; tests/oracles/rust05.py; tests/unit/test_rust05i_component.py; docs/rust-migration.md; TASKS.md
-  - **Hypothesis**: boundary-specific injected faults expose any unsafe cleanup or continuation behavior while preserving every existing bulk-vault and no-op contract.
-  - **Measurement**: on hosted CI, `heavy-run uv run pytest -q tests/unit/test_rust05i_component.py` with one planted failure per registered boundary; then `gh pr checks <pr>` for the complete rust-05 verifier and both OS gates.
-  - **Success**: 100% of planted mid-write/rename failures preserve the registered bytes/modes/marker and cleanup contract, no later target starts after a fault, retries remain readable, and all existing rust-05/DATA cases pass.
-  - **Pivot**: any unbounded cleanup, lost prior content, unexpected later-target write or marker inconsistency blocks the adapter; redesign that boundary and rerun the full chain rather than claiming whole-vault atomicity.
-  - **Anchor**: Saltzer & Schroeder 1975 (fail-safe defaults); Jia & Harman 2011 (planted faults); PR #215 residual risk and existing per-file atomic contract.
-
 - [ ] Pro data: a free sample of maintained data in the open tool
   - **ID**: pro-data-free-sample
   - **Details**: First task of the careerbrew income bet (a yearly licence for maintained data, tested by a priced waitlist). Ship a small free sample the open tool reads through the signed-plugin path: one public company ladder mapped to levels, and three sourced interview loops from `knowledge/research/`, each with a dated changelog line. The promotion and interview run pages show one static local link to the waitlist page (`pro_data_url` setting, empty by default, so nothing shows until the owner sets it). No hosted service, no network call, no buyer data.
