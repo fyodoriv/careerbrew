@@ -116,7 +116,7 @@ fn saved_project_identity_requires_lowercase_hex_32() {
 fn daily_results_use_real_rows_and_only_the_first_project_match() {
     let entries = vec![
         json!({"name": "billing", "rank": 1, "match": ["BILL-*"]}),
-        json!({"name": "api", "rank": 2, "match": ["API-*"]}),
+        json!({"name": "api", "rank": 2, "match": ["api"]}),
     ];
     let rows = vec![
         json!({"id": "result-1", "title": "BILL-100"}),

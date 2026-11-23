@@ -461,7 +461,7 @@ def _cli_handlers(base: Path) -> dict[str, Any]:
     Workspace(base, "cli-handlers")
     priorities.add("Synthetic task", 3, 3, 2, [])
     priority_set = _invoke(["work", "priority", "set", "billing", "--rank", "1", "--match", "BILL-*"])
-    priority_set_api = _invoke(["work", "priority", "set", "api", "--match", "API-*"])
+    priority_set_api = _invoke(["work", "priority", "set", "api", "--match", "api"])
     from careerbrew.day import results
 
     results.append(

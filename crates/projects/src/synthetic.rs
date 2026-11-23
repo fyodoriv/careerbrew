@@ -594,7 +594,7 @@ fn cli_handlers(base: &Path) -> Result<Value> {
     let (exit, stdout) =
         cli::work_priority(root, "set", "billing", Some(1), Some(vec!["BILL-*".into()]));
     let priority_set = cli::invocation(exit, stdout);
-    let (exit, stdout) = cli::work_priority(root, "set", "api", None, Some(vec!["API-*".into()]));
+    let (exit, stdout) = cli::work_priority(root, "set", "api", None, Some(vec!["api".into()]));
     let priority_set_api = cli::invocation(exit, stdout);
     let rows = [
         json!({"id": "result-1", "at": "2026-11-02T08:00:00Z", "kind": "ticket", "title": "BILL-100", "source": "synthetic", "origin": "user"}),
