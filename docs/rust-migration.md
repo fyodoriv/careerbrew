@@ -1570,6 +1570,15 @@ the crate until the rust-05 and rust-07 closure is native, so
     plaintext decryption targets retain their bytes, inode and mtime. Repeated
     bulk operations retain those no-op identities; the marker is the only
     deliberate repeat-decryption write.
+  - The synthetic-only `vault-store --bulk-faults` mode plants one write, flush,
+    chmod or rename fault at the second of three targets for each of
+    `seal_files`, `encrypt_all` and `decrypt_all`. All 12 faults remove the
+    temporary file, preserve the completed first rewrite and the failed/later
+    targets' exact prior identities, stop before the third target, and retain the
+    operation's marker timing. Each retry completes the remaining two rewrites
+    and reads back all three values. A separate before-rename mutation control
+    records the existing per-file replacement behavior: the pending rename wins.
+    This is not concurrent-mutation detection, vault-wide rollback or atomicity.
   - `cli.rs` has invocation-scoped `HostOperations` process, socket and secret
     boundaries inside component `cmd_data_show`: before path resolution, before
     personal-data policy and before store read. Normal data show performs no
@@ -2462,7 +2471,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | Path | Package | What it is | Production use |
 | --- | --- | --- | --- |
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
-| `crates/vault/` | `careerbrew-vault` | the `CBV1` codec, key/atomic/lock providers, rust-05f storage readers/writers, receipt IO and adapter-driven `data edit`/`secret set`, rust-05g settings/general-event IO, rust-05h outline/digest/cache helpers, named-user key paths and component `data show`, and rust-05i bulk vault/status operations plus dynamic denied-host controls; synthetic `vault-store` transport only | none: component parity only |
+| `crates/vault/` | `careerbrew-vault` | the `CBV1` codec, key/atomic/lock providers, rust-05f storage readers/writers, receipt IO and adapter-driven `data edit`/`secret set`, rust-05g settings/general-event IO, rust-05h outline/digest/cache helpers, named-user key paths and component `data show`, and rust-05i bulk vault/status operations, boundary-fault controls and dynamic denied-host controls; synthetic `vault-store` transport only | none: component parity only |
 | `crates/setup/` | `careerbrew-setup` | the rust-07 plugin, machine, OAuth reference, MCP repair, self-update and workflow component, with all eleven owned handler adapters; synthetic `setup-component` transport only | none: component parity only |
 | `crates/sources/` | `careerbrew-sources` | the rust-08 bounded recorded HTTP, source cursor, calendar recurrence, mail metadata and `connect` component; synthetic `sources-component` transport only | none: component parity only |
 | `crates/projects/` | `careerbrew-projects` | the rust-09 project lifecycle, readiness, priority, promise, focus, team and four-handler CLI component; synthetic `projects-component` transport only | none: component parity only |

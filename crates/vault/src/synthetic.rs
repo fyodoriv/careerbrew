@@ -1058,6 +1058,13 @@ fn data_show_cases(cases: &mut Vec<Value>, store: &Store, root: &Path) -> Result
     Ok(())
 }
 
+pub fn run_bulk_faults(root: &Path) -> Result<Value, String> {
+    std::fs::create_dir_all(root).map_err(|_| "home")?;
+    let mut cases = Vec::new();
+    crate::synthetic_bulk::run_faults(&mut cases, root)?;
+    Ok(json!({"schema": "careerbrew-rust05-bulk-faults-v1", "cases": cases}))
+}
+
 pub fn run_all(root: &Path, key_file: &Path) -> Result<Value, String> {
     std::fs::create_dir_all(root).map_err(|_| "home")?;
     let keys = |create: bool| key(root, key_file, create);

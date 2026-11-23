@@ -172,14 +172,21 @@ fn temporary(path: &Path) -> PathBuf {
     ))
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum RewritePoint {
+    Temp,
+    Write,
+    Flush,
+    Chmod,
+    Rename,
+}
+
 fn rewrite_with(
     path: &Path,
     raw: &[u8],
-    fault: &mut impl FnMut(&Path) -> Result<(), BulkError>,
+    fault: &mut impl FnMut(&Path, RewritePoint) -> Result<(), BulkError>,
 ) -> Result<(), BulkError> {
-    // The synthetic fault enters before a temporary name or bytes exist, like
-    // Python's replaced `_rewrite` adapter.
-    fault(path)?;
+    fault(path, RewritePoint::Temp)?;
     let (tmp, mut file) = loop {
         let tmp = temporary(path);
         match OpenOptions::new()
@@ -193,17 +200,22 @@ fn rewrite_with(
             Err(error) => return Err(error.into()),
         }
     };
-    let result = (|| -> std::io::Result<()> {
+    let result = (|| -> Result<(), BulkError> {
+        fault(path, RewritePoint::Write)?;
         file.write_all(raw)?;
+        fault(path, RewritePoint::Flush)?;
         file.flush()?;
+        fault(path, RewritePoint::Chmod)?;
         std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o600))?;
         drop(file);
-        std::fs::rename(&tmp, path)
+        fault(path, RewritePoint::Rename)?;
+        std::fs::rename(&tmp, path)?;
+        Ok(())
     })();
     if result.is_err() {
         let _ = std::fs::remove_file(&tmp);
     }
-    result.map_err(BulkError::from)
+    result
 }
 
 pub(crate) fn is_fernet_token(path: &Path) -> Result<bool, BulkError> {
@@ -221,7 +233,7 @@ fn rewrite_targets(
     store: &Store,
     targets: &[PathBuf],
     decrypt: bool,
-    mut fault: impl FnMut(&Path) -> Result<(), BulkError>,
+    mut fault: impl FnMut(&Path, RewritePoint) -> Result<(), BulkError>,
 ) -> Result<usize, BulkError> {
     let mut count = 0;
     for path in targets {
@@ -241,13 +253,13 @@ fn rewrite_targets(
 }
 
 pub fn seal_files(store: &Store, targets: &[PathBuf]) -> Result<usize, BulkError> {
-    seal_files_with(store, targets, |_| Ok(()))
+    seal_files_with(store, targets, |_, _| Ok(()))
 }
 
 pub(crate) fn seal_files_with(
     store: &Store,
     targets: &[PathBuf],
-    mut fault: impl FnMut(&Path) -> Result<(), BulkError>,
+    mut fault: impl FnMut(&Path, RewritePoint) -> Result<(), BulkError>,
 ) -> Result<usize, BulkError> {
     ensure_root(store)?;
     if !enabled(store) {
@@ -258,18 +270,18 @@ pub(crate) fn seal_files_with(
         .filter(|path| path.is_file() && store.sealable(path))
         .cloned()
         .collect();
-    rewrite_targets(store, &sealable, false, |path| fault(path))
+    rewrite_targets(store, &sealable, false, |path, point| fault(path, point))
 }
 
 pub fn encrypt_all(store: &Store) -> Result<usize, BulkError> {
     let targets = files(store)?;
-    encrypt_all_with_targets(store, &targets, |_| Ok(()))
+    encrypt_all_with_targets(store, &targets, |_, _| Ok(()))
 }
 
 pub(crate) fn encrypt_all_with_targets(
     store: &Store,
     targets: &[PathBuf],
-    fault: impl FnMut(&Path) -> Result<(), BulkError>,
+    fault: impl FnMut(&Path, RewritePoint) -> Result<(), BulkError>,
 ) -> Result<usize, BulkError> {
     for path in targets {
         let bundle_suffix = path
@@ -291,13 +303,13 @@ pub(crate) fn encrypt_all_with_targets(
 
 pub fn decrypt_all(store: &Store) -> Result<usize, BulkError> {
     let targets = files_with(store, true)?;
-    decrypt_all_with_targets(store, &targets, |_| Ok(()))
+    decrypt_all_with_targets(store, &targets, |_, _| Ok(()))
 }
 
 pub(crate) fn decrypt_all_with_targets(
     store: &Store,
     targets: &[PathBuf],
-    fault: impl FnMut(&Path) -> Result<(), BulkError>,
+    fault: impl FnMut(&Path, RewritePoint) -> Result<(), BulkError>,
 ) -> Result<usize, BulkError> {
     let count = rewrite_targets(store, targets, true, fault)?;
     std::fs::write(store.root.join(MARKER), MARKER_TEXT)?;
