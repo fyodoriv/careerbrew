@@ -87,7 +87,8 @@ def test_plugin_machine_account_preflight_and_handler_contracts_match_python(can
         assert manifest["merged"]["backup_targets"] == [str(Path("/") / "home" / "u" / "Team")]
         assert manifest["merged"]["agent_may_read_business"] is True
         assert manifest["denied_agent_read"] is False
-        assert manifest["order"][:2] == ["acme", "team"]
+        assert manifest["order"] == ["acme", "cycle-b", "cycle-a", "team", "unknown"]
+        assert manifest["order"].index("acme") < manifest["order"].index("team")
 
         lifecycle = case(report, "plugin-lifecycle")
         assert lifecycle["verified"] == [["acme", True]]
