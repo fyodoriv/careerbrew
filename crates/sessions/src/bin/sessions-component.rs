@@ -18,7 +18,9 @@ fn main() -> ExitCode {
     } else {
         None
     };
-    if selected.is_some_and(|case| !synthetic::CASES.contains(&case)) {
+    if selected.is_some_and(|case| {
+        !synthetic::CASES.contains(&case) && case != synthetic::DUPLICATE_CONTROL
+    }) {
         return usage();
     }
     match synthetic::run_all(selected) {

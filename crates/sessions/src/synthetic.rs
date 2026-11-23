@@ -1,5 +1,6 @@
 //! Synthetic rust-10 workload over the native component functions.
 
+use crate::drafts::Backend as _;
 use crate::{agents, cli, drafts, error, field, prior_selection, sessions, text, Result};
 use careerbrew_projects::projects::{self, AddOptions};
 use chrono::NaiveDate;
@@ -16,6 +17,7 @@ pub const CASES: &[&str] = &[
     "cli-handlers",
 ];
 const TARGET: &str = "C0SYN/1700000000.000100";
+pub const DUPLICATE_CONTROL: &str = "duplicate-write-control";
 
 struct Workspace {
     base: PathBuf,
@@ -186,33 +188,87 @@ impl drafts::Backend for Trims {
     }
 }
 
-fn interleaved_model() -> Value {
-    use std::collections::BTreeMap;
-    let mut held = BTreeMap::<String, String>::new();
+pub fn interleaved_transactions(root: &Path, force_cross_session_write: bool) -> Result<Value> {
+    let backend = drafts::LocalBackend::new(root);
+    let mut operations = 0;
+    let mut contentions = 0;
+    let mut draft_saves = 0;
     let mut cross_session = 0;
     let mut stale = 0;
     let mut conflicting = 0;
-    for n in 0..1000 {
-        let resource = format!("slack-draft:C{}/1.0", n % 4);
-        let session = format!("sess-{}", n % 2);
-        if let Some(owner) = held.get(&resource) {
-            if owner != &session {
-                cross_session += 1;
-                continue;
-            }
+    for n in 0..250 {
+        let target = format!("C{}/1.0", n % 4);
+        let resource = drafts::uses_entry(&target)?;
+        sessions::take(root, &resource, "sess-a", None)?;
+        operations += 1;
+        if sessions::holder(root, &resource)?
+            .and_then(|row| {
+                field(&row, "session")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            })
+            .as_deref()
+            != Some("sess-a")
+        {
+            stale += 1;
         }
-        held.insert(resource.clone(), session.clone());
-        if held.get(&resource) != Some(&session) {
+        let before = backend.read(&target)?;
+        let contested = if force_cross_session_write && n == 0 {
+            backend.save(&target, "SYNTHCANARY forced cross-session")
+        } else {
+            drafts::replace(
+                root,
+                &target,
+                &format!("SYNTHCANARY contested {n}"),
+                false,
+                "sess-b",
+            )
+            .map(|_| ())
+        };
+        operations += 1;
+        match contested {
+            Ok(()) => cross_session += 1,
+            Err(error) if error.class == "DraftClaimed" => contentions += 1,
+            Err(error) => return Err(error),
+        }
+        if backend.read(&target)? != before {
             conflicting += 1;
         }
-        if n % 3 == 0 {
-            held.remove(&resource);
+        let result = drafts::replace(
+            root,
+            &target,
+            &format!("SYNTHCANARY holder {n}"),
+            false,
+            "sess-a",
+        )?;
+        operations += 1;
+        if result["same"] == true {
+            draft_saves += 1;
+        } else {
+            conflicting += 1;
         }
-        if held.values().any(|owner| owner.is_empty()) {
+        if sessions::holder(root, &resource)?
+            .and_then(|row| {
+                field(&row, "session")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            })
+            .as_deref()
+            != Some("sess-a")
+        {
+            stale += 1;
+        }
+        sessions::release(root, &resource, "sess-a")?;
+        operations += 1;
+        if sessions::holder(root, &resource)?.is_some() {
             stale += 1;
         }
     }
-    json!({"operations": 1000, "cross_session_writes": cross_session, "stale_claims": stale, "conflicting_target_saves": conflicting})
+    Ok(json!({
+        "operations": operations, "contentions": contentions, "draft_saves": draft_saves,
+        "cross_session_writes": cross_session, "stale_claims": stale,
+        "conflicting_target_saves": conflicting,
+    }))
 }
 
 fn claims_and_drafts(base: &Path) -> Result<Value> {
@@ -299,7 +355,7 @@ fn claims_and_drafts(base: &Path) -> Result<Value> {
         "failures": {"not_cleared": not_cleared, "mismatch": mismatch, "empty": empty, "bad_targets": bad_targets},
         "privacy": {"sealed": raw.starts_with(b"CBV1\n"), "plain_text_absent": !raw.windows(b"SYNTHCANARY".len()).any(|part| part == b"SYNTHCANARY"), "digest_name": !drafts::LocalBackend::new(root).path("C9/secure.1").file_name().unwrap_or_default().to_string_lossy().contains("C9")},
         "compare": [drafts::compare("a  \n", Some("a\n\n")), drafts::compare("a\nb", Some("a\nc"))],
-        "interleavings": interleaved_model(),
+        "interleavings": interleaved_transactions(root, false)?,
     }))
 }
 
@@ -768,13 +824,8 @@ fn cli_handlers(base: &Path) -> Result<Value> {
     let (code, output) =
         cli::draft_fit(root, &ws.base.join("missing.json"), None, None, None, false);
     let fit_missing = cli::invocation(code, output);
-    match std::env::var("CAREERBREW_RUST10_PLANT_WRITE").as_deref() {
-        Ok("missing") => std::fs::remove_file(drafts::LocalBackend::new(root).path(TARGET))?,
-        Ok("duplicate") => {
-            crate::write_text(root, "work/planted-duplicate.txt", "first")?;
-            crate::write_text(root, "work/planted-duplicate.txt", "second")?;
-        }
-        _ => {}
+    if std::env::var("CAREERBREW_RUST10_PLANT_WRITE").as_deref() == Ok("missing") {
+        std::fs::remove_file(drafts::LocalBackend::new(root).path(TARGET))?;
     }
     Ok(json!({
         "agent": {"empty": agent_empty, "event": agent_event, "show": agent_show, "json": agent_json, "bad": agent_bad, "session_event": session_event, "session_conflict": session_conflict},
@@ -798,6 +849,43 @@ fn run(case: &str, base: &Path) -> Result<Value> {
 pub fn run_all(selected: Option<&str>) -> Result<String> {
     let base = crate::root()?.join("rust10-workload");
     std::fs::create_dir_all(&base)?;
+    if selected == Some(DUPLICATE_CONTROL) {
+        if std::env::var("CAREERBREW_RUST10_PLANT_WRITE").as_deref() != Ok("duplicate") {
+            return Err(error(
+                "ValueError",
+                "duplicate control requires its registered plant",
+            ));
+        }
+        let root = base.join("cli-handlers/data");
+        let backend = drafts::LocalBackend::new(&root);
+        if !backend.path(TARGET).is_file() {
+            return Err(error(
+                "ValueError",
+                "duplicate control needs the expected saved draft",
+            ));
+        }
+        let content = backend
+            .read(TARGET)
+            .map_err(|_| error("ControlRead", "duplicate control read failed"))?
+            .ok_or_else(|| error("ValueError", "duplicate control needs draft content"))?;
+        crate::context()?
+            .store()
+            .write_text(&backend.path(TARGET), &content)
+            .map_err(|failure| {
+                let class = match failure {
+                    careerbrew_vault::atomic::StoreError::NoKey => "ControlWriteNoKey",
+                    careerbrew_vault::atomic::StoreError::Vault => "ControlWriteVault",
+                    careerbrew_vault::atomic::StoreError::Utf8 => "ControlWriteUtf8",
+                    careerbrew_vault::atomic::StoreError::Codec(_) => "ControlWriteCodec",
+                    careerbrew_vault::atomic::StoreError::Io(_) => "ControlWriteIo",
+                };
+                error(class, "duplicate control write failed")
+            })?;
+        let report = crate::typed(
+            &json!({"cases": [{"id": DUPLICATE_CONTROL, "result": {"observed": true}}]}),
+        );
+        return Ok(serde_json::to_string(&report)? + "\n");
+    }
     let mut cases = Vec::new();
     for case in CASES {
         if selected.is_none_or(|selected| selected == *case) {

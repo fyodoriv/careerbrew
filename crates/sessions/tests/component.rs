@@ -1,9 +1,7 @@
 //! Native rust-10 controls, including 1,000 locked draft interleavings.
 
-use careerbrew_sessions::{drafts, prior_selection};
+use careerbrew_sessions::{drafts, prior_selection, sessions, synthetic};
 use serde_json::json;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
 use std::time::Duration;
 
 #[test]
@@ -69,44 +67,26 @@ fn clear_save_readback_lock_covers_1000_interleavings() {
         true
     );
 
-    let successes = Arc::new(AtomicUsize::new(0));
-    let failures = Arc::new(AtomicUsize::new(0));
-    let handles = (0..8)
-        .map(|worker| {
-            let root = root.clone();
-            let successes = successes.clone();
-            let failures = failures.clone();
-            std::thread::spawn(move || {
-                for n in 0..125 {
-                    let target = format!("C{}/1.0", (worker + n) % 4);
-                    let text = format!("draft number {worker}\n").repeat(50);
-                    match drafts::replace(&root, &target, &text, false, "") {
-                        Ok(row) if row["same"] == true => {
-                            successes.fetch_add(1, Ordering::SeqCst);
-                        }
-                        _ => {
-                            failures.fetch_add(1, Ordering::SeqCst);
-                        }
-                    }
-                }
-            })
-        })
-        .collect::<Vec<_>>();
-    for handle in handles {
-        handle.join().unwrap();
+    for project in ["billing", "ledger"] {
+        careerbrew_projects::projects::add(
+            &root,
+            project,
+            careerbrew_projects::projects::AddOptions::default(),
+        )
+        .unwrap();
     }
-    assert_eq!(successes.load(Ordering::SeqCst), 1000);
-    assert_eq!(failures.load(Ordering::SeqCst), 0);
-    for target in 0..4 {
-        let target = format!("C{target}/1.0");
-        let text = drafts::Backend::read(&drafts::LocalBackend::new(&root), &target)
-            .unwrap()
-            .unwrap();
-        let lines = text.lines().collect::<std::collections::BTreeSet<_>>();
-        assert_eq!(
-            lines.len(),
-            1,
-            "one target never contains interleaved writes"
-        );
-    }
+    sessions::open_session(&root, "billing", "sess-a").unwrap();
+    sessions::open_session(&root, "ledger", "sess-b").unwrap();
+    let observed = synthetic::interleaved_transactions(&root, false).unwrap();
+    assert_eq!(observed["operations"], 1000);
+    assert_eq!(observed["contentions"], 250);
+    assert_eq!(observed["draft_saves"], 250);
+    assert_eq!(observed["cross_session_writes"], 0);
+    assert_eq!(observed["stale_claims"], 0);
+    assert_eq!(observed["conflicting_target_saves"], 0);
+
+    let negative = synthetic::interleaved_transactions(&root, true).unwrap();
+    assert_eq!(negative["operations"], 1000);
+    assert_eq!(negative["cross_session_writes"], 1);
+    assert_eq!(negative["conflicting_target_saves"], 1);
 }

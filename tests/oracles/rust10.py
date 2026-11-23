@@ -164,25 +164,48 @@ class Trims(drafts.LocalBackend):
         super().save(target, text[:10])
 
 
-def _interleaved_model() -> dict[str, int]:
-    """One thousand deterministic claim transitions; native threads add the lock control."""
-    held: dict[str, str] = {}
+def _interleaved_transactions() -> dict[str, int]:
+    """One thousand real claim/draft transactions with cross-session contention."""
+    operations = contentions = draft_saves = 0
     cross_session = stale = conflicting = 0
-    for n in range(1000):
-        resource = f"slack-draft:C{n % 4}/1.0"
-        session = f"sess-{n % 2}"
-        owner = held.get(resource)
-        if owner is not None and owner != session:
-            cross_session += 1
-            continue
-        held[resource] = session
-        if held.get(resource) != session:
-            conflicting += 1
-        if n % 3 == 0:
-            del held[resource]
-        if any(not owner for owner in held.values()):
+    backend = drafts.LocalBackend()
+    for n in range(250):
+        target = f"C{n % 4}/1.0"
+        resource = drafts.uses_entry(target)
+        sessions.take(resource, "sess-a")
+        operations += 1
+        if (sessions.holder(resource) or {}).get("session") != "sess-a":
             stale += 1
-    return {"operations": 1000, "cross_session_writes": cross_session, "stale_claims": stale, "conflicting_target_saves": conflicting}
+        before = backend.read(target)
+        try:
+            drafts.replace(target, f"SYNTHCANARY contested {n}", session="sess-b")
+        except drafts.DraftClaimed:
+            contentions += 1
+        else:
+            cross_session += 1
+        operations += 1
+        if backend.read(target) != before:
+            conflicting += 1
+        result = drafts.replace(target, f"SYNTHCANARY holder {n}", session="sess-a")
+        operations += 1
+        if result["same"]:
+            draft_saves += 1
+        else:
+            conflicting += 1
+        if (sessions.holder(resource) or {}).get("session") != "sess-a":
+            stale += 1
+        sessions.release(resource, "sess-a")
+        operations += 1
+        if sessions.holder(resource) is not None:
+            stale += 1
+    return {
+        "operations": operations,
+        "contentions": contentions,
+        "draft_saves": draft_saves,
+        "cross_session_writes": cross_session,
+        "stale_claims": stale,
+        "conflicting_target_saves": conflicting,
+    }
 
 
 def _claims_and_drafts(base: Path) -> dict[str, Any]:
@@ -224,7 +247,7 @@ def _claims_and_drafts(base: Path) -> dict[str, Any]:
         "failures": {"not_cleared": not_cleared, "mismatch": mismatch, "empty": empty, "bad_targets": bad_targets},
         "privacy": {"sealed": raw.startswith(b"CBV1\n"), "plain_text_absent": b"SYNTHCANARY" not in raw, "digest_name": "C9" not in drafts.LocalBackend().path("C9/secure.1").name},
         "compare": [drafts.compare("a  \n", "a\n\n"), drafts.compare("a\nb", "a\nc")],
-        "interleavings": _interleaved_model(),
+        "interleavings": _interleaved_transactions(),
     }
 
 

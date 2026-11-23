@@ -82,7 +82,14 @@ def test_session_draft_agent_origin_and_cli_contracts_match_python(candidate, tm
         assert claims["save"] == {"same": True, "other": "DraftClaimed", "without_session": "DraftClaimed", "original_kept": True, "after_release": True, "if_empty": True}
         assert claims["failures"]["not_cleared"] == claims["failures"]["mismatch"] == "DraftMismatch"
         assert claims["privacy"] == {"sealed": True, "plain_text_absent": True, "digest_name": True}
-        assert claims["interleavings"] == {"operations": {"int": "1000"}, "cross_session_writes": {"int": "0"}, "stale_claims": {"int": "0"}, "conflicting_target_saves": {"int": "0"}}
+        assert claims["interleavings"] == {
+            "operations": {"int": "1000"},
+            "contentions": {"int": "250"},
+            "draft_saves": {"int": "250"},
+            "cross_session_writes": {"int": "0"},
+            "stale_claims": {"int": "0"},
+            "conflicting_target_saves": {"int": "0"},
+        }
 
         activity = case(report, "agent-activity")
         assert activity["counts"] == {"running": {"int": "2"}, "quiet": {"int": "0"}, "done": {"int": "1"}, "failed": {"int": "0"}}

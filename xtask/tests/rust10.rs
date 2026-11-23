@@ -121,7 +121,11 @@ fn rust_10_baseline_verify_measure_and_decide_share_identity() {
     for (plant, field, failed_case) in [
         ("extra", "side_effect", "component:session-lifecycle"),
         ("missing", "missing_writes", "component:cli-handlers"),
-        ("duplicate", "duplicate_writes", "component:cli-handlers"),
+        (
+            "duplicate",
+            "duplicate_writes",
+            "component:duplicate-write-control",
+        ),
     ] {
         let planted = scratch.path().join(format!("verify-{plant}.json"));
         let run = Command::new(env!("CARGO_BIN_EXE_careerbrew-xtask"))
@@ -141,6 +145,11 @@ fn rust_10_baseline_verify_measure_and_decide_share_identity() {
             record["violations"][field].as_u64().unwrap() > 0,
             "{plant}: {record}"
         );
+        if plant == "duplicate" {
+            assert_eq!(record["violations"]["side_effect"], 0);
+            assert_eq!(record["violations"]["missing_writes"], 0);
+            assert_eq!(record["violations"]["contract"], 0);
+        }
         let failed = record["failed_cases"].as_array().unwrap();
         assert!(failed.contains(&serde_json::json!(failed_case)));
         let verdict_path = scratch.path().join(format!("decide-{plant}.json"));

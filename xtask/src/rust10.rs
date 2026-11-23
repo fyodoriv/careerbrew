@@ -38,6 +38,7 @@ struct Phase {
     writes: Writes,
     counts: BTreeMap<String, u64>,
     leaked: bool,
+    error_class: String,
 }
 
 fn normalize_value(value: &mut Value, root: &Path) {
@@ -258,8 +259,41 @@ fn component_side(
             writes: semantic(&after),
             counts,
             leaked,
+            error_class: stderr
+                .trim()
+                .strip_prefix("sessions-component: ")
+                .unwrap_or(stderr.trim())
+                .to_owned(),
         });
         state = after;
+    }
+    if native && plant == Some("duplicate") {
+        let mut command = Command::new(program);
+        command.args(["--case", "duplicate-write-control"]);
+        command
+            .current_dir(root)
+            .env_clear()
+            .envs(&environment)
+            .env("CAREERBREW_ENCRYPT", "off");
+        let (_, exit, stdout, stderr) = capture_actions::execute(command)?;
+        let after = observed_files(&owned, &owned)?;
+        let counts = write_counts(&state, &after);
+        let leaked = PRIVATE_MARKERS
+            .iter()
+            .any(|marker| stdout.contains(marker) || stderr.contains(marker));
+        phases.push(Phase {
+            id: "duplicate-write-control",
+            ran: exit == Some(0),
+            stdout,
+            writes: semantic(&after),
+            counts,
+            leaked,
+            error_class: stderr
+                .trim()
+                .strip_prefix("sessions-component: ")
+                .unwrap_or(stderr.trim())
+                .to_owned(),
+        });
     }
     Ok(phases)
 }
@@ -322,6 +356,34 @@ fn component_cases(
             "extra_writes": extra, "missing_writes": missing, "changed_writes": changed,
             "extra_write_paths": extra_paths, "missing_write_paths": missing_paths,
             "changed_write_paths": changed_paths, "duplicate_writes": duplicates,
+            "oracle_writes_sha256": writes_sha256(&expected.writes), "candidate_writes_sha256": writes_sha256(&actual.writes), "credential_leaked": actual.leaked,
+        }));
+    }
+    if plant == Some("duplicate") {
+        let actual = answer
+            .last()
+            .filter(|phase| phase.id == "duplicate-write-control")
+            .ok_or("the duplicate-write control did not run")?;
+        let expected = oracle.last().ok_or("the oracle has no final state")?;
+        let (extra, missing, changed) = diff(&expected.writes, &actual.writes);
+        let duplicates = actual.counts.values().sum::<u64>();
+        let passed =
+            actual.ran && extra + missing + changed == 0 && duplicates == 0 && !actual.leaked;
+        violations.contract += u64::from(!actual.ran);
+        violations.side_effect += extra + changed;
+        violations.missing_writes += missing;
+        violations.duplicate_writes += duplicates;
+        violations.privacy += u64::from(actual.leaked);
+        cases.push(json!({
+            "case": "component:duplicate-write-control", "kind": "rust-10-component-phase", "passed": passed,
+            "exit_matches": actual.ran, "error_class": actual.error_class, "semantic_match": true,
+            "comparison": "expected-path+observed-phase-transition", "normalization": ["owned-path", "sealed-record", "session-and-project-identity", "generated-key"],
+            "oracle_sha256": capture_actions::digest(expected.stdout.as_bytes()), "candidate_sha256": capture_actions::digest(actual.stdout.as_bytes()),
+            "writes_match": extra + missing + changed == 0, "oracle_writes": expected.writes.len(), "candidate_writes": actual.writes.len(),
+            "extra_writes": extra, "missing_writes": missing, "changed_writes": changed,
+            "extra_write_paths": candidate_paths(&actual.writes, &expected.writes),
+            "missing_write_paths": candidate_paths(&expected.writes, &actual.writes),
+            "changed_write_paths": [], "duplicate_writes": duplicates,
             "oracle_writes_sha256": writes_sha256(&expected.writes), "candidate_writes_sha256": writes_sha256(&actual.writes), "credential_leaked": actual.leaked,
         }));
     }
