@@ -9,9 +9,10 @@ repository can do any step from this page and the task block.
   actions` routes to `careerbrew-native` since `rust-03` activated
   (2026-11-19, [rust-03 verdict](#rust-03-verdict)). No other gain is claimed. See [Current state](#current-state) and
   [State of rust-00](#state-of-rust-00).
-- **Next task:** `rust-07` (plugin, machine and account setup).
-  `rust-00`, `rust-01` and `rust-02` are done (2026-11-18), and `rust-03` is
-  done (2026-11-19); their follow-ups are tasks in `TASKS.md`.
+- **Next task:** `rust-09` (projects, priorities and promises).
+  `rust-00` through `rust-08` have their recorded preparation or component
+  results; only the `rust-03` action catalog is active in production. Follow-ups
+  and later activation closure remain tasks in `TASKS.md`.
 - **How to read it:** the [goal](#goal-and-vision) and [decision](#decision-and-rejected-alternatives),
   then the [measurement protocol](#measurement-protocol-for-every-step), then
   [build order versus production activation](#build-order-versus-production-activation),
@@ -1854,6 +1855,13 @@ the crate until the rust-05 and rust-07 closure is native, so
   `ce97203f9f8a41ac40ee32676a098ef973ff08cf2ab7c96cf8e16f2499241b60`;
   fixture hash `6c6e83b98ed7ef0a84d82f6477a29704679d0eb44d5758b858a0e3f19d1f4439`.
   This is the pre-native prediction record, not a speed result.
+- **Component implementation:** `crates/sources` provides bounded recorded HTTP,
+  host and redirect authorization, source evidence and cursor adapters, ICS/Graph
+  recurrence, Graph/JMAP/IMAP metadata, source-local failure isolation and the
+  `connect` component handler. `sources-component` is synthetic-only. The custom
+  verifier compares exact typed output, semantic writes and per-phase write
+  transitions; planted extra, missing and duplicate writes must fail. Production
+  Python, native routes, shipped crates and activation tables are unchanged.
 
 ### rust-09: Port projects, priorities and promises
 
@@ -3076,6 +3084,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 - `tests/fixtures/http/www.googleapis.com/` (3): `drive_v3_files.json`, `drive_v3_files_doc-prd-1.json`, `drive_v3_files_doc-prd-1_comments.json`
 - CLI handlers it ports out of `cli.py` (1): `cmd_connect`
 - Assertions it ports (5 test files, the files themselves are listed under `rust-27`): `us-42-connect.sh`, `test_connect_wizard.py`, `test_issue_199.py`, `test_jira_connector.py`, `test_outlook_connector.py`
+- Native crate it adds (`keep-native` in the inventory): `crates/sources/` (`http.rs`, `connectors.rs`, `calendar.rs`, `mail.rs`, `cli.rs`, `synthetic.rs`, `lib.rs` and `bin/sources-component.rs`), plus `tests/oracles/rust08.py`, `tests/unit/test_rust08_component.py`, `xtask/src/rust08.rs` and `xtask/tests/rust08.rs`.
 
 #### rust-09: Port projects, priorities and promises (9 files)
 

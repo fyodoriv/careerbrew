@@ -1,1 +1,13 @@
 tests/oracles/rust08.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-08 differential gate
+tests/unit/test_rust08_component.py,keep-native,rust-00,rust-08 native component and CLI assertions
+crates/sources/Cargo.toml,keep-native,rust-00,Component-only source crate manifest
+crates/sources/src/lib.rs,port,rust-08,Component-only source context error and secret boundary
+crates/sources/src/http.rs,port,rust-08,Bounded recorded HTTP host and redirect authorization
+crates/sources/src/connectors.rs,port,rust-08,Read-only source evidence auth and bounded cursor adapters
+crates/sources/src/calendar.rs,port,rust-08,ICS Graph calendar recurrence and private event adapter
+crates/sources/src/mail.rs,port,rust-08,Graph JMAP and injected IMAP metadata readers and classification
+crates/sources/src/cli.rs,port,rust-08,Component adapter for the owned connect CLI handler
+crates/sources/src/synthetic.rs,port,rust-08,Synthetic HTTP calendar mail source isolation and CLI workload
+crates/sources/src/bin/sources-component.rs,port,rust-08,Synthetic-only native source candidate and connect entry point
+xtask/src/rust08.rs,keep-native,rust-00,Custom rust-08 semantic privacy and write verification runner
+xtask/tests/rust08.rs,keep-native,rust-00,rust-08 registration evidence identity and planted write controls

@@ -1,0 +1,20 @@
+[package]
+name = "careerbrew-sources"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+careerbrew-vault = { path = "../vault" }
+careerbrew-setup = { path = "../setup" }
+serde_json = { version = "=1.0.154", features = ["arbitrary_precision"] }
+base64 = "=0.22.1"
+chrono = { version = "=0.4.45", default-features = false, features = ["std", "clock"] }
+chrono-tz = "=0.10.4"
+icalendar = { version = "=0.17.17", default-features = false, features = ["parser"] }
+rrule = "=0.14.0"
+
+[[bin]]
+name = "sources-component"
+path = "src/bin/sources-component.rs"

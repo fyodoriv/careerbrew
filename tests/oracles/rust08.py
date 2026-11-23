@@ -114,7 +114,7 @@ def _http_policy(base: Path) -> dict[str, Any]:
         def redirect(source: str, target: str, headers: dict[str, str]) -> str:
             req = urllib.request.Request(source, headers=headers)
             try:
-                answer = connectors._PolicyRedirect().redirect_request(req, None, 302, "Found", {}, target)
+                answer = connectors._PolicyRedirect().redirect_request(req, None, 302, "Found", {}, target)  # type: ignore[arg-type]
             except Exception as exc:
                 return type(exc).__name__
             return answer.full_url if answer is not None else "none"
