@@ -1693,10 +1693,30 @@ the crate until the rust-05 and rust-07 closure is native, so
     noise floors remain `unmeasured`, so the 1.10 ratio applies fail-closed.
   - Production Python, `config/native-routes.txt`, shipped crates and activation
     tables are unchanged. Component parity does not activate backup or sync.
-- **Measurement state:** the earlier `c1910a6b` candidate verdict is superseded
-  by the encrypted-ladder, full-validation and write-evidence fixes. It is not
-  evidence for the changed bytes. A new clean-source chain and planted-write
-  decisions are required.
+- **Component measurement after all review fixes (2026-11-23, macOS):**
+  - Clean source revision `82155d47240295fc0afd6e1c7bd2a480abbd37f6`.
+    All three records share evidence-source hash
+    `2436e1e3e21aade145bcb37b9e7c309cfd2419de033431429e0361557063ff38`
+    and fixture hash
+    `6d97d35d117ce9225bb95ac1d92dd2376b02fb25b588a5ea73f94526dcb82ad5`.
+    Verify and measure share release-candidate SHA-256
+    `25ef7a6b6fb3c8ff32b6dc03668a44b40c61267c617739225964526dcbbb59f2`.
+    The earlier `394f7641` and `c1910a6b` verdicts are superseded and do not
+    cover these bytes.
+  - Baseline: 30 runs. Verify: 13/13 checks with 0 contract, privacy, role,
+    authorization, side-effect, missing-write or duplicate-write violations.
+    Measurement: 30 unique, uncached pairs in each regime.
+  - Cold CPU p95 was 280,341 to 76,755 microseconds; warm was 285,561 to
+    80,266. Paired cold tree-RSS maximum was 46,858,240 to 8,552,448 bytes;
+    warm was 46,907,392 to 8,568,832. Each ratio is below 1.10. The
+    unmeasured noise floors keep the ratio fail-closed.
+  - `migration decide --step rust-06` returned `activate` with no reasons.
+    Real extra, missing and duplicate native-write controls each returned
+    `keep-python` with `verify-check-failed` and `verify-violation`; their
+    side-effect, missing-write and duplicate-write counters respectively are
+    nonzero. This is the component verdict only. Production backup, sync and
+    storage routes remain Python; activation still needs the complete native
+    closure, fresh acceptance records and rollback evidence.
 
 ### rust-07: Port plugin, machine and account setup
 
