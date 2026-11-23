@@ -2041,8 +2041,8 @@ the crate until the rust-05 and rust-07 closure is native, so
   assigned CLI handlers. The clock and every home are invocation-owned and
   synthetic. Reports use typed JSON; random record IDs are compared by shape,
   uniqueness and stability. Differential writes use semantic JSON/JSONL values,
-  owned paths and sealed-record markers, not ciphertext bytes. The 1,000-operation
-  interleaving model is accompanied by native lock and parallel-writer controls.
+  owned paths and sealed-record markers, not ciphertext bytes. The final review
+  correction uses 1,000 real claim/draft transactions with native lock controls.
   Baseline B is 30 fresh Python runs. Verify requires all six cases with zero
   privacy, side-effect, missing-write or duplicate-write violations. Measure
   requires 30 unique interleaved pairs in each cold and warm regime. CPU-time
@@ -2082,7 +2082,23 @@ the crate until the rust-05 and rust-07 closure is native, so
   their respective violation counters are nonzero. The native hosted test also
   executes 1,000 locked draft operations. Production routes, shipped crates and
   activation remain unchanged; activation needs the complete native closure,
-  fresh acceptance records and rollback evidence.
+  fresh acceptance records and rollback evidence. Integrated main and this
+  review correction make the `07f4e18a` measurement historical, not valid for
+  the final candidate.
+- **Review-correction pre-registration (2026-11-23):** source revision
+  `1026e1253491e3a5b2412e71266374274fb8085f` replaces the standalone claim map
+  and sessionless draft writes with 1,000 real alternating take, contested-save,
+  holder-save and release transactions. Two live origin sessions contend on each
+  operation cycle; observed contentions must total 250, while cross-session
+  writes, stale claims and conflicting target saves remain zero. A forced-write
+  negative control must make the relevant counters nonzero. The duplicate plant
+  moves to a separately observed write of an existing expected draft path: its
+  semantic map and side-effect count stay unchanged, and its actual duplicate
+  count is nonzero. Success retains all six ordinary cases and requires fresh
+  integrated baseline, verify, 30-pair cold/warm measure and decide records at
+  the same source, with CPU/RSS p95 at most 1.10 times the paired oracle. Any
+  missing contention, counter violation, extra-path rejection or resource excess
+  keeps Python. Production activation remains unchanged.
 
 ### rust-11: Port project imports, exact source links and memory sync
 
