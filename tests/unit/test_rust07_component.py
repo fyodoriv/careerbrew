@@ -197,7 +197,8 @@ def test_plugin_machine_account_preflight_and_handler_contracts_match_python(can
             "plugin-remove",
             "pair_key_not_printed",
         }
-        assert all(row["exit"] == {"int": "0"} for row in handlers.values() if isinstance(row, dict))
+        nonzero_handlers = {name: row["exit"] for name, row in handlers.items() if isinstance(row, dict) and row["exit"] != {"int": "0"}}
+        assert nonzero_handlers == {"connectors-list-invalid": {"int": "1"}}
         assert handlers["pair_key_not_printed"] is True
         assert handlers["split_fields_preserved"] is True
         assert "secret=op allowed_by_policy=True" in handlers["connectors-list"]["stdout"]
