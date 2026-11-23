@@ -9,7 +9,7 @@ repository can do any step from this page and the task block.
   actions` routes to `careerbrew-native` since `rust-03` activated
   (2026-11-19, [rust-03 verdict](#rust-03-verdict)). No other gain is claimed. See [Current state](#current-state) and
   [State of rust-00](#state-of-rust-00).
-- **Next task:** `rust-04` (privacy, policy and approval enforcement).
+- **Next task:** `rust-06` (backup, restore and cross-machine sync).
   `rust-00`, `rust-01` and `rust-02` are done (2026-11-18), and `rust-03` is
   done (2026-11-19); their follow-ups are tasks in `TASKS.md`.
 - **How to read it:** the [goal](#goal-and-vision) and [decision](#decision-and-rejected-alternatives),
@@ -1599,6 +1599,28 @@ the crate until the rust-05 and rust-07 closure is native, so
   - `tests/unit/test_rust05e_mixed_writers.py`: 4 Python and 4 Rust writers
     make 1,000 appends to one sealed JSONL file; it opens and holds exactly
     1,000 distinct ids. A plain variant runs 200 appends.
+
+- **rust-05 acceptance (2026-11-22, component only):**
+  - One clean macOS chain at source revision
+    `4c142884f2ab4590b7e3e69ec32a35aa998500d4` used release candidate SHA-256
+    `cc6be50bc8f3cafc2a82bc8e9e503f4029009644a4ade9007fbb023e267fc013`.
+    All three records share evidence-source hash
+    `eb1f8bb5f5198e32434e0f2d241e5af7e872f21f0e8060b9ebd10d20fbfe3484`
+    and fixture hash
+    `1ab332eedbd15af660070a102f4dda8cc0ffefa6d66b5dc42554ce80a0474b3d`;
+    verify and measure also share the candidate hash.
+  - Baseline: 30 runs. Verify: 13/13 checks, including all ten DATA cases,
+    with 0 violations. Measurement: 30 unique, uncached pairs in each regime.
+    Cold CPU p95 was 822,211 to 84,154 microseconds; warm was 635,346 to
+    77,824. Paired cold tree-RSS maximum was 87,834,624 to 4,816,896 bytes;
+    warm was 63,324,160 to 4,833,280. Each ratio is below 1.10. The registered
+    noise floors remain `unmeasured`, so the ratio applies fail-closed.
+  - `migration decide --step rust-05` returned `activate` with no reasons.
+    PR #215 also passed both hosted OS gates and public-readiness on the same
+    source. This closes the component build/measurement dependency for
+    rust-06. It does **not** activate production storage: that switch still
+    requires the rust-02 + rust-04 + rust-05 + rust-07 activation closure,
+    fresh acceptance records and rollback evidence.
 
 ### rust-06: Port backup, restore and cross-machine sync
 
