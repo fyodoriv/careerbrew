@@ -9,7 +9,7 @@ repository can do any step from this page and the task block.
   actions` routes to `careerbrew-native` since `rust-03` activated
   (2026-11-19, [rust-03 verdict](#rust-03-verdict)). No other gain is claimed. See [Current state](#current-state) and
   [State of rust-00](#state-of-rust-00).
-- **Next task:** `rust-06` (backup, restore and cross-machine sync).
+- **Next task:** `rust-07` (plugin, machine and account setup).
   `rust-00`, `rust-01` and `rust-02` are done (2026-11-18), and `rust-03` is
   done (2026-11-19); their follow-ups are tasks in `TASKS.md`.
 - **How to read it:** the [goal](#goal-and-vision) and [decision](#decision-and-rejected-alternatives),
