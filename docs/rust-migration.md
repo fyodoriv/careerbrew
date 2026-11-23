@@ -1847,6 +1847,13 @@ the crate until the rust-05 and rust-07 closure is native, so
   so the ratio remains fail-closed. Any disagreement, violation or higher ratio
   keeps Python and requires a newly registered approach. This is component
   parity only: production routes, shipped crates and activation stay unchanged.
+- **Component oracle baseline before native implementation (2026-11-23, macOS):**
+  clean source revision `f00bc99357183904149c99288ef55418e4a0dd01`; 30 runs;
+  CPU p50/p95 276,371/296,157 microseconds and tree-RSS p50/p95
+  56,655,872/56,868,864 bytes. Evidence-source hash
+  `ce97203f9f8a41ac40ee32676a098ef973ff08cf2ab7c96cf8e16f2499241b60`;
+  fixture hash `6c6e83b98ed7ef0a84d82f6477a29704679d0eb44d5758b858a0e3f19d1f4439`.
+  This is the pre-native prediction record, not a speed result.
 
 ### rust-09: Port projects, priorities and promises
 
