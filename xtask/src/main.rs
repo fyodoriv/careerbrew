@@ -23,6 +23,7 @@ mod rust07;
 mod rust08;
 mod rust09;
 mod rust10;
+mod rust11;
 mod sites;
 mod toolchain_identity;
 mod trial_plan;

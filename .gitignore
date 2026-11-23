@@ -69,6 +69,7 @@ __pycache__/
 !/crates/sources/
 !/crates/projects/
 !/crates/sessions/
+!/crates/memory/
 !/crates/vault/
 /crates/vault/*
 !/crates/vault/Cargo.toml

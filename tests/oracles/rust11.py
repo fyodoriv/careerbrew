@@ -330,7 +330,7 @@ def _memory_removal(base: Path) -> dict[str, Any]:
     projects.add("billing", memory=str(mem))
     projects.add_source("billing", "tracker", "PROJ-1")
     store.write_jsonl(feed.events_path(), [{"id": "slack:C0BILL:1", "source": "slack", "kind": "mention", "at": "2026-10-21T14:00:00Z", "title": "PROJ-1 review", "url": "https://example.com/item", "triage": "act"}])
-    memory_sync.sync_out(allowed=True)
+    seeded = memory_sync.sync_out(allowed=True)
     rows = store.read_jsonl(feed.events_path())
     rows[0]["personal"] = True
     store.write_jsonl(feed.events_path(), rows)
@@ -368,6 +368,7 @@ def _memory_removal(base: Path) -> dict[str, Any]:
         memory_sync._catch_up = real
     retry = memory_sync.sync_out(allowed=True)
     return {
+        "seeded": seeded,
         "removed": removed,
         "kept_append": kept_append,
         "mode": mode,

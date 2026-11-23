@@ -1,0 +1,24 @@
+[package]
+name = "careerbrew-memory"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+careerbrew-vault = { path = "../vault" }
+careerbrew-setup = { path = "../setup" }
+careerbrew-projects = { path = "../projects" }
+careerbrew-sources = { path = "../sources" }
+serde_json = { version = "=1.0.154", features = ["arbitrary_precision"] }
+chrono = { version = "=0.4.45", default-features = false, features = ["std", "clock"] }
+regex = "=1.13.2"
+sha2 = "=0.10.9"
+csv = "=1.4.0"
+
+[dev-dependencies]
+tempfile = "=3.23.0"
+
+[[bin]]
+name = "memory-component"
+path = "src/bin/memory-component.rs"

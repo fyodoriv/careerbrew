@@ -264,7 +264,11 @@ pub fn remove(root: &Path, name: &str) -> Result<()> {
 
 fn source_ref(kind: &str, reference: &str) -> String {
     let reference = reference.trim();
-    if kind == "chat" && reference.starts_with('#') {
+    if kind == "chat"
+        && regex::Regex::new(r"^#[CGD][A-Z0-9]+$")
+            .expect("channel id regex")
+            .is_match(reference)
+    {
         reference[1..].to_owned()
     } else {
         reference.to_owned()

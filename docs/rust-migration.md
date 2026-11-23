@@ -2167,6 +2167,13 @@ the crate until the rust-05 and rust-07 closure is native, so
   `ca13daf196ac5017950b00bf5fbad0603a94bbabe670e3661a6d2c4838d13311`;
   fixture hash `eadc98973473f7d9562f3e748c53abf34a9f6bc4698efc05d54b381f3db5ae8f`.
   This is the pre-native prediction record, not a speed result.
+- **Component implementation:** `crates/memory` provides exact item/repository
+  identity, all-or-nothing CSV/JSON/Sheets imports, digest-based bidirectional
+  memory sync, owner-append-preserving removal, and import/absorb/check-since/
+  sync component CLI adapters. `memory-component` is synthetic-only. The custom
+  verifier compares exact typed output, semantic writes and per-phase write
+  transitions; planted extra, missing and duplicate writes must fail.
+  Production Python, native routes, shipped crates and activation are unchanged.
 
 ### rust-12: Port project learning, replay, tours and explainers
 
@@ -2598,6 +2605,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | `crates/sources/` | `careerbrew-sources` | the rust-08 bounded recorded HTTP, source cursor, calendar recurrence, mail metadata and `connect` component; synthetic `sources-component` transport only | none: component parity only |
 | `crates/projects/` | `careerbrew-projects` | the rust-09 project lifecycle, readiness, priority, promise, focus, team and four-handler CLI component; synthetic `projects-component` transport only | none: component parity only |
 | `crates/sessions/` | `careerbrew-sessions` | the rust-10 session, claim, agent activity, prior-selection, reply-draft and six-handler CLI component; synthetic `sessions-component` transport only | none: component parity only |
+| `crates/memory/` | `careerbrew-memory` | the rust-11 source identity, project import, memory sync and component CLI adapters; synthetic `memory-component` transport only | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
@@ -3229,7 +3237,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 | [`rust-08`](#rust-08-port-http-sources-calendar-and-mail) | 58 | 1 | 5 |
 | [`rust-09`](#rust-09-port-projects-priorities-and-promises) | 9 | 4 | 2 |
 | [`rust-10`](#rust-10-port-sessions-claims-agents-and-reply-drafts) | 4 | 6 | 5 |
-| [`rust-11`](#rust-11-port-project-imports-exact-source-links-and-memory-sync) | 3 | 0 | 4 |
+| [`rust-11`](#rust-11-port-project-imports-exact-source-links-and-memory-sync) | 3 | 0 | 6 |
 | [`rust-12`](#rust-12-port-project-learning-replay-tours-and-explainers) | 6 | 14 | 5 |
 | [`rust-13`](#rust-13-port-feed-ingestion-and-transcript-normalization) | 23 | 2 | 7 |
 | [`rust-14`](#rust-14-port-live-listening-review-asks-and-notifications) | 11 | 3 | 5 |
@@ -3243,7 +3251,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 | [`rust-22`](#rust-22-port-exercise-execution-and-complexity-checks) | 152 | 4 | 8 |
 | [`rust-23`](#rust-23-port-local-voice-model-routes-and-judge-adapters) | 6 | 1 | 9 |
 | [`rust-24`](#rust-24-port-reports-metrics-checkups-and-remaining-domain-helpers) | 16 | 29 | 91 |
-| [`rust-25`](#rust-25-replace-the-http-server-behind-the-unchanged-ui) | 9 | 4 | 42 |
+| [`rust-25`](#rust-25-replace-the-http-server-behind-the-unchanged-ui) | 9 | 4 | 40 |
 | [`rust-26`](#rust-26-complete-native-cli-coverage-and-default-entry-point) | 12 | 0 | 0 |
 | [`rust-27`](#rust-27-port-developer-tools-test-harnesses-installers-and-release-checks) | 477 | 0 | 68 |
 | [`rust-28`](#rust-28-retire-the-old-implementation-and-verify-fresh-machine-releases) | 4 | 0 | 0 |
@@ -3369,7 +3377,8 @@ row stays, but it means the **dispatcher**, not the handlers:
 #### rust-11: Port project imports, exact source links and memory sync (3 files)
 
 - `src/careerbrew/work/` (3): `memory_sync.py`, `project_import.py`, `research.py`
-- Assertions it ports (4 test files, the files themselves are listed under `rust-27`): `test_issue_184.py`, `test_issue_309.py`, `test_project_research.py`, `test_project_since.py`
+- Assertions it ports (6 test files, the files themselves are listed under `rust-27`): `test_issue_184.py`, `test_issue_309.py`, `test_memory_sync.py`, `test_project_import.py`, `test_project_research.py`, `test_project_since.py`
+- Native crate it adds (`keep-native` in the inventory): `crates/memory/` (`research.rs`, `project_import.rs`, `memory_sync.rs`, `cli.rs`, `synthetic.rs`, `lib.rs` and `bin/memory-component.rs`), plus `tests/oracles/rust11.py`, `tests/unit/test_rust11_component.py`, `xtask/src/rust11.rs` and `xtask/tests/rust11.rs`.
 
 #### rust-12: Port project learning, replay, tours and explainers (6 files)
 
@@ -3482,7 +3491,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 - `web/` (4): `playwright.config.ts`, `playwright.promise.config.ts`, `playwright.visual.config.ts`, `vite.config.ts`
 - `web/src/` (1): `api.ts`
 - CLI handlers it ports out of `cli.py` (4): `cmd_open`, `cmd_serve`, `cmd_start`, `cmd_web_rotate_token`
-- Assertions it ports (42 test files, the files themselves are listed under `rust-27`): `us-37-web-api.sh`, `us-52-daily-log.sh`, `us-71-web-sign-in.sh`, `test_action_parity.py`, `test_api_cache.py`, `test_checkup.py`, `test_day.py`, `test_daylog.py`, `test_issue_110.py`, `test_issue_118.py`, `test_issue_141.py`, `test_issue_147.py`, `test_issue_172.py`, `test_issue_180_threads.py`, `test_issue_198.py`, `test_issue_227.py`, `test_issue_229.py`, `test_issue_254.py`, `test_issue_268.py`, `test_issue_271.py`, `test_issue_272.py`, `test_issue_274.py`, `test_issue_377_closed_today.py`, `test_issue_406.py`, `test_issue_409.py`, `test_issue_74.py`, `test_live_health_seed.py`, `test_memory_sync.py`, `test_notion_import.py`, `test_pm_send.py`, `test_pm_sent_cache.py`, `test_project_import.py`, `test_regrade.py`, `test_run_pages.py`, `test_server.py`, `test_slow_start.py`, `test_task_labels.py`, `test_task_links.py`, `test_time_saved.py`, `test_voice.py`, `test_watch_idle.py`, `test_web_blocks.py`
+- Assertions it ports (40 test files, the files themselves are listed under `rust-27`): `us-37-web-api.sh`, `us-52-daily-log.sh`, `us-71-web-sign-in.sh`, `test_action_parity.py`, `test_api_cache.py`, `test_checkup.py`, `test_day.py`, `test_daylog.py`, `test_issue_110.py`, `test_issue_118.py`, `test_issue_141.py`, `test_issue_147.py`, `test_issue_172.py`, `test_issue_180_threads.py`, `test_issue_198.py`, `test_issue_227.py`, `test_issue_229.py`, `test_issue_254.py`, `test_issue_268.py`, `test_issue_271.py`, `test_issue_272.py`, `test_issue_274.py`, `test_issue_377_closed_today.py`, `test_issue_406.py`, `test_issue_409.py`, `test_issue_74.py`, `test_live_health_seed.py`, `test_notion_import.py`, `test_pm_send.py`, `test_pm_sent_cache.py`, `test_regrade.py`, `test_run_pages.py`, `test_server.py`, `test_slow_start.py`, `test_task_labels.py`, `test_task_links.py`, `test_time_saved.py`, `test_voice.py`, `test_watch_idle.py`, `test_web_blocks.py`
 
 #### rust-26: Complete native CLI coverage and default entry point (12 files)
 
