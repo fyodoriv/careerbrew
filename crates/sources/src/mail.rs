@@ -257,35 +257,19 @@ pub fn classify(messages: &[Message]) -> Value {
     let mut linkedin_application = Vec::new();
     let mut interview = Vec::new();
     let mut other = Vec::new();
+    let interview_pattern = regex::RegexBuilder::new(r"\b(interview|phone screen|onsite|on-site|technical screen|recruiter|next steps|availability|offer|coding challenge|take[- ]home|assessment)\b")
+        .case_insensitive(true)
+        .build()
+        .expect("the fixed Python interview regex is valid");
     for message in messages {
         if message.sender == "jobalerts-noreply@linkedin.com" {
             linkedin_alert.push(message.id.clone());
         } else if message.sender == "jobs-noreply@linkedin.com" {
             linkedin_application.push(message.id.clone());
+        } else if interview_pattern.is_match(&message.subject) {
+            interview.push(message.id.clone());
         } else {
-            let subject = message.subject.to_lowercase();
-            if [
-                "interview",
-                "phone screen",
-                "onsite",
-                "on-site",
-                "technical screen",
-                "recruiter",
-                "next steps",
-                "availability",
-                "offer",
-                "coding challenge",
-                "take-home",
-                "take home",
-                "assessment",
-            ]
-            .iter()
-            .any(|term| subject.contains(term))
-            {
-                interview.push(message.id.clone());
-            } else {
-                other.push(message.id.clone());
-            }
+            other.push(message.id.clone());
         }
     }
     json!({"linkedin_alert": linkedin_alert, "linkedin_application": linkedin_application, "interview": interview, "other": other})
@@ -294,6 +278,23 @@ pub fn classify(messages: &[Message]) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn interview_word_boundaries_reject_suffixes() {
+        let messages = ["assessments", "offering", "assessment", "offer"]
+            .into_iter()
+            .map(|subject| Message {
+                id: subject.into(),
+                sender: "sender@example.com".into(),
+                subject: subject.into(),
+                received: String::new(),
+                account: "synthetic".into(),
+            })
+            .collect::<Vec<_>>();
+        let groups = classify(&messages);
+        assert_eq!(groups["other"], json!(["assessments", "offering"]));
+        assert_eq!(groups["interview"], json!(["assessment", "offer"]));
+    }
 
     #[test]
     fn header_decoder_never_reads_a_body() {

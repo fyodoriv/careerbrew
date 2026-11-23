@@ -243,6 +243,7 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "icalendar",
+ "regex",
  "rrule",
  "serde_json",
 ]

@@ -6,6 +6,7 @@ use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, 
 use icalendar::parser::{read_calendar, unfold, Component, Property};
 use rrule::{RRule, Tz, Unvalidated};
 use serde_json::{json, Value};
+use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Event {
@@ -124,6 +125,7 @@ fn occurrences(
     from: DateTime<Tz>,
     to: DateTime<Tz>,
     me: &[String],
+    exceptions: &BTreeMap<DateTime<Tz>, &Component>,
 ) -> Result<Vec<Event>> {
     let start_property =
         prop(event, "DTSTART").ok_or_else(|| SourceError::value("event has no start"))?;
@@ -175,6 +177,9 @@ fn occurrences(
     let title = property_text(event, "SUMMARY").unwrap_or_default();
     Ok(starts
         .into_iter()
+        // RECURRENCE-ID replaces this exact instant, including across a DST
+        // transition. The exception component renders itself once separately.
+        .filter(|start| !exceptions.contains_key(start))
         .map(|start| (start, start + length))
         .filter(|(start, end)| *start < to && (*end > from || (start == end && *start >= from)))
         .map(|(start, end)| {
@@ -191,7 +196,11 @@ fn occurrences(
         .collect())
 }
 
-pub fn ics_text(cfg: &Value, fixture_root: &std::path::Path) -> Result<String> {
+pub fn ics_text(
+    cfg: &Value,
+    fixture_root: &std::path::Path,
+    allowed: Option<&[String]>,
+) -> Result<String> {
     let path = text(field(cfg, "path"));
     if !path.is_empty() {
         return Ok(std::fs::read_to_string(path)?);
@@ -201,7 +210,7 @@ pub fn ics_text(cfg: &Value, fixture_root: &std::path::Path) -> Result<String> {
         return Ok(std::fs::read_to_string(path)?);
     }
     let url = url.replacen("webcal://", "https://", 1);
-    let bytes = crate::http::get_bytes(fixture_root, &url, None)?;
+    let bytes = crate::http::get_bytes(fixture_root, &url, allowed)?;
     Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 
@@ -210,13 +219,36 @@ pub fn parse_ics(source: &str, day: NaiveDate, tz: Tz, me: &[String]) -> Result<
     let to = midnight(day + Duration::days(1), tz)?;
     let unfolded = unfold(source);
     let calendar = read_calendar(&unfolded).map_err(|_| SourceError::value("bad calendar"))?;
-    let mut out = Vec::new();
-    for event in calendar
+    let events = calendar
         .components
         .iter()
         .filter(|component| component.name.as_str() == "VEVENT")
+        .collect::<Vec<_>>();
+    let mut exceptions = BTreeMap::<String, BTreeMap<DateTime<Tz>, &Component>>::new();
+    for event in events
+        .iter()
+        .copied()
+        .filter(|event| prop(event, "RECURRENCE-ID").is_some())
     {
-        out.extend(occurrences(event, tz, from, to, me)?);
+        let uid = property_text(event, "UID").unwrap_or_default();
+        let original = prop(event, "RECURRENCE-ID").expect("filtered recurrence id");
+        for (instant, _) in when(original, tz)? {
+            exceptions
+                .entry(uid.clone())
+                .or_default()
+                .insert(instant, event);
+        }
+    }
+    let empty = BTreeMap::new();
+    let mut out = Vec::new();
+    for event in events {
+        let uid = property_text(event, "UID").unwrap_or_default();
+        let replacements = if prop(event, "RECURRENCE-ID").is_some() {
+            &empty
+        } else {
+            exceptions.get(&uid).unwrap_or(&empty)
+        };
+        out.extend(occurrences(event, tz, from, to, me, replacements)?);
     }
     for event in &mut out {
         event.start = event.start.with_timezone(&tz);
@@ -307,5 +339,42 @@ mod tests {
         assert_eq!(rows.len(), 1);
         assert!(rows[0].personal && rows[0].led && rows[0].recurring);
         assert_eq!(rows[0].start, rows[0].end);
+    }
+
+    #[test]
+    fn recurrence_exceptions_replace_master_instants_once_across_dst() {
+        let source = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:s\r\nDTSTART;TZID=America/New_York:20261030T090000\r\nDTEND;TZID=America/New_York:20261030T100000\r\nRRULE:FREQ=DAILY;COUNT=4\r\nSUMMARY:Original\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:s\r\nRECURRENCE-ID;TZID=America/New_York:20261101T090000\r\nDTSTART;TZID=America/New_York:20261101T103000\r\nDTEND;TZID=America/New_York:20261101T113000\r\nSUMMARY:Moved\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:s\r\nRECURRENCE-ID;TZID=America/New_York:20261102T090000\r\nDTSTART;TZID=America/New_York:20261102T090000\r\nSUMMARY:Cancelled\r\nSTATUS:CANCELLED\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+        let moved = parse_ics(
+            source,
+            NaiveDate::from_ymd_opt(2026, 11, 1).unwrap(),
+            zone("America/New_York").unwrap(),
+            &[],
+        )
+        .unwrap();
+        let cancelled = parse_ics(
+            source,
+            NaiveDate::from_ymd_opt(2026, 11, 2).unwrap(),
+            zone("America/New_York").unwrap(),
+            &[],
+        )
+        .unwrap();
+        assert_eq!(
+            moved
+                .iter()
+                .map(|event| event.title.as_str())
+                .collect::<Vec<_>>(),
+            ["Moved"]
+        );
+        assert_eq!(
+            moved[0].start.format("%Y-%m-%dT%H:%M:%S%:z").to_string(),
+            "2026-11-01T10:30:00-05:00"
+        );
+        assert_eq!(
+            cancelled
+                .iter()
+                .map(|event| event.title.as_str())
+                .collect::<Vec<_>>(),
+            ["Cancelled"]
+        );
     }
 }

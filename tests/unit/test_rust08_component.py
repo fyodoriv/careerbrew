@@ -98,12 +98,20 @@ def test_http_source_calendar_mail_and_connect_contracts_match_python(candidate,
         assert occurrence["start"] == "2026-10-21T09:00:00-04:00"
         assert [row["title"] for row in cal["graph"]] == ["Design review", "Focus time"]
         assert cal["graph"][1]["busy"] is False
+        assert cal["exception_lengths"] == [{"int": "1"}, {"int": "1"}]
+        moved = cal["exceptions"][0][0]
+        assert moved["title"] == "Moved DST review"
+        assert moved["start"] == "2026-11-01T10:30:00-05:00"
+        assert moved["end"] == "2026-11-01T11:30:00-05:00"
+        assert [row["title"] for row in cal["exceptions"][1]] == ["Cancelled series slot"]
 
         mail = case(report, "mail-readers")
         assert [row["id"] for row in mail["graph"]] == ["<a1@mail.example.com>", "<a2@mail.example.com>"]
         assert mail["classes"]["linkedin_alert"] == ["<m1@linkedin.com>"]
         assert mail["classes"]["linkedin_application"] == ["<m2@linkedin.com>"]
         assert mail["classes"]["interview"] == ["<a1@mail.example.com>", "<imap@synthetic.example>"]
+        assert mail["near_miss_classes"]["other"] == ["assessments", "offering"]
+        assert mail["near_miss_classes"]["interview"] == ["assessment", "offer", "take-home", "take home", "next steps"]
         assert mail["corporate_accounts"] == ["work"]
         assert mail["imap_calls"][-1] == "logout"
         assert "BODY.PEEK[HEADER.FIELDS (MESSAGE-ID FROM SUBJECT DATE)]" in mail["imap_calls"][-2]
@@ -115,6 +123,11 @@ def test_http_source_calendar_mail_and_connect_contracts_match_python(candidate,
         assert isolated["mail_ids"] == ["<a1@mail.example.com>", "<a2@mail.example.com>"]
         assert isolated["mail_errors"] == ["bad: FileNotFoundError"]
         assert isolated["literal_ics"] == isolated["literal_token"] == "SecretError"
+        restricted = isolated["restrictive"]
+        assert restricted["source"] == restricted["calendar"] == restricted["mail"] == "ConnectorError"
+        assert restricted["connect"]["exit"] == {"int": "1"}
+        assert restricted["connect"]["saved"] == []
+        assert "host api.github.com is not in the plugin policy allowed_hosts" in restricted["connect"]["stdout"]
 
         handlers = case(report, "cli-connect")
         assert {name: row["exit"] for name, row in handlers.items() if isinstance(row, dict) and "exit" in row} == {

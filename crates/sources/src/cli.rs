@@ -6,11 +6,13 @@ use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::path::Path;
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct ConnectControl {
     pub interactive: bool,
     pub allowed: bool,
     pub owner_terminal: bool,
+    /// Test-only explicit policy; ordinary component calls use effective_policy.
+    pub allowed_hosts: Option<Vec<String>>,
 }
 
 impl Default for ConnectControl {
@@ -19,6 +21,7 @@ impl Default for ConnectControl {
             interactive: false,
             allowed: true,
             owner_terminal: false,
+            allowed_hosts: None,
         }
     }
 }
@@ -67,8 +70,8 @@ fn save(cfg: Value) -> Result<String> {
     ))
 }
 
-fn fetcher(root: &Path) -> impl FnMut(&str) -> Result<Value> + '_ {
-    move |url| http::get_json(root, url, None)
+fn fetcher(root: &Path, allowed: Option<Vec<String>>) -> impl FnMut(&str) -> Result<Value> + '_ {
+    move |url| http::get_json(root, url, allowed.as_deref())
 }
 
 pub fn connect(args: &[String], fixture_root: &Path, control: ConnectControl) -> (String, i32) {
@@ -103,14 +106,19 @@ fn connect_result(
             3,
         ));
     }
+    let allowed_hosts = match &control.allowed_hosts {
+        Some(hosts) => Some(hosts.clone()),
+        None => crate::allowed_hosts()?,
+    };
     let flags = arguments(&args[1..]);
     if kind == "outlook" && !flags.contains_key("ref") {
-        return outlook_device(&flags, fixture_root, control, keychain);
+        return outlook_device(&flags, fixture_root, control, allowed_hosts, keychain);
     }
     let mut out = String::new();
     let (looks, scope) = match kind {
         "jira" => ("a long string that often starts with ATATT (Cloud) or a personal access token (Data Center)", "read:jira-work and read:jira-user (a scoped token works only through https://api.atlassian.com/ex/jira/<cloudId>; careerbrew finds it)"),
         "outlook" => ("a long JWT that starts with eyJ0 (a manual token expires after about an hour; the device sign-in, the default, keeps working for weeks)", "delegated, read-only: User.Read, Calendars.ReadBasic, Mail.ReadBasic"),
+        "github" => ("github_pat_... or ghp_...", "read-only: Pull requests, Metadata"),
         _ => ("a token", "read"),
     };
     out.push_str(&format!(
@@ -161,7 +169,7 @@ fn connect_result(
         out.push_str("refusing to read a token from a pipe; run in your terminal, or pass --ref keychain:/op:/env:\n");
         return Ok((out, 3));
     };
-    let mut fetch = fetcher(fixture_root);
+    let mut fetch = fetcher(fixture_root, allowed_hosts);
     let checked = connectors::verify(&cfg, &token, &mut fetch)?;
     out.push_str(&format!(
         "{}  {}\n",
@@ -193,6 +201,7 @@ fn outlook_device(
     flags: &BTreeMap<String, String>,
     fixture_root: &Path,
     control: ConnectControl,
+    allowed_hosts: Option<Vec<String>>,
     keychain: &mut dyn FnMut(&str, &str),
 ) -> Result<(String, i32)> {
     let client = flags.get("client_id").cloned().unwrap_or_default();
@@ -207,7 +216,7 @@ fn outlook_device(
     if !control.owner_terminal {
         return Ok(("Outlook sign-in shows a one-time code: run `careerbrew connect outlook` in your own terminal\n".into(), 3));
     }
-    let mut fetch = fetcher(fixture_root);
+    let mut fetch = fetcher(fixture_root, allowed_hosts);
     let base = "https://login.microsoftonline.com";
     let flow = fetch(&format!("{base}/{tenant}/oauth2/v2.0/devicecode"))?;
     let code = text(field(&flow, "user_code"));

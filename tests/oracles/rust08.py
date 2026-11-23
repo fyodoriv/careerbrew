@@ -225,7 +225,9 @@ def _calendar_recurrence(base: Path) -> dict[str, Any]:
     synthetic = """BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:series@synthetic.example\r\nDTSTART;TZID=America/New_York:20261019T090000\r\nRRULE:FREQ=DAILY;COUNT=3\r\nEXDATE;TZID=America/New_York:20261020T090000\r\nSUMMARY:Private recurring review\r\nCLASS:PRIVATE\r\nORGANIZER:mailto:me@example.com\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"""
     days = [calendar.parse_ics(synthetic, date(2026, 10, day), ZoneInfo("America/New_York"), ["me@example.com"]) for day in (19, 20, 21)]
     graph = calendar.graph_events({"kind": "graph", "token": "env:CB_TEST_TOKEN"}, date(2026, 10, 19), tz)
-    return {"work": work_events, "series_lengths": [len(rows) for rows in days], "series": days, "graph": graph}
+    exceptions = """BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:exceptions@synthetic.example\r\nDTSTART;TZID=America/New_York:20261030T090000\r\nDTEND;TZID=America/New_York:20261030T100000\r\nRRULE:FREQ=DAILY;COUNT=4\r\nSUMMARY:Original series slot\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:exceptions@synthetic.example\r\nRECURRENCE-ID;TZID=America/New_York:20261101T090000\r\nDTSTART;TZID=America/New_York:20261101T103000\r\nDTEND;TZID=America/New_York:20261101T113000\r\nSUMMARY:Moved DST review\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:exceptions@synthetic.example\r\nRECURRENCE-ID;TZID=America/New_York:20261102T090000\r\nDTSTART;TZID=America/New_York:20261102T090000\r\nDTEND;TZID=America/New_York:20261102T100000\r\nSUMMARY:Cancelled series slot\r\nSTATUS:CANCELLED\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"""
+    exception_days = [calendar.parse_ics(exceptions, date(2026, 11, day), ZoneInfo("America/New_York")) for day in (1, 2)]
+    return {"work": work_events, "series_lengths": [len(rows) for rows in days], "series": days, "graph": graph, "exception_lengths": [len(rows) for rows in exception_days], "exceptions": exception_days}
 
 
 class FakeImap:
@@ -273,6 +275,8 @@ def _mail_readers(base: Path) -> dict[str, Any]:
 
     imap = mail.imap({"name": "imap", "kind": "imap", "host": "127.0.0.1", "port": 1143, "user": "env:CB_TEST_TOKEN", "password": "env:CB_TEST_TOKEN"}, 7, factory)
     classes = mail.classify(graph + jmap + imap)
+    near_misses = [mail.Message(subject, "sender@example.com", subject, "", "synthetic") for subject in ["assessments", "offering", "assessment", "offer", "take-home", "take home", "next steps"]]
+    near_miss_classes = {name: [m.subject for m in rows] for name, rows in mail.classify(near_misses).items()}
     store.write_yaml(w.root / "mail.yaml", {"accounts": [{"name": "personal", "kind": "graph", "machine": "personal"}, {"name": "work", "kind": "graph", "machine": "corporate"}]})
     with _patched(machine, role=lambda: "corporate"), _patched(connectors, graph_sources=lambda _kind: []):
         corporate_accounts = [a["name"] for a in mail.accounts()]
@@ -284,6 +288,7 @@ def _mail_readers(base: Path) -> dict[str, Any]:
         "imap": _messages(imap),
         "imap_calls": holder[0].calls,
         "classes": {name: [m.id for m in rows] for name, rows in classes.items()},
+        "near_miss_classes": near_miss_classes,
         "corporate_accounts": corporate_accounts,
         "wrong_host": wrong_host,
     }
@@ -299,6 +304,13 @@ def _source_isolation(base: Path) -> dict[str, Any]:
         messages, mail_errors = mail.fetch()
     literal_ics = _error(lambda: calendar._ics_text({"url": "https://calendar.example.com/private.ics"}))
     literal_token = _error(lambda: connectors.run({"kind": "github", "token": "literal-not-reported", "user": "me"}, "user"))
+    restricted = Workspace(base, "restrictive-policy")
+    with _patched(plugins, effective_policy=lambda: {"allowed_hosts": ["allowed.example"]}):
+        restricted_source = _error(lambda: connectors.run({"kind": "github", "token": "env:CB_TEST_TOKEN", "user": "me"}, "user"))
+        restricted_calendar = _error(lambda: calendar.graph_events({"kind": "graph", "token": "env:CB_TEST_TOKEN"}, date(2026, 10, 19), ZoneInfo("UTC")))
+        restricted_mail = _error(lambda: mail.graph({"name": "graph", "kind": "graph", "token": "env:CB_TEST_TOKEN"}, 7))
+        restricted_connect = _invoke(["connect", "github", "--ref", "env:CB_TEST_TOKEN", "--user", "me"])
+    restricted_connect["saved"] = _saved(restricted.root)
     return {
         "calendar_titles": [e.title for e in events],
         "calendar_errors": calendar_errors,
@@ -306,6 +318,7 @@ def _source_isolation(base: Path) -> dict[str, Any]:
         "mail_errors": mail_errors,
         "literal_ics": literal_ics,
         "literal_token": literal_token,
+        "restrictive": {"source": restricted_source, "calendar": restricted_calendar, "mail": restricted_mail, "connect": restricted_connect},
     }
 
 

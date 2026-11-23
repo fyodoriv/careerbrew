@@ -474,7 +474,7 @@ pub fn token_page(kind: &str, api: &str) -> String {
     }
 }
 
-pub fn verify(cfg: &Value, token: &str, fetch: Fetch) -> Result<Value> {
+fn verify_inner(cfg: &Value, token: &str, fetch: Fetch) -> Result<Value> {
     let kind = text(field(cfg, "kind"));
     match kind.as_str() {
         "jira" => {
@@ -538,6 +538,16 @@ pub fn verify(cfg: &Value, token: &str, fetch: Fetch) -> Result<Value> {
         _ => Ok(
             json!({"ok": true, "message": format!("{kind}: no check endpoint; the first `careerbrew work collect` tests it")}),
         ),
+    }
+}
+
+pub fn verify(cfg: &Value, token: &str, fetch: Fetch) -> Result<Value> {
+    match verify_inner(cfg, token, fetch) {
+        Err(error) if error.class == "ConnectorError" => Ok(json!({
+            "ok": false,
+            "message": format!("{} (fix: for a host the plugin's owner approved, add it to the plugin's allowed_hosts, then careerbrew plugin refresh)", error.message),
+        })),
+        answer => answer,
     }
 }
 

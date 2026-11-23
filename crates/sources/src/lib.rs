@@ -84,6 +84,12 @@ impl From<careerbrew_vault::transfer::TransferError> for SourceError {
     }
 }
 
+impl From<careerbrew_setup::SetupError> for SourceError {
+    fn from(error: careerbrew_setup::SetupError) -> Self {
+        Self::new(error.class, error.message)
+    }
+}
+
 pub type Result<T> = std::result::Result<T, SourceError>;
 
 pub fn context() -> Result<careerbrew_vault::transfer::Context> {
@@ -103,6 +109,25 @@ pub fn resolve(reference: &str) -> Result<String> {
 
 pub fn secret_backend(reference: &str) -> Result<&'static str> {
     Ok(careerbrew_vault::secrets::backend_of(reference)?)
+}
+
+/// Effective host policy snapshot for one component invocation. `None` is the
+/// existing unrestricted policy; a malformed list is never read as unrestricted.
+pub fn allowed_hosts() -> Result<Option<Vec<String>>> {
+    let policy = careerbrew_setup::plugins::effective_policy()?;
+    match field(&policy, "allowed_hosts") {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(serde_json::Value::Array(hosts)) => hosts
+            .iter()
+            .map(|host| {
+                host.as_str()
+                    .map(str::to_owned)
+                    .ok_or_else(|| SourceError::value("allowed_hosts must contain strings"))
+            })
+            .collect::<Result<Vec<_>>>()
+            .map(Some),
+        Some(_) => Err(SourceError::value("allowed_hosts must be a list")),
+    }
 }
 
 pub fn field<'a>(value: &'a serde_json::Value, key: &str) -> Option<&'a serde_json::Value> {

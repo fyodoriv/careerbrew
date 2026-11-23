@@ -67,8 +67,15 @@ fn fixture_calendar() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/calendar/work.ics")
 }
 
-fn fetcher(root: &Path) -> impl FnMut(&str) -> Result<Value> + '_ {
-    move |url| http::get_json(root, url, None)
+fn fetcher_with(
+    root: &Path,
+    allowed: Option<Vec<String>>,
+) -> impl FnMut(&str) -> Result<Value> + '_ {
+    move |url| http::get_json(root, url, allowed.as_deref())
+}
+
+fn fetcher(root: &Path) -> Result<impl FnMut(&str) -> Result<Value> + '_> {
+    Ok(fetcher_with(root, crate::allowed_hosts()?))
 }
 
 fn http_policy(base: &Path) -> Result<Value> {
@@ -76,6 +83,7 @@ fn http_policy(base: &Path) -> Result<Value> {
     if std::env::var("CAREERBREW_RUST08_PLANT_WRITE").as_deref() == Ok("extra") {
         std::fs::write(workspace.root.join("planted-extra.txt"), "synthetic")?;
     }
+    let default_allowed = crate::allowed_hosts()?;
     let allowed = vec!["example.com".to_owned(), "example.org".to_owned()];
     let hosts = [
         "example.com",
@@ -132,21 +140,29 @@ fn http_policy(base: &Path) -> Result<Value> {
     })
     .collect::<Vec<_>>();
     let root = fixture_root();
-    let user = http::get_json(&root, "https://api.github.com/user", None)?;
+    let user = http::get_json(
+        &root,
+        "https://api.github.com/user",
+        default_allowed.as_deref(),
+    )?;
     let raw = http::get_bytes(
         &root,
         "https://weworkremotely.com/categories/remote-programming-jobs.rss",
-        None,
+        default_allowed.as_deref(),
     )?;
     let raw = String::from_utf8_lossy(&raw);
-    let missing = http::get_json(&root, "https://absent.example.com/missing", None)
-        .err()
-        .map(|error| error.class)
-        .unwrap_or("accepted");
+    let missing = http::get_json(
+        &root,
+        "https://absent.example.com/missing",
+        default_allowed.as_deref(),
+    )
+    .err()
+    .map(|error| error.class)
+    .unwrap_or("accepted");
     let status = http::get_json(
         &root,
         "https://bad.atlassian.example.com/rest/api/3/myself",
-        None,
+        default_allowed.as_deref(),
     )
     .err()
     .map(|error| error.class)
@@ -222,7 +238,7 @@ fn connector_evidence(base: &Path) -> Result<Value> {
     });
     let mut evidence = Map::new();
     for kind in ["github", "jira", "slack", "gdocs", "zoom", "outlook"] {
-        let mut fetch = fetcher(&root);
+        let mut fetch = fetcher(&root)?;
         evidence.insert(
             kind.into(),
             json!(item_projection(connectors::run(
@@ -236,7 +252,7 @@ fn connector_evidence(base: &Path) -> Result<Value> {
     // The Python personal-mark provider materializes its feed folder on the
     // first Slack recognition read, even when no mark exists.
     std::fs::create_dir_all(workspace.root.join("work/feed"))?;
-    let personal_slack = connectors::run(&configs["slack"], "user", &mut fetcher(&root), true)?;
+    let personal_slack = connectors::run(&configs["slack"], "user", &mut fetcher(&root)?, true)?;
     let seen = Rc::new(RefCell::new(Vec::<String>::new()));
     let seen_by_fetch = Rc::clone(&seen);
     let mut paged = move |url: &str| {
@@ -254,7 +270,7 @@ fn connector_evidence(base: &Path) -> Result<Value> {
     };
     let pages = connectors::jira(&configs["jira"], "user", &mut paged)?;
     let seen = seen.borrow();
-    let rejected = connectors::jira(&json!({"kind": "jira", "token": "env:CB_TEST_TOKEN", "base_url": "https://bad.atlassian.example.com", "email": "me@example.com"}), "user", &mut fetcher(&root)).err().map(|error| error.class).unwrap_or("accepted");
+    let rejected = connectors::jira(&json!({"kind": "jira", "token": "env:CB_TEST_TOKEN", "base_url": "https://bad.atlassian.example.com", "email": "me@example.com"}), "user", &mut fetcher(&root)?).err().map(|error| error.class).unwrap_or("accepted");
     let pd_calls = Rc::new(RefCell::new(Vec::<String>::new()));
     let pd_calls_by_fetch = Rc::clone(&pd_calls);
     let mut pd = move |url: &str| {
@@ -308,13 +324,25 @@ fn calendar_recurrence(base: &Path) -> Result<Value> {
         &json!({"kind": "graph", "token": "env:CB_TEST_TOKEN"}),
         NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(),
         utc,
-        &mut fetcher(&fixture_root()),
+        &mut fetcher(&fixture_root())?,
     )?;
+    let exceptions = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:exceptions@synthetic.example\r\nDTSTART;TZID=America/New_York:20261030T090000\r\nDTEND;TZID=America/New_York:20261030T100000\r\nRRULE:FREQ=DAILY;COUNT=4\r\nSUMMARY:Original series slot\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:exceptions@synthetic.example\r\nRECURRENCE-ID;TZID=America/New_York:20261101T090000\r\nDTSTART;TZID=America/New_York:20261101T103000\r\nDTEND;TZID=America/New_York:20261101T113000\r\nSUMMARY:Moved DST review\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:exceptions@synthetic.example\r\nRECURRENCE-ID;TZID=America/New_York:20261102T090000\r\nDTSTART;TZID=America/New_York:20261102T090000\r\nDTEND;TZID=America/New_York:20261102T100000\r\nSUMMARY:Cancelled series slot\r\nSTATUS:CANCELLED\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+    let mut exception_days = Vec::new();
+    for day in [1, 2] {
+        exception_days.push(calendar::parse_ics(
+            exceptions,
+            NaiveDate::from_ymd_opt(2026, 11, day).unwrap(),
+            calendar::zone("America/New_York")?,
+            &[],
+        )?);
+    }
     Ok(json!({
         "work": work_events.iter().map(calendar::Event::to_json).collect::<Vec<_>>(),
         "series_lengths": days.iter().map(Vec::len).collect::<Vec<_>>(),
         "series": days.iter().map(|events| events.iter().map(calendar::Event::to_json).collect::<Vec<_>>()).collect::<Vec<_>>(),
         "graph": graph.iter().map(calendar::Event::to_json).collect::<Vec<_>>(),
+        "exception_lengths": exception_days.iter().map(Vec::len).collect::<Vec<_>>(),
+        "exceptions": exception_days.iter().map(|events| events.iter().map(calendar::Event::to_json).collect::<Vec<_>>()).collect::<Vec<_>>(),
     }))
 }
 
@@ -377,11 +405,11 @@ fn mail_readers(base: &Path) -> Result<Value> {
     let root = fixture_root();
     let graph = mail::graph(
         &json!({"name": "graph", "kind": "graph", "token": "env:CB_TEST_TOKEN"}),
-        &mut fetcher(&root),
+        &mut fetcher(&root)?,
     )?;
     let jmap = mail::jmap(
         &json!({"name": "jmap", "kind": "jmap", "token": "env:CB_TEST_TOKEN"}),
-        &mut fetcher(&root),
+        &mut fetcher(&root)?,
     )?;
     let calls = Rc::new(RefCell::new(vec!["connect:127.0.0.1:1143".to_string()]));
     let calls_by_factory = Rc::clone(&calls);
@@ -393,11 +421,30 @@ fn mail_readers(base: &Path) -> Result<Value> {
     };
     let imap = mail::imap(
         &json!({"name": "imap", "kind": "imap", "host": "127.0.0.1", "port": 1143, "user": "env:CB_TEST_TOKEN", "password": "env:CB_TEST_TOKEN"}),
-        None,
+        crate::allowed_hosts()?.as_deref(),
         &mut factory,
     )?;
     let all = [graph.clone(), jmap.clone(), imap.clone()].concat();
     let classes = mail::classify(&all);
+    let near_misses = [
+        "assessments",
+        "offering",
+        "assessment",
+        "offer",
+        "take-home",
+        "take home",
+        "next steps",
+    ]
+    .into_iter()
+    .map(|subject| mail::Message {
+        id: subject.into(),
+        sender: "sender@example.com".into(),
+        subject: subject.into(),
+        received: String::new(),
+        account: "synthetic".into(),
+    })
+    .collect::<Vec<_>>();
+    let near_miss_classes = mail::classify(&near_misses);
     write_yaml(
         &workspace.root.join("mail.yaml"),
         &json!({"accounts": [{"name": "personal", "kind": "graph", "machine": "personal"}, {"name": "work", "kind": "graph", "machine": "corporate"}]}),
@@ -423,6 +470,7 @@ fn mail_readers(base: &Path) -> Result<Value> {
         "imap": imap.iter().map(mail::Message::to_json).collect::<Vec<_>>(),
         "imap_calls": calls.borrow().clone(),
         "classes": classes,
+        "near_miss_classes": near_miss_classes,
         "corporate_accounts": corporate_accounts,
         "wrong_host": wrong_host,
     }))
@@ -447,16 +495,17 @@ fn source_isolation(base: &Path) -> Result<Value> {
                 cfg,
                 NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(),
                 calendar::zone("UTC")?,
-                &mut fetcher(&fixture_root()),
+                &mut fetcher(&fixture_root())?,
             ),
-            "ics" => calendar::ics_text(cfg, &fixture_root()).and_then(|text| {
-                calendar::parse_ics(
-                    &text,
-                    NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(),
-                    calendar::zone("UTC")?,
-                    &[],
-                )
-            }),
+            "ics" => calendar::ics_text(cfg, &fixture_root(), crate::allowed_hosts()?.as_deref())
+                .and_then(|text| {
+                    calendar::parse_ics(
+                        &text,
+                        NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(),
+                        calendar::zone("UTC")?,
+                        &[],
+                    )
+                }),
             _ => Err(SourceError::new("KeyError", "unknown calendar")),
         };
         match result {
@@ -482,8 +531,8 @@ fn source_isolation(base: &Path) -> Result<Value> {
         .flatten()
     {
         let result = match crate::text(crate::field(account, "kind")).as_str() {
-            "graph" => mail::graph(account, &mut fetcher(&fixture_root())),
-            "jmap" => mail::jmap(account, &mut fetcher(&fixture_root())),
+            "graph" => mail::graph(account, &mut fetcher(&fixture_root())?),
+            "jmap" => mail::jmap(account, &mut fetcher(&fixture_root())?),
             _ => Err(SourceError::new("KeyError", "unknown mail account")),
         };
         match result {
@@ -498,6 +547,7 @@ fn source_isolation(base: &Path) -> Result<Value> {
     let literal_ics = calendar::ics_text(
         &json!({"url": "https://calendar.example.com/private.ics"}),
         &fixture_root(),
+        crate::allowed_hosts()?.as_deref(),
     )
     .err()
     .map(|error| error.class)
@@ -505,12 +555,56 @@ fn source_isolation(base: &Path) -> Result<Value> {
     let literal_token = connectors::run(
         &json!({"kind": "github", "token": "literal-not-reported", "user": "me"}),
         "user",
-        &mut fetcher(&fixture_root()),
+        &mut fetcher(&fixture_root())?,
         false,
     )
     .err()
     .map(|error| error.class)
     .unwrap_or("accepted");
+    let restricted = Workspace::new(base, "restrictive-policy")?;
+    let hosts = vec!["allowed.example".to_owned()];
+    let restricted_source = connectors::run(
+        &json!({"kind": "github", "token": "env:CB_TEST_TOKEN", "user": "me"}),
+        "user",
+        &mut fetcher_with(&fixture_root(), Some(hosts.clone())),
+        false,
+    )
+    .err()
+    .map(|error| error.class)
+    .unwrap_or("accepted");
+    let restricted_calendar = calendar::graph_events(
+        &json!({"kind": "graph", "token": "env:CB_TEST_TOKEN"}),
+        NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(),
+        calendar::zone("UTC")?,
+        &mut fetcher_with(&fixture_root(), Some(hosts.clone())),
+    )
+    .err()
+    .map(|error| error.class)
+    .unwrap_or("accepted");
+    let restricted_mail = mail::graph(
+        &json!({"name": "graph", "kind": "graph", "token": "env:CB_TEST_TOKEN"}),
+        &mut fetcher_with(&fixture_root(), Some(hosts.clone())),
+    )
+    .err()
+    .map(|error| error.class)
+    .unwrap_or("accepted");
+    let mut restricted_keys = HashMap::new();
+    let restricted_connect = invoke(
+        &restricted,
+        &[
+            "connect",
+            "github",
+            "--ref",
+            "env:CB_TEST_TOKEN",
+            "--user",
+            "me",
+        ],
+        cli::ConnectControl {
+            allowed_hosts: Some(hosts),
+            ..cli::ConnectControl::default()
+        },
+        &mut restricted_keys,
+    )?;
     Ok(json!({
         "calendar_titles": events.iter().map(|event| event.title.clone()).collect::<Vec<_>>(),
         "calendar_errors": calendar_errors,
@@ -518,6 +612,7 @@ fn source_isolation(base: &Path) -> Result<Value> {
         "mail_errors": mail_errors,
         "literal_ics": literal_ics,
         "literal_token": literal_token,
+        "restrictive": {"source": restricted_source, "calendar": restricted_calendar, "mail": restricted_mail, "connect": restricted_connect},
     }))
 }
 
