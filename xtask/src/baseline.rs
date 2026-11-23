@@ -534,6 +534,42 @@ pub const STEPS: &[Step] = &[
         ],
     },
     Step {
+        // rust-10 starts with its real Python oracle. The component candidate
+        // and native source bindings join only with the implementation.
+        id: "rust-10",
+        oracle: &["-I", "-B", "tests/oracles/rust10.py", "--all"],
+        cases: &[],
+        candidate: None,
+        http_contract: false,
+        data_contract: false,
+        role_contract: false,
+        registry_projection: false,
+        no_python: true,
+        env: &[],
+        sources: &[
+            "tests/oracles/rust10.py",
+            "src/careerbrew/work/sessions.py",
+            "src/careerbrew/work/agents.py",
+            "src/careerbrew/work/drafts.py",
+            "src/careerbrew/work/prior_selection.py",
+            "src/careerbrew/cli.py",
+            "src/careerbrew/calendar.py",
+            "src/careerbrew/config.py",
+            "src/careerbrew/events.py",
+            "src/careerbrew/keyfile.py",
+            "src/careerbrew/paths.py",
+            "src/careerbrew/plugins.py",
+            "src/careerbrew/store.py",
+            "src/careerbrew/vault.py",
+            "src/careerbrew/work/projects.py",
+            "src/careerbrew/workday/questions.py",
+            "src/careerbrew/workday/steps.py",
+            "src/careerbrew/workday/watch.py",
+            "src/careerbrew/day/handoff.py",
+        ],
+        fixtures: &[],
+    },
+    Step {
         // rust-04 is a vector step (privacy, policy and approval decisions).
         // Its Python oracle `--all` runs every set over the generator's
         // vectors in one isolated process. `verify` routes the step to the

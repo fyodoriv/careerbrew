@@ -2022,6 +2022,25 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native sessions, claims and the safe draft save.
 - **Gate:** 100% of session and draft cases agree; 0 cross-session writes,
   stale claims or conflicting target saves in 1,000 interleaved operations.
+- **Component pre-registration (2026-11-23):** source revision
+  `bd890013004e533d2c3b769a117b96ca3fec8f5e`; Python oracle
+  `tests/oracles/rust10.py`; native assertion `tests/unit/test_rust10_component.py`.
+  The six cases are `session-lifecycle`, `claims-and-drafts`, `agent-activity`,
+  `reply-fit`, `prior-selection` and `cli-handlers`. They cover scope/claim checks,
+  full-scope delivery instructions, activity restart/quiet/expiry, clear-save-
+  read-back locks, origin-session identity, newest-thread state, and the six
+  assigned CLI handlers. The clock and every home are invocation-owned and
+  synthetic. Reports use typed JSON; random record IDs are compared by shape,
+  uniqueness and stability. Differential writes use semantic JSON/JSONL values,
+  owned paths and sealed-record markers, not ciphertext bytes. The 1,000-operation
+  interleaving model is accompanied by native lock and parallel-writer controls.
+  Baseline B is 30 fresh Python runs. Verify requires all six cases with zero
+  privacy, side-effect, missing-write or duplicate-write violations. Measure
+  requires 30 unique interleaved pairs in each cold and warm regime. CPU-time
+  p95 and process-tree peak RSS must each be at most 1.10 x the paired oracle in
+  each regime; any contract mismatch, cross-session write, stale claim,
+  conflicting target save or resource excess keeps Python. This is component
+  parity only: production dispatch, shipped crates and activation do not change.
 
 ### rust-11: Port project imports, exact source links and memory sync
 
