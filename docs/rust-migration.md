@@ -1524,10 +1524,12 @@ the crate until the rust-05 and rust-07 closure is native, so
     structure-only `--keys`, line-only parse diagnostics and content-free
     events. The Python issue-366 workload disables events and dynamically
     denies process, socket and secret adapters. The rust-05i follow-up adds
-    native invocation-scoped denied-host instrumentation: every component show
-    enters that scope, all 15 groups complete with zero attempts, and one
-    planted call per channel is observed and refused without executing its
-    operation. All four primary and eleven control groups compare
+    native handler-internal denied-host instrumentation: all 15 groups complete
+    with zero attempts, and one planted operation per channel enters the real
+    `cmd_data_show` path at path resolution, personal-data policy or store read.
+    The denied boundary records the attempt and refuses it before the operation
+    closure executes. This proves mediation at those three injected boundaries;
+    it does not claim to detect a future direct host call that bypasses them. All four primary and eleven control groups compare
     exact safe output and exit codes, and the whole synthetic parent snapshot
     retains every file's bytes and mtime. The rust-05 verifier's invocation-
     scoped observed-files walker records a retained symlink as the digest of
@@ -1564,12 +1566,18 @@ the crate until the rust-05 and rust-07 closure is native, so
     plaintext decryption targets retain their bytes, inode and mtime. Repeated
     bulk operations retain those no-op identities; the marker is the only
     deliberate repeat-decryption write.
-  - `cli.rs` now has an invocation-scoped `HostOperations` adapter for native
-    component data show. The denied adapter counts process, socket and secret
-    attempts and refuses them without running the supplied operation. All 15
-    issue-366 groups enter real show scopes with zero attempts; three planted
-    calls each record one refused attempt. This is dynamic adapter evidence,
-    not a claim from static source shape or an empty synthetic result.
+  - `cli.rs` has invocation-scoped `HostOperations` process, socket and secret
+    boundaries inside component `cmd_data_show`: before path resolution, before
+    personal-data policy and before store read. Normal data show performs no
+    host operation, and all 15 issue-366 groups individually report zero
+    attempts. Each planted control calls the real handler with one injected
+    operation at the matching boundary. The denied adapter records exactly one
+    attempt and returns its typed refusal without executing the operation. The
+    Python oracle drives equivalent attempts through `cli.main` at the same
+    three provider boundaries. This is dynamic evidence for those explicit
+    mediation points only; a direct call that bypasses all injected boundaries
+    remains outside the proof. No business value or operation error text enters
+    the report.
   - `tests/oracles/rust05.py` and
     `tests/unit/test_rust05i_component.py` compare 19 bulk cases plus the
     denied-host case, including semantic state digests, modes, key presence,

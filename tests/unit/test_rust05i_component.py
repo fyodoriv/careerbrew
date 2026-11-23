@@ -92,9 +92,9 @@ def test_bulk_vault_status_and_native_host_denial_match_real_python(store_bin, t
 
         assert case(report, "data-show-host-denial")["result"] == {
             "read_only_attempts": 0,
-            "process": {"attempts": 1, "refused": True},
-            "socket": {"attempts": 1, "refused": True},
-            "secret": {"attempts": 1, "refused": True},
+            "process": {"attempts": 1, "refused": True, "boundary": "path-resolution"},
+            "socket": {"attempts": 1, "refused": True, "boundary": "personal-data-policy"},
+            "secret": {"attempts": 1, "refused": True, "boundary": "store-read"},
         }
         path_results = [row["result"] for row in report["cases"] if row["id"].startswith("data-show-") and row["id"] not in {"data-show-read-only", "data-show-host-denial"}]
         assert len(path_results) == 15

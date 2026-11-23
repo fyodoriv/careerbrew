@@ -40,11 +40,8 @@ pub trait Editor {
 }
 
 /// Invocation-scoped host capabilities for component `data show`.
-///
-/// The denied implementation records each attempted operation and returns an
-/// error without running its closure. Entering a show scope is not an attempt.
+/// Every synthetic host-capable operation enters through one of these methods.
 pub trait HostOperations {
-    fn data_show_scope(&self);
     fn process(&self, operation: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError>;
     fn socket(&self, operation: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError>;
     fn secret(&self, operation: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError>;
@@ -52,7 +49,6 @@ pub trait HostOperations {
 
 struct UnrestrictedHost;
 impl HostOperations for UnrestrictedHost {
-    fn data_show_scope(&self) {}
     fn process(&self, operation: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError> {
         operation()
     }
@@ -61,6 +57,40 @@ impl HostOperations for UnrestrictedHost {
     }
     fn secret(&self, operation: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError> {
         operation()
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HostChannel {
+    Process,
+    Socket,
+    Secret,
+}
+
+/// One synthetic operation injected into a real data-show path boundary.
+pub struct HostAttempt<'a> {
+    pub channel: HostChannel,
+    pub operation: &'a mut dyn FnMut() -> Result<(), CliError>,
+}
+
+pub struct HostMediation<'a> {
+    pub host: &'a dyn HostOperations,
+    pub attempt: Option<HostAttempt<'a>>,
+}
+
+fn mediate_host(
+    host: &dyn HostOperations,
+    attempt: &mut Option<HostAttempt>,
+    channel: HostChannel,
+) -> Result<(), CliError> {
+    if attempt.as_ref().map(|attempt| attempt.channel) != Some(channel) {
+        return Ok(());
+    }
+    let operation = &mut attempt.take().expect("matched host attempt").operation;
+    match channel {
+        HostChannel::Process => host.process(operation),
+        HostChannel::Socket => host.socket(operation),
+        HostChannel::Secret => host.secret(operation),
     }
 }
 
@@ -181,7 +211,10 @@ pub fn cmd_data_show(
         may_show_business,
         events_env,
         clock,
-        &UnrestrictedHost,
+        HostMediation {
+            host: &UnrestrictedHost,
+            attempt: None,
+        },
     )
 }
 
@@ -192,9 +225,10 @@ pub fn cmd_data_show_with_host(
     may_show_business: bool,
     events_env: Option<&str>,
     clock: &dyn Clock,
-    host: &dyn HostOperations,
+    mediation: HostMediation,
 ) -> Result<Outcome, CliError> {
-    host.data_show_scope();
+    let HostMediation { host, mut attempt } = mediation;
+    mediate_host(host, &mut attempt, HostChannel::Process)?;
     let name = name.strip_prefix("private/").unwrap_or(name);
     let target = match data_file(store.root.as_path(), name) {
         Ok(target) => target,
@@ -208,6 +242,7 @@ pub fn cmd_data_show_with_host(
         .strip_prefix(&root)
         .map_err(|_| CliError("data-file"))?;
     let rel = relative.to_string_lossy().replace('\\', "/");
+    mediate_host(host, &mut attempt, HostChannel::Socket)?;
     let personal = relative.components().count() == 1
         || relative.components().next().is_some_and(|part| {
             matches!(
@@ -234,6 +269,7 @@ pub fn cmd_data_show_with_host(
         .map_err(|_| CliError("data-event"))
     };
 
+    mediate_host(host, &mut attempt, HostChannel::Secret)?;
     if keys {
         let outline = match helpers::outline(store, &target, hidden) {
             Ok(outline) => outline,

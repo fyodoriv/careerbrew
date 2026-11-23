@@ -420,24 +420,53 @@ def _data_show_cases(cases: list[dict[str, Any]], root: Path) -> None:
             if read_only_attempts:
                 raise AssertionError("data show reached a denied host adapter")
 
-            def planted(channel: str, operation: Any) -> dict[str, Any]:
+            def planted(channel: str, boundary: Any) -> dict[str, Any]:
                 before_attempts = attempts.count(channel)
                 try:
-                    operation()
+                    with boundary():
+                        show("profile.yaml")
                 except AssertionError:
                     refused = True
                 else:
                     refused = False
-                return {"attempts": attempts.count(channel) - before_attempts, "refused": refused}
+                boundary = {"process": "path-resolution", "socket": "personal-data-policy", "secret": "store-read"}[channel]
+                return {"attempts": attempts.count(channel) - before_attempts, "refused": refused, "boundary": boundary}
+
+            def process_boundary():
+                real = cli._data_file
+
+                def attempt(name: str) -> Any:
+                    subprocess.run(["synthetic-command"])
+                    return real(name)
+
+                return _patched(cli, _data_file=attempt)
+
+            def socket_boundary():
+                real = cli._personal_data
+
+                def attempt(rel: Path) -> Any:
+                    socket.create_connection(("127.0.0.1", 9))
+                    return real(rel)
+
+                return _patched(cli, _personal_data=attempt)
+
+            def secret_boundary():
+                real = store.read_text
+
+                def attempt(*args: Any, **kwargs: Any) -> Any:
+                    secrets.resolve("env:SYNTHETIC_HOST_DENIAL")
+                    return real(*args, **kwargs)
+
+                return _patched(store, read_text=attempt)
 
             cases.append(
                 {
                     "id": "data-show-host-denial",
                     "result": {
                         "read_only_attempts": read_only_attempts,
-                        "process": planted("process", lambda: subprocess.run(["synthetic-command"])),
-                        "socket": planted("socket", lambda: socket.create_connection(("127.0.0.1", 9))),
-                        "secret": planted("secret", lambda: secrets.resolve("env:SYNTHETIC_HOST_DENIAL")),
+                        "process": planted("process", process_boundary),
+                        "socket": planted("socket", socket_boundary),
+                        "secret": planted("secret", secret_boundary),
                     },
                 }
             )

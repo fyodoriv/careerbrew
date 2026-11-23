@@ -3,7 +3,10 @@
 
 use crate::atomic::StoreError;
 use crate::canon::Canon;
-use crate::cli::{self, CliError, Editor, HostOperations, Outcome, Terminal};
+use crate::cli::{
+    self, CliError, Editor, HostAttempt, HostChannel, HostMediation, HostOperations, Outcome,
+    Terminal,
+};
 use crate::events::{self, Clock};
 use crate::helpers;
 use crate::json_yaml;
@@ -707,7 +710,6 @@ fn key_path_cases(cases: &mut Vec<Value>, root: &Path) -> Result<(), String> {
 
 #[derive(Default)]
 struct DeniedHost {
-    scopes: Cell<usize>,
     process: Cell<usize>,
     socket: Cell<usize>,
     secret: Cell<usize>,
@@ -718,32 +720,21 @@ impl DeniedHost {
         self.process.get() + self.socket.get() + self.secret.get()
     }
 
+    fn channel_attempts(&self, channel: HostChannel) -> usize {
+        match channel {
+            HostChannel::Process => self.process.get(),
+            HostChannel::Socket => self.socket.get(),
+            HostChannel::Secret => self.secret.get(),
+        }
+    }
+
     fn deny(counter: &Cell<usize>, kind: &'static str) -> Result<(), CliError> {
         counter.set(counter.get() + 1);
         Err(CliError(kind))
     }
-
-    fn planted(
-        &self,
-        channel: &str,
-        operation: Result<(), CliError>,
-        executed: bool,
-        before: usize,
-    ) -> Value {
-        let after = match channel {
-            "process" => self.process.get(),
-            "socket" => self.socket.get(),
-            _ => self.secret.get(),
-        };
-        json!({"attempts": after - before, "refused": operation.is_err() && !executed})
-    }
 }
 
 impl HostOperations for DeniedHost {
-    fn data_show_scope(&self) {
-        self.scopes.set(self.scopes.get() + 1);
-    }
-
     fn process(&self, _: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError> {
         Self::deny(&self.process, "host-process-denied")
     }
@@ -820,7 +811,10 @@ impl ShowRunner<'_, '_> {
             false,
             Some("off"),
             &DisabledEventClock,
-            self.host,
+            HostMediation {
+                host: self.host,
+                attempt: None,
+            },
         )
         .map_err(|_| "data-show")?;
         let stdout = outcome
@@ -836,6 +830,43 @@ impl ShowRunner<'_, '_> {
         Ok(Show {
             exit: outcome.code,
             stdout,
+        })
+    }
+
+    fn planted(&self, channel: HostChannel) -> Value {
+        let before = self.host.channel_attempts(channel);
+        let mut executed = false;
+        let result = {
+            let mut operation = || {
+                executed = true;
+                Ok(())
+            };
+            cli::cmd_data_show_with_host(
+                self.store,
+                "profile.yaml",
+                false,
+                false,
+                Some("off"),
+                &DisabledEventClock,
+                HostMediation {
+                    host: self.host,
+                    attempt: Some(HostAttempt {
+                        channel,
+                        operation: &mut operation,
+                    }),
+                },
+            )
+        };
+        let (expected, boundary) = match channel {
+            HostChannel::Process => ("host-process-denied", "path-resolution"),
+            HostChannel::Socket => ("host-socket-denied", "personal-data-policy"),
+            HostChannel::Secret => ("host-secret-denied", "store-read"),
+        };
+        let refused = matches!(result, Err(CliError(kind)) if kind == expected) && !executed;
+        json!({
+            "attempts": self.host.channel_attempts(channel) - before,
+            "refused": refused,
+            "boundary": boundary,
         })
     }
 }
@@ -1008,31 +1039,13 @@ fn data_show_cases(cases: &mut Vec<Value>, store: &Store, root: &Path) -> Result
     }));
     cases.push(json!({"id": "data-show-read-only", "result": before == snapshot(base)?}));
     let read_only_attempts = host.attempts();
-    if read_only_attempts != 0 || host.scopes.get() == 0 {
-        return Err("data-show-host-scope".into());
+    if read_only_attempts != 0 {
+        return Err("data-show-host-attempt".into());
     }
 
-    let before_process = host.process.get();
-    let mut process_executed = false;
-    let process_result = host.process(&mut || {
-        process_executed = true;
-        Ok(())
-    });
-    let process = host.planted("process", process_result, process_executed, before_process);
-    let before_socket = host.socket.get();
-    let mut socket_executed = false;
-    let socket_result = host.socket(&mut || {
-        socket_executed = true;
-        Ok(())
-    });
-    let socket = host.planted("socket", socket_result, socket_executed, before_socket);
-    let before_secret = host.secret.get();
-    let mut secret_executed = false;
-    let secret_result = host.secret(&mut || {
-        secret_executed = true;
-        Ok(())
-    });
-    let secret = host.planted("secret", secret_result, secret_executed, before_secret);
+    let process = runner.planted(HostChannel::Process);
+    let socket = runner.planted(HostChannel::Socket);
+    let secret = runner.planted(HostChannel::Secret);
     cases.push(json!({
         "id": "data-show-host-denial",
         "result": {
