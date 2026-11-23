@@ -526,7 +526,7 @@ fn cli_handlers(base: &Path) -> Result<Value> {
     match std::env::var("CAREERBREW_RUST09_PLANT_WRITE").as_deref() {
         Ok("missing") => std::fs::remove_file(root.join("work/tasks.yaml"))?,
         Ok("duplicate") => {
-            let path = root.join("work/tasks.yaml");
+            let path = base.join("lock-and-team/data/work/projects.yaml");
             let bytes = std::fs::read(&path)?;
             std::fs::write(path, bytes)?;
         }
