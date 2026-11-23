@@ -1893,6 +1893,19 @@ the crate until the rust-05 and rust-07 closure is native, so
   classification drift or resource ratio above 1.10 rejects the correction.
   Fresh baseline, verify, measure and decide records are required after the
   source change. Production activation remains unchanged.
+- **Review-correction acceptance (2026-11-23, macOS):** clean source revision
+  `a51632d96f3e570d783ec787bee4973fda67d93d`; evidence-source hash
+  `4053bb14602326c5300fd7524639017f021d47d7ac4ae3e668a3ed7e7eb7435d`;
+  fixture hash
+  `6c6e83b98ed7ef0a84d82f6477a29704679d0eb44d5758b858a0e3f19d1f4439`;
+  release-candidate SHA-256
+  `c21fb93ac40451bb17367d3ab4f25dcb7149ca8e586a79209ee7a8e4162d6c05`.
+  Verify passes 6/6 with zero violations. Cold CPU p95 is 319,796 to 15,015
+  microseconds; warm is 351,931 to 16,159. Cold tree-RSS p95 is 58,458,112 to
+  11,304,960 bytes; warm is 58,425,344 to 11,485,184. All 30 pairs per regime
+  meet the 1.10 limit and `decide` returns component-only `activate`. Fresh
+  extra, missing and duplicate write controls return `keep-python` with their
+  respective counters nonzero. No route or activation state changes.
 
 ### rust-09: Port projects, priorities and promises
 
