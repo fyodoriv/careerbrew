@@ -1786,19 +1786,19 @@ the crate until the rust-05 and rust-07 closure is native, so
   The baseline covers nine synthetic groups, including all eleven owned CLI
   handlers. This is the pre-native prediction record, not a speed result.
 - **Component measurement (2026-11-23, macOS):**
-  - Clean source revision `b66963963ca7bfe033cc75c73bf394d1e1b8d616`.
+  - Clean source revision `e90751aba59e1bdaaa357a4e5cda0b791a4c4eb9`.
     All three records share evidence-source hash
-    `2e2adfbf9079557ec81638f75eb78f8f369c60c08553744321ee2c2c535fd431`
+    `7e753cdfafc4d8f843e5de54af422d0e5a0ac94adb35bfe6fede23a595cdc905`
     and fixture hash
     `940d3c5822659c7eaef80649a92c7a7582b3d6662f330a5fe12da3b8d1d3c1a2`.
     Verify and measure share release-candidate SHA-256
-    `a4e56bcb16ec1ff1590fb6bb320452c6127c73586b4d001c4369ab230d28ac4f`.
+    `1a6b63eb3b90168ef91ccbd5b389db525a20be93289cf397dfdefd98b376adf7`.
   - Baseline: 30 runs. Verify: 9/9 checks with 0 contract, privacy, role,
     authorization, side-effect, missing-write or duplicate-write violations.
     Measurement: 30 unique, uncached pairs in each regime.
-  - Cold CPU p95 was 287,505 to 78,919 microseconds; warm was 285,438 to
-    78,313. Cold tree-RSS p95 was 47,022,080 to 8,257,536 bytes; warm was
-    47,202,304 to 8,257,536. Each ratio is below 1.10. The unmeasured noise
+  - Cold CPU p95 was 316,725 to 90,165 microseconds; warm was 316,087 to
+    88,522. Cold tree-RSS p95 was 47,398,912 to 8,372,224 bytes; warm was
+    47,464,448 to 8,372,224. Each ratio is below 1.10. The unmeasured noise
     floors keep the ratio fail-closed.
   - `migration decide --step rust-07` returned `activate` with no reasons.
     Real extra, missing and duplicate native-write controls each returned
