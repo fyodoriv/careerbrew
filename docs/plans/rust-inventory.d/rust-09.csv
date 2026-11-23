@@ -1,0 +1,16 @@
+tests/oracles/rust09.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-09 differential gate
+tests/unit/test_rust09_component.py,keep-native,rust-00,rust-09 native component and assigned CLI assertions
+crates/projects/Cargo.toml,keep-native,rust-00,Component-only project crate manifest
+crates/projects/src/lib.rs,port,rust-09,Component-only project context clock and value boundary
+crates/projects/src/projects.rs,port,rust-09,Project lifecycle readiness locks and native promise writers
+crates/projects/src/priorities.rs,port,rust-09,Finite task estimates ranking impact and completion
+crates/projects/src/project_priority.rs,port,rust-09,Configured project and ticket identity with rank bonuses
+crates/projects/src/promises.rs,port,rust-09,Promise detection stable IDs closure steps and restricted views
+crates/projects/src/focus.rs,port,rust-09,Focus block and priority explanation formatting
+crates/projects/src/team.rs,port,rust-09,Team roster validation locking and whole-word matching
+crates/projects/src/cli.rs,port,rust-09,Component adapters for the four assigned CLI handlers
+crates/projects/src/synthetic.rs,port,rust-09,Synthetic project priority promise lock and CLI workload
+crates/projects/src/bin/projects-component.rs,port,rust-09,Synthetic-only native project candidate entry point
+crates/projects/tests/component.rs,keep-native,rust-00,rust-09 native finite identity promise and priority controls
+xtask/src/rust09.rs,keep-native,rust-00,Custom rust-09 semantic privacy and write verification runner
+xtask/tests/rust09.rs,keep-native,rust-00,rust-09 registration evidence identity and planted write controls

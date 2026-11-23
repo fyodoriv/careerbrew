@@ -111,17 +111,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: any contract disagreement, privacy violation or missing/duplicate write, or CPU/RSS ratio >1.10 B, blocks rollout. Rework the adapter or dependency, register the new approach and remeasure; keep the last verified handler. Preparation fails on any accepted planted defect or unsupported required contract.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
 
-- [ ] Rust migration: Port projects, priorities and promises
-  - **ID**: rust-09
-  - **Blocked**: prerequisite: rust-05, rust-07 must land and pass its acceptance gates first
-  - **Details**: Port project lifecycle, configured ticket identity, readiness gates, priority estimates and promise closure. Preserve finite-number checks, idempotent IDs, owner-edited closures and lock scope. Follow the measured Rust migration plan in `docs/rust-migration.md`: step `rust-09` in "Work breakdown" (its inputs, outputs and gate), "Scope", and "Measurement protocol for every step". This step also owns `tests/fixtures/projects/` ("Every module has an owner step" in the same page). Split large capabilities into independently measured PRs. Port this capability's CLI handlers and the assertions of its test files in this step, and route its own commands to native code when its activation closure is native; do not defer them to rust-26 or rust-27 ("Every module has an owner step" lists them). A component-only result does not enable production dispatch: the plan's full native activation closure must be measured before switching.
-  - **Files**: src/careerbrew/work/projects.py; priorities.py; project_priority.py; promises.py; focus.py; team.py
-  - **Hypothesis**: replacing this slice preserves 100% of its registered behavior with 0 privacy/policy/side-effect violations; native CPU-time p95 and peak RSS stay at or below 1.10 times measured baseline B. Preparation steps instead prove their harness/dependency controls before any product switch. No current speed result is claimed.
-  - **Measurement**: After rust-00 creates the harness: `heavy-run --exclusive cargo xtask migration baseline --step rust-09`, `heavy-run cargo xtask migration verify --step rust-09`, `heavy-run --exclusive cargo xtask migration measure --step rust-09 --pairs 30`, then `cargo xtask migration decide --step rust-09`. Commit the baseline and prediction before implementation.
-  - **Success**: 100% project/gate/promise contracts agree; 0 duplicate promises, lost owner edits or UTF-8/ISO-8601 false ticket matches. All applicable shared parity/resource gates pass; whole-repo fast/full checks remain green.
-  - **Pivot**: any contract disagreement, privacy violation or missing/duplicate write, or CPU/RSS ratio >1.10 B, blocks rollout. Rework the adapter or dependency, register the new approach and remeasure; keep the last verified handler. Preparation fails on any accepted planted defect or unsupported required contract.
-  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
-
 - [ ] Rust migration: Port sessions, claims, agents and reply drafts
   - **ID**: rust-10
   - **Blocked**: prerequisite: rust-09 must land and pass its acceptance gates first
