@@ -9,8 +9,8 @@ repository can do any step from this page and the task block.
   actions` routes to `careerbrew-native` since `rust-03` activated
   (2026-11-19, [rust-03 verdict](#rust-03-verdict)). No other gain is claimed. See [Current state](#current-state) and
   [State of rust-00](#state-of-rust-00).
-- **Next task:** `rust-10` (sessions, claims, agents and reply drafts).
-  `rust-00` through `rust-09` have their recorded preparation or component
+- **Next task:** `rust-11` (project imports, exact source links and memory sync).
+  `rust-00` through `rust-10` have their recorded preparation or component
   results; only the `rust-03` action catalog is active in production. Follow-ups
   and later activation closure remain tasks in `TASKS.md`.
 - **How to read it:** the [goal](#goal-and-vision) and [decision](#decision-and-rejected-alternatives),
@@ -2031,6 +2031,107 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native sessions, claims and the safe draft save.
 - **Gate:** 100% of session and draft cases agree; 0 cross-session writes,
   stale claims or conflicting target saves in 1,000 interleaved operations.
+- **Component pre-registration (2026-11-23):** source revision
+  `bd890013004e533d2c3b769a117b96ca3fec8f5e`; Python oracle
+  `tests/oracles/rust10.py`; native assertion `tests/unit/test_rust10_component.py`.
+  The six cases are `session-lifecycle`, `claims-and-drafts`, `agent-activity`,
+  `reply-fit`, `prior-selection` and `cli-handlers`. They cover scope/claim checks,
+  full-scope delivery instructions, activity restart/quiet/expiry, clear-save-
+  read-back locks, origin-session identity, newest-thread state, and the six
+  assigned CLI handlers. The clock and every home are invocation-owned and
+  synthetic. Reports use typed JSON; random record IDs are compared by shape,
+  uniqueness and stability. Differential writes use semantic JSON/JSONL values,
+  owned paths and sealed-record markers, not ciphertext bytes. The final review
+  correction uses 1,000 real claim/draft transactions with native lock controls.
+  Baseline B is 30 fresh Python runs. Verify requires all six cases with zero
+  privacy, side-effect, missing-write or duplicate-write violations. Measure
+  requires 30 unique interleaved pairs in each cold and warm regime. CPU-time
+  p95 and process-tree peak RSS must each be at most 1.10 x the paired oracle in
+  each regime; any contract mismatch, cross-session write, stale claim,
+  conflicting target save or resource excess keeps Python. This is component
+  parity only: production dispatch, shipped crates and activation do not change.
+- **Component oracle baseline before native implementation (2026-11-23, macOS):**
+  clean source revision `1570ead209ecb4f6f8e1aa44fe23e96f5e26ab96`; 30 runs;
+  CPU p50/p95 738,892/764,237 microseconds and tree-RSS p50/p95
+  60,456,960/61,063,168 bytes. Evidence-source hash
+  `ddcc848972979ac44fecb2d4e867ac30ad8e66276fe479c4688d69ba3dbdd429`;
+  fixture hash `7d57e9b013641666e53d3a910d072222add8ec7041bade0ed0eee56dc67e797a`.
+  This is the pre-native prediction record, not a speed result.
+- **Component implementation:** `crates/sessions` provides session and claim
+  transactions, loop/handoff lifecycle, activity restart/quiet/expiry, prior-day
+  origin selection, newest-thread reply decisions, per-target draft locks and the
+  six assigned component CLI adapters. `sessions-component` is synthetic-only.
+  The custom verifier compares exact typed output, semantic writes and per-phase
+  write transitions; planted extra, missing and duplicate writes must fail.
+  Production Python, native routes, shipped crates and activation are unchanged.
+- **Component acceptance (2026-11-23, macOS):** clean source revision
+  `07f4e18a903dacda40cb6974f9e8c86d0d6f6d1c`; evidence-source hash
+  `acda0222ee11b40e2c3a35b387d08935f3d06a3c38bc9d8467bdd74ab187243d`;
+  fixture hash `5a22d252c0cd1fd4e2235907960fa9b7570ea1dd348af41f9bcb9ec715cf4895`;
+  release-candidate SHA-256
+  `946bb97799bf1ce325986758414b88926f91401ef99d7442a68ecc5692292531`.
+  Baseline: 30 runs. Verify: 6/6 checks with zero contract, privacy,
+  side-effect, missing-write or duplicate-write violations. Measurement: 30
+  unique, uncached pairs in each regime. Cold CPU p95 was 735,739 to 156,838
+  microseconds; warm was 736,824 to 156,492. Cold tree-RSS p95 was 60,555,264
+  to 11,550,720 bytes; warm was 60,702,720 to 11,550,720. Each ratio is below
+  1.10; the unmeasured noise floors apply that ratio without relaxation.
+  `migration decide --step rust-10` returned component-only `activate` with no
+  reasons. Fresh extra, missing and duplicate native-write controls each
+  returned `keep-python` with `verify-check-failed` and `verify-violation`;
+  their respective violation counters are nonzero. The native hosted test also
+  executes 1,000 locked draft operations. Production routes, shipped crates and
+  activation remain unchanged; activation needs the complete native closure,
+  fresh acceptance records and rollback evidence. Integrated main and this
+  review correction make the `07f4e18a` measurement historical, not valid for
+  the final candidate.
+- **Review-correction pre-registration (2026-11-23):** source revision
+  `1026e1253491e3a5b2412e71266374274fb8085f` replaces the standalone claim map
+  and sessionless draft writes with 1,000 real alternating take, contested-save,
+  holder-save and release transactions. Two live origin sessions contend on each
+  operation cycle; observed contentions must total 250, while cross-session
+  writes, stale claims and conflicting target saves remain zero. A forced-write
+  negative control must make the relevant counters nonzero. The duplicate plant
+  moves to a separately observed write of an existing expected draft path: its
+  semantic map and side-effect count stay unchanged, and its actual duplicate
+  count is nonzero. Success retains all six ordinary cases and requires fresh
+  integrated baseline, verify, 30-pair cold/warm measure and decide records at
+  the same source, with CPU/RSS p95 at most 1.10 times the paired oracle. Any
+  missing contention, counter violation, extra-path rejection or resource excess
+  keeps Python. Production activation remains unchanged.
+- **Review-correction acceptance (2026-11-23, macOS):** clean measured source
+  `45b03e87ec2df31e1e4915acb0a72cb9bd25fbf4`; evidence-source hash
+  `efafe802b692394c5648a95f1ea7a5d922403b630aa6c7698e2c5dc8b727f832`;
+  fixture hash `5a22d252c0cd1fd4e2235907960fa9b7570ea1dd348af41f9bcb9ec715cf4895`;
+  release-candidate SHA-256
+  `b95dc95a60db6cf03e289b3ca4a2603661e5ec427e32e5cac4a7eb48d3f4a817`.
+  Verify passes 6/6 with zero violations. The real transaction workload records
+  1,000 operations, 250 contentions and 250 holder saves, with zero cross-session
+  writes, stale claims or conflicting saves; its forced-write control makes the
+  cross-session and conflict counters nonzero. The expected-path duplicate
+  control records duplicate count 2 with zero contract, side-effect, missing-write
+  or privacy violations. Baseline: 30 runs. Measurement: 30 unique, uncached
+  pairs in each regime. Cold CPU p95 was 2,906,440 to 1,242,809 microseconds;
+  warm was 2,780,748 to 1,260,299. Cold tree-RSS p95 was 63,094,784 to
+  11,894,784 bytes; warm was 62,980,096 to 11,927,552. Each ratio is below 1.10.
+  `decide` returned component-only `activate` with no reasons. Fresh extra,
+  missing and duplicate controls each returned `keep-python` with
+  `verify-check-failed` and `verify-violation`. Production routes, shipped crates
+  and activation remain unchanged.
+- **Hosted-review fixture acceptance (2026-11-23, macOS):** clean measured source
+  `167a283f2968736f624afbd2c1f7ebcafd733a12`; evidence-source hash
+  `8ac6130001aa8bee78290993fc9d7527c7f61a22677e408f940976e2566fd402`;
+  fixture hash `5a22d252c0cd1fd4e2235907960fa9b7570ea1dd348af41f9bcb9ec715cf4895`;
+  release-candidate SHA-256
+  `cdbd0fceb92c34d1ef65fef9c31958d64552f2c83a5ae12f8d64cd76d5af92b9`.
+  Both engines select the `pr-8` run by identity and report it quiet. Verify passes
+  6/6 with zero violations. Baseline: 30 runs. Measurement: 30 unique, uncached
+  pairs in each regime. Cold CPU p95 was 2,819,397 to 1,232,401 microseconds;
+  warm was 2,854,529 to 1,235,597. Cold tree-RSS p95 was 63,160,320 to
+  12,173,312 bytes; warm was 63,160,320 to 12,206,080. Each ratio is below 1.10.
+  `decide` returned component-only `activate`; fresh extra, missing and duplicate
+  controls returned `keep-python`. The crate table marks `careerbrew-sessions`
+  `none: component parity only`; routes, shipped crates and activation are unchanged.
 
 ### rust-11: Port project imports, exact source links and memory sync
 
@@ -2475,6 +2576,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | `crates/setup/` | `careerbrew-setup` | the rust-07 plugin, machine, OAuth reference, MCP repair, self-update and workflow component, with all eleven owned handler adapters; synthetic `setup-component` transport only | none: component parity only |
 | `crates/sources/` | `careerbrew-sources` | the rust-08 bounded recorded HTTP, source cursor, calendar recurrence, mail metadata and `connect` component; synthetic `sources-component` transport only | none: component parity only |
 | `crates/projects/` | `careerbrew-projects` | the rust-09 project lifecycle, readiness, priority, promise, focus, team and four-handler CLI component; synthetic `projects-component` transport only | none: component parity only |
+| `crates/sessions/` | `careerbrew-sessions` | the rust-10 session, claim, agent activity, prior-selection, reply-draft and six-handler CLI component; synthetic `sessions-component` transport only | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
@@ -3241,6 +3343,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 - `src/careerbrew/work/` (4): `agents.py`, `drafts.py`, `prior_selection.py`, `sessions.py`
 - CLI handlers it ports out of `cli.py` (6): `cmd_draft_check`, `cmd_draft_fit`, `cmd_draft_replace`, `cmd_draft_show`, `cmd_work_agent`, `cmd_work_claim`
 - Assertions it ports (5 test files, the files themselves are listed under `rust-27`): `us-91-agent-activity.sh`, `us-98-reply-drafts.sh`, `test_issue_357_session_claim.py`, `test_issue_401.py`, `test_prior_session_selection.py`
+- Native crate it adds (`keep-native` in the inventory): `crates/sessions/` (`sessions.rs`, `agents.rs`, `drafts.rs`, `prior_selection.rs`, `cli.rs`, `synthetic.rs`, `lib.rs` and `bin/sessions-component.rs`), plus `tests/oracles/rust10.py`, `tests/unit/test_rust10_component.py`, `xtask/src/rust10.rs` and `xtask/tests/rust10.rs`.
 
 #### rust-11: Port project imports, exact source links and memory sync (3 files)
 
