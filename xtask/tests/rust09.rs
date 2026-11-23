@@ -26,6 +26,13 @@ fn rust_09_registers_the_release_candidate_and_effective_inputs() {
         "crates/projects/src/cli.rs",
         "crates/projects/src/synthetic.rs",
         "crates/projects/src/bin/projects-component.rs",
+        "crates/vault/src/lock.rs",
+        "crates/vault/src/atomic.rs",
+        "crates/vault/src/transfer.rs",
+        "crates/vault/src/store.rs",
+        "crates/vault/src/canon.rs",
+        "crates/vault/src/json_yaml.rs",
+        "crates/setup/src/value.rs",
         "xtask/src/rust09.rs",
     ] {
         assert!(baseline.contains(source), "missing source binding {source}");

@@ -102,6 +102,42 @@ class Workspace:
         )
 
 
+def _identity_controls(name: str) -> dict[str, Any]:
+    with projects.locked():
+        every = projects._load()
+        every[name].pop("incarnation_id", None)
+        projects._save(every)
+    with projects.locked():
+        staged, every, migrated = projects.session_record(name)
+        if migrated:
+            projects._save(every)
+    generated = staged.get("incarnation_id", "")
+    persisted = projects.records()[name].get("incarnation_id", "")
+    with projects.locked():
+        repeated, every, repeat_migrated = projects.session_record(name)
+        if repeat_migrated:
+            projects._save(every)
+    invalid = []
+    for bad in ("A" * 32, "g" * 32, "abc"):
+        with projects.locked():
+            every = projects._load()
+            every[name]["incarnation_id"] = bad
+            projects._save(every)
+        invalid.append(_error(lambda: projects.session_record(name)))
+    with projects.locked():
+        every = projects._load()
+        every[name]["incarnation_id"] = generated
+        projects._save(every)
+    return {
+        "migrated": migrated,
+        "generated_shape": len(generated) == 32 and all(c in "0123456789abcdef" for c in generated),
+        "persisted": persisted == generated,
+        "repeat_migrated": repeat_migrated,
+        "repeat_stable": repeated.get("incarnation_id") == generated,
+        "invalid": invalid,
+    }
+
+
 def _project_lifecycle(base: Path) -> dict[str, Any]:
     Workspace(base, "project-lifecycle")
     cutline_raw = (FIX / "cutline.json").read_bytes()
@@ -138,6 +174,7 @@ def _project_lifecycle(base: Path) -> dict[str, Any]:
             "stable": first_id == second_id,
             "migrated": migrated,
         },
+        "identity_controls": _identity_controls("checkout"),
         "relations": {
             "parent": projects.records()["search-ranking"]["parent"],
             "links": projects.records()["search-ranking"]["links"],
@@ -211,7 +248,7 @@ def _priority_view(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def _priorities_tickets(base: Path) -> dict[str, Any]:
-    Workspace(base, "priorities-tickets")
+    workspace = Workspace(base, "priorities-tickets")
     projects.add("billing")
     projects.add("search")
     project_priority.set_project("billing", match_globs=["BILL-*", "api-*"])
@@ -229,6 +266,16 @@ def _priorities_tickets(base: Path) -> dict[str, Any]:
     impacted = priorities.record_impact(first["id"], expected="Fewer synthetic failures", who="support", metric="failures per day")
     done = priorities.done(first["id"], 1)
     already_done = _error(lambda: priorities.done(first["id"], 1))
+    old_link = "https://evidence.example.com/old"
+    new_link = "https://evidence.example.com/new"
+    priorities.record_impact(first["id"], evidence_links=[old_link, old_link])
+    os.environ["CAREERBREW_ENCRYPT"] = "on"
+    measured = priorities.record_impact(first["id"], result="  Fewer   failures ", evidence_links=[old_link, new_link])
+    from careerbrew.work import evidence
+
+    evidence_path = workspace.root / "work" / "evidence.jsonl"
+    evidence_lock = workspace.root / "work" / ".evidence.jsonl.lock"
+    notes = [{key: row.get(key) for key in ("id", "kind", "title", "impact", "at", "tags", "origin", "links")} for row in evidence.load() if row.get("kind") == "note"]
     return {
         "entries": project_priority.entries(),
         "configured_keys": configured,
@@ -242,6 +289,14 @@ def _priorities_tickets(base: Path) -> dict[str, Any]:
         "ranked": [_priority_view(row) for row in ranked],
         "regraded": {key: regraded[key] for key in ("id", "impact", "urgency", "estimate_h")},
         "impact": impacted["expected_impact"],
+        "measured_result": {
+            "task": measured["measured_impact"],
+            "notes": notes,
+            "sealed": evidence_path.read_bytes().startswith(b"CBV1\n"),
+            "mode": evidence_path.stat().st_mode & 0o777,
+            "lock": {"exists": evidence_lock.exists(), "mode": evidence_lock.stat().st_mode & 0o777},
+        },
+        "rounding": [round(value, 2) for value in (1.125, -1.125, 1.135, 1.124999999, 1.125000001, -1.125000001)],
         "done": {key: done[key] for key in ("id", "status", "actual_h", "estimate_h")},
         "already_done": already_done,
         "focus_blocks": focus.BLOCKS,
@@ -405,12 +460,28 @@ def _invoke(args: list[str]) -> dict[str, Any]:
 def _cli_handlers(base: Path) -> dict[str, Any]:
     Workspace(base, "cli-handlers")
     priorities.add("Synthetic task", 3, 3, 2, [])
+    priority_set = _invoke(["work", "priority", "set", "billing", "--rank", "1", "--match", "BILL-*"])
+    priority_set_api = _invoke(["work", "priority", "set", "api", "--match", "API-*"])
+    from careerbrew.day import results
+
+    results.append(
+        [
+            {"id": "result-1", "at": "2026-11-02T08:00:00Z", "kind": "ticket", "title": "BILL-100", "source": "synthetic", "origin": "user"},
+            {"id": "result-2", "at": "2026-11-02T08:01:00Z", "kind": "ticket", "title": "BILL-101 API-2", "source": "synthetic", "origin": "user"},
+            {"id": "result-3", "at": "2026-11-02T08:02:00Z", "kind": "other", "title": "unmatched", "source": "synthetic", "origin": "user"},
+        ],
+        day=date(2026, 11, 2),
+    )
+    os.environ["CAREERBREW_ENCRYPT"] = "on"
     return {
-        "priority_set": _invoke(["work", "priority", "set", "billing", "--rank", "1", "--match", "BILL-*"]),
+        "priority_set": priority_set,
+        "priority_set_api": priority_set_api,
         "priority_show": _invoke(["work", "priority", "show"]),
         "task_set": _invoke(["work", "task-set", "t001", "--impact", "4", "--urgency", "5", "--hours", "1.5"]),
         "impact": _invoke(["work", "impact", "t001", "--expect", "Fewer synthetic failures", "--who", "support", "--metric", "failures per day"]),
         "done": _invoke(["work", "done", "t001", "1"]),
+        "impact_result": _invoke(["work", "impact", "t001", "--result", "  CLI   result ", "--evidence", "https://evidence.example.com/old", "--evidence", "https://evidence.example.com/new"]),
+        "impact_unsure": _invoke(["work", "impact", "t001", "--result", "uncertain", "--not-sure"]),
         "task_set_empty": _invoke(["work", "task-set", "t001"]),
         "impact_empty": _invoke(["work", "impact", "t001"]),
     }

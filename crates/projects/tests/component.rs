@@ -1,4 +1,4 @@
-use careerbrew_projects::{priorities, project_priority, promises};
+use careerbrew_projects::{priorities, project_priority, projects, promises, python_round};
 use chrono::NaiveDate;
 use serde_json::json;
 
@@ -81,6 +81,49 @@ fn a_task_matching_two_projects_counts_only_at_the_first_match() {
     assert_eq!(
         counts.get("billing").and_then(|value| value.as_u64()),
         Some(1)
+    );
+    assert_eq!(counts.get("api").and_then(|value| value.as_u64()), Some(0));
+}
+
+#[test]
+fn rounding_is_python_ties_even_including_negative_and_near_ties() {
+    for (value, expected) in [
+        (1.125, 1.12),
+        (-1.125, -1.12),
+        (1.135, 1.14),
+        (1.124999999, 1.12),
+        (1.125000001, 1.13),
+        (-1.125000001, -1.13),
+    ] {
+        assert_eq!(python_round(value, 2), expected, "rounding {value}");
+    }
+}
+
+#[test]
+fn saved_project_identity_requires_lowercase_hex_32() {
+    assert!(projects::valid_identity(
+        &json!({"incarnation_id": "0123456789abcdef0123456789abcdef"})
+    ));
+    for bad in ["A".repeat(32), "g".repeat(32), "abc".to_owned()] {
+        assert!(!projects::valid_identity(&json!({"incarnation_id": bad})));
+    }
+}
+
+#[test]
+fn daily_results_use_real_rows_and_only_the_first_project_match() {
+    let entries = vec![
+        json!({"name": "billing", "rank": 1, "match": ["BILL-*"]}),
+        json!({"name": "api", "rank": 2, "match": ["API-*"]}),
+    ];
+    let rows = vec![
+        json!({"id": "result-1", "title": "BILL-100"}),
+        json!({"id": "result-2", "title": "BILL-101 API-2"}),
+        json!({"id": "result-3", "title": "unmatched"}),
+    ];
+    let counts = project_priority::day_result_counts(&rows, &Default::default(), &entries);
+    assert_eq!(
+        counts.get("billing").and_then(|value| value.as_u64()),
+        Some(2)
     );
     assert_eq!(counts.get("api").and_then(|value| value.as_u64()), Some(0));
 }

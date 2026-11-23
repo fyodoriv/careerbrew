@@ -1957,6 +1957,17 @@ the crate until the rust-05 and rust-07 closure is native, so
   their respective violation counters are nonzero. Production routes, shipped
   crates and activation remain unchanged; activation needs the complete native
   closure, fresh acceptance records and rollback evidence.
+- **Review-correction pre-registration (2026-11-23):** source revision
+  `7763c8cc50003e8558675b041c5de98482cd4012` adds direct controls for reused
+  vault/setup evidence sources, Python ties-even rounding (`1.125` to `1.12`,
+  negative and near ties), missing/invalid/repeated project identity repair,
+  real daily-result first-match counts, and measured-impact normalization,
+  evidence merging, note creation, encryption, modes and locks. Success keeps
+  every prior contract, passes all six cases with zero violations and rejects
+  every planted write. Fresh baseline, verify, 30-pair cold/warm measure and
+  decide records are required after the source change; CPU p95 and tree RSS
+  stay at or below 1.10 times their paired oracle. Any mismatch, lost control
+  or resource excess keeps Python. Production activation remains unchanged.
 
 ### rust-10: Port sessions, claims, agents and reply drafts
 
