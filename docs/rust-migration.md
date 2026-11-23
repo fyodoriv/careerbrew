@@ -2048,6 +2048,13 @@ the crate until the rust-05 and rust-07 closure is native, so
   `ddcc848972979ac44fecb2d4e867ac30ad8e66276fe479c4688d69ba3dbdd429`;
   fixture hash `7d57e9b013641666e53d3a910d072222add8ec7041bade0ed0eee56dc67e797a`.
   This is the pre-native prediction record, not a speed result.
+- **Component implementation:** `crates/sessions` provides session and claim
+  transactions, loop/handoff lifecycle, activity restart/quiet/expiry, prior-day
+  origin selection, newest-thread reply decisions, per-target draft locks and the
+  six assigned component CLI adapters. `sessions-component` is synthetic-only.
+  The custom verifier compares exact typed output, semantic writes and per-phase
+  write transitions; planted extra, missing and duplicate writes must fail.
+  Production Python, native routes, shipped crates and activation are unchanged.
 
 ### rust-11: Port project imports, exact source links and memory sync
 
@@ -3258,6 +3265,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 - `src/careerbrew/work/` (4): `agents.py`, `drafts.py`, `prior_selection.py`, `sessions.py`
 - CLI handlers it ports out of `cli.py` (6): `cmd_draft_check`, `cmd_draft_fit`, `cmd_draft_replace`, `cmd_draft_show`, `cmd_work_agent`, `cmd_work_claim`
 - Assertions it ports (5 test files, the files themselves are listed under `rust-27`): `us-91-agent-activity.sh`, `us-98-reply-drafts.sh`, `test_issue_357_session_claim.py`, `test_issue_401.py`, `test_prior_session_selection.py`
+- Native crate it adds (`keep-native` in the inventory): `crates/sessions/` (`sessions.rs`, `agents.rs`, `drafts.rs`, `prior_selection.rs`, `cli.rs`, `synthetic.rs`, `lib.rs` and `bin/sessions-component.rs`), plus `tests/oracles/rust10.py`, `tests/unit/test_rust10_component.py`, `xtask/src/rust10.rs` and `xtask/tests/rust10.rs`.
 
 #### rust-11: Port project imports, exact source links and memory sync (3 files)
 

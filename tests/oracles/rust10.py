@@ -340,7 +340,7 @@ def _prior_selection(base: Path) -> dict[str, Any]:
     results = [prior_selection.select(day, rows, projects_) for day, rows, projects_ in inputs]
     errors = [
         _error(lambda: prior_selection.select(datetime(2026, 11, 7), [], [])),
-        _error(lambda: prior_selection.select(today, (), [])),
+        _error(lambda: prior_selection.select(today, (), [])),  # type: ignore[reportArgumentType]
         _error(lambda: prior_selection.select(date.min, [], [])),
         _error(lambda: prior_selection.select(today, [], [p, "bad"])),
         _error(lambda: prior_selection.select(today, [None] * 10001, [])),
