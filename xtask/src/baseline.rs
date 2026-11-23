@@ -630,6 +630,47 @@ pub const STEPS: &[Step] = &[
         ],
     },
     Step {
+        // rust-11 starts with its real Python oracle. The native candidate and
+        // its source bindings join with the component implementation.
+        id: "rust-11",
+        oracle: &["-I", "-B", "tests/oracles/rust11.py", "--all"],
+        cases: &[],
+        candidate: Some("target/release/memory-component"),
+        http_contract: false,
+        data_contract: false,
+        role_contract: false,
+        registry_projection: false,
+        no_python: true,
+        env: &[],
+        sources: &[
+            "tests/oracles/rust11.py",
+            "src/careerbrew/work/research.py",
+            "src/careerbrew/work/project_import.py",
+            "src/careerbrew/work/memory_sync.py",
+            "src/careerbrew/work/projects.py",
+            "src/careerbrew/work/priorities.py",
+            "src/careerbrew/work/project_priority.py",
+            "src/careerbrew/work/evidence.py",
+            "src/careerbrew/work/feed.py",
+            "src/careerbrew/cli.py",
+            "src/careerbrew/calendar.py",
+            "src/careerbrew/config.py",
+            "src/careerbrew/connectors.py",
+            "src/careerbrew/events.py",
+            "src/careerbrew/keyfile.py",
+            "src/careerbrew/paths.py",
+            "src/careerbrew/plugins.py",
+            "src/careerbrew/secrets.py",
+            "src/careerbrew/store.py",
+            "src/careerbrew/vault.py",
+            "xtask/src/rust11.rs",
+        ],
+        fixtures: &[
+            "tests/fixtures/projects/cutline.json",
+            "tests/fixtures/projects/team-goals.csv",
+        ],
+    },
+    Step {
         // rust-04 is a vector step (privacy, policy and approval decisions).
         // Its Python oracle `--all` runs every set over the generator's
         // vectors in one isolated process. `verify` routes the step to the

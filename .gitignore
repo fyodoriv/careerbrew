@@ -185,6 +185,7 @@ __pycache__/
 !/xtask/src/rust08.rs
 !/xtask/src/rust09.rs
 !/xtask/src/rust10.rs
+!/xtask/src/rust11.rs
 !/xtask/src/sites.rs
 !/xtask/src/sites_tests.rs
 !/xtask/src/baseline.rs
@@ -222,6 +223,7 @@ __pycache__/
 !/xtask/tests/rust08.rs
 !/xtask/tests/rust09.rs
 !/xtask/tests/rust10.rs
+!/xtask/tests/rust11.rs
 !/xtask/tests/depvec.rs
 !/xtask/tests/vecdriver.rs
 !/xtask/tests/rust04_verify.rs

@@ -2146,6 +2146,27 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native imports and memory sync.
 - **Gate:** 100% of identity and sync fixtures agree; 0 wrong-project matches,
   lost appends or changed file modes.
+- **Component pre-registration (2026-11-23):** source revision
+  `4782c2f5dc870e803f9c1b32d8c399af92f8e1ff`; six fixed synthetic cases cover
+  source identity, project imports, memory input, memory output, removal and
+  research/CLI handlers. Exact typed results and semantic write maps are
+  compared per phase; only owned paths, generated keys, random incarnation ids
+  and sealed-record bytes are normalized. Thirty fresh Python runs establish
+  baseline B. Verify requires all six cases with zero contract, privacy,
+  side-effect, missing-write or duplicate-write violations. Measure requires
+  30 unique interleaved pairs in each cold and warm regime. CPU-time p95 and
+  process-tree peak RSS must each be at most 1.10 x the paired oracle in each
+  regime; unmeasured noise floors use that ratio without relaxation. Any
+  mismatch, wrong-project match, lost append, changed file mode, privacy or
+  write violation, or resource excess keeps Python. This is component parity
+  only: production dispatch, shipped crates and activation do not change.
+- **Component oracle baseline before native implementation (2026-11-23, macOS):**
+  source revision `4782c2f5dc870e803f9c1b32d8c399af92f8e1ff`; 30 runs;
+  CPU p50/p95 659,087/719,078 microseconds and tree-RSS p50/p95
+  75,661,312/76,546,048 bytes. Evidence-source hash
+  `ca13daf196ac5017950b00bf5fbad0603a94bbabe670e3661a6d2c4838d13311`;
+  fixture hash `eadc98973473f7d9562f3e748c53abf34a9f6bc4698efc05d54b381f3db5ae8f`.
+  This is the pre-native prediction record, not a speed result.
 
 ### rust-12: Port project learning, replay, tours and explainers
 

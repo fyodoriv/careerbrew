@@ -1,0 +1,2 @@
+tests/oracles/rust11.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-11 differential gate
+xtask/src/rust11.rs,keep-native,rust-00,Custom rust-11 semantic privacy and write verification runner
