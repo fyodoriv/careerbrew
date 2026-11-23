@@ -331,7 +331,7 @@ pub fn cmd_machine_split_plugin_evidence(dry_run: bool) -> Result<(String, i32)>
     let left = value::strings(value::get(&result, "left"));
     let ok = left.is_empty();
     out.push_str(&format!(
-        "{}{}",
+        "{}  {}",
         if ok { "ok  " } else { "FAIL" },
         machine::PER_USER_CHECK
     ));

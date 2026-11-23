@@ -75,6 +75,7 @@ fn manifest(name: &str) -> Value {
         "requires": ">=0.1.0",
         "provides": {"commands": "commands/"},
         "policy": {"allowed_routes": ["local"], "require_encrypted_backup": true},
+        "work_steps": [{"step": "/review", "uses": ["browser:sso"], "timeout": 5}],
     })
 }
 
@@ -87,9 +88,25 @@ fn facts(exists: bool) -> Value {
     })
 }
 
-fn manifest_policy() -> Result<Value> {
-    let valid =
-        plugins::validate_manifest_data(&manifest("acme"), &facts(true), "1.0.0", &|_, _| None)?;
+fn manifest_policy(base_path: &Path) -> Result<Value> {
+    let provider = Workspace::new(base_path, "manifest-provider")?;
+    let real_version_refusal = match plugins::validate_manifest(
+        &{
+            let mut data = manifest("acme");
+            value::set(&mut data, "requires", json!(">=1.0.0"));
+            data
+        },
+        &provider.root,
+    ) {
+        Ok(_) => "accepted",
+        Err(error) => error.class,
+    };
+    let valid = plugins::validate_manifest_data(
+        &manifest("acme"),
+        &facts(true),
+        "1.0.0",
+        &plugins::work_step_error,
+    )?;
     let mut variants = Map::new();
     variants.insert("mapping".into(), json!([]));
     variants.insert("name".into(), json!({"name": "Bad", "version": "1.0.0"}));
@@ -120,6 +137,16 @@ fn manifest_policy() -> Result<Value> {
     let mut requires = manifest("acme");
     value::set(&mut requires, "requires", json!(">=１.0"));
     variants.insert("requires".into(), requires);
+    let mut requires_bool = manifest("acme");
+    value::set(&mut requires_bool, "requires", json!(true));
+    variants.insert("requires-bool".into(), requires_bool);
+    let mut work_step = manifest("acme");
+    value::set(
+        &mut work_step,
+        "work_steps",
+        json!([{"step": "/review", "use": ["browser:sso"]}]),
+    );
+    variants.insert("work-step-field".into(), work_step);
     let mut detect = manifest("acme");
     value::set(&mut detect, "detect", json!({"env": "TOKEN"}));
     variants.insert("detect".into(), detect);
@@ -138,7 +165,7 @@ fn manifest_policy() -> Result<Value> {
             &data,
             &facts(name != "provides-missing"),
             "1.0.0",
-            &|_, _| None,
+            &plugins::work_step_error,
         );
         refusals.insert(
             name,
@@ -187,6 +214,16 @@ fn manifest_policy() -> Result<Value> {
                 .into_owned(),
         ),
     ]);
+    let denied_team = {
+        let mut denied = team.clone();
+        value::set(
+            value::get_mut(&mut denied, "policy").unwrap(),
+            "agent_may_read_business",
+            Value::Bool(false),
+        );
+        denied
+    };
+    let denied = plugins::merge_policy(&[base.clone(), denied_team], &expansions);
     let lock = json!({"plugins": {
         "team": {"extends": "acme"},
         "acme": {"extends": null},
@@ -198,6 +235,8 @@ fn manifest_policy() -> Result<Value> {
         "valid": valid["name"],
         "refusals": refusals,
         "merged": plugins::merge_policy(&[base, team], &expansions),
+        "denied_agent_read": denied["agent_may_read_business"],
+        "real_version_refusal": real_version_refusal,
         "order": plugins::refresh_order(&lock),
     }))
 }
@@ -242,7 +281,7 @@ fn write_plugin(root: &Path, name: &str, team: bool, command: bool) -> Result<Pa
     )?;
     std::fs::write(
         root.join("evidence.yaml"),
-        "sources:\n  - {kind: git, path: '~/repo', authors: [owner@example.com]}\nconnectors: []\n",
+        "retained: keep\nsources:\n  - {kind: git, path: '~/repo', authors: [owner@example.com]}\n  - {kind: git, path: '/shared/repo'}\nconnectors:\n  - {kind: jira, token: 'keychain:shared'}\n",
     )?;
     std::fs::write(
         root.join("terms.txt"),
@@ -486,6 +525,29 @@ fn machine_readiness(base: &Path) -> Result<Value> {
     let failed_rows = machine::readiness_rows(&failed);
     let w = Workspace::new(base, "machine-role")?;
     machine::set_role("corporate", "work")?;
+    std::fs::create_dir_all(w.root.join("out/reports"))?;
+    for relative in [
+        "out/interview-notes.md",
+        "out/interview-notes.txt",
+        "out/strategy.md",
+        "out/progress.html",
+        "out/other.md",
+        "out/reports/run.html",
+    ] {
+        std::fs::write(w.root.join(relative), "synthetic")?;
+    }
+    machine::set_role("corporate", "work")?;
+    let output_cleanup = [
+        "out/interview-notes.md",
+        "out/interview-notes.txt",
+        "out/strategy.md",
+        "out/progress.html",
+        "out/other.md",
+        "out/reports/run.html",
+    ]
+    .iter()
+    .map(|name| ((*name).to_owned(), Value::Bool(w.root.join(name).exists())))
+    .collect::<Map<String, Value>>();
     let tutor = w.root.join("tutor");
     std::fs::create_dir(&tutor)?;
     std::fs::write(tutor.join(".DS_Store"), [0])?;
@@ -533,6 +595,7 @@ fn machine_readiness(base: &Path) -> Result<Value> {
             machine::per_user(&json!([])),
         ],
         "cleared": cleared,
+        "output_cleanup": output_cleanup,
         "temp_refusal": temp_refusal,
         "repos": repo_names,
         "work_profile": machine::work_profile("name: Synthetic\ntarget_salary: 1\nemployer: Example\n"),
@@ -787,10 +850,15 @@ fn cli_handlers(base: &Path) -> Result<Value> {
         "machine-show".into(),
         handler(cli::cmd_machine_show(), &w.base),
     );
-    let document = json!({"connectors": [{"kind": "jira", "token": "keychain:careerbrew.jira"}]});
+    let document = json!({"private_note": "keep", "connectors": [{"kind": "jira", "token": "keychain:careerbrew.jira"}]});
     crate::context()?.store().write_yaml(
         &w.root.join("work/connectors.yaml"),
         &value::to_canon(&document),
+    )?;
+    let sources = json!({"private_note": "keep", "sources": [{"kind": "git", "path": "~/repo", "authors": ["owner@example.com"]}]});
+    crate::context()?.store().write_yaml(
+        &w.root.join("work/sources.yaml"),
+        &value::to_canon(&sources),
     )?;
     outputs.insert(
         "connectors-list".into(),
@@ -804,6 +872,40 @@ fn cli_handlers(base: &Path) -> Result<Value> {
             Ok((text, code)) => json!({"exit": code, "stdout": normalized(text, &w.base)}),
             Err(error) => json!({"exit": 1, "stdout": error.class}),
         },
+    );
+    let split_live = cli::cmd_machine_split_plugin_evidence(false);
+    outputs.insert(
+        "split-evidence-live".into(),
+        match split_live {
+            Ok((text, code)) => json!({"exit": code, "stdout": normalized(text, &w.base)}),
+            Err(error) => json!({"exit": 1, "stdout": error.class}),
+        },
+    );
+    let source_data = value::from_canon(&crate::context()?.store().read_yaml(
+        &source.join("evidence.yaml"),
+        careerbrew_vault::canon::Canon::Map(Vec::new()),
+        true,
+    )?);
+    let private_sources = value::from_canon(&crate::context()?.store().read_yaml(
+        &w.root.join("work/sources.yaml"),
+        careerbrew_vault::canon::Canon::Map(Vec::new()),
+        true,
+    )?);
+    let private_connectors = value::from_canon(&crate::context()?.store().read_yaml(
+        &w.root.join("work/connectors.yaml"),
+        careerbrew_vault::canon::Canon::Map(Vec::new()),
+        true,
+    )?);
+    outputs.insert(
+        "split_fields_preserved".into(),
+        Value::Bool(
+            source_data["retained"] == "keep"
+                && private_sources["private_note"] == "keep"
+                && private_connectors["private_note"] == "keep"
+                && source_data["sources"].as_array().map_or(0, Vec::len) == 1
+                && source_data["connectors"].as_array().map_or(0, Vec::len) == 1
+                && private_sources["sources"].as_array().map_or(0, Vec::len) == 1,
+        ),
     );
     outputs.insert(
         "plugin-refresh".into(),
@@ -830,7 +932,7 @@ fn run(selected: Option<&str>) -> Result<Value> {
             continue;
         }
         let result = match *name {
-            "manifest-policy" => manifest_policy(),
+            "manifest-policy" => manifest_policy(&base),
             "plugin-lifecycle" => plugin_lifecycle(&base),
             "command-ownership" => command_ownership(&base),
             "machine-readiness" => machine_readiness(&base),

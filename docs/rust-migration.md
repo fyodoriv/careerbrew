@@ -1751,15 +1751,20 @@ the crate until the rust-05 and rust-07 closure is native, so
     OAuth references, MCP preflight, managed repair, update/workflow and all
     CLI handlers. Cases cover symlink refusal and preservation, mode 0600
     metadata and 0640 repair targets, managed-config refusal, explicit `--yes`,
-    owner-edit race checks, strictest policy and dependency order.
+    owner-edit race checks, strictest policy and dependency order. Direct
+    controls cover real pyproject version and work-step validation, boolean
+    `requires`, exact corporate output cleanup, non-dry evidence moves,
+    duplicates, preserved YAML fields and exact CLI success/refusal spacing.
   - Verify compares typed output and semantic file state after every phase,
     including inode and modification time. Sealed records and generated keys
     become type markers; owned paths, timestamps and the engine-specific
     connection-helper command are normalized. No credential value or local
     path enters the record. Real extra, missing and duplicate native-write
     plants must each make `decide` return `keep-python`.
-  - The step binds the Python oracle and call closure, native modules, harness,
-    candidate bytes, plugin fixtures, sign-in fixtures and profile examples.
+  - The step binds the Python oracle and call closure, native modules, every
+    reused vault provider source, harness, candidate bytes, plugin fixtures,
+    sign-in fixtures and profile examples. A vault-only edit changes the
+    evidence identity and rebuilds the dependent release candidate.
     Both noise floors remain `unmeasured`, so the 1.10 ratio applies
     fail-closed. Production Python, native routes, shipped crates and
     activation tables are unchanged.

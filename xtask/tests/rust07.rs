@@ -36,6 +36,35 @@ fn rust_07_registers_the_release_candidate_and_effective_inputs() {
 }
 
 #[test]
+fn rust_07_binds_every_current_vault_provider_source() {
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let root = manifest.parent().unwrap();
+    let baseline = std::fs::read_to_string(manifest.join("src/baseline.rs")).unwrap();
+    fn collect(folder: &Path, out: &mut Vec<std::path::PathBuf>) {
+        for entry in std::fs::read_dir(folder).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                collect(&path, out);
+            } else if path.extension().is_some_and(|ext| ext == "rs")
+                || path.file_name().is_some_and(|name| name == "Cargo.toml")
+            {
+                out.push(path);
+            }
+        }
+    }
+    let mut files = Vec::new();
+    collect(&root.join("crates/vault"), &mut files);
+    assert!(files.len() >= 23);
+    for path in files {
+        let relative = path.strip_prefix(root).unwrap().to_string_lossy();
+        assert!(
+            baseline.contains(relative.as_ref()),
+            "unbound vault source {relative}"
+        );
+    }
+}
+
+#[test]
 fn rust_07_baseline_verify_measure_and_decide_share_identity() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let candidate = root.join("target/release/setup-component");

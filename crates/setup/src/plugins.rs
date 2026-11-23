@@ -3,7 +3,7 @@
 use crate::value;
 use crate::{context, inside, resolved, Result, SetupError};
 use careerbrew_vault::transfer::Context;
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
@@ -88,7 +88,8 @@ fn check_shapes(data: &Value, terms_inside: bool) -> Result<()> {
             Value::Number(number) => number.to_string(),
             _ => String::new(),
         };
-        if !text.is_empty()
+        let empty_literal = matches!(required, Value::String(value) if value.is_empty());
+        if !empty_literal
             && (!text.bytes().any(|byte| byte.is_ascii_digit())
                 || text.chars().any(|c| c.is_numeric() && !c.is_ascii()))
         {
@@ -342,9 +343,254 @@ pub fn manifest_facts(data: &Value, root: &Path) -> Result<Value> {
     Ok(facts)
 }
 
+fn step_name(raw: &str) -> Result<String> {
+    let name = raw.trim();
+    let body = name.strip_prefix('/').unwrap_or(name);
+    if body.is_empty()
+        || body.len() > 64
+        || !body
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_alphanumeric())
+        || !body
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | ':' | '-'))
+        || body.contains("..")
+    {
+        return Err(error("use a command or skill name such as /standup"));
+    }
+    Ok(format!("/{body}"))
+}
+
+fn step_strings(value: Option<&Value>, field: &str) -> Result<Vec<String>> {
+    let items: Vec<Value> = match value {
+        None | Some(Value::Null) => Vec::new(),
+        Some(Value::String(item)) => vec![Value::String(item.clone())],
+        Some(Value::Array(items)) => items.clone(),
+        _ => {
+            return Err(error(format!(
+                "`{field}` must be a string or a list of strings"
+            )))
+        }
+    };
+    if items.len() > 10 {
+        return Err(error(format!("`{field}` holds at most 10 entries")));
+    }
+    let mut out = Vec::new();
+    for item in items {
+        let item = item
+            .as_str()
+            .ok_or_else(|| error(format!("`{field}` must contain strings")))?;
+        if item.is_empty() || item.len() > 200 || item.chars().any(char::is_whitespace) {
+            return Err(error(format!(
+                "`{field}` entries need 1 to 200 characters with no spaces"
+            )));
+        }
+        if !out.iter().any(|known| known == item) {
+            out.push(item.to_owned());
+        }
+    }
+    Ok(out)
+}
+
+fn command_line(value: Option<&Value>, field: &str) -> Result<()> {
+    let Some(value) = value.filter(|value| !value.is_null()) else {
+        return Ok(());
+    };
+    let command = value
+        .as_str()
+        .ok_or_else(|| error(format!("`{field}` must be a command")))?;
+    if command.trim().is_empty()
+        || command.len() > 500
+        || command.chars().any(|c| matches!(c, '\n' | '\r' | '\0'))
+    {
+        return Err(error(format!(
+            "`{field}` must be one line of at most 500 characters"
+        )));
+    }
+    let mut quoted = None;
+    let mut escaped = false;
+    for character in command.chars() {
+        if escaped {
+            escaped = false;
+        } else if character == '\\' {
+            escaped = true;
+        } else if matches!(character, '\'' | '"') {
+            if quoted == Some(character) {
+                quoted = None;
+            } else if quoted.is_none() {
+                quoted = Some(character);
+            }
+        }
+    }
+    if quoted.is_some() {
+        return Err(error(format!("`{field}` has an unclosed quote")));
+    }
+    let first = command
+        .split_whitespace()
+        .next()
+        .unwrap_or("")
+        .rsplit('/')
+        .next()
+        .unwrap_or("");
+    if matches!(first, "python" | "python3") || first.starts_with("python3.") {
+        return Err(error(format!(
+            "`{field}` names its interpreter; never bare {first}"
+        )));
+    }
+    Ok(())
+}
+
+/// Real provider for the pure manifest decision; no work-step field is ignored.
+pub fn work_step_error(raw: Option<&Value>, origin: &str) -> Option<String> {
+    fn validate(raw: Option<&Value>, origin: &str) -> Result<()> {
+        let Some(raw) = raw.filter(|value| !value.is_null()) else {
+            return Ok(());
+        };
+        if raw.as_str() == Some("") {
+            return Ok(());
+        }
+        let entries = raw.as_array().ok_or_else(|| {
+            error(format!(
+                "work_steps from {origin} must be a list of step names"
+            ))
+        })?;
+        if entries.len() > 30 {
+            return Err(error(format!("work_steps from {origin}: at most 30 steps")));
+        }
+        for entry in entries {
+            let (raw_name, fields) = match entry {
+                Value::String(name) => (name.clone(), Map::new()),
+                Value::Object(fields) => {
+                    let Some(name) = fields.get("step").and_then(Value::as_str) else {
+                        return Err(error(format!(
+                            "a work step from {origin} needs a text `step:`"
+                        )));
+                    };
+                    (name.to_owned(), fields.clone())
+                }
+                _ => {
+                    return Err(error(format!(
+                        "a work step from {origin} must be a name or a mapping with `step:`"
+                    )))
+                }
+            };
+            let step = step_name(&raw_name)?;
+            let where_ = format!("work step {step} from {origin}");
+            let aliases = [
+                ("longRunning", "long_running"),
+                ("operatorTurn", "operator_turn"),
+            ];
+            let mut normalized = Map::new();
+            for (key, value) in fields {
+                if key.as_str() == "step" {
+                    continue;
+                }
+                let key = aliases
+                    .iter()
+                    .find_map(|(old, new)| (key.as_str() == *old).then_some(*new))
+                    .unwrap_or(key.as_str());
+                normalized.insert(key.to_owned(), value);
+            }
+            const FIELDS: &[&str] = &[
+                "scope",
+                "after",
+                "long_running",
+                "uses",
+                "verify",
+                "timeout",
+                "cycle",
+                "review_ask_cycle",
+                "watch",
+                "about",
+                "operator_turn",
+            ];
+            if let Some(unknown) = normalized
+                .keys()
+                .find(|key| !FIELDS.contains(&key.as_str()))
+            {
+                return Err(error(format!("{where_}: unknown field(s) {unknown}")));
+            }
+            let long = normalized
+                .get("long_running")
+                .unwrap_or(&Value::Bool(false));
+            if !long.is_boolean() {
+                return Err(error(format!("{where_}: `longRunning` is true or false")));
+            }
+            let operator = normalized
+                .get("operator_turn")
+                .unwrap_or(&Value::Bool(false));
+            if !operator.is_boolean()
+                || (operator == &Value::Bool(true) && long == &Value::Bool(true))
+            {
+                return Err(error(format!(
+                    "{where_}: operatorTurn cannot be longRunning"
+                )));
+            }
+            for field in ["scope", "after", "uses", "watch"] {
+                for item in step_strings(normalized.get(field), field)? {
+                    if field == "after" {
+                        step_name(&item)?;
+                    } else if field == "uses"
+                        && !["browser", "slack-draft", "file", "checkout"]
+                            .iter()
+                            .any(|kind| {
+                                item.starts_with(&format!("{kind}:")) && item.len() > kind.len() + 1
+                            })
+                    {
+                        return Err(error(format!("{where_}: invalid `uses` entry")));
+                    } else if field == "watch"
+                        && !["repo", "feed", "file"].iter().any(|kind| {
+                            item.starts_with(&format!("{kind}:")) && item.len() > kind.len() + 1
+                        })
+                    {
+                        return Err(error(format!("{where_}: invalid `watch` entry")));
+                    }
+                }
+            }
+            for field in ["verify", "cycle", "review_ask_cycle"] {
+                command_line(normalized.get(field), field)?;
+            }
+            if let Some(about) = normalized.get("about") {
+                let about = about
+                    .as_str()
+                    .ok_or_else(|| error(format!("{where_}: `about` must be text")))?;
+                if about.trim().is_empty()
+                    || about.chars().any(|c| matches!(c, '\n' | '\r' | '\0'))
+                    || about.split_whitespace().count() > 15
+                {
+                    return Err(error(format!(
+                        "{where_}: `about` is one plain line of at most 15 words"
+                    )));
+                }
+            }
+            if let Some(timeout) = normalized.get("timeout").filter(|value| !value.is_null()) {
+                if long == &Value::Bool(true)
+                    || timeout.is_boolean()
+                    || !timeout
+                        .as_u64()
+                        .is_some_and(|minutes| (1..=1440).contains(&minutes))
+                {
+                    return Err(error(format!("{where_}: `timeout` is whole minutes from 1 to 1440 and never applies to a long-running step")));
+                }
+            }
+        }
+        Ok(())
+    }
+    validate(raw, origin).err().map(|error| error.message)
+}
+
+fn careerbrew_version() -> Result<String> {
+    let text = std::fs::read_to_string(std::env::current_dir()?.join("pyproject.toml"))?;
+    text.lines()
+        .find_map(|line| line.trim().strip_prefix("version = "))
+        .map(|value| value.trim_matches('"').to_owned())
+        .ok_or_else(|| error("careerbrew version is unavailable"))
+}
+
 pub fn validate_manifest(data: &Value, root: &Path) -> Result<Value> {
     let facts = manifest_facts(data, root)?;
-    validate_manifest_data(data, &facts, "1.0.0", &|_, _| None)
+    validate_manifest_data(data, &facts, &careerbrew_version()?, &work_step_error)
 }
 
 pub fn refresh_order(lock: &Value) -> Vec<String> {

@@ -80,9 +80,13 @@ def test_plugin_machine_account_preflight_and_handler_contracts_match_python(can
         assert manifest["valid"] == "acme"
         assert set(manifest["refusals"].values()) <= {"PluginError", "accepted"}
         assert manifest["refusals"]["mapping"] == "PluginError"
+        assert manifest["refusals"]["requires-bool"] == "PluginError"
+        assert manifest["refusals"]["work-step-field"] == "PluginError"
+        assert manifest["real_version_refusal"] == "PluginError"
         assert manifest["merged"]["allowed_routes"] == ["local"]
         assert manifest["merged"]["backup_targets"] == [str(Path("/") / "home" / "u" / "Team")]
-        assert manifest["merged"]["agent_may_read_business"] is False
+        assert manifest["merged"]["agent_may_read_business"] is True
+        assert manifest["denied_agent_read"] is False
         assert manifest["order"][:2] == ["acme", "team"]
 
         lifecycle = case(report, "plugin-lifecycle")
@@ -110,6 +114,14 @@ def test_plugin_machine_account_preflight_and_handler_contracts_match_python(can
         readiness = case(report, "machine-readiness")
         assert readiness["ready_count"] == [{"int": "14"}, {"int": "14"}]
         assert readiness["cleared"] is True
+        assert readiness["output_cleanup"] == {
+            "out/interview-notes.md": False,
+            "out/interview-notes.txt": True,
+            "out/strategy.md": False,
+            "out/progress.html": False,
+            "out/other.md": True,
+            "out/reports/run.html": False,
+        }
         assert readiness["temp_refusal"] == "RoleError"
         assert readiness["repos"] == ["a", "b"]
         assert readiness["per_user"] == [True, True, False, False]
@@ -161,11 +173,22 @@ def test_plugin_machine_account_preflight_and_handler_contracts_match_python(can
             "connectors-list",
             "pair-init",
             "split-evidence",
+            "split-evidence-live",
+            "split_fields_preserved",
             "plugin-refresh",
             "plugin-remove",
             "pair_key_not_printed",
         }
         assert all(row["exit"] == {"int": "0"} for row in handlers.values() if isinstance(row, dict))
         assert handlers["pair_key_not_printed"] is True
+        assert handlers["split_fields_preserved"] is True
+        assert "evidence sources work collect reads: 5 -> 4\n" in handlers["split-evidence"]["stdout"]
+        assert handlers["split-evidence-live"]["stdout"] == (
+            "plugin acme evidence.yaml: 3 evidence entries -> 2 shared (moved 1 source(s), 0 connector(s))\n"
+            "your work/sources.yaml: 1 -> 1 source(s); work/connectors.yaml: 1 -> 1 connector(s)\n"
+            "evidence sources work collect reads: 5 -> 4\n"
+            "ok    the company plugin evidence file holds no per-person values (emails, logins, home paths)\n"
+            "next: commit the change in the plugin's own repo, so a coworker's copy holds shared entries only\n"
+        )
         answers.append(done.stdout)
     assert answers[0] == answers[1]

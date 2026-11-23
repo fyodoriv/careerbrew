@@ -114,16 +114,23 @@ fn clear_personal_dirs() -> Result<()> {
         std::fs::remove_dir_all(folder)?;
     }
     let out = ctx.root.join("out");
-    for pattern in ["interview-", "strategy.md", "progress.html"] {
-        if !out.exists() {
-            continue;
-        }
+    if out.exists() {
         for entry in std::fs::read_dir(&out)? {
             let path = entry?.path();
             let name = path.file_name().unwrap_or_default().to_string_lossy();
             if path.is_file()
-                && (name == pattern || (pattern == "interview-" && name.starts_with(pattern)))
+                && (matches!(name.as_ref(), "strategy.md" | "progress.html")
+                    || (name.starts_with("interview-") && name.ends_with(".md")))
             {
+                std::fs::remove_file(path)?;
+            }
+        }
+    }
+    let reports = out.join("reports");
+    if reports.exists() {
+        for entry in std::fs::read_dir(reports)? {
+            let path = entry?.path();
+            if path.is_file() {
                 std::fs::remove_file(path)?;
             }
         }
@@ -300,12 +307,48 @@ pub fn per_user_values_in_plugins() -> Result<Vec<String>> {
     Ok(found)
 }
 
+fn current_evidence_total() -> Result<usize> {
+    let ctx = context()?;
+    let plugin_total = evidence_documents()?
+        .iter()
+        .map(|(_, _, _, document)| {
+            ["sources", "connectors"]
+                .into_iter()
+                .map(|key| {
+                    value::get(document, key)
+                        .and_then(Value::as_array)
+                        .map_or(0, Vec::len)
+                })
+                .sum::<usize>()
+        })
+        .sum::<usize>();
+    let private_total = ["sources", "connectors"]
+        .into_iter()
+        .map(|key| {
+            let path = ctx.root.join("work").join(format!("{key}.yaml"));
+            let document = ctx.store().read_yaml(
+                &path,
+                careerbrew_vault::canon::Canon::Map(Vec::new()),
+                true,
+            )?;
+            let document = value::from_canon(&document);
+            Ok(value::get(&document, key)
+                .and_then(Value::as_array)
+                .map_or(0, Vec::len))
+        })
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .sum::<usize>();
+    Ok(plugin_total + private_total)
+}
+
 /// Move or preview per-person evidence without printing its values.
 pub fn split_plugin_evidence(dry_run: bool) -> Result<Value> {
     let ctx = context()?;
     let mut rows = Vec::new();
     let mut mine = Map::new();
     let mut had = Map::new();
+    let mut private_documents = Map::new();
     for key in ["sources", "connectors"] {
         let path = ctx.root.join("work").join(format!("{key}.yaml"));
         let document = value::from_canon(&ctx.store().read_yaml(
@@ -319,25 +362,10 @@ pub fn split_plugin_evidence(dry_run: bool) -> Result<Value> {
             .unwrap_or_default();
         had.insert(key.into(), json!(items.len()));
         mine.insert(key.into(), Value::Array(items));
+        private_documents.insert(key.into(), document);
     }
     let documents = evidence_documents()?;
-    let total = documents
-        .iter()
-        .map(|(_, _, _, document)| {
-            ["sources", "connectors"]
-                .into_iter()
-                .map(|key| {
-                    value::get(document, key)
-                        .and_then(Value::as_array)
-                        .map_or(0, Vec::len)
-                })
-                .sum::<usize>()
-        })
-        .sum::<usize>()
-        + ["sources", "connectors"]
-            .into_iter()
-            .map(|key| mine[key].as_array().map_or(0, Vec::len))
-            .sum::<usize>();
+    let total = current_evidence_total()?;
     let mut moved_total = 0;
     let mut edits = Vec::new();
     let mut reinstall = BTreeSet::new();
@@ -433,12 +461,14 @@ pub fn split_plugin_evidence(dry_run: bool) -> Result<Value> {
         edits.push((target, updated));
         reinstall.insert(name.clone());
     }
-    if !dry_run && !edits.is_empty() {
+    let had_edits = !edits.is_empty();
+    if !dry_run && had_edits {
         for key in ["sources", "connectors"] {
             if mine[key].as_array().unwrap().len() != had[key].as_u64().unwrap_or(0) as usize {
                 let path = ctx.root.join("work").join(format!("{key}.yaml"));
-                ctx.store()
-                    .write_yaml(&path, &value::to_canon(&json!({key: mine[key].clone()})))?;
+                let mut document = private_documents[key].clone();
+                value::set(&mut document, key, mine[key].clone());
+                ctx.store().write_yaml(&path, &value::to_canon(&document))?;
             }
         }
         for (target, document) in edits {
@@ -467,10 +497,10 @@ pub fn split_plugin_evidence(dry_run: bool) -> Result<Value> {
         .into_iter()
         .map(|key| mine[key].as_array().unwrap().len() - had[key].as_u64().unwrap_or(0) as usize)
         .sum::<usize>();
-    let after = if dry_run {
+    let after = if dry_run || !had_edits {
         total - moved_total + added
     } else {
-        total
+        current_evidence_total()?
     };
     let left = per_user_values_in_plugins()?;
     Ok(json!({

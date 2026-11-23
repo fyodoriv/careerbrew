@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from careerbrew import cli, config, connectors, machine, msauth, plugins, store, sync
-from careerbrew.workday import mcp_check, self_update, workflow_check
+from careerbrew.workday import mcp_check, self_update, steps, workflow_check
 
 CASES = (
     "manifest-policy",
@@ -65,6 +65,14 @@ def _patched(module: Any, **attrs: Any):
             setattr(module, name, value)
 
 
+def _step_error(work_steps: Any, label: str) -> str | None:
+    try:
+        steps.validate(work_steps, label)
+    except steps.StepError as exc:
+        return str(exc)
+    return None
+
+
 class Workspace:
     def __init__(self, base: Path, name: str):
         self.base = base / name
@@ -96,6 +104,7 @@ def _manifest(name: str = "acme", **changes: Any) -> dict[str, Any]:
         "requires": ">=0.1.0",
         "provides": {"commands": "commands/"},
         "policy": {"allowed_routes": ["local"], "require_encrypted_backup": True},
+        "work_steps": [{"step": "/review", "uses": ["browser:sso"], "timeout": 5}],
     }
     data.update(changes)
     return data
@@ -111,7 +120,14 @@ def _facts(*, inside: bool = True, exists: bool = True) -> dict[str, Any]:
 
 
 def _manifest_policy(_base: Path) -> dict[str, Any]:
-    valid = plugins.validate_manifest_data(_manifest(), _facts(), "1.0.0", lambda *_: None)
+    provider = Workspace(_base, "manifest-provider")
+    try:
+        plugins.validate_manifest(_manifest(requires=">=1.0.0"), provider.root)
+    except Exception as exc:
+        real_version_refusal = type(exc).__name__
+    else:
+        real_version_refusal = "accepted"
+    valid = plugins.validate_manifest_data(_manifest(), _facts(), "1.0.0", _step_error)
     refusals = {}
     variants = {
         "mapping": [],
@@ -123,6 +139,8 @@ def _manifest_policy(_base: Path) -> dict[str, Any]:
         "policy-bool": _manifest(policy={"public_metrics": "no"}),
         "export": _manifest(policy={"export_to_personal": "everything"}),
         "requires": _manifest(requires=">=１.0"),
+        "requires-bool": _manifest(requires=True),
+        "work-step-field": _manifest(work_steps=[{"step": "/review", "use": ["browser:sso"]}]),
         "detect": _manifest(detect={"env": "TOKEN"}),
         "connector-defaults": _manifest(connector_defaults={"jira": []}),
         "agent-reads": _manifest(agent_reads="slack"),
@@ -131,7 +149,7 @@ def _manifest_policy(_base: Path) -> dict[str, Any]:
     for name, data in variants.items():
         facts = _facts(exists=name != "provides-missing")
         try:
-            plugins.validate_manifest_data(data, facts, "1.0.0", lambda *_: None)
+            plugins.validate_manifest_data(data, facts, "1.0.0", _step_error)
         except Exception as exc:
             refusals[name] = type(exc).__name__
         else:
@@ -158,7 +176,10 @@ def _manifest_policy(_base: Path) -> dict[str, Any]:
             "backup_targets": ["~/Base", "~/Team"],
         }
     )
-    merged = plugins.merge_policy([base, team], {"~/Base": str(Path("/") / "home" / "u" / "Base"), "~/Team": str(Path("/") / "home" / "u" / "Team")})
+    expansions = {"~/Base": str(Path("/") / "home" / "u" / "Base"), "~/Team": str(Path("/") / "home" / "u" / "Team")}
+    merged = plugins.merge_policy([base, team], expansions)
+    denied_team = {**team, "policy": {**team["policy"], "agent_may_read_business": False}}
+    denied = plugins.merge_policy([base, denied_team], expansions)
     lock = {
         "team": {"extends": "acme"},
         "acme": {"extends": None},
@@ -170,6 +191,8 @@ def _manifest_policy(_base: Path) -> dict[str, Any]:
         "valid": valid["name"],
         "refusals": refusals,
         "merged": merged,
+        "denied_agent_read": denied["agent_may_read_business"],
+        "real_version_refusal": real_version_refusal,
         "order": plugins.refresh_order(lock),
     }
 
@@ -201,7 +224,7 @@ def _write_plugin(root: Path, name: str = "acme", *, team: bool = False, command
     import yaml
 
     (root / "careerbrew-plugin.yaml").write_text(yaml.safe_dump(manifest, sort_keys=False))
-    (root / "evidence.yaml").write_text("sources:\n  - {kind: git, path: '~/repo', authors: [owner@example.com]}\nconnectors: []\n")
+    (root / "evidence.yaml").write_text("retained: keep\nsources:\n  - {kind: git, path: '~/repo', authors: [owner@example.com]}\n  - {kind: git, path: '/shared/repo'}\nconnectors:\n  - {kind: jira, token: 'keychain:shared'}\n")
     (root / "terms.txt").write_text("synthetic-company\nsynthetic-codename\n")
     return root
 
@@ -340,6 +363,12 @@ def _machine_readiness(base: Path) -> dict[str, Any]:
     failed_rows = machine.readiness_rows(failed)
     w = Workspace(base, "machine-role")
     machine.set_role("corporate", "work")
+    reports = w.root / "out" / "reports"
+    reports.mkdir(parents=True)
+    for relative in ["out/interview-notes.md", "out/interview-notes.txt", "out/strategy.md", "out/progress.html", "out/other.md", "out/reports/run.html"]:
+        (w.root / relative).write_text("synthetic")
+    machine.set_role("corporate", "work")
+    output_cleanup = {name: (w.root / name).exists() for name in ["out/interview-notes.md", "out/interview-notes.txt", "out/strategy.md", "out/progress.html", "out/other.md", "out/reports/run.html"]}
     tutor = w.root / "tutor"
     tutor.mkdir()
     (tutor / ".DS_Store").write_bytes(b"\0")
@@ -364,6 +393,7 @@ def _machine_readiness(base: Path) -> dict[str, Any]:
         "cloud": [machine.cloud_service(parts, {"Desktop"}) for parts in [("Dropbox", "x"), ("Library", "CloudStorage", "OneDrive-Company"), ("Desktop", "x"), ("local", "x")]],
         "per_user": [machine.per_user(item) for item in [{"email": "x"}, {"path": "~/repo"}, {"path": "/shared/repo"}, []]],
         "cleared": cleared,
+        "output_cleanup": output_cleanup,
         "temp_refusal": temp_refusal,
         "repos": sorted(path.name for path in machine.find_repos(repos)),
         "work_profile": machine.work_profile("name: Synthetic\ntarget_salary: 1\nemployer: Example\n"),
@@ -541,10 +571,23 @@ def _cli_handlers_with_deployer(base: Path) -> dict[str, Any]:
     invoke("plugin-verify", cli.cmd_plugin_verify, types.SimpleNamespace())
     invoke("machine-set", cli.cmd_machine_set, types.SimpleNamespace(role="corporate", label="work"))
     invoke("machine-show", cli.cmd_machine_show, types.SimpleNamespace())
-    store.write_yaml(w.root / "work" / "connectors.yaml", {"connectors": [{"kind": "jira", "token": "keychain:careerbrew.jira"}]})
+    store.write_yaml(w.root / "work" / "connectors.yaml", {"private_note": "keep", "connectors": [{"kind": "jira", "token": "keychain:careerbrew.jira"}]})
+    store.write_yaml(w.root / "work" / "sources.yaml", {"private_note": "keep", "sources": [{"kind": "git", "path": "~/repo", "authors": ["owner@example.com"]}]})
     invoke("connectors-list", cli.cmd_connectors_list, types.SimpleNamespace())
     invoke("pair-init", cli.cmd_pair_init, types.SimpleNamespace())
     invoke("split-evidence", cli.cmd_machine_split_plugin_evidence, types.SimpleNamespace(dry_run=True))
+    invoke("split-evidence-live", cli.cmd_machine_split_plugin_evidence, types.SimpleNamespace(dry_run=False))
+    source_data = store.read_yaml(source / "evidence.yaml", {})
+    private_sources = store.read_yaml(w.root / "work" / "sources.yaml", {})
+    private_connectors = store.read_yaml(w.root / "work" / "connectors.yaml", {})
+    outputs["split_fields_preserved"] = (
+        source_data.get("retained") == "keep"
+        and private_sources.get("private_note") == "keep"
+        and private_connectors.get("private_note") == "keep"
+        and len(source_data["sources"]) == 1
+        and len(source_data["connectors"]) == 1
+        and len(private_sources["sources"]) == 1
+    )
     invoke("plugin-refresh", cli.cmd_plugin_refresh, types.SimpleNamespace())
     invoke("plugin-remove", cli.cmd_plugin_remove, types.SimpleNamespace(name="acme", purge_data=False))
     outputs["pair_key_not_printed"] = sync.key_path().is_file()
