@@ -39,6 +39,61 @@ pub trait Editor {
     fn run(&mut self, argv: &[String]) -> Result<(), CliError>;
 }
 
+/// Invocation-scoped host capabilities for component `data show`.
+/// Every synthetic host-capable operation enters through one of these methods.
+pub trait HostOperations {
+    fn process(&self, operation: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError>;
+    fn socket(&self, operation: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError>;
+    fn secret(&self, operation: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError>;
+}
+
+struct UnrestrictedHost;
+impl HostOperations for UnrestrictedHost {
+    fn process(&self, operation: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError> {
+        operation()
+    }
+    fn socket(&self, operation: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError> {
+        operation()
+    }
+    fn secret(&self, operation: &mut dyn FnMut() -> Result<(), CliError>) -> Result<(), CliError> {
+        operation()
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HostChannel {
+    Process,
+    Socket,
+    Secret,
+}
+
+/// One synthetic operation injected into a real data-show path boundary.
+pub struct HostAttempt<'a> {
+    pub channel: HostChannel,
+    pub operation: &'a mut dyn FnMut() -> Result<(), CliError>,
+}
+
+pub struct HostMediation<'a> {
+    pub host: &'a dyn HostOperations,
+    pub attempt: Option<HostAttempt<'a>>,
+}
+
+fn mediate_host(
+    host: &dyn HostOperations,
+    attempt: &mut Option<HostAttempt>,
+    channel: HostChannel,
+) -> Result<(), CliError> {
+    if attempt.as_ref().map(|attempt| attempt.channel) != Some(channel) {
+        return Ok(());
+    }
+    let operation = &mut attempt.take().expect("matched host attempt").operation;
+    match channel {
+        HostChannel::Process => host.process(operation),
+        HostChannel::Socket => host.socket(operation),
+        HostChannel::Secret => host.secret(operation),
+    }
+}
+
 /// Python's `shlex.split` for an editor command: whitespace splits unquoted
 /// text, quotes group it, and backslash follows POSIX double-quote rules.
 pub fn editor_argv(text: &str) -> Result<Vec<String>, CliError> {
@@ -149,6 +204,31 @@ pub fn cmd_data_show(
     events_env: Option<&str>,
     clock: &dyn Clock,
 ) -> Result<Outcome, CliError> {
+    cmd_data_show_with_host(
+        store,
+        name,
+        keys,
+        may_show_business,
+        events_env,
+        clock,
+        HostMediation {
+            host: &UnrestrictedHost,
+            attempt: None,
+        },
+    )
+}
+
+pub fn cmd_data_show_with_host(
+    store: &Store,
+    name: &str,
+    keys: bool,
+    may_show_business: bool,
+    events_env: Option<&str>,
+    clock: &dyn Clock,
+    mediation: HostMediation,
+) -> Result<Outcome, CliError> {
+    let HostMediation { host, mut attempt } = mediation;
+    mediate_host(host, &mut attempt, HostChannel::Process)?;
     let name = name.strip_prefix("private/").unwrap_or(name);
     let target = match data_file(store.root.as_path(), name) {
         Ok(target) => target,
@@ -162,6 +242,7 @@ pub fn cmd_data_show(
         .strip_prefix(&root)
         .map_err(|_| CliError("data-file"))?;
     let rel = relative.to_string_lossy().replace('\\', "/");
+    mediate_host(host, &mut attempt, HostChannel::Socket)?;
     let personal = relative.components().count() == 1
         || relative.components().next().is_some_and(|part| {
             matches!(
@@ -188,6 +269,7 @@ pub fn cmd_data_show(
         .map_err(|_| CliError("data-event"))
     };
 
+    mediate_host(host, &mut attempt, HostChannel::Secret)?;
     if keys {
         let outline = match helpers::outline(store, &target, hidden) {
             Ok(outline) => outline,

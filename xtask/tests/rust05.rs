@@ -16,6 +16,8 @@ fn rust_05_registers_the_release_candidate_and_effective_inputs() {
         "crates/vault/src/secrets.rs",
         "crates/vault/src/data.rs",
         "crates/vault/src/synthetic.rs",
+        "crates/vault/src/bulk.rs",
+        "crates/vault/src/synthetic_bulk.rs",
         "xtask/src/rust05.rs",
     ] {
         assert!(baseline.contains(source), "missing source binding {source}");

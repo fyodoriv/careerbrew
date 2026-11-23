@@ -41,7 +41,7 @@ impl<'a> Store<'a> {
         }
     }
 
-    fn replay_checkout(&self, relative: &Path) -> bool {
+    pub(crate) fn replay_checkout(&self, relative: &Path) -> bool {
         let parts: Vec<_> = relative.components().collect();
         if parts.len() < 5 || parts[0].as_os_str() != "learn" || parts[2].as_os_str() != "replay" {
             return false;
@@ -67,10 +67,7 @@ impl<'a> Store<'a> {
         self.encryption && !self.root.join(".plaintext").exists()
     }
 
-    fn sealable(&self, path: &Path) -> bool {
-        if !self.encryption || self.root.join(".plaintext").exists() {
-            return false;
-        }
+    pub(crate) fn sealable(&self, path: &Path) -> bool {
         let resolved_root = self
             .root
             .canonicalize()
@@ -105,7 +102,7 @@ impl<'a> Store<'a> {
             && !self.replay_checkout(&relative)
     }
 
-    fn key(&self, create: bool) -> Result<String, StoreError> {
+    pub(crate) fn key(&self, create: bool) -> Result<String, StoreError> {
         self.keys.load_key(create)
     }
 
@@ -154,7 +151,7 @@ impl<'a> Store<'a> {
     }
 
     pub fn write_text(&self, path: &Path, text: &str) -> Result<(), StoreError> {
-        let seal = self.sealable(path);
+        let seal = self.encryption_enabled() && self.sealable(path);
         let key = if seal { Some(self.key(true)?) } else { None };
         atomic::write_text(path, key.as_deref(), seal, text)
     }
@@ -241,7 +238,7 @@ impl<'a> Store<'a> {
             std::fs::create_dir_all(parent)?;
         }
         let new = jsonl_text(rows)?;
-        let seal = self.sealable(path);
+        let seal = self.encryption_enabled() && self.sealable(path);
         lock::with_lock(path, || -> Result<(), StoreError> {
             if !seal {
                 let mut file = OpenOptions::new().append(true).create(true).open(path)?;
@@ -263,7 +260,7 @@ impl<'a> Store<'a> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let seal = self.sealable(path);
+        let seal = self.encryption_enabled() && self.sealable(path);
         lock::with_lock(path, || -> Result<(usize, usize), StoreError> {
             let old = self.read_jsonl(path, true)?;
             let mut out: Vec<(String, Canon)> = Vec::new();

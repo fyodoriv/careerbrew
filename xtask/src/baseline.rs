@@ -119,7 +119,7 @@ pub const STEPS: &[Step] = &[
         fixtures: &[],
     },
     Step {
-        // rust-05f/g/h is a stateful component workload. The real Python oracle
+        // rust-05f/g/h/i is a stateful component workload. The real Python oracle
         // uses only its invocation's synthetic home and injected adapters.
         id: "rust-05",
         oracle: &["-I", "-B", "tests/oracles/rust05.py", "--all"],
@@ -154,6 +154,8 @@ pub const STEPS: &[Step] = &[
             "crates/vault/src/settings.rs",
             "crates/vault/src/events.rs",
             "crates/vault/src/helpers.rs",
+            "crates/vault/src/bulk.rs",
+            "crates/vault/src/synthetic_bulk.rs",
             "crates/vault/src/receipts.rs",
             "crates/vault/src/secrets.rs",
             "crates/vault/src/cli.rs",

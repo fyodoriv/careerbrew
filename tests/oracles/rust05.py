@@ -325,23 +325,26 @@ def _data_show_cases(cases: list[dict[str, Any]], root: Path) -> None:
             raise RuntimeError("synthetic value reached data-show output")
         return {"exit": code, "stdout": text}
 
-    def result(reference: Any, alias: Any, passed: bool) -> dict[str, Any]:
-        return {"reference": reference, "alias": alias, "passed": passed}
-
     attempts = []
 
-    def deny(*_args: Any, **_kwargs: Any) -> None:
-        attempts.append("forbidden host operation")
-        raise AssertionError("a host transport or secret resolver was called")
+    def result(reference: Any, alias: Any, passed: bool) -> dict[str, Any]:
+        return {"reference": reference, "alias": alias, "passed": passed, "host_attempts": len(attempts)}
+
+    def deny(channel: str):
+        def denied(*_args: Any, **_kwargs: Any) -> None:
+            attempts.append(channel)
+            raise AssertionError("a host transport or secret resolver was called")
+
+        return denied
 
     was_events = os.environ.get("CAREERBREW_EVENTS")
     os.environ["CAREERBREW_EVENTS"] = "off"
     try:
         with (
-            _patched(subprocess, run=deny, Popen=deny),
-            _patched(socket, create_connection=deny),
-            _patched(socket.socket, connect=deny, connect_ex=deny, sendto=deny),
-            _patched(secrets, resolve=deny),
+            _patched(subprocess, run=deny("process"), Popen=deny("process")),
+            _patched(socket, create_connection=deny("socket")),
+            _patched(socket.socket, connect=deny("socket"), connect_ex=deny("socket"), sendto=deny("socket")),
+            _patched(secrets, resolve=deny("secret")),
         ):
             before = _snapshot(root.parent)
             reference = show("profile.yaml")
@@ -406,20 +409,332 @@ def _data_show_cases(cases: list[dict[str, Any]], root: Path) -> None:
             for name in ("C04-missing", "C05-directory", "C06-traversal", "C07-symlink", "C09-absolute-outside", "C12-root-directory"):
                 passed[name] = controls[name]["exit"] == 1 and "no such data file" in controls[name]["stdout"]
             for name, actual in controls.items():
-                cases.append({"id": f"data-show-{name}", "result": {"actual": actual, "passed": passed[name]}})
+                cases.append({"id": f"data-show-{name}", "result": {"actual": actual, "passed": passed[name], "host_attempts": len(attempts)}})
 
             keys = show("privateish/literal.yaml", keys=True)
             hidden = show("privateish/literal.yaml")
             lookalike = keys["exit"] == 0 and keys["stdout"].splitlines()[1:] == ["literal_only: int"] and "13" not in keys["stdout"] and hidden["exit"] == 3 and "--keys" in hidden["stdout"] and "literal_only" not in hidden["stdout"]
-            cases.append({"id": "data-show-C11-lookalike", "result": {"keys": keys, "hidden": hidden, "passed": lookalike}})
+            cases.append({"id": "data-show-C11-lookalike", "result": {"keys": keys, "hidden": hidden, "passed": lookalike, "host_attempts": len(attempts)}})
             cases.append({"id": "data-show-read-only", "result": before == _snapshot(root.parent)})
-            if attempts:
+            read_only_attempts = len(attempts)
+            if read_only_attempts:
                 raise AssertionError("data show reached a denied host adapter")
+
+            def planted(channel: str, boundary: Any) -> dict[str, Any]:
+                before_attempts = attempts.count(channel)
+                try:
+                    with boundary():
+                        show("profile.yaml")
+                except AssertionError:
+                    refused = True
+                else:
+                    refused = False
+                boundary = {"process": "path-resolution", "socket": "personal-data-policy", "secret": "store-read"}[channel]
+                return {"attempts": attempts.count(channel) - before_attempts, "refused": refused, "boundary": boundary}
+
+            def process_boundary():
+                real = cli._data_file
+
+                def attempt(name: str) -> Any:
+                    subprocess.run(["synthetic-command"])
+                    return real(name)
+
+                return _patched(cli, _data_file=attempt)
+
+            def socket_boundary():
+                real = cli._personal_data
+
+                def attempt(rel: Path) -> Any:
+                    socket.create_connection(("127.0.0.1", 9))
+                    return real(rel)
+
+                return _patched(cli, _personal_data=attempt)
+
+            def secret_boundary():
+                real = store.read_text
+
+                def attempt(*args: Any, **kwargs: Any) -> Any:
+                    secrets.resolve("env:SYNTHETIC_HOST_DENIAL")
+                    return real(*args, **kwargs)
+
+                return _patched(store, read_text=attempt)
+
+            cases.append(
+                {
+                    "id": "data-show-host-denial",
+                    "result": {
+                        "read_only_attempts": read_only_attempts,
+                        "process": planted("process", process_boundary),
+                        "socket": planted("socket", socket_boundary),
+                        "secret": planted("secret", secret_boundary),
+                    },
+                }
+            )
     finally:
         if was_events is None:
             os.environ.pop("CAREERBREW_EVENTS", None)
         else:
             os.environ["CAREERBREW_EVENTS"] = was_events
+
+
+@contextlib.contextmanager
+def _bulk_home(base: Path, name: str, *, encrypt: str = "on"):
+    root = base / name / "data"
+    root.mkdir(parents=True, exist_ok=True)
+    key_file = base / name / "keys" / "backup.key"
+    names = ("CAREERBREW_HOME", "CAREERBREW_KEY_FILE", "CAREERBREW_ENCRYPT")
+    old = {name: os.environ.get(name) for name in names}
+    os.environ["CAREERBREW_HOME"] = str(root)
+    os.environ["CAREERBREW_KEY_FILE"] = str(key_file)
+    os.environ["CAREERBREW_ENCRYPT"] = encrypt
+    vault._fernet.cache_clear()
+    try:
+        yield root, key_file
+    finally:
+        for name, value in old.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+        vault._fernet.cache_clear()
+
+
+def _bulk_snapshot(root: Path) -> list[dict[str, Any]]:
+    rows = []
+    for path in sorted(root.rglob("*"), key=lambda item: item.relative_to(root).as_posix()):
+        relative = path.relative_to(root).as_posix()
+        if path.is_symlink():
+            rows.append({"path": relative, "symlink": True})
+            continue
+        if not path.is_file():
+            continue
+        raw = path.read_bytes()
+        row: dict[str, Any] = {
+            "path": relative,
+            "mode": f"{stat.S_IMODE(path.stat().st_mode):03o}",
+            "sealed": vault.is_sealed(raw),
+        }
+        try:
+            plain = vault.open_bytes(raw, create_key=False)
+        except Exception as exc:
+            row["read_error"] = type(exc).__name__
+        else:
+            if not row["sealed"] and vault._is_fernet_token(path):
+                row["bundle"] = "fernet"
+            else:
+                row["sha256"] = hashlib.sha256(plain).hexdigest()
+        rows.append(row)
+    return rows
+
+
+def _tree_identities(root: Path) -> dict[str, Any]:
+    return {path.relative_to(root).as_posix(): _identity(path) for path in root.rglob("*") if path.is_file() and not path.is_symlink()}
+
+
+def _record_bulk(cases: list[dict[str, Any]], name: str, root: Path, key_file: Path, operation: Any, *, before: dict[str, Any] | None = None) -> None:
+    try:
+        result = _typed(operation())
+    except Exception as exc:
+        result = _error(exc)
+    row: dict[str, Any] = {
+        "id": name,
+        "result": result,
+        "state": _bulk_snapshot(root),
+        "key": {
+            "present": key_file.exists(),
+            "mode": f"{stat.S_IMODE(key_file.stat().st_mode):03o}" if key_file.exists() else None,
+        },
+    }
+    if before is not None:
+        row["mutation_free"] = before == _tree_identities(root)
+    cases.append(row)
+
+
+def _plain_file(path: Path, text: str = "synthetic bulk record\n", *, mode: int = 0o640) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    path.chmod(mode)
+    return path
+
+
+def _sealed_file(path: Path, raw: bytes = b"synthetic bulk record\n", *, mode: int = 0o640) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(vault.seal_bytes(raw))
+    path.chmod(mode)
+    return path
+
+
+def _bulk_cases(cases: list[dict[str, Any]], data_root: Path) -> None:
+    base = data_root.parent / "bulk"
+    with _bulk_home(base, "enumeration") as (root, key_file):
+        plain = _plain_file(root / "work/plain.txt")
+        sealed = _sealed_file(root / "work/sealed.txt")
+        near = _plain_file(root / "learn/synthetic/replay/07/near.txt")
+        checkout = root / "learn/synthetic/replay/7"
+        _plain_file(checkout / ".git/HEAD", "ref: refs/heads/main\n")
+        _plain_file(checkout / "code.py", "value = 1\n")
+        for folder in ("logs", "out", ".edit", "plugins"):
+            _plain_file(root / folder / "plain.txt")
+        _plain_file(root / "work/ignored.lock")
+        _plain_file(root / "work/ignored.tmp")
+        (root / "work/link.txt").symlink_to(plain)
+        expected_paths = sorted(path.relative_to(root).as_posix() for path in (near, plain, sealed))
+        _record_bulk(
+            cases,
+            "bulk-enumeration-status",
+            root,
+            key_file,
+            lambda: {"paths": sorted(path.relative_to(root).as_posix() for path in vault.files()), "status": vault.status()},
+        )
+        os.environ["CAREERBREW_ENCRYPT"] = "off"
+        _record_bulk(cases, "bulk-status-environment-off", root, key_file, vault.status)
+        os.environ["CAREERBREW_ENCRYPT"] = "on"
+        _plain_file(root / vault.MARKER, "synthetic existing marker\n")
+        plain_before = _identity(plain)
+        _record_bulk(
+            cases,
+            "bulk-marker-disables-seal-files",
+            root,
+            key_file,
+            lambda: {"count": vault.seal_files([plain]), "unchanged": plain_before == _identity(plain), "status": vault.status()},
+        )
+        assert expected_paths == sorted(path.relative_to(root).as_posix() for path in vault.files())
+
+    with _bulk_home(base, "seal-files") as (root, key_file):
+        first = _plain_file(root / "work/first.txt")
+        sealed = _sealed_file(root / "work/already.txt")
+        log = _plain_file(root / "logs/plain.txt")
+        missing = root / "work/missing.txt"
+        outside = _plain_file(base / "seal-files/outside.txt")
+        link = root / "work/link.txt"
+        link.symlink_to(first)
+        sealed_before = _identity(sealed)
+        _record_bulk(
+            cases,
+            "bulk-seal-files",
+            root,
+            key_file,
+            lambda: {
+                "count": vault.seal_files([first, sealed, log, missing, root / "work", outside, link]),
+                "sealed_noop": sealed_before == _identity(sealed),
+            },
+        )
+
+    with _bulk_home(base, "encrypt-all") as (root, key_file):
+        first = _plain_file(root / "work/first.txt")
+        _plain_file(root / "work/second.txt")
+        sealed = _sealed_file(root / "work/already.txt")
+        log = _plain_file(root / "logs/plain.txt")
+        replay = _plain_file(root / "learn/synthetic/replay/7/code.py")
+        _plain_file(root / "learn/synthetic/replay/7/.git/HEAD", "ref: refs/heads/main\n")
+        _plain_file(root / vault.MARKER, "synthetic existing marker\n")
+        sealed_before = _identity(sealed)
+        _record_bulk(
+            cases,
+            "bulk-encrypt-all",
+            root,
+            key_file,
+            lambda: {"count": vault.encrypt_all(), "sealed_noop": sealed_before == _identity(sealed)},
+        )
+        identities = _tree_identities(root)
+        _record_bulk(
+            cases,
+            "bulk-encrypt-all-noop",
+            root,
+            key_file,
+            lambda: {"count": vault.encrypt_all(), "unchanged": identities == _tree_identities(root)},
+        )
+        assert not log.read_bytes().startswith(vault.MAGIC) and not replay.read_bytes().startswith(vault.MAGIC)
+
+    for kind in ("backup-suffix", "sync-suffix", "raw-fernet"):
+        with _bulk_home(base, f"bundle-{kind}") as (root, key_file):
+            _plain_file(root / "record.txt")
+            _plain_file(root / vault.MARKER, "synthetic existing marker\n")
+            if kind == "raw-fernet":
+                bundle = root / "bundle-without-extension"
+                bundle.write_bytes(vault.seal_bytes(b"synthetic bundle")[len(vault.MAGIC) :])
+            else:
+                bundle = root / ("archive.CBK" if kind == "backup-suffix" else "archive.CbSyNc")
+                bundle.write_text("synthetic named bundle\n", encoding="utf-8")
+            before = _tree_identities(root)
+            _record_bulk(cases, f"bulk-encrypt-refuses-{kind}", root, key_file, vault.encrypt_all, before=before)
+
+    with _bulk_home(base, "encrypt-sealed-missing-key") as (root, key_file):
+        _sealed_file(root / "old.txt")
+        _plain_file(root / "new.txt")
+        _plain_file(root / vault.MARKER, "synthetic existing marker\n")
+        key_file.unlink()
+        vault._fernet.cache_clear()
+        _record_bulk(cases, "bulk-encrypt-sealed-missing-key", root, key_file, vault.encrypt_all)
+
+    with _bulk_home(base, "encrypt-invalid-key") as (root, key_file):
+        _plain_file(root / "record.txt")
+        _plain_file(root / vault.MARKER, "synthetic existing marker\n")
+        key_file.parent.mkdir(parents=True, exist_ok=True)
+        key_file.write_bytes(b"not-a-valid-fernet-key")
+        vault._fernet.cache_clear()
+        _record_bulk(cases, "bulk-encrypt-invalid-key", root, key_file, vault.encrypt_all)
+
+    with _bulk_home(base, "decrypt-all") as (root, key_file):
+        _sealed_file(root / "work/sealed.txt")
+        _plain_file(root / "work/plain.txt")
+        _sealed_file(root / "learn/synthetic/replay/7/code.py", b"value = 1\n")
+        _sealed_file(root / "learn/synthetic/replay/7/.git/HEAD", b"ref: refs/heads/main\n")
+        _plain_file(root / "logs/plain.txt")
+        _record_bulk(cases, "bulk-decrypt-all", root, key_file, vault.decrypt_all)
+        identities = _tree_identities(root)
+        _record_bulk(
+            cases,
+            "bulk-decrypt-all-noop",
+            root,
+            key_file,
+            lambda: {"count": vault.decrypt_all(), "data_unchanged": all(identities[path] == _tree_identities(root)[path] for path in identities if path != vault.MARKER)},
+        )
+
+    for kind in ("missing-key", "invalid-key", "wrong-key"):
+        with _bulk_home(base, f"decrypt-{kind}") as (root, key_file):
+            _sealed_file(root / "record.txt")
+            if kind == "missing-key":
+                key_file.unlink()
+            elif kind == "invalid-key":
+                key_file.write_bytes(b"not-a-valid-fernet-key")
+            else:
+                key_file.write_bytes(b"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=")
+            vault._fernet.cache_clear()
+            before = _tree_identities(root)
+            _record_bulk(cases, f"bulk-decrypt-{kind}", root, key_file, vault.decrypt_all, before=before)
+
+    for operation_name in ("seal-files", "encrypt-all", "decrypt-all"):
+        with _bulk_home(base, f"failure-{operation_name}") as (root, key_file):
+            targets = [root / f"work/{name}.txt" for name in ("a", "b", "c")]
+            for target in targets:
+                if operation_name == "decrypt-all":
+                    _sealed_file(target)
+                else:
+                    _plain_file(target)
+            if operation_name == "encrypt-all":
+                _plain_file(root / vault.MARKER, "synthetic existing marker\n")
+            real_rewrite = vault._rewrite
+
+            def failing_rewrite(path: Path, raw: bytes) -> None:
+                if path == targets[1]:
+                    raise OSError("planted bulk rewrite failure")
+                real_rewrite(path, raw)
+
+            if operation_name == "seal-files":
+
+                def operation():
+                    return vault.seal_files(targets)
+
+                patches = _patched(vault, _rewrite=failing_rewrite)
+            else:
+                operation = vault.encrypt_all if operation_name == "encrypt-all" else vault.decrypt_all
+                selected = (lambda: list(targets)) if operation_name == "encrypt-all" else (lambda *, include_replay=False: list(targets))
+                patches = contextlib.ExitStack()
+                patches.enter_context(_patched(vault, files=selected) if operation_name == "encrypt-all" else _patched(vault, _files=selected))
+                patches.enter_context(_patched(vault, _rewrite=failing_rewrite))
+            with patches:
+                _record_bulk(cases, f"bulk-{operation_name}-failure-atomicity", root, key_file, operation)
 
 
 def _run_all() -> dict[str, Any]:
@@ -599,6 +914,7 @@ def _run_all() -> dict[str, Any]:
     _outline_and_cache_cases(cases, root)
     _key_path_cases(cases)
     _data_show_cases(cases, root)
+    _bulk_cases(cases, root)
 
     cases.append({"id": "files", "result": _file_evidence(root, key_file)})
     return {"schema": "careerbrew-rust05-component-v1", "cases": cases}
