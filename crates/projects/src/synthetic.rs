@@ -91,6 +91,12 @@ fn identity_controls(root: &Path, name: &str) -> Result<Value> {
     }
     projects::with_lock(root, || {
         let mut every = projects::load(root)?;
+        every[name]["incarnation_id"] = json!(12345678901234567890123456789012_u128);
+        projects::save(root, &every)
+    })?;
+    invalid.push(error(projects::session_record(root, name).map(|_| ())));
+    projects::with_lock(root, || {
+        let mut every = projects::load(root)?;
         every[name]["incarnation_id"] = json!(generated);
         projects::save(root, &every)
     })?;
@@ -594,6 +600,7 @@ fn cli_handlers(base: &Path) -> Result<Value> {
         json!({"id": "result-1", "at": "2026-11-02T08:00:00Z", "kind": "ticket", "title": "BILL-100", "source": "synthetic", "origin": "user"}),
         json!({"id": "result-2", "at": "2026-11-02T08:01:00Z", "kind": "ticket", "title": "BILL-101 API-2", "source": "synthetic", "origin": "user"}),
         json!({"id": "result-3", "at": "2026-11-02T08:02:00Z", "kind": "other", "title": "unmatched", "source": "synthetic", "origin": "user"}),
+        json!({"id": "pr:acme/api#4", "at": "2026-11-02T08:03:00Z", "kind": "pr", "title": "unmatched", "source": "synthetic", "origin": "user"}),
     ];
     let context = crate::context()?;
     let store = context.store();
@@ -658,6 +665,17 @@ fn cli_handlers(base: &Path) -> Result<Value> {
     let task_set_empty = cli::invocation(exit, stdout);
     let (exit, stdout) = cli::work_impact(root, "t001", priorities::ImpactInput::default());
     let impact_empty = cli::invocation(exit, stdout);
+    let evidence_path = root.join("work/evidence.jsonl");
+    std::fs::write(&evidence_path, "not json\n")?;
+    let (exit, stdout) = cli::work_priority(root, "show", "", None, None);
+    let parse_fallback = cli::invocation(exit, stdout);
+    std::fs::write(&evidence_path, b"CBV1\ninvalid\n")?;
+    let (exit, stdout) = cli::work_priority(root, "show", "", None, None);
+    let decrypt_fallback = cli::invocation(exit, stdout);
+    std::fs::remove_file(&evidence_path)?;
+    std::fs::create_dir(&evidence_path)?;
+    let (exit, stdout) = cli::work_priority(root, "show", "", None, None);
+    let read_fallback = cli::invocation(exit, stdout);
     match std::env::var("CAREERBREW_RUST09_PLANT_WRITE").as_deref() {
         Ok("missing") => std::fs::remove_file(root.join("work/tasks.yaml"))?,
         Ok("duplicate") => {
@@ -670,7 +688,8 @@ fn cli_handlers(base: &Path) -> Result<Value> {
     Ok(json!({
         "priority_set": priority_set, "priority_set_api": priority_set_api, "priority_show": priority_show,
         "task_set": task_set, "impact": impact, "done": done, "impact_result": impact_result,
-        "impact_unsure": impact_unsure, "task_set_empty": task_set_empty, "impact_empty": impact_empty
+        "impact_unsure": impact_unsure, "task_set_empty": task_set_empty, "impact_empty": impact_empty,
+        "evidence_fallback": {"parse": parse_fallback, "decrypt": decrypt_fallback, "read": read_fallback}
     }))
 }
 

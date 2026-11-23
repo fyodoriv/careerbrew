@@ -347,7 +347,10 @@ pub fn summary(root: &Path) -> Result<Vec<Value>> {
     let linked = crate::projects::task_projects(root)?;
     let tasks = crate::priorities::load(root)?;
     let counts = open_task_counts(&tasks, &linked, &entries);
-    let evidence = crate::read_jsonl(root, "work/evidence.jsonl")?;
+    // Python ignores only evidence-link loading failures here. Daily-result
+    // reads below remain strict, and differential write/privacy checks do not
+    // use this fallback.
+    let evidence = crate::read_jsonl(root, "work/evidence.jsonl").unwrap_or_default();
     let urls = evidence
         .iter()
         .map(|row| (text(field(row, "id")), json!(text(field(row, "url")))))

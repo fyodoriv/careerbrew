@@ -474,6 +474,13 @@ def _cli_handlers(base: Path) -> dict[str, Any]:
         day=date(2026, 11, 2),
     )
     os.environ["CAREERBREW_ENCRYPT"] = "on"
+    priority_show = _invoke(["work", "priority", "show"])
+    task_set = _invoke(["work", "task-set", "t001", "--impact", "4", "--urgency", "5", "--hours", "1.5"])
+    impact = _invoke(["work", "impact", "t001", "--expect", "Fewer synthetic failures", "--who", "support", "--metric", "failures per day"])
+    done = _invoke(["work", "done", "t001", "1"])
+    impact_result = _invoke(["work", "impact", "t001", "--result", "  CLI   result ", "--evidence", "https://evidence.example.com/old", "--evidence", "https://evidence.example.com/new"])
+    impact_unsure = _invoke(["work", "impact", "t001", "--result", "uncertain", "--not-sure"])
+    task_set_empty = _invoke(["work", "task-set", "t001"])
     impact_empty = _invoke(["work", "impact", "t001"])
     evidence_path = Path(os.environ["CAREERBREW_HOME"]) / "work" / "evidence.jsonl"
     evidence_path.write_text("not json\n")
@@ -486,13 +493,13 @@ def _cli_handlers(base: Path) -> dict[str, Any]:
     return {
         "priority_set": priority_set,
         "priority_set_api": priority_set_api,
-        "priority_show": _invoke(["work", "priority", "show"]),
-        "task_set": _invoke(["work", "task-set", "t001", "--impact", "4", "--urgency", "5", "--hours", "1.5"]),
-        "impact": _invoke(["work", "impact", "t001", "--expect", "Fewer synthetic failures", "--who", "support", "--metric", "failures per day"]),
-        "done": _invoke(["work", "done", "t001", "1"]),
-        "impact_result": _invoke(["work", "impact", "t001", "--result", "  CLI   result ", "--evidence", "https://evidence.example.com/old", "--evidence", "https://evidence.example.com/new"]),
-        "impact_unsure": _invoke(["work", "impact", "t001", "--result", "uncertain", "--not-sure"]),
-        "task_set_empty": _invoke(["work", "task-set", "t001"]),
+        "priority_show": priority_show,
+        "task_set": task_set,
+        "impact": impact,
+        "done": done,
+        "impact_result": impact_result,
+        "impact_unsure": impact_unsure,
+        "task_set_empty": task_set_empty,
         "impact_empty": impact_empty,
         "evidence_fallback": {"parse": parse_fallback, "decrypt": decrypt_fallback, "read": read_fallback},
     }

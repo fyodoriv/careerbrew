@@ -963,7 +963,9 @@ pub fn promise_step(root: &Path, name: &str, which: &str, value: &str) -> Result
 }
 
 pub fn valid_identity(record: &Value) -> bool {
-    let id = text(field(record, "incarnation_id"));
+    let Some(id) = field(record, "incarnation_id").and_then(Value::as_str) else {
+        return false;
+    };
     id.len() == 32
         && id
             .bytes()
