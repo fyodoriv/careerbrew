@@ -1773,27 +1773,27 @@ the crate until the rust-05 and rust-07 closure is native, so
   manifest with `validate_manifest` and refuses an invalid one (`remove` skips
   the check so the owner can still uninstall it).
 - **Component oracle baseline before native implementation (2026-11-23, macOS):**
-  clean source revision `89d9b0cd89ab611c9615672aef67cd3ce7617f32`; 30 runs;
-  CPU p50/p95 271,886/291,160 microseconds and tree-RSS p50/p95
-  48,791,552/49,086,464 bytes. Evidence-source hash
-  `4cdc1f8ff96b3088bb592df2bcd47f9fad43a37ee82fad77387d179f64062ad6`;
+  clean source revision `acd35d36be893766d0653385c2308dec4b12f5c3`; 30 runs;
+  CPU p50/p95 260,867/276,440 microseconds and tree-RSS p50/p95
+  46,268,416/46,661,632 bytes. Evidence-source hash
+  `374c894f3fc6c5f29261b8c48cc81472bda79aeef0531bc7222850afc4929e05`;
   fixture hash `940d3c5822659c7eaef80649a92c7a7582b3d6662f330a5fe12da3b8d1d3c1a2`.
   The baseline covers nine synthetic groups, including all eleven owned CLI
   handlers. This is the pre-native prediction record, not a speed result.
 - **Component measurement (2026-11-23, macOS):**
-  - Clean source revision `50b28df3d71d90973d217aeb0ebf5e1d6696f8cb`.
+  - Clean source revision `b66963963ca7bfe033cc75c73bf394d1e1b8d616`.
     All three records share evidence-source hash
-    `569e8f3d3c9d32d6e5f5a259dc83b13be786864f591e91cb3cd189e2611b7798`
+    `2e2adfbf9079557ec81638f75eb78f8f369c60c08553744321ee2c2c535fd431`
     and fixture hash
     `940d3c5822659c7eaef80649a92c7a7582b3d6662f330a5fe12da3b8d1d3c1a2`.
     Verify and measure share release-candidate SHA-256
-    `0f3d6b64efa752e33d5f82890353a38ca8d5c1fb96aa817d363346fe9f5d5df2`.
+    `a4e56bcb16ec1ff1590fb6bb320452c6127c73586b4d001c4369ab230d28ac4f`.
   - Baseline: 30 runs. Verify: 9/9 checks with 0 contract, privacy, role,
     authorization, side-effect, missing-write or duplicate-write violations.
     Measurement: 30 unique, uncached pairs in each regime.
-  - Cold CPU p95 was 300,606 to 77,714 microseconds; warm was 286,675 to
-    76,466. Cold tree-RSS p95 was 49,283,072 to 8,257,536 bytes; warm was
-    47,071,232 to 8,257,536. Each ratio is below 1.10. The unmeasured noise
+  - Cold CPU p95 was 287,505 to 78,919 microseconds; warm was 285,438 to
+    78,313. Cold tree-RSS p95 was 47,022,080 to 8,257,536 bytes; warm was
+    47,202,304 to 8,257,536. Each ratio is below 1.10. The unmeasured noise
     floors keep the ratio fail-closed.
   - `migration decide --step rust-07` returned `activate` with no reasons.
     Real extra, missing and duplicate native-write controls each returned
