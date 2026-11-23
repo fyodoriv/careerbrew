@@ -1968,6 +1968,21 @@ the crate until the rust-05 and rust-07 closure is native, so
   decide records are required after the source change; CPU p95 and tree RSS
   stay at or below 1.10 times their paired oracle. Any mismatch, lost control
   or resource excess keeps Python. Production activation remains unchanged.
+- **Review-correction acceptance (2026-11-23, macOS):** clean source revision
+  `dbaf46888935dcb84d5807a5c6c852cd3b0a7cab`; evidence-source hash
+  `d3394204d04a81a57760e48317a0ef9dce934af2a25715b8183652842494cba0`;
+  fixture hash
+  `eadc98973473f7d9562f3e748c53abf34a9f6bc4698efc05d54b381f3db5ae8f`;
+  release-candidate SHA-256
+  `10a36eb286ecb8fb5e6125088026684a77f95aa7dad87042df24eb0aefa83655`.
+  Baseline: 30 runs. Verify: 6/6 with zero violations, including every new
+  direct control. Cold CPU p95 was 396,001 to 62,066 microseconds; warm was
+  391,579 to 61,530. Cold tree-RSS p95 was 56,426,496 to 12,124,160 bytes;
+  warm was 56,393,728 to 12,238,848. Thirty unique uncached pairs ran in each
+  regime and each ratio is below 1.10. `decide` returned component-only
+  `activate`; fresh extra, missing and duplicate write controls returned
+  `keep-python` with their violation counters nonzero. Production routes,
+  shipped crates and activation remain unchanged.
 
 ### rust-10: Port sessions, claims, agents and reply drafts
 
