@@ -667,6 +667,8 @@ HTTP client crate is pinned yet.
 | Fernet tokens (data at rest, backups) | `fernet` (feature `rustcrypto`) | 0.2.2 | MIT | kept | already pinned by `crates/vault`; the `fernet` vector set: Python-made tokens open in Rust and Rust-made tokens open in Python, old plaintext and a 2020 token still read, a wrong key, a tampered or a truncated token fail on both sides, and a token stamped in the future opens on both sides: Python checks no time without a TTL, so `careerbrew_vault::decrypt_like_python` passes the crate a clock no earlier than the token's stamp (feature `fernet_danger_timestamps`; the MAC and cipher checks stay the crate's). Its AES, CBC, HMAC and SHA-256 come from the RustCrypto crates (`aes`, `cbc`, `hmac`, `sha2`, MIT OR Apache-2.0); no crypto code is ours. It has no way to pass the IV, so a seal vector compares the envelope's shape and plaintext, not its bytes |
 | Fernet tokens | `fernet` (default feature `openssl`) | 0.2.2 | MIT | rejected | needs a system OpenSSL to build and link; `rustcrypto` gives the same tokens in pure Rust |
 | Base64 for tokens | `base64` | 0.22.1 | MIT OR Apache-2.0 | kept | already pinned by `crates/vault`; the strict check `backup.verify` makes (`open-strict` vectors) and the Python-compatible lenient read in `careerbrew-vault` |
+| Backup tar archives | `tar` | 0.4.46 | MIT OR Apache-2.0 | kept | maintained tar reader/writer behind `crates/vault/src/backup.rs`; default features off; Python↔Rust create/verify/restore controls in rust-06 |
+| Backup gzip compression | `flate2` | 1.1.11 | MIT OR Apache-2.0 | kept | maintained gzip stream behind the same adapter; `rust_backend` only; Python↔Rust archive controls in rust-06 |
 | FSRS card schedule | `fsrs` | 7.0.0 | BSD-3-Clause | kept | official Open Spaced Repetition crate (release 2026-11); `FSRS6_DEFAULT_PARAMETERS` equal py-fsrs 6.3.2 `DEFAULT_PARAMETERS` (`parameters` vector) and its FSRS-6 formulas match py-fsrs's (18 `fsrs` vectors). Version 7 no longer pulls `burn`. New dependencies: `ndarray`, `rayon`, `rand` 0.10, `rand_distr`, `itertools`, `snafu`, `num-*`, `crossbeam-*`, `either`, `matrixmultiply`, `rawpointer`, `portable-atomic*`, `chacha20`, `cpufeatures`, `getrandom`, `heck`, `autocfg`, `r-efi` (MIT OR Apache-2.0, `r-efi` also LGPL-2.1-or-later as an option), `bytemuck`, `wide`, `safe_arch` (Zlib OR Apache-2.0 OR MIT), `libm` (MIT) |
 | FSRS card schedule | `rs-fsrs` | 1.2.1 | non-standard (crates.io) | rejected | last release 2024-10; no SPDX licence on crates.io; it predates the 21-weight FSRS-6 set with a trainable decay that py-fsrs 6.3.2 uses |
 | FSRS learning steps, state and due time | (none) | | | adapter | the `fsrs` crate has the memory model only; py-fsrs's step and state rules are a small adapter in `crates/depvec/src/fsrs_schedule.rs`, checked by the `schedule` vectors |
@@ -1635,6 +1637,38 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native backup, restore and sync.
 - **Gate:** 100% of valid archives restore; 100% of tampered, truncated or
   trailing-junk archives are rejected; 0 unapproved exports or lost files.
+- **Component slice (native adapters, no production dispatch):**
+  - `crates/vault/src/backup.rs` ports archive creation, strict verification,
+    restore and retention. `sync.rs` ports pairing keys, the two-setting export
+    allowlist, and corporate import validation. `transfer.rs` adapts
+    `cmd_backup_create`, `cmd_backup_restore`, `cmd_backup_verify`,
+    `cmd_data_status`, `cmd_pair_join`, `cmd_sync_export` and `cmd_sync_import`.
+    The synthetic-only binary is `vault-sync`; it is not a shipped crate or a
+    production route.
+  - Archive base64 decoding is strict, including after completed padding. This
+    intentionally remains different from the lenient vault-token reader.
+    Restore validates every member, every corporate data rule and every
+    existing destination link before the first write. `machine.yaml` does not
+    cross machines. Backup, pairing and sync destinations stay outside the data
+    root; new archives and keys use mode 0600.
+  - `tests/oracles/rust06.py` and `synthetic_transfer.rs` run ten stateful
+    groups: roundtrip and conflicts, strict rejection, malicious names and
+    links, corporate restore, key/target guards, sync roundtrip/refusals,
+    import allowlists and all seven successful handler outputs. `xtask` also
+    creates a real archive with each engine, then verifies and restores it with
+    the other. Both directions compare restored content and modes directly.
+  - Random Fernet ciphertext and gzip bytes are not compared. The report uses
+    typed results, decrypted content hashes, modes, semantic file state and
+    error classes. Only the volatile archive timestamp/hash in CLI output is
+    normalized, to `careerbrew-<archive>.cbk`; no other output is normalized.
+    Reports contain no key, bundle plaintext or synthetic record text.
+  - The step binds the Python oracle and call closure, native adapters, reused
+    rust-05 providers, harness sources, candidate bytes and the generic ladder
+    fixture. Baseline, verify and measure share source revision, evidence-source
+    and fixture hashes; verify and measure also share candidate SHA-256. Both
+    noise floors remain `unmeasured`, so the 1.10 ratio applies fail-closed.
+  - Production Python, `config/native-routes.txt`, shipped crates and activation
+    tables are unchanged. Component parity does not activate backup or sync.
 
 ### rust-07: Port plugin, machine and account setup
 

@@ -18,6 +18,7 @@ mod normalize;
 mod observer_probe;
 mod resources;
 mod rust05;
+mod rust06;
 mod sites;
 mod toolchain_identity;
 mod trial_plan;

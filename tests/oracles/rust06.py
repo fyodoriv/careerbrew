@@ -13,6 +13,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import stat
 import sys
 import tarfile
@@ -298,8 +299,10 @@ def _archive_targets(base: Path) -> dict[str, Any]:
     results["icloud"] = {"targets": sorted(w.rel(path.parent) for path in written), "verified": [backup.verify(path) for path in written]}
     allowed = w.base / "approved"
     os.environ["CAREERBREW_BACKUP_DIRS"] = os.pathsep.join([str(w.backups), str(allowed)])
+    os.environ["CAREERBREW_RUST06_ALLOWED"] = str(allowed)
     with _patched(backup.plugins, effective_policy=lambda: {"backup_targets": [str(allowed)]}):
         results["policy"] = [w.rel(path.parent) for path in backup.targets()]
+    os.environ["CAREERBREW_RUST06_ALLOWED"] = ""
     with _patched(backup.plugins, effective_policy=lambda: {"backup_targets": []}):
         try:
             backup.create()
@@ -318,11 +321,12 @@ def _archive_targets(base: Path) -> dict[str, Any]:
 def _sync_roundtrip(base: Path) -> dict[str, Any]:
     personal = Workspace(base, "sync-personal")
     store.write_yaml(personal.root / "settings.yaml", {"ladder": "generic-swe", "target_level": "staff", "backup_targets": ["/synthetic/refused"]})
-    sync.pair_init()
+    key = sync.pair_init()
     bundle = personal.base / "bundle.cbsync"
     exported = sync.export(bundle)
     corporate = Workspace(base, "sync-corporate")
     machine.set_role("corporate")
+    sync.pair_join(key)
     imported = sync.import_bundle(bundle)
     settings = store.read_yaml(corporate.root / "settings.yaml", {})
     return {"exported": exported, "imported": imported, "bundle_mode": f"{stat.S_IMODE(bundle.stat().st_mode):03o}", "settings": settings, "state": corporate.evidence()}
@@ -334,6 +338,7 @@ def _sync_rejections(base: Path) -> dict[str, Any]:
     results = {}
     corporate = Workspace(base, "sync-export-corporate")
     machine.set_role("corporate")
+    sync.pair_init()
     try:
         sync.export(corporate.base / "refused.cbsync")
     except Exception as exc:
@@ -376,7 +381,7 @@ def _sync_rejections(base: Path) -> dict[str, Any]:
     return results
 
 
-def _sync_allowlist(base: Path) -> dict[str, Any]:
+def _sync_allowlist(base: Path) -> list[dict[str, Any]]:
     w = Workspace(base, "sync-allowlist")
     machine.set_role("corporate")
     key = sync.pair_init()
@@ -410,6 +415,7 @@ def _cli_handlers(base: Path) -> dict[str, Any]:
         with contextlib.redirect_stdout(output):
             code = fn(args)
         text = output.getvalue().replace(str(w.base), "<work>")
+        text = re.sub(r"careerbrew-[^ \n]+\.cbk", "careerbrew-<archive>.cbk", text)
         if CANARY in text or "pairing key" in text and "paired" not in text:
             raise RuntimeError("private output")
         outputs[name] = {"exit": code, "stdout": text}

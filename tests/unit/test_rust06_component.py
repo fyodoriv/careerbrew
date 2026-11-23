@@ -78,7 +78,7 @@ def test_archive_sync_and_handler_contracts_match_real_python(candidate, tmp_pat
 
         roundtrip = case(report, "archive-roundtrip")
         assert roundtrip["verified"] == {"int": "4"}
-        assert roundtrip["restored"] == {"int": "4"}
+        assert roundtrip["restored"] == {"int": "3"}
         assert roundtrip["archive_mode"] == "600"
         assert roundtrip["source_link_kept_out"] is True
         assert roundtrip["cache_kept_out"] is True

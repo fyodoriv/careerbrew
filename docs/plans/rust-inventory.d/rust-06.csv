@@ -1,3 +1,9 @@
+crates/vault/src/backup.rs,port,rust-06,Component-only encrypted archive create verify and restore
+crates/vault/src/sync.rs,port,rust-06,Component-only pairing key and sync bundle operations
+crates/vault/src/transfer.rs,port,rust-06,Component adapters for the seven backup sync and status handlers
+crates/vault/src/synthetic_transfer.rs,port,rust-06,Synthetic archive and sync differential workload
+crates/vault/src/bin/vault-sync.rs,port,rust-06,Synthetic-only native backup sync candidate binary
 tests/oracles/rust06.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-06 differential gate
 tests/unit/test_rust06_component.py,keep-native,rust-00,rust-06 native component and cross-engine assertions
+xtask/src/rust06.rs,keep-native,rust-00,Custom rust-06 semantic and cross-engine verification runner
 xtask/tests/rust06.rs,keep-native,rust-00,rust-06 registration and evidence identity controls

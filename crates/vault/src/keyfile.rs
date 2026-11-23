@@ -167,7 +167,7 @@ fn expand_user(value: &str, home: &Path) -> Result<PathBuf, KeyError> {
 /// `Path.resolve()` (non-strict): canonicalize the longest existing
 /// ancestor, then apply the remaining parts lexically. A relative path is
 /// joined to the current folder first, as Python does.
-fn resolve(path: &Path) -> PathBuf {
+pub(crate) fn resolve(path: &Path) -> PathBuf {
     let path = match std::env::current_dir() {
         Ok(cwd) if path.is_relative() => cwd.join(path),
         _ => path.to_path_buf(),
