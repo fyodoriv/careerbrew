@@ -100,17 +100,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: one misclassified fixed control, an unsupported required composition, changed product colors, or a narrowed record set rejects this measurement approach. Keep the result unresolved rather than inventing a ratio.
   - **Anchor**: Basili, Caldiera and Rombach 1994 (GQM); the existing 4.5 contrast budget and independent native-color calibration.
 
-- [ ] Rust migration: Port backup, restore and cross-machine sync
-  - **ID**: rust-06
-  - **Blocked**: component acceptance needs green hosted checks for the measured component revision; production activation remains a separate closure decision
-  - **Details**: Port archive verification and restore, including strict base64/trailing-junk rejection, conflict handling and sync allowlists. Verify backups made by either engine restore under both. The current component slice adds `vault-sync` and native adapters without production routing; do not close this task until its measured acceptance is recorded. Keep any format change a separate ADR and measured task. Follow the measured Rust migration plan in `docs/rust-migration.md`: step `rust-06` in "Work breakdown" (its inputs, outputs and gate), "Scope", and "Measurement protocol for every step". Split large capabilities into independently measured PRs. Port this capability's CLI handlers and the assertions of its test files in this step, and route its own commands to native code when its activation closure is native; do not defer them to rust-26 or rust-27 ("Every module has an owner step" lists them). A component-only result does not enable production dispatch: the plan's full native activation closure must be measured before switching.
-  - **Files**: src/careerbrew/backup.py; sync.py
-  - **Hypothesis**: replacing this slice preserves 100% of its registered behavior with 0 privacy/policy/side-effect violations; native CPU-time p95 and peak RSS stay at or below 1.10 times measured baseline B. Preparation steps instead prove their harness/dependency controls before any product switch. No current speed result is claimed.
-  - **Measurement**: After rust-00 creates the harness: `heavy-run --exclusive cargo xtask migration baseline --step rust-06`, `heavy-run cargo xtask migration verify --step rust-06`, `heavy-run --exclusive cargo xtask migration measure --step rust-06 --pairs 30`, then `cargo xtask migration decide --step rust-06`. Commit the baseline and prediction before implementation.
-  - **Success**: 100% valid archives restore; 100% tampered/truncated/trailing-junk archives rejected; 0 unapproved exports or lost files. All applicable shared parity/resource gates pass; whole-repo fast/full checks remain green.
-  - **Pivot**: any contract disagreement, privacy violation or missing/duplicate write, or CPU/RSS ratio >1.10 B, blocks rollout. Rework the adapter or dependency, register the new approach and remeasure; keep the last verified handler. Preparation fails on any accepted planted defect or unsupported required contract.
-  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
-
 - [ ] Rust migration: Port plugin, machine and account setup
   - **ID**: rust-07
   - **Blocked**: prerequisite: rust-05 must land and pass its acceptance gates first

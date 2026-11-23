@@ -9,7 +9,7 @@ repository can do any step from this page and the task block.
   actions` routes to `careerbrew-native` since `rust-03` activated
   (2026-11-19, [rust-03 verdict](#rust-03-verdict)). No other gain is claimed. See [Current state](#current-state) and
   [State of rust-00](#state-of-rust-00).
-- **Next task:** `rust-06` (backup, restore and cross-machine sync).
+- **Next task:** `rust-07` (plugin, machine and account setup).
   `rust-00`, `rust-01` and `rust-02` are done (2026-11-18), and `rust-03` is
   done (2026-11-19); their follow-ups are tasks in `TASKS.md`.
 - **How to read it:** the [goal](#goal-and-vision) and [decision](#decision-and-rejected-alternatives),
@@ -1734,6 +1734,46 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native live policy, the third provider of the approval closure.
 - **Gate:** 100% of readiness, manifest and repair cases agree; 0 secret
   disclosures, silent repairs or unmanaged configuration writes.
+- **Component slice (native adapters, no production dispatch):**
+  - `crates/setup/` holds manifest validation, strictest policy merge, plugin
+    install/refresh/verify/remove, command-source ownership, machine role and
+    readiness, OAuth classification and references, MCP preflight, managed
+    repair, self-update and workflow checks. `cli.rs` adapts all eleven owned
+    handlers: connectors list, init, machine set/show/split-plugin-evidence,
+    pair init, and plugin add/list/refresh/remove/verify.
+  - The synthetic-only binary is `setup-component`; it is not a shipped crate
+    or a production route. It reuses the vault store, key, YAML and pairing
+    providers. Plugin copies remain plaintext and encrypted records remain
+    sealed. The connection-time GitHub helper is native, discards stderr,
+    bounds output and time, and never logs the credential.
+  - `tests/oracles/rust07.py` and `synthetic.rs` run nine stateful groups:
+    manifest/policy, plugin lifecycle, command ownership, machine readiness,
+    OAuth references, MCP preflight, managed repair, update/workflow and all
+    CLI handlers. Cases cover symlink refusal and preservation, mode 0600
+    metadata and 0640 repair targets, managed-config refusal, explicit `--yes`,
+    owner-edit race checks, strictest policy and dependency order. Direct
+    controls cover real pyproject version and work-step validation, boolean
+    `requires`, exact corporate output cleanup, non-dry evidence moves,
+    duplicates, preserved YAML fields and exact CLI success/refusal spacing.
+    Further cases purge inbox items under their lock, refuse job-hunt or
+    malformed goals from every collection, distinguish verify from cycle
+    interpreter rules, reuse vault secret references, install from `~/` and a
+    real local Git source, and refresh that source. Repair fixtures use owned
+    executable success/failure scripts, not assumed system binary paths.
+  - Verify compares typed output and semantic file state after every phase,
+    including inode and modification time. Sealed records and generated keys
+    become type markers; owned paths, timestamps and the engine-specific
+    connection-helper command are normalized. A source fixture's internal Git
+    bookkeeping is excluded; installed content and hashes are still compared.
+    No credential value or local path enters the record. Real extra, missing and duplicate native-write
+    plants must each make `decide` return `keep-python`.
+  - The step binds the Python oracle and call closure, native modules, every
+    reused vault provider source, harness, candidate bytes, plugin fixtures,
+    sign-in fixtures and profile examples. A vault-only edit changes the
+    evidence identity and rebuilds the dependent release candidate.
+    Both noise floors remain `unmeasured`, so the 1.10 ratio applies
+    fail-closed. Production Python, native routes, shipped crates and
+    activation tables are unchanged.
 - **Slice `rust-07b` (preparation):** pure decisions over supplied facts:
   `plugins.validate_manifest_data`, `merge_policy`, `refresh_order`;
   `machine.readiness_rows`, `cloud_service`, `per_user`, `guard_decision`,
@@ -1743,6 +1783,36 @@ the crate until the rust-05 and rust-07 closure is native, so
   facts from `check_facts`; `plugins.installed()` re-checks every installed
   manifest with `validate_manifest` and refuses an invalid one (`remove` skips
   the check so the owner can still uninstall it).
+- **Component oracle baseline before native implementation (2026-11-23, macOS):**
+  clean source revision `acd35d36be893766d0653385c2308dec4b12f5c3`; 30 runs;
+  CPU p50/p95 260,867/276,440 microseconds and tree-RSS p50/p95
+  46,268,416/46,661,632 bytes. Evidence-source hash
+  `374c894f3fc6c5f29261b8c48cc81472bda79aeef0531bc7222850afc4929e05`;
+  fixture hash `940d3c5822659c7eaef80649a92c7a7582b3d6662f330a5fe12da3b8d1d3c1a2`.
+  The baseline covers nine synthetic groups, including all eleven owned CLI
+  handlers. This is the pre-native prediction record, not a speed result.
+- **Component measurement (2026-11-23, macOS):**
+  - Clean source revision `25ca1f273f19561eb5cbce03950d2634fee9e97d`.
+    All three records share evidence-source hash
+    `1e48227d826d1b01f30ca31688d541b1d4751b9540956c74537da4f1ad78b896`
+    and fixture hash
+    `940d3c5822659c7eaef80649a92c7a7582b3d6662f330a5fe12da3b8d1d3c1a2`.
+    Verify and measure share release-candidate SHA-256
+    `dd6830917ab0a532e45070308c89af11c3386ee5c45baba443a250b4ac1e9166`.
+  - Baseline: 30 runs. Verify: 9/9 checks with 0 contract, privacy, role,
+    authorization, side-effect, missing-write or duplicate-write violations.
+    Measurement: 30 unique, uncached pairs in each regime.
+  - Cold CPU p95 was 902,112 to 640,713 microseconds; warm was 896,527 to
+    641,173. Cold tree-RSS p95 was 47,874,048 to 31,473,664 bytes; warm was
+    47,710,208 to 31,490,048. Each ratio is below 1.10. The unmeasured noise
+    floors keep the ratio fail-closed.
+  - `migration decide --step rust-07` returned `activate` with no reasons.
+    Real extra, missing and duplicate native-write controls each returned
+    `keep-python` with `verify-check-failed` and `verify-violation`; their
+    side-effect, missing-write and duplicate-write counters respectively are
+    nonzero. This is the component verdict only. Production plugin, machine,
+    account and storage routes remain unchanged; activation still needs the
+    complete native closure, fresh acceptance records and rollback evidence.
 
 ### rust-08: Port HTTP sources, calendar and mail
 
@@ -2228,6 +2298,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | --- | --- | --- | --- |
 | `xtask/` | `careerbrew-xtask` | the migration developer commands and their tests | none |
 | `crates/vault/` | `careerbrew-vault` | the `CBV1` codec, key/atomic/lock providers, rust-05f storage readers/writers, receipt IO and adapter-driven `data edit`/`secret set`, rust-05g settings/general-event IO, rust-05h outline/digest/cache helpers, named-user key paths and component `data show`, and rust-05i bulk vault/status operations plus dynamic denied-host controls; synthetic `vault-store` transport only | none: component parity only |
+| `crates/setup/` | `careerbrew-setup` | the rust-07 plugin, machine, OAuth reference, MCP repair, self-update and workflow component, with all eleven owned handler adapters; synthetic `setup-component` transport only | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
@@ -2951,6 +3022,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 - `tests/fixtures/plugin-acme/ladders/` (1): `acme-eng.yaml`
 - CLI handlers it ports out of `cli.py` (11): `cmd_connectors_list`, `cmd_init`, `cmd_machine_set`, `cmd_machine_show`, `cmd_machine_split_plugin_evidence`, `cmd_pair_init`, `cmd_plugin_add`, `cmd_plugin_list`, `cmd_plugin_refresh`, `cmd_plugin_remove`, `cmd_plugin_verify`
 - Assertions it ports (9 test files, the files themselves are listed under `rust-27`): `test_data_show.py`, `test_gate_corporate.py`, `test_issue_183.py`, `test_issue_422.py`, `test_issue_423_metadata_temp.py`, `test_mcp_fix.py`, `test_plugin_commands.py`, `test_second_user.py`, `test_vault_plugins.py`
+- Native crate it adds (`keep-native` in the inventory): `crates/setup/` (`plugins.rs`, `machine.rs`, `oauth.rs`, `preflight.rs`, `cli.rs`, `synthetic.rs`, `value.rs`, `lib.rs` and `bin/setup-component.rs`), plus `tests/oracles/rust07.py`, `tests/unit/test_rust07_component.py`, `xtask/src/rust07.rs` and `xtask/tests/rust07.rs`.
 
 #### rust-08: Port HTTP sources, calendar and mail (58 files)
 

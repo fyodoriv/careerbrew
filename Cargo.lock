@@ -222,6 +222,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "careerbrew-setup"
+version = "0.1.0"
+dependencies = [
+ "careerbrew-vault",
+ "glob",
+ "libc",
+ "serde_json",
+ "sha2",
+ "tempfile",
+]
+
+[[package]]
 name = "careerbrew-vault"
 version = "0.1.0"
 dependencies = [
@@ -244,6 +256,7 @@ dependencies = [
 name = "careerbrew-xtask"
 version = "0.1.0"
 dependencies = [
+ "careerbrew-setup",
  "careerbrew-vault",
  "libc",
  "serde",
