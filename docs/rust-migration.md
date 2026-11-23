@@ -1993,17 +1993,17 @@ the crate until the rust-05 and rust-07 closure is native, so
   and fresh 30-pair CPU/RSS ratios at most 1.10. Any disagreement or unexpected
   swallowed result error keeps Python. Production activation remains unchanged.
 - **Second review-correction acceptance (2026-11-23, macOS):** clean source
-  revision `9728f6ecbe07887a5ce983c9d358913de2653d6b`; evidence-source hash
-  `574af28da8e20a6aa9a54e9aa694ff8c9daf3634bbac2594b21218f0631af616`;
+  revision `6dd8c3eb64a386959ac851ee2805e185f40bacbe`; evidence-source hash
+  `3c4fb8786c7cb865c8648aa3390017d30e50877eb16c77cfde40bcc1f79e2add`;
   fixture hash
   `eadc98973473f7d9562f3e748c53abf34a9f6bc4698efc05d54b381f3db5ae8f`;
   release-candidate SHA-256
-  `e49229bcce49b0c41d42058fff4d9d38e026edb5c8550b218d2131a9d4e04ebc`.
+  `e32dcd027fa0f264f7594b098db539e6010472955eb128c9d53df013d3956cbe`.
   Baseline: 30 runs. Verify: 6/6 with zero violations. The numeric identity is
   refused and every evidence read/decrypt/parse control retains the same daily
-  counts and final writes. Cold CPU p95 was 447,866 to 84,164 microseconds;
-  warm was 446,528 to 83,946. Cold tree-RSS p95 was 60,637,184 to 12,550,144
-  bytes; warm was 60,489,728 to 12,255,232. Thirty unique uncached pairs ran
+  counts and final writes, including the ID-only API result. Cold CPU p95 was
+  444,504 to 89,940 microseconds; warm was 444,897 to 82,749. Cold tree-RSS p95
+  was 60,309,504 to 12,812,288 bytes; warm was 60,506,112 to 12,337,152. Thirty unique uncached pairs ran
   in each regime and each ratio is below 1.10. `decide` returned component-only
   `activate`; all fresh planted-write controls returned `keep-python`.
   Production routes, shipped crates and activation remain unchanged.
