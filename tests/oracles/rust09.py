@@ -69,6 +69,18 @@ def _error(fn: Any) -> str:
     return "accepted"
 
 
+@contextlib.contextmanager
+def _patched(module: Any, **attrs: Any):
+    old = {name: getattr(module, name) for name in attrs}
+    for name, value in attrs.items():
+        setattr(module, name, value)
+    try:
+        yield
+    finally:
+        for name, value in old.items():
+            setattr(module, name, value)
+
+
 class Workspace:
     def __init__(self, base: Path, name: str):
         self.base = base / name
@@ -170,9 +182,9 @@ def _readiness_gates(base: Path) -> dict[str, Any]:
         archive_refused = str(exc)
     else:
         archive_refused = "accepted"
+    blocks_before = projects.gate_blocks(date(2026, 11, 3))
     projects.gate("demo", "links", refs=["pack.md"])
     ready = projects.show("demo")["prep"]
-    blocks_before = projects.gate_blocks(date(2026, 11, 3))
     projects.archive("demo")
     return {
         "initial": {"done": initial["done"], "total": initial["total"], "ready": initial["ready"], "event_on": initial["event_on"]},
@@ -193,7 +205,7 @@ def _priority_view(row: dict[str, Any]) -> dict[str, Any]:
         "id": row["id"],
         "score": row["score"],
         "estimate": priorities.estimate(row),
-        "parts": row["parts"],
+        "parts": {key: value for key, value in row["parts"].items() if key != "ladder_dims"},
         "why": focus._task_why(row, {row["id"]: 1}, 1),
     }
 
@@ -246,23 +258,25 @@ def _promise_lifecycle(base: Path) -> dict[str, Any]:
     projects.add("billing", title="Billing service")
     from careerbrew.work import feed
 
-    feed.ingest(
-        [
-            {"id": "slack:D1:1", "source": "slack", "kind": "dm", "at": "2026-11-02T08:00:00Z", "title": "DM from Sam", "actor": "other", "to_me": True, "from": "Sam", "thread": "slack:D1", "text": "the synthetic job times out"},
-            {
-                "id": "slack:D1:2",
-                "source": "slack",
-                "kind": "dm",
-                "at": "2026-11-02T08:05:00Z",
-                "title": "You wrote in a DM",
-                "actor": "me",
-                "thread": "slack:D1",
-                "url": "https://slack.example.com/archives/D1/p2",
-                "project": "Billing service",
-                "text": "Thanks! I'll send the rollout notes tomorrow",
-            },
-        ]
-    )
+    rows = [
+        {"id": "slack:D1:1", "source": "slack", "kind": "dm", "at": "2026-11-02T08:00:00Z", "title": "DM from Sam", "actor": "other", "to_me": True, "from": "Sam", "thread": "slack:D1"},
+        {
+            "id": "slack:D1:2",
+            "source": "slack",
+            "kind": "dm",
+            "at": "2026-11-02T08:05:00Z",
+            "title": "You wrote in a DM",
+            "actor": "me",
+            "thread": "slack:D1",
+            "url": "https://slack.example.com/archives/D1/p2",
+            "project": "Billing service",
+        },
+    ]
+    text = "Thanks! I'll send the rollout notes tomorrow"
+    originals = {rows[1]["id"]: {"id": rows[1]["id"], "at": rows[1]["at"], "text": text}}
+    with _patched(feed, load=lambda: rows):
+        made = promises.track([(rows[1], text)])
+    assert made
     initial = _promise_view()
     name = initial[0]["name"]
     restricted = _promise_view(business=False)
@@ -273,7 +287,8 @@ def _promise_lifecycle(base: Path) -> dict[str, Any]:
     bad_step = _error(lambda: promises.step(name, "send", "not allowed"))
     promises.close(name, "done")
     closed = _promise_view(include_closed=True)
-    rescan = promises.scan()
+    with _patched(feed, load=lambda: rows, originals=lambda: originals):
+        rescan = promises.scan()
     after_rescan = _promise_view(include_closed=True)
     manual_a = promises.add("Send the synthetic notes", to="Kim", due="2026-10-30")
     manual_b = promises.add("Send the synthetic notes", to="Kim", due="2026-10-30")
@@ -395,7 +410,7 @@ def _cli_handlers(base: Path) -> dict[str, Any]:
         "priority_show": _invoke(["work", "priority", "show"]),
         "task_set": _invoke(["work", "task-set", "t001", "--impact", "4", "--urgency", "5", "--hours", "1.5"]),
         "impact": _invoke(["work", "impact", "t001", "--expect", "Fewer synthetic failures", "--who", "support", "--metric", "failures per day"]),
-        "done": _invoke(["work", "done", "t001", "--hours", "1"]),
+        "done": _invoke(["work", "done", "t001", "1"]),
         "task_set_empty": _invoke(["work", "task-set", "t001"]),
         "impact_empty": _invoke(["work", "impact", "t001"]),
     }

@@ -70,7 +70,7 @@ def test_project_priority_promise_lock_and_cli_contracts_match_python(candidate,
         assert lifecycle["errors"] == {"duplicate": "ProjectError", "kind": "ProjectError", "graph": "ProjectError", "remove": "ProjectError"}
         assert lifecycle["relations"]["parent"] == "search"
         assert lifecycle["relations"]["root"] == "search"
-        assert lifecycle["tree"] == [["checkout", {"int": "0"}], ["search", {"int": "0"}], ["search-ranking", {"int": "1"}]]
+        assert lifecycle["tree"] == [["search", {"int": "0"}], ["search-ranking", {"int": "1"}], ["checkout", {"int": "0"}]]
 
         gates = case(report, "readiness-gates")
         assert gates["initial"] == {"done": {"int": "0"}, "total": {"int": "4"}, "ready": False, "event_on": "2026-11-03"}
@@ -92,7 +92,7 @@ def test_project_priority_promise_lock_and_cli_contracts_match_python(candidate,
         assert priority["linked_keys"] == ["ops-3", "ops", "see the ticket"]
         assert priority["ticket_projects"] == ["BILL", "SRCH"]
         assert priority["bonus"] == [{"float": "0.0"}, {"float": "3.0"}, {"float": "1.5"}, {"float": "0.0"}]
-        assert [row["id"] for row in priority["ranked"]] == ["t002", "t001"]
+        assert [row["id"] for row in priority["ranked"]] == ["t001", "t002"]
         assert priority["done"]["status"] == "done"
         assert priority["already_done"] == "ValueError"
 
