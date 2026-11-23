@@ -1939,17 +1939,17 @@ the crate until the rust-05 and rust-07 closure is native, so
   or resource excess keeps Python. This is component parity only: production
   dispatch, shipped crates and activation state do not change.
 - **Component acceptance (2026-11-23, macOS):** clean source revision
-  `eb2456afa11d62dc86e11058df6f024dd165467b`; evidence-source hash
-  `3efde5786670b9944f10da4fbf7b8e0dc517d3f05b204707d7e4cdf7dc3dbb44`;
+  `c2162b4d6b61363e574e9e5830eaa95e2712dc48`; evidence-source hash
+  `d48421f10328f1d1f9b1b4f509d40b0bd879e71262df8227159e953da1030c51`;
   fixture hash
   `eadc98973473f7d9562f3e748c53abf34a9f6bc4698efc05d54b381f3db5ae8f`;
   release-candidate SHA-256
-  `0e65aeb44493d42749a27da3fb4d0b2e47c228940facc60b2e62f6f4cd024d58`.
+  `5c904021c407bf20b8691759eb2a1daf2bf20a1ed75417985a94d8a7d24a327d`.
   Baseline: 30 runs. Verify: 6/6 checks with zero contract, privacy,
   side-effect, missing-write or duplicate-write violations. Measurement: 30
-  unique, uncached pairs in each regime. Cold CPU p95 was 358,777 to 50,471
-  microseconds; warm was 342,842 to 58,212. Cold tree-RSS p95 was 56,328,192
-  to 12,042,240 bytes; warm was 51,347,456 to 12,124,160. Each ratio is below
+  unique, uncached pairs in each regime. Cold CPU p95 was 329,757 to 48,909
+  microseconds; warm was 316,996 to 47,573. Cold tree-RSS p95 was 51,265,536
+  to 11,960,320 bytes; warm was 50,987,008 to 11,960,320. Each ratio is below
   1.10; the unmeasured noise floors apply that ratio without relaxation.
   `migration decide --step rust-09` returned component-only `activate` with no
   reasons. Fresh extra, missing and duplicate native-write controls each
