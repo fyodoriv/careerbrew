@@ -15,3 +15,4 @@ tempfile = "=3.23.0"
 libc = "=0.2.191"
 unicode-normalization = "=0.1.26"
 careerbrew-vault = { path = "../crates/vault" }
+careerbrew-setup = { path = "../crates/setup" }

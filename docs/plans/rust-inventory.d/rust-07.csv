@@ -1,2 +1,14 @@
 tests/oracles/rust07.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-07 differential gate
 tests/unit/test_rust07_component.py,keep-native,rust-00,rust-07 native component and CLI assertions
+crates/setup/Cargo.toml,keep-native,rust-00,Component-only setup crate manifest
+crates/setup/src/lib.rs,port,rust-07,Component-only setup context and error boundary
+crates/setup/src/value.rs,port,rust-07,Typed value and maintained YAML JSON adapter
+crates/setup/src/plugins.rs,port,rust-07,Plugin validation policy lifecycle and command source ownership
+crates/setup/src/machine.rs,port,rust-07,Machine role readiness cloud and evidence ownership decisions
+crates/setup/src/oauth.rs,port,rust-07,OAuth classification and local secret reference decisions
+crates/setup/src/preflight.rs,port,rust-07,MCP preflight managed repair self-update and workflow checks
+crates/setup/src/cli.rs,port,rust-07,Component adapters for the eleven owned setup handlers
+crates/setup/src/synthetic.rs,port,rust-07,Synthetic plugin machine account and preflight differential workload
+crates/setup/src/bin/setup-component.rs,port,rust-07,Synthetic-only native setup candidate and credential helper
+xtask/src/rust07.rs,keep-native,rust-00,Custom rust-07 semantic privacy and write verification runner
+xtask/tests/rust07.rs,keep-native,rust-00,rust-07 registration evidence identity and planted write controls

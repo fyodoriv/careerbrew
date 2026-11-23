@@ -229,8 +229,10 @@ def _plugin_lifecycle(base: Path) -> dict[str, Any]:
         tampered = plugins.verify()
         refreshed = plugins.refresh()
         verified_after = plugins.verify()
+        store.write_jsonl(w.root / "work" / "events.jsonl", [{"id": "a", "origin": "plugin:acme"}, {"id": "b", "origin": "base"}])
         removed_team = plugins.remove("team")
-        removed_base = plugins.remove("acme")
+        removed_base = plugins.remove("acme", purge_data=True)
+        purged_left = [row["id"] for row in store.read_jsonl(w.root / "work" / "events.jsonl")]
         return {
             "added": {key: added[key] for key in ("name", "version", "exec_allowed", "origin")},
             "listed": listed,
@@ -242,6 +244,7 @@ def _plugin_lifecycle(base: Path) -> dict[str, Any]:
             "refreshed": refreshed,
             "verified_after": verified_after,
             "removed": [removed_team, removed_base],
+            "purged_left": purged_left,
             "lock_empty": plugins._lock() == {"plugins": {}},
         }
 
@@ -293,8 +296,12 @@ def _command_ownership(base: Path) -> dict[str, Any]:
     outside = w.base / "outside"
     outside.mkdir()
     (w.root / "agentbrew").symlink_to(outside, target_is_directory=True)
+    installed = plugins.plugins_dir() / "acme"
+    installed.mkdir(parents=True)
+    (installed / "acme-check.md").write_text("synthetic command\n")
+    (installed / "careerbrew-plugin.yaml").write_text("name: acme\nversion: 1.0.0\nprovides: {commands: acme-check.md}\n")
     lock = {"plugins": {"acme": {"commands": ["acme-check.md"]}}}
-    with _patched(plugins, _command_files=lambda _m, root: [root / "acme-check.md"]), _patched(plugins, _run_agentbrew=lambda _folder: None):
+    with _patched(plugins, _run_agentbrew=lambda _folder: None):
         try:
             plugins._sync_command_sources(lock)
         except Exception as exc:
@@ -511,7 +518,7 @@ def _update_workflow(base: Path) -> dict[str, Any]:
     return {"launcher": [ready, not_executable], "repairs": repairs, "workflow": rows}
 
 
-def _cli_handlers(base: Path) -> dict[str, Any]:
+def _cli_handlers_with_deployer(base: Path) -> dict[str, Any]:
     w = Workspace(base, "cli-handlers")
     outputs = {}
 
@@ -542,6 +549,11 @@ def _cli_handlers(base: Path) -> dict[str, Any]:
     invoke("plugin-remove", cli.cmd_plugin_remove, types.SimpleNamespace(name="acme", purge_data=False))
     outputs["pair_key_not_printed"] = sync.key_path().is_file()
     return outputs
+
+
+def _cli_handlers(base: Path) -> dict[str, Any]:
+    with _patched(plugins, _run_agentbrew=lambda _folder: None):
+        return _cli_handlers_with_deployer(base)
 
 
 def run_all(selected: str | None = None) -> dict[str, Any]:

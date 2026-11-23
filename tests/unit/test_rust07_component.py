@@ -90,6 +90,8 @@ def test_plugin_machine_account_preflight_and_handler_contracts_match_python(can
         assert lifecycle["tampered"] == [["acme", False], ["team", True]]
         assert lifecycle["verified_after"] == [["acme", True], ["team", True]]
         assert lifecycle["dependent_refusal"] == "PluginError"
+        assert lifecycle["removed"][1]["purged_records"] == {"int": "1"}
+        assert lifecycle["purged_left"] == ["b"]
         assert lifecycle["lock_empty"] is True
 
         commands = case(report, "command-ownership")
