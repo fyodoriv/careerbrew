@@ -395,7 +395,8 @@ fn agent_activity(base: &Path) -> Result<Value> {
     let view = agents::view_at(root, crate::now())?;
     at("2026-11-02T10:11:00+00:00");
     let quiet = agents::runs(root)?
-        .first()
+        .iter()
+        .find(|row| text(field(row, "run")) == "pr-8")
         .is_some_and(|row| text(field(row, "status")) == "quiet");
     agents::record(root, "review-bot", "Done again", "done", "", "", "pr-8")?;
     agents::record(

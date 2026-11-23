@@ -261,7 +261,7 @@ def _agent_activity(base: Path) -> dict[str, Any]:
     agents.record("review-bot", "PR 8", run="pr-8", project="billing")
     view = agents.view()
     _at("2026-11-02T10:11:00+00:00")
-    quiet = agents.runs()[0]["status"] == "quiet"
+    quiet = next(row for row in agents.runs() if row["run"] == "pr-8")["status"] == "quiet"
     agents.record("review-bot", "Done again", status="done", run="pr-8")
     agents.record("review-bot", "Started again", run="pr-8", project="billing")
     restarted = next(row for row in agents.runs() if row["run"] == "pr-8")
