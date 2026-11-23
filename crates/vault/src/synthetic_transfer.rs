@@ -461,6 +461,10 @@ fn archive_corporate(base: &Path) -> CaseResult<Value> {
         write_text(&source, &source.root.join(relative), text)?;
         let archive = create(&source)?[0].clone();
         let corporate = Workspace::new(base, &format!("corporate-dest-{name}"))?;
+        std::fs::create_dir_all(corporate.key.parent().unwrap()).map_err(io)?;
+        std::fs::write(&corporate.key, std::fs::read(&source.key).map_err(io)?).map_err(io)?;
+        std::fs::set_permissions(&corporate.key, std::fs::Permissions::from_mode(0o600))
+            .map_err(io)?;
         set_corporate(&corporate, "work")?;
         let dest = corporate.base.join("restore");
         let before = corporate.evidence(&corporate.root)?;
@@ -604,12 +608,34 @@ fn archive_targets(base: &Path) -> CaseResult<Value> {
     set_corporate(&corporate, "corporate")?;
     std::env::set_var("CAREERBREW_BACKUP_DIRS", corporate.home.join("Dropbox/cb"));
     let cloud = create(&corporate);
-    Ok(json!({
+    let mut out = json!({
         "icloud": {"targets": targets, "verified": verified},
         "policy": policy,
         "policy-denied": denied.err().unwrap_or("accepted"),
         "cloud-create": {"error": cloud.err().unwrap_or("accepted"), "created": corporate.home.join("Dropbox/cb").exists()},
-    }))
+    });
+    std::env::set_var("CAREERBREW_BACKUP_DIRS", &corporate.backups);
+    let archive = create(&corporate)?[0].clone();
+    for service in ["pCloud Drive", "Sync"] {
+        let target = corporate.home.join(service).join("cb");
+        std::env::set_var("CAREERBREW_BACKUP_DIRS", &target);
+        let created = create(&corporate);
+        out.as_object_mut().unwrap().insert(
+            format!("cloud-create-{service}"),
+            json!({"error": created.err().unwrap_or("accepted"), "created": target.exists()}),
+        );
+        let dest = corporate.home.join(service).join("restored");
+        let restored = corporate
+            .context()?
+            .cmd_backup_restore(&archive, &dest)
+            .map(|_| "accepted")
+            .map_err(|error| error.class);
+        out.as_object_mut().unwrap().insert(
+            format!("cloud-restore-{service}"),
+            json!({"error": restored.err().unwrap_or("accepted"), "created": dest.exists()}),
+        );
+    }
+    Ok(out)
 }
 
 fn sync_roundtrip(base: &Path) -> CaseResult<Value> {
@@ -817,6 +843,128 @@ fn sync_allowlist(base: &Path) -> CaseResult<Value> {
     Ok(Value::Array(results))
 }
 
+fn import_with_loaded_ladders(w: &Workspace, bundle: &Path) -> CaseResult<Value> {
+    let ladders = w.context()?.ladders().map_err(|error| error.class)?;
+    sync::import_bundle(
+        bundle,
+        &w.root,
+        &w.pair,
+        Role::Corporate,
+        &w.store()?,
+        &ladders,
+    )
+    .map_err(|error| error.class)
+}
+
+fn sync_plugin_ladder(base: &Path) -> CaseResult<Value> {
+    let personal = Workspace::new(base, "sync-plugin-personal")?;
+    write_yaml(
+        &personal,
+        &personal.root.join("settings.yaml"),
+        Canon::Map(vec![
+            (
+                Canon::Str("ladder".into()),
+                Canon::Str("synthetic-eng".into()),
+            ),
+            (Canon::Str("target_level".into()), Canon::Str("e5".into())),
+        ]),
+    )?;
+    let pair_key = sync::pair_init(&personal.pair, &personal.root).map_err(|error| error.class)?;
+    let bundle = personal.base.join("plugin.cbsync");
+    sync::export(
+        &bundle,
+        &personal.root,
+        &personal.pair,
+        Role::Personal,
+        "2026-03-01T09:30:00+00:00",
+        &personal.store()?,
+    )
+    .map_err(|error| error.class)?;
+    let corporate = Workspace::new(base, "sync-plugin-corporate")?;
+    set_corporate(&corporate, "corporate")?;
+    sync::pair_join(&corporate.pair, &corporate.root, &pair_key).map_err(|error| error.class)?;
+    let plugin = corporate.root.join("plugins/synthetic");
+    let manifest = crate::json_yaml::yaml_read(
+        "name: synthetic\nversion: 1.0.0\nprovides:\n  ladders: ladders/*.yaml\n",
+    )
+    .map_err(|_| "YAMLError")?;
+    write_yaml(
+        &corporate,
+        &plugin.join("careerbrew-plugin.yaml"),
+        manifest.clone(),
+    )?;
+    let ladder = crate::json_yaml::yaml_read(
+        "id: synthetic-eng\nname: Synthetic engineering\nlevels: [e4, e5]\ncompetencies:\n  - {id: delivery, name: Delivery, weight: 1, signals: {}, expect: {e4: 1, e5: 2}}\n",
+    )
+    .map_err(|_| "YAMLError")?;
+    write_yaml(&corporate, &plugin.join("ladders/custom.yaml"), ladder)?;
+    let lock = crate::json_yaml::json_read(
+        "{\"plugins\":{\"synthetic\":{\"origin\":\"plugin:synthetic\"}}}",
+    )
+    .map_err(|_| "JSONDecodeError")?;
+    corporate
+        .store()?
+        .write_json(&corporate.root.join("plugins.lock.json"), &lock)
+        .map_err(|_| "OSError")?;
+    let imported = import_with_loaded_ladders(&corporate, &bundle)?;
+    let settings = corporate
+        .store()?
+        .read_yaml(
+            &corporate.root.join("settings.yaml"),
+            Canon::Map(Vec::new()),
+            true,
+        )
+        .map_err(|_| "OSError")?;
+    let ladders = corporate
+        .context()?
+        .ladders()
+        .map_err(|error| error.class)?;
+    let loaded = ladders.get("synthetic-eng");
+    let origin = loaded.map_or(Value::Null, |ladder| json!(ladder.origin.clone()));
+    let source = loaded.map_or(Value::Null, |ladder| {
+        json!(ladder
+            .source
+            .strip_prefix(&corporate.root)
+            .unwrap_or(&ladder.source)
+            .to_string_lossy()
+            .replace('\\', "/"))
+    });
+    let mut out = json!({
+        "imported": typed(imported),
+        "settings": canon_output(&settings),
+        "origin": origin,
+        "source": source,
+    });
+    let escape_manifest = crate::json_yaml::yaml_read(
+        "name: synthetic\nversion: 1.0.0\nprovides:\n  ladders: ../outside.yaml\n",
+    )
+    .map_err(|_| "YAMLError")?;
+    write_yaml(
+        &corporate,
+        &plugin.join("careerbrew-plugin.yaml"),
+        escape_manifest,
+    )?;
+    let escape_before = corporate.evidence(&corporate.root)?;
+    let escaped = import_with_loaded_ladders(&corporate, &bundle);
+    out.as_object_mut().unwrap().insert(
+        "escape".into(),
+        json!({"error": escaped.err().unwrap_or("accepted"), "unchanged": escape_before == corporate.evidence(&corporate.root)?}),
+    );
+    write_yaml(&corporate, &plugin.join("careerbrew-plugin.yaml"), manifest)?;
+    std::os::unix::fs::symlink(
+        plugin.join("ladders/custom.yaml"),
+        plugin.join("ladders/link.yaml"),
+    )
+    .map_err(io)?;
+    let symlink_before = corporate.evidence(&corporate.root)?;
+    let linked = import_with_loaded_ladders(&corporate, &bundle);
+    out.as_object_mut().unwrap().insert(
+        "symlink".into(),
+        json!({"error": linked.err().unwrap_or("accepted"), "unchanged": symlink_before == corporate.evidence(&corporate.root)?}),
+    );
+    Ok(out)
+}
+
 fn normalize_archive_names(text: &str) -> String {
     let mut out = text.to_owned();
     let mut offset = 0;
@@ -951,6 +1099,7 @@ pub fn run_all() -> Result<String, String> {
         ("sync-roundtrip", sync_roundtrip),
         ("sync-rejections", sync_rejections),
         ("sync-allowlist", sync_allowlist),
+        ("sync-plugin-ladder", sync_plugin_ladder),
         ("cli-handlers", cli_handlers),
     ];
     let mut cases = Vec::new();

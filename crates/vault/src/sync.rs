@@ -11,6 +11,13 @@ use std::path::Path;
 
 pub const SETTINGS_KEYS: &[&str] = &["ladder", "target_level"];
 
+#[derive(Clone, Debug)]
+pub struct Ladder {
+    pub levels: Vec<String>,
+    pub origin: String,
+    pub source: std::path::PathBuf,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Role {
     Personal,
@@ -182,7 +189,7 @@ pub fn import_bundle(
     pair_key: &Path,
     role: Role,
     store: &Store,
-    ladders: &BTreeMap<String, Vec<String>>,
+    ladders: &BTreeMap<String, Ladder>,
 ) -> Result<Value, SyncError> {
     let raw = std::fs::read(source)?;
     let cipher = cipher(pair_key, root)?;
@@ -258,7 +265,7 @@ pub fn import_bundle(
     if target.is_some_and(|value| {
         ladders
             .get(&ladder_id)
-            .is_some_and(|levels| levels.iter().any(|level| level == value))
+            .is_some_and(|ladder| ladder.levels.iter().any(|level| level == value))
     }) {
         applied.insert("target_level".into(), json!(target.unwrap()));
     }

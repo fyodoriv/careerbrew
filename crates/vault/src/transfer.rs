@@ -104,6 +104,92 @@ fn expand_user(path: &Path, home: &Path) -> PathBuf {
         .unwrap_or_else(|| path.to_path_buf())
 }
 
+const RESOURCE_KINDS: &[&str] = &[
+    "ladders",
+    "job_sources",
+    "rules",
+    "prompts",
+    "skills",
+    "evidence_sources",
+    "knowledge",
+    "rubrics",
+    "commands",
+];
+
+fn plugin_error() -> TransferError {
+    TransferError::new("PluginError", "installed plugin manifest is invalid")
+}
+
+fn valid_plugin_name(name: &str) -> bool {
+    let bytes = name.as_bytes();
+    (2..=40).contains(&bytes.len())
+        && bytes[0].is_ascii_lowercase()
+        && bytes[1..]
+            .iter()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'-')
+}
+
+fn reject_plugin_symlinks(root: &Path) -> Result<(), TransferError> {
+    for entry in std::fs::read_dir(root).map_err(|_| plugin_error())? {
+        let path = entry.map_err(|_| plugin_error())?.path();
+        let metadata = std::fs::symlink_metadata(&path).map_err(|_| plugin_error())?;
+        if metadata.file_type().is_symlink() {
+            return Err(plugin_error());
+        }
+        if metadata.is_dir() {
+            reject_plugin_symlinks(&path)?;
+        }
+    }
+    Ok(())
+}
+
+fn all_files(folder: &Path, out: &mut Vec<PathBuf>) -> Result<(), TransferError> {
+    for entry in std::fs::read_dir(folder)? {
+        let path = entry?.path();
+        if path.is_dir() {
+            all_files(&path, out)?;
+        } else if path.is_file() {
+            out.push(path);
+        }
+    }
+    Ok(())
+}
+
+fn plugin_resource_files(root: &Path, item: &str) -> Result<Vec<PathBuf>, TransferError> {
+    let relative = Path::new(item);
+    if relative.is_absolute()
+        || relative
+            .components()
+            .any(|part| matches!(part, std::path::Component::ParentDir))
+        || !keyfile::resolve(&root.join(item)).starts_with(keyfile::resolve(root))
+    {
+        return Err(plugin_error());
+    }
+    let pattern = root
+        .join(item)
+        .to_str()
+        .ok_or_else(plugin_error)?
+        .to_owned();
+    let mut matches = glob::glob(&pattern)
+        .map_err(|_| plugin_error())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| plugin_error())?;
+    if matches.is_empty() {
+        return Err(plugin_error());
+    }
+    matches.sort();
+    let mut files = Vec::new();
+    for path in matches {
+        if path.is_dir() {
+            all_files(&path, &mut files)?;
+        } else if path.is_file() {
+            files.push(path);
+        }
+    }
+    files.sort();
+    Ok(files)
+}
+
 impl Context {
     pub fn from_env() -> Result<Self, TransferError> {
         let root = std::env::var_os("CAREERBREW_HOME")
@@ -180,8 +266,10 @@ impl Context {
             return parts[2].split('-').next().unwrap_or_default().into();
         }
         if let Some(first) = parts.first() {
-            if matches!(first.as_str(), "Dropbox" | "Google Drive" | "Box")
-                || first.starts_with("OneDrive")
+            if matches!(
+                first.as_str(),
+                "Dropbox" | "Google Drive" | "OneDrive" | "Box" | "pCloud Drive" | "Sync"
+            ) || first.starts_with("OneDrive")
             {
                 return first.clone();
             }
@@ -287,28 +375,106 @@ impl Context {
         Ok(out)
     }
 
-    pub fn ladders(&self) -> Result<BTreeMap<String, Vec<String>>, TransferError> {
-        let mut files = Vec::new();
-        for folder in [
-            std::env::current_dir()?.join("knowledge/ladders"),
-            self.root.join("ladders"),
-        ] {
-            if folder.is_dir() {
-                files.extend(
-                    std::fs::read_dir(folder)?
-                        .flatten()
-                        .map(|entry| entry.path())
-                        .filter(|path| {
-                            path.extension()
-                                .is_some_and(|extension| extension == "yaml")
-                        }),
-                );
+    fn plugin_ladders(&self) -> Result<Vec<(String, PathBuf)>, TransferError> {
+        let store = self.store();
+        let lock = store.read_json(
+            &self.root.join("plugins.lock.json"),
+            Canon::Map(vec![(Canon::Str("plugins".into()), Canon::Map(Vec::new()))]),
+            true,
+        )?;
+        let Some(Canon::Map(plugins)) = map_get(&lock, "plugins") else {
+            return Err(plugin_error());
+        };
+        let mut plugins = plugins
+            .iter()
+            .map(|(name, entry)| match name {
+                Canon::Str(name) => Ok((name.clone(), entry)),
+                _ => Err(plugin_error()),
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        plugins.sort_by(|a, b| a.0.cmp(&b.0));
+        let mut resources = Vec::new();
+        for (name, entry) in plugins {
+            if !valid_plugin_name(&name) {
+                return Err(plugin_error());
+            }
+            let root = self.root.join("plugins").join(&name);
+            reject_plugin_symlinks(&root)?;
+            let manifest = store.read_yaml(
+                &root.join("careerbrew-plugin.yaml"),
+                Canon::Map(Vec::new()),
+                true,
+            )?;
+            if map_get(&manifest, "name") != Some(&Canon::Str(name.clone()))
+                || map_get(&manifest, "version").is_none()
+            {
+                return Err(plugin_error());
+            }
+            let origin = match map_get(entry, "origin") {
+                Some(Canon::Str(origin)) => origin.clone(),
+                _ => return Err(plugin_error()),
+            };
+            let provides = match map_get(&manifest, "provides") {
+                None | Some(Canon::Null) => Vec::new(),
+                Some(Canon::Map(items)) => items.clone(),
+                _ => return Err(plugin_error()),
+            };
+            for (kind, value) in &provides {
+                let Canon::Str(kind) = kind else {
+                    return Err(plugin_error());
+                };
+                if !RESOURCE_KINDS.contains(&kind.as_str()) {
+                    return Err(plugin_error());
+                }
+                let values: Vec<&Canon> = match value {
+                    Canon::List(items) => items.iter().collect(),
+                    item => vec![item],
+                };
+                for item in values {
+                    let Canon::Str(item) = item else {
+                        return Err(plugin_error());
+                    };
+                    let files = plugin_resource_files(&root, item)?;
+                    if kind == "ladders" {
+                        resources.extend(files.into_iter().map(|path| (origin.clone(), path)));
+                    }
+                }
             }
         }
-        files.sort();
+        Ok(resources)
+    }
+
+    pub fn ladders(&self) -> Result<BTreeMap<String, sync::Ladder>, TransferError> {
+        let mut sources = Vec::new();
+        let base = std::env::current_dir()?.join("knowledge/ladders");
+        if base.is_dir() {
+            let mut files = std::fs::read_dir(base)?
+                .flatten()
+                .map(|entry| entry.path())
+                .filter(|path| path.is_file())
+                .collect::<Vec<_>>();
+            files.sort();
+            sources.extend(files.into_iter().map(|path| ("base".to_owned(), path)));
+        }
+        sources.extend(self.plugin_ladders()?);
+        let user = self.root.join("ladders");
+        if user.is_dir() {
+            let mut files = std::fs::read_dir(user)?
+                .flatten()
+                .map(|entry| entry.path())
+                .filter(|path| {
+                    path.is_file()
+                        && path
+                            .extension()
+                            .is_some_and(|extension| extension == "yaml")
+                })
+                .collect::<Vec<_>>();
+            files.sort();
+            sources.extend(files.into_iter().map(|path| ("user".to_owned(), path)));
+        }
         let mut out = BTreeMap::new();
-        for path in files {
-            let text = std::fs::read_to_string(path)?;
+        for (origin, path) in sources {
+            let text = std::fs::read_to_string(&path)?;
             let value = crate::json_yaml::yaml_read(&text)
                 .map_err(|_| TransferError::new("LadderError", "invalid ladder"))?;
             let Some(Canon::Str(id)) = map_get(&value, "id") else {
@@ -324,7 +490,14 @@ impl Context {
                     _ => Err(TransferError::new("LadderError", "invalid ladder level")),
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            out.insert(id.clone(), levels);
+            out.insert(
+                id.clone(),
+                sync::Ladder {
+                    levels,
+                    origin,
+                    source: path,
+                },
+            );
         }
         Ok(out)
     }

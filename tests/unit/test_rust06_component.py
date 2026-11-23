@@ -24,6 +24,7 @@ CASES = {
     "sync-roundtrip",
     "sync-rejections",
     "sync-allowlist",
+    "sync-plugin-ladder",
     "cli-handlers",
 }
 
@@ -103,10 +104,21 @@ def test_archive_sync_and_handler_contracts_match_real_python(candidate, tmp_pat
         assert sync_result["imported"] == {"from": "personal", "added": {"int": "2"}, "ignored": {"int": "0"}}
         assert sync_result["settings"] == {"ladder": "generic-swe", "target_level": "staff"}
         assert sync_result["bundle_mode"] == "600"
+        targets = case(report, "archive-targets")
+        for service in ("pCloud Drive", "Sync"):
+            assert targets[f"cloud-create-{service}"] == {"error": "RuntimeError", "created": False}
+            assert targets[f"cloud-restore-{service}"] == {"error": "RuntimeError", "created": False}
         rejections = case(report, "sync-rejections")
         assert rejections["corporate-export"]["created"] is False
         assert rejections["wrong-key"] == "SyncError"
         assert rejections["forbidden-payload"]["unchanged"] is True
+        plugin = case(report, "sync-plugin-ladder")
+        assert plugin["imported"] == {"from": "personal", "added": {"int": "2"}, "ignored": {"int": "0"}}
+        assert plugin["settings"] == {"ladder": "synthetic-eng", "target_level": "e5"}
+        assert plugin["origin"] == "plugin:synthetic"
+        assert plugin["source"] == "plugins/synthetic/ladders/custom.yaml"
+        assert plugin["escape"] == {"error": "PluginError", "unchanged": True}
+        assert plugin["symlink"] == {"error": "PluginError", "unchanged": True}
         handlers = case(report, "cli-handlers")
         assert set(handlers) == {"data-status", "backup-create", "backup-verify", "backup-restore", "pair-join", "sync-export", "sync-import"}
         assert all(row["exit"] == {"int": "0"} for row in handlers.values())

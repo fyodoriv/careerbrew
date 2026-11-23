@@ -243,6 +243,9 @@ def _archive_corporate(base: Path) -> dict[str, Any]:
         store.write_text(source.root / rel, text)
         archive = backup.create()[0]
         corporate = Workspace(base, f"corporate-dest-{name}")
+        corporate.key.parent.mkdir(parents=True, exist_ok=True)
+        corporate.key.write_bytes(source.key.read_bytes())
+        corporate.key.chmod(0o600)
         machine.set_role("corporate", "work")
         dest = corporate.base / "restore"
         before = corporate.evidence(corporate.root)
@@ -315,6 +318,20 @@ def _archive_targets(base: Path) -> dict[str, Any]:
         backup.create()
     except Exception as exc:
         results["cloud-create"] = {"error": type(exc).__name__, "created": (corporate.home / "Dropbox" / "cb").exists()}
+    os.environ["CAREERBREW_BACKUP_DIRS"] = str(corporate.backups)
+    archive = backup.create()[0]
+    for service in ("pCloud Drive", "Sync"):
+        target = corporate.home / service / "cb"
+        os.environ["CAREERBREW_BACKUP_DIRS"] = str(target)
+        try:
+            backup.create()
+        except Exception as exc:
+            results[f"cloud-create-{service}"] = {"error": type(exc).__name__, "created": target.exists()}
+        dest = corporate.home / service / "restored"
+        try:
+            backup.restore(archive, dest)
+        except Exception as exc:
+            results[f"cloud-restore-{service}"] = {"error": type(exc).__name__, "created": dest.exists()}
     return results
 
 
@@ -405,6 +422,52 @@ def _sync_allowlist(base: Path) -> list[dict[str, Any]]:
     return results
 
 
+def _sync_plugin_ladder(base: Path) -> dict[str, Any]:
+    personal = Workspace(base, "sync-plugin-personal")
+    store.write_yaml(personal.root / "settings.yaml", {"ladder": "synthetic-eng", "target_level": "e5"})
+    key = sync.pair_init()
+    bundle = personal.base / "plugin.cbsync"
+    sync.export(bundle)
+    corporate = Workspace(base, "sync-plugin-corporate")
+    machine.set_role("corporate")
+    sync.pair_join(key)
+    plugin = corporate.root / "plugins" / "synthetic"
+    manifest = {"name": "synthetic", "version": "1.0.0", "provides": {"ladders": "ladders/*.yaml"}}
+    store.write_yaml(plugin / "careerbrew-plugin.yaml", manifest)
+    ladder = {
+        "id": "synthetic-eng",
+        "name": "Synthetic engineering",
+        "levels": ["e4", "e5"],
+        "competencies": [{"id": "delivery", "name": "Delivery", "weight": 1, "signals": {}, "expect": {"e4": 1, "e5": 2}}],
+    }
+    store.write_yaml(plugin / "ladders" / "custom.yaml", ladder)
+    store.write_json(corporate.root / "plugins.lock.json", {"plugins": {"synthetic": {"origin": "plugin:synthetic"}}})
+    imported = sync.import_bundle(bundle)
+    from careerbrew.work import promo
+
+    loaded = promo.ladders()["synthetic-eng"]
+    result = {
+        "imported": imported,
+        "settings": store.read_yaml(corporate.root / "settings.yaml", {}),
+        "origin": loaded["origin"],
+        "source": (plugin / "ladders" / "custom.yaml").relative_to(corporate.root).as_posix(),
+    }
+    store.write_yaml(plugin / "careerbrew-plugin.yaml", {"name": "synthetic", "version": "1.0.0", "provides": {"ladders": "../outside.yaml"}})
+    escape_before = corporate.evidence()
+    try:
+        sync.import_bundle(bundle)
+    except Exception as exc:
+        result["escape"] = {"error": type(exc).__name__, "unchanged": escape_before == corporate.evidence()}
+    store.write_yaml(plugin / "careerbrew-plugin.yaml", manifest)
+    (plugin / "ladders" / "link.yaml").symlink_to(plugin / "ladders" / "custom.yaml")
+    symlink_before = corporate.evidence()
+    try:
+        sync.import_bundle(bundle)
+    except Exception as exc:
+        result["symlink"] = {"error": type(exc).__name__, "unchanged": symlink_before == corporate.evidence()}
+    return result
+
+
 def _cli_handlers(base: Path) -> dict[str, Any]:
     w = Workspace(base, "cli-handlers")
     store.write_text(w.root / "profile.yaml", "name: Example\n")
@@ -449,6 +512,7 @@ def run_all() -> dict[str, Any]:
         ("sync-roundtrip", _sync_roundtrip),
         ("sync-rejections", _sync_rejections),
         ("sync-allowlist", _sync_allowlist),
+        ("sync-plugin-ladder", _sync_plugin_ladder),
         ("cli-handlers", _cli_handlers),
     ]:
         _call(cases, name, lambda fn=fn: fn(base))

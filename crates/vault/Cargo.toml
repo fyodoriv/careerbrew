@@ -18,6 +18,7 @@ sha2 = "=0.10.9"
 tar = { version = "=0.4.46", default-features = false }
 flate2 = { version = "=1.1.11", default-features = false, features = ["rust_backend"] }
 chrono = { version = "=0.4.45", default-features = false, features = ["clock", "std"] }
+glob = "=0.3.4"
 
 # Synthetic-only cross-engine transport for the key provider and the
 # atomic write (rust-05d, tests/unit/test_rust05d_key_interop.py).

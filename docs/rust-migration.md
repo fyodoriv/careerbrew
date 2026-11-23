@@ -669,6 +669,7 @@ HTTP client crate is pinned yet.
 | Base64 for tokens | `base64` | 0.22.1 | MIT OR Apache-2.0 | kept | already pinned by `crates/vault`; the strict check `backup.verify` makes (`open-strict` vectors) and the Python-compatible lenient read in `careerbrew-vault` |
 | Backup tar archives | `tar` | 0.4.46 | MIT OR Apache-2.0 | kept | maintained tar reader/writer behind `crates/vault/src/backup.rs`; default features off; Python↔Rust create/verify/restore controls in rust-06 |
 | Backup gzip compression | `flate2` | 1.1.11 | MIT OR Apache-2.0 | kept | maintained gzip stream behind the same adapter; `rust_backend` only; Python↔Rust archive controls in rust-06 |
+| Plugin resource paths | `glob` | 0.3.4 | MIT OR Apache-2.0 | kept | maintained glob matching behind the locked-plugin ladder adapter; valid, escaping and symlink controls in rust-06 |
 | FSRS card schedule | `fsrs` | 7.0.0 | BSD-3-Clause | kept | official Open Spaced Repetition crate (release 2026-11); `FSRS6_DEFAULT_PARAMETERS` equal py-fsrs 6.3.2 `DEFAULT_PARAMETERS` (`parameters` vector) and its FSRS-6 formulas match py-fsrs's (18 `fsrs` vectors). Version 7 no longer pulls `burn`. New dependencies: `ndarray`, `rayon`, `rand` 0.10, `rand_distr`, `itertools`, `snafu`, `num-*`, `crossbeam-*`, `either`, `matrixmultiply`, `rawpointer`, `portable-atomic*`, `chacha20`, `cpufeatures`, `getrandom`, `heck`, `autocfg`, `r-efi` (MIT OR Apache-2.0, `r-efi` also LGPL-2.1-or-later as an option), `bytemuck`, `wide`, `safe_arch` (Zlib OR Apache-2.0 OR MIT), `libm` (MIT) |
 | FSRS card schedule | `rs-fsrs` | 1.2.1 | non-standard (crates.io) | rejected | last release 2024-10; no SPDX licence on crates.io; it predates the 21-weight FSRS-6 set with a trainable decay that py-fsrs 6.3.2 uses |
 | FSRS learning steps, state and due time | (none) | | | adapter | the `fsrs` crate has the memory model only; py-fsrs's step and state rules are a small adapter in `crates/depvec/src/fsrs_schedule.rs`, checked by the `schedule` vectors |
@@ -1650,11 +1651,18 @@ the crate until the rust-05 and rust-07 closure is native, so
     Restore validates every member, every corporate data rule and every
     existing destination link before the first write. `machine.yaml` does not
     cross machines. Backup, pairing and sync destinations stay outside the data
-    root; new archives and keys use mode 0600.
-  - `tests/oracles/rust06.py` and `synthetic_transfer.rs` run ten stateful
+    root; new archives and keys use mode 0600. Corporate cloud detection keeps
+    the exact Python set, including `pCloud Drive` and `Sync`, for both create
+    and restore.
+  - Ladder reads follow Python's source order: base resources, sorted locked
+    plugins, then user ladders. The plugin adapter reads each lock entry and
+    manifest, carries `origin` and source path, and rejects missing, escaping or
+    symlinked resources before import. A differential case applies a valid
+    plugin ladder and level, then proves both refusal paths.
+  - `tests/oracles/rust06.py` and `synthetic_transfer.rs` run eleven stateful
     groups: roundtrip and conflicts, strict rejection, malicious names and
     links, corporate restore, key/target guards, sync roundtrip/refusals,
-    import allowlists and all seven successful handler outputs. `xtask` also
+    import allowlists, plugin ladders and all seven successful handler outputs. `xtask` also
     creates a real archive with each engine, then verifies and restores it with
     the other. Both directions compare restored content and modes directly.
   - Random Fernet ciphertext and gzip bytes are not compared. The report uses
@@ -1669,25 +1677,9 @@ the crate until the rust-05 and rust-07 closure is native, so
     noise floors remain `unmeasured`, so the 1.10 ratio applies fail-closed.
   - Production Python, `config/native-routes.txt`, shipped crates and activation
     tables are unchanged. Component parity does not activate backup or sync.
-- **Component measurement (2026-11-23, macOS):**
-  - Clean source revision `394f764127f49ab81d04526198eadc0ee05209e0`.
-    All three records share evidence-source hash
-    `98fc55ec95f5157fa97ff7da4562600d8efeef84137bf37ebf086875894fbfbf`
-    and fixture hash
-    `6d97d35d117ce9225bb95ac1d92dd2376b02fb25b588a5ea73f94526dcb82ad5`.
-    Verify and measure share release-candidate SHA-256
-    `5b9d2cc32bf31c879597b40f27c6c0b9cce2a05929535bbfed34a43ffbc6d5a6`.
-  - Baseline: 30 runs. Verify: 2/2 checks with 0 contract, privacy, role,
-    authorization, side-effect, missing-write or duplicate-write violations.
-    Measurement: 30 unique, uncached pairs in each regime.
-  - Cold CPU p95 was 246,518 to 59,096 microseconds; warm was 242,255 to
-    60,973. Paired cold tree-RSS maximum was 47,415,296 to 8,323,072 bytes;
-    warm was 46,268,416 to 8,306,688. Each ratio is below 1.10. The
-    unmeasured noise floors keep the ratio fail-closed.
-  - `migration decide --step rust-06` returned `activate` with no reasons.
-    This is the component verdict only. Production backup, sync and storage
-    routes remain Python; activation still needs the complete native closure,
-    fresh acceptance records and rollback evidence.
+- **Measurement state:** the earlier `394f7641` candidate verdict is superseded
+  by the cloud/plugin review fixes. It is not evidence for the changed bytes.
+  A new clean-source baseline, verify, measure and decide chain is required.
 
 ### rust-07: Port plugin, machine and account setup
 
