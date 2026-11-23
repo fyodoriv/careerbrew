@@ -1780,6 +1780,28 @@ the crate until the rust-05 and rust-07 closure is native, so
   fixture hash `940d3c5822659c7eaef80649a92c7a7582b3d6662f330a5fe12da3b8d1d3c1a2`.
   The baseline covers nine synthetic groups, including all eleven owned CLI
   handlers. This is the pre-native prediction record, not a speed result.
+- **Component measurement (2026-11-23, macOS):**
+  - Clean source revision `50b28df3d71d90973d217aeb0ebf5e1d6696f8cb`.
+    All three records share evidence-source hash
+    `569e8f3d3c9d32d6e5f5a259dc83b13be786864f591e91cb3cd189e2611b7798`
+    and fixture hash
+    `940d3c5822659c7eaef80649a92c7a7582b3d6662f330a5fe12da3b8d1d3c1a2`.
+    Verify and measure share release-candidate SHA-256
+    `0f3d6b64efa752e33d5f82890353a38ca8d5c1fb96aa817d363346fe9f5d5df2`.
+  - Baseline: 30 runs. Verify: 9/9 checks with 0 contract, privacy, role,
+    authorization, side-effect, missing-write or duplicate-write violations.
+    Measurement: 30 unique, uncached pairs in each regime.
+  - Cold CPU p95 was 300,606 to 77,714 microseconds; warm was 286,675 to
+    76,466. Cold tree-RSS p95 was 49,283,072 to 8,257,536 bytes; warm was
+    47,071,232 to 8,257,536. Each ratio is below 1.10. The unmeasured noise
+    floors keep the ratio fail-closed.
+  - `migration decide --step rust-07` returned `activate` with no reasons.
+    Real extra, missing and duplicate native-write controls each returned
+    `keep-python` with `verify-check-failed` and `verify-violation`; their
+    side-effect, missing-write and duplicate-write counters respectively are
+    nonzero. This is the component verdict only. Production plugin, machine,
+    account and storage routes remain unchanged; activation still needs the
+    complete native closure, fresh acceptance records and rollback evidence.
 
 ### rust-08: Port HTTP sources, calendar and mail
 
