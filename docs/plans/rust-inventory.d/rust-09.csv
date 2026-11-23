@@ -1,0 +1,2 @@
+tests/oracles/rust09.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-09 differential gate
+tests/unit/test_rust09_component.py,keep-native,rust-00,rust-09 native component and assigned CLI assertions

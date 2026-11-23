@@ -1920,6 +1920,24 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native project writers under the project-file lock.
 - **Gate:** 100% of project, gate and promise contracts agree; 0 duplicate
   promises, lost owner edits, or false ticket matches on `UTF-8` or `ISO-8601`.
+- **Component pre-registration (2026-11-23):** source revision
+  `6c40ef57b8a0d84c3f3ccc4f6a86f180314b224e`; Python oracle
+  `tests/oracles/rust09.py`; native assertion `tests/unit/test_rust09_component.py`;
+  fixtures `tests/fixtures/projects/cutline.json` and `team-goals.csv`. The six
+  cases are `project-lifecycle`, `readiness-gates`, `priorities-tickets`,
+  `promise-lifecycle`, `lock-and-team` and `cli-handlers`. They cover the four
+  assigned CLI handlers and the assertions of `test_issue_230.py` and
+  `test_issue_429.py`. The clock is fixed at `2026-11-02T09:00:00+00:00`.
+  Reports use typed JSON; random incarnation IDs are compared only by shape
+  and stability. Differential writes use semantic YAML values, invocation-owned
+  paths and sealed-record markers, not ciphertext bytes. Baseline B is 30 fresh
+  Python runs. Verify requires all six cases with zero privacy, side-effect,
+  missing-write or duplicate-write violations. Measure requires 30 unique
+  interleaved pairs in each cold and warm regime. CPU-time p95 and process-tree
+  peak RSS must each be at most 1.10 x the paired oracle in each regime; any
+  contract mismatch, duplicate promise, lost owner edit, false standard ticket
+  or resource excess keeps Python. This is component parity only: production
+  dispatch, shipped crates and activation state do not change.
 
 ### rust-10: Port sessions, claims, agents and reply drafts
 

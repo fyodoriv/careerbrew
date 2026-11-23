@@ -445,6 +445,52 @@ pub const STEPS: &[Step] = &[
         ],
     },
     Step {
+        // rust-09 starts with its real Python oracle. The component candidate
+        // and native source bindings join only with the implementation.
+        id: "rust-09",
+        oracle: &["-I", "-B", "tests/oracles/rust09.py", "--all"],
+        cases: &[],
+        candidate: None,
+        http_contract: false,
+        data_contract: false,
+        role_contract: false,
+        registry_projection: false,
+        no_python: true,
+        env: &[],
+        sources: &[
+            "tests/oracles/rust09.py",
+            "src/careerbrew/work/projects.py",
+            "src/careerbrew/work/priorities.py",
+            "src/careerbrew/work/project_priority.py",
+            "src/careerbrew/work/promises.py",
+            "src/careerbrew/work/focus.py",
+            "src/careerbrew/work/team.py",
+            "src/careerbrew/cli.py",
+            "src/careerbrew/calendar.py",
+            "src/careerbrew/config.py",
+            "src/careerbrew/connectors.py",
+            "src/careerbrew/events.py",
+            "src/careerbrew/keyfile.py",
+            "src/careerbrew/paths.py",
+            "src/careerbrew/plugins.py",
+            "src/careerbrew/store.py",
+            "src/careerbrew/vault.py",
+            "src/careerbrew/work/evidence.py",
+            "src/careerbrew/work/feed.py",
+            "src/careerbrew/work/ladder_grade.py",
+            "src/careerbrew/work/live.py",
+            "src/careerbrew/work/promo.py",
+            "src/careerbrew/work/research.py",
+            "src/careerbrew/day/inbox.py",
+            "src/careerbrew/day/pm_promises.py",
+            "src/careerbrew/day/results.py",
+        ],
+        fixtures: &[
+            "tests/fixtures/projects/cutline.json",
+            "tests/fixtures/projects/team-goals.csv",
+        ],
+    },
+    Step {
         // rust-04 is a vector step (privacy, policy and approval decisions).
         // Its Python oracle `--all` runs every set over the generator's
         // vectors in one isolated process. `verify` routes the step to the
