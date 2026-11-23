@@ -114,6 +114,12 @@ fn observed_files(root: &Path, folder: &Path) -> Result<Trace, String> {
     }
     for entry in std::fs::read_dir(folder).map_err(|_| "cannot list owned files")? {
         let path = entry.map_err(|_| "cannot list owned entry")?.path();
+        // The source fixture's VCS bookkeeping is not a plugin output. Git
+        // commit/ref timing differs by engine invocation; installed files and
+        // their hashes remain fully compared.
+        if path.components().any(|part| part.as_os_str() == ".git") {
+            continue;
+        }
         let metadata =
             std::fs::symlink_metadata(&path).map_err(|_| "cannot inspect owned entry")?;
         let relative = normalized_path(
@@ -356,7 +362,7 @@ fn component_cases(
             "exit_matches": actual.ran,
             "semantic_match": actual.stdout.as_bytes() == expected.stdout.as_bytes(),
             "comparison": "typed-results+semantic-write-map+phase-write-counts",
-            "normalization": ["owned-path", "sealed-record", "generated-key", "connection-helper"],
+            "normalization": ["owned-path", "sealed-record", "generated-key", "connection-helper", "git-metadata-excluded"],
             "oracle_sha256": capture_actions::digest(expected.stdout.as_bytes()),
             "candidate_sha256": capture_actions::digest(actual.stdout.as_bytes()),
             "writes_match": extra + missing + changed == 0,

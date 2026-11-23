@@ -80,16 +80,10 @@ pub fn settings(
     )
 }
 
-pub fn secret_backend(reference: &str) -> String {
-    if reference.starts_with("keychain:") {
-        "keychain".into()
-    } else if reference.starts_with("op://") {
-        "1password".into()
-    } else if reference.starts_with("env:") {
-        "env".into()
-    } else {
-        "unknown".into()
-    }
+pub fn secret_backend(
+    reference: &str,
+) -> std::result::Result<&'static str, careerbrew_vault::secrets::SecretError> {
+    careerbrew_vault::secrets::backend_of(reference)
 }
 
 /// Record only the reconnect state after a classified refresh answer.

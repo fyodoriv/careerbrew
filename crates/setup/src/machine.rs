@@ -138,28 +138,72 @@ fn clear_personal_dirs() -> Result<()> {
     Ok(())
 }
 
+pub fn job_hunt_goals(data: &Value) -> usize {
+    if data.is_null() || data.as_object().is_some_and(Map::is_empty) {
+        return 0;
+    }
+    let Some(map) = data.as_object() else {
+        return 1;
+    };
+    let mut count = 0;
+    for field in ["queue", "history"] {
+        match map.get(field).filter(|value| !value.is_null()) {
+            Some(Value::Array(rows)) => {
+                count += rows
+                    .iter()
+                    .filter(|goal| {
+                        !goal.is_object()
+                            || matches!(
+                                value::get(goal, "kind").and_then(Value::as_str),
+                                Some("interview" | "job-search")
+                            )
+                    })
+                    .count();
+            }
+            Some(Value::Object(rows)) => {
+                count += rows.len();
+            }
+            Some(Value::String(text)) => {
+                count += text.chars().count();
+            }
+            Some(value) if !value::bool_value(Some(value)) => {}
+            Some(_) => {
+                count += 1;
+            }
+            None => {}
+        }
+    }
+    if let Some(goal) = map
+        .get("upcoming")
+        .filter(|goal| value::bool_value(Some(goal)))
+    {
+        if !goal.is_object()
+            || matches!(
+                value::get(goal, "kind").and_then(Value::as_str),
+                Some("interview" | "job-search")
+            )
+        {
+            count += 1;
+        }
+    }
+    count
+}
+
 fn check_goals() -> Result<()> {
     let ctx = context()?;
     let path = ctx.root.join("goals.yaml");
     if !path.exists() {
         return Ok(());
     }
-    let goals = value::from_canon(&ctx.store().read_yaml(
-        &path,
-        careerbrew_vault::canon::Canon::Map(Vec::new()),
-        true,
-    )?);
-    let found = value::get(&goals, "queue")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .any(|goal| {
-            matches!(
-                value::get(goal, "kind").and_then(Value::as_str),
-                Some("interview" | "job-search")
-            )
-        });
-    if found {
+    let found =
+        match ctx
+            .store()
+            .read_yaml(&path, careerbrew_vault::canon::Canon::Map(Vec::new()), true)
+        {
+            Ok(goals) => job_hunt_goals(&value::from_canon(&goals)),
+            Err(_) => 1,
+        };
+    if found > 0 {
         return Err(SetupError::role(
             "job-hunt goals found in goals.yaml; move the file to your personal machine, then retry",
         ));

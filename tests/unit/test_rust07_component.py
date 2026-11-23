@@ -83,6 +83,14 @@ def test_plugin_machine_account_preflight_and_handler_contracts_match_python(can
         assert manifest["refusals"]["requires-bool"] == "PluginError"
         assert manifest["refusals"]["work-step-field"] == "PluginError"
         assert manifest["real_version_refusal"] == "PluginError"
+        assert manifest["command_semantics"] == {
+            "verify-env": "PluginError",
+            "verify-shell": "PluginError",
+            "verify-managed": "accepted",
+            "cycle-python": "accepted",
+            "review-python": "accepted",
+            "cycle-unclosed": "PluginError",
+        }
         assert manifest["merged"]["allowed_routes"] == ["local"]
         assert manifest["merged"]["backup_targets"] == [str(Path("/") / "home" / "u" / "Team")]
         assert manifest["merged"]["agent_may_read_business"] is True
@@ -95,8 +103,13 @@ def test_plugin_machine_account_preflight_and_handler_contracts_match_python(can
         assert lifecycle["tampered"] == [["acme", False], ["team", True]]
         assert lifecycle["verified_after"] == [["acme", True], ["team", True]]
         assert lifecycle["dependent_refusal"] == "PluginError"
-        assert lifecycle["removed"][1]["purged_records"] == {"int": "1"}
+        assert lifecycle["removed"][1]["purged_records"] == {"int": "2"}
         assert lifecycle["purged_left"] == ["b"]
+        assert lifecycle["inbox_left"] == ["inbox-b"]
+        assert lifecycle["inbox_lock"] is True
+        assert lifecycle["home_source"] is True
+        assert lifecycle["git_locked"] is True
+        assert lifecycle["git_refreshed"] is True
         assert lifecycle["lock_empty"] is True
 
         commands = case(report, "command-ownership")
@@ -126,11 +139,14 @@ def test_plugin_machine_account_preflight_and_handler_contracts_match_python(can
         assert readiness["temp_refusal"] == "RoleError"
         assert readiness["repos"] == ["a", "b"]
         assert readiness["per_user"] == [True, True, False, False]
+        assert readiness["goal_counts"] == [{"int": "0"}, {"int": "1"}, {"int": "1"}, {"int": "1"}, {"int": "1"}, {"int": "1"}, {"int": "0"}]
+        assert readiness["goal_refusals"] == {"history": "RoleError", "upcoming": "RoleError", "malformed": "RoleError", "safe": "accepted"}
 
         oauth = case(report, "oauth-refs")
         assert oauth["poll"][:3] == ["done", "wait", "slow"]
         assert oauth["refresh"][:3] == ["token", "reconnect", "reconnect"]
         assert oauth["settings"] == [["setting-client", "setting-tenant"], ["flag-client", "flag-tenant"]]
+        assert oauth["secret_refs"] == {"keychain": "keychain", "op": "op", "env": "env", "literal": "SecretError"}
         assert oauth["bearer_is_value"] is True
         assert oauth["rotated"] is True
         assert oauth["reconnect_cleared"] is True
@@ -172,6 +188,7 @@ def test_plugin_machine_account_preflight_and_handler_contracts_match_python(can
             "machine-set",
             "machine-show",
             "connectors-list",
+            "connectors-list-invalid",
             "pair-init",
             "split-evidence",
             "split-evidence-live",
@@ -183,11 +200,13 @@ def test_plugin_machine_account_preflight_and_handler_contracts_match_python(can
         assert all(row["exit"] == {"int": "0"} for row in handlers.values() if isinstance(row, dict))
         assert handlers["pair_key_not_printed"] is True
         assert handlers["split_fields_preserved"] is True
-        assert "evidence sources work collect reads: 5 -> 4\n" in handlers["split-evidence"]["stdout"]
+        assert "secret=op allowed_by_policy=True" in handlers["connectors-list"]["stdout"]
+        assert handlers["connectors-list-invalid"] == {"exit": {"int": "1"}, "stdout": "SecretError"}
+        assert "evidence sources work collect reads: 7 -> 6\n" in handlers["split-evidence"]["stdout"]
         assert handlers["split-evidence-live"]["stdout"] == (
             "plugin acme evidence.yaml: 3 evidence entries -> 2 shared (moved 1 source(s), 0 connector(s))\n"
-            "your work/sources.yaml: 1 -> 1 source(s); work/connectors.yaml: 1 -> 1 connector(s)\n"
-            "evidence sources work collect reads: 5 -> 4\n"
+            "your work/sources.yaml: 1 -> 1 source(s); work/connectors.yaml: 3 -> 3 connector(s)\n"
+            "evidence sources work collect reads: 7 -> 6\n"
             "ok    the company plugin evidence file holds no per-person values (emails, logins, home paths)\n"
             "next: commit the change in the plugin's own repo, so a coworker's copy holds shared entries only\n"
         )

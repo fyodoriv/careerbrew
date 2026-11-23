@@ -1755,11 +1755,17 @@ the crate until the rust-05 and rust-07 closure is native, so
     controls cover real pyproject version and work-step validation, boolean
     `requires`, exact corporate output cleanup, non-dry evidence moves,
     duplicates, preserved YAML fields and exact CLI success/refusal spacing.
+    Further cases purge inbox items under their lock, refuse job-hunt or
+    malformed goals from every collection, distinguish verify from cycle
+    interpreter rules, reuse vault secret references, install from `~/` and a
+    real local Git source, and refresh that source. Repair fixtures use owned
+    executable success/failure scripts, not assumed system binary paths.
   - Verify compares typed output and semantic file state after every phase,
     including inode and modification time. Sealed records and generated keys
     become type markers; owned paths, timestamps and the engine-specific
-    connection-helper command are normalized. No credential value or local
-    path enters the record. Real extra, missing and duplicate native-write
+    connection-helper command are normalized. A source fixture's internal Git
+    bookkeeping is excluded; installed content and hashes are still compared.
+    No credential value or local path enters the record. Real extra, missing and duplicate native-write
     plants must each make `decide` return `keep-python`.
   - The step binds the Python oracle and call closure, native modules, every
     reused vault provider source, harness, candidate bytes, plugin fixtures,

@@ -231,12 +231,45 @@ fn manifest_policy(base_path: &Path) -> Result<Value> {
         "cycle-b": {"extends": "cycle-a"},
         "unknown": {"extends": "absent"},
     }});
+    let mut command_semantics = Map::new();
+    for (name, field, command) in [
+        ("verify-env", "verify", "env python3 -m unittest"),
+        ("verify-shell", "verify", "sh -c 'python3 -m unittest'"),
+        ("verify-managed", "verify", "uv run python -m unittest"),
+        ("cycle-python", "cycle", "python3 -m unittest"),
+        ("review-python", "review_ask_cycle", "python3 -m unittest"),
+        ("cycle-unclosed", "cycle", "python3 -c 'unclosed"),
+    ] {
+        let data = {
+            let mut data = manifest("acme");
+            value::set(
+                &mut data,
+                "work_steps",
+                json!([{"step": "/review", (field): command}]),
+            );
+            data
+        };
+        let answer = plugins::validate_manifest_data(
+            &data,
+            &facts(true),
+            "1.0.0",
+            &plugins::work_step_error,
+        );
+        command_semantics.insert(
+            name.into(),
+            json!(match answer {
+                Ok(_) => "accepted",
+                Err(error) => error.class,
+            }),
+        );
+    }
     Ok(json!({
         "valid": valid["name"],
         "refusals": refusals,
         "merged": plugins::merge_policy(&[base, team], &expansions),
         "denied_agent_read": denied["agent_may_read_business"],
         "real_version_refusal": real_version_refusal,
+        "command_semantics": command_semantics,
         "order": plugins::refresh_order(&lock),
     }))
 }
@@ -339,6 +372,10 @@ fn plugin_lifecycle(base: &Path) -> Result<Value> {
             value::to_canon(&json!({"id": "b", "origin": "base"})),
         ],
     )?;
+    crate::context()?.store().write_json(
+        &crate::context()?.root.join("day/inbox.json"),
+        &value::to_canon(&json!({"items": [{"id": "inbox-a", "origin": "plugin:acme"}, {"id": "inbox-b", "origin": "base"}]})),
+    )?;
     let removed_team = plugins::remove("team", false)?;
     let removed_base = plugins::remove("acme", true)?;
     let purged_left = crate::context()?
@@ -347,6 +384,93 @@ fn plugin_lifecycle(base: &Path) -> Result<Value> {
         .iter()
         .map(|row| value::from_canon(row)["id"].clone())
         .collect::<Vec<_>>();
+    let inbox = value::from_canon(&crate::context()?.store().read_json(
+        &crate::context()?.root.join("day/inbox.json"),
+        careerbrew_vault::canon::Canon::Map(Vec::new()),
+        true,
+    )?);
+    let inbox_left = value::get(&inbox, "items")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .map(|row| row["id"].clone())
+        .collect::<Vec<_>>();
+    let inbox_lock = crate::context()?.root.join("day/inbox.lock").is_file();
+    let sources = Workspace::new(base, "plugin-sources")?;
+    let home_source = write_plugin(&sources.home.join("home-plugin"), "acme", false, true)?;
+    plugins::add_source("~/home-plugin", false)?;
+    let home_ok = {
+        let lock = plugins::lock(&crate::context()?)?;
+        let expected = home_source.canonicalize()?.to_string_lossy().into_owned();
+        value::get(&lock["plugins"]["acme"], "local_path").and_then(Value::as_str)
+            == Some(expected.as_str())
+    };
+    plugins::remove("acme", false)?;
+    let repo = write_plugin(&sources.base.join("git-source"), "acme", false, true)?;
+    std::env::set_var("PATH", "/usr/bin:/bin");
+    let run_git = |args: &[&str]| -> Result<()> {
+        let status = std::process::Command::new("git")
+            .args(args)
+            .env("PATH", "/usr/bin:/bin")
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()?;
+        if status.success() {
+            Ok(())
+        } else {
+            Err(SetupError::io())
+        }
+    };
+    run_git(&["init", "--quiet", &repo.to_string_lossy()])?;
+    run_git(&[
+        "-C",
+        &repo.to_string_lossy(),
+        "config",
+        "user.name",
+        "Synthetic",
+    ])?;
+    run_git(&[
+        "-C",
+        &repo.to_string_lossy(),
+        "config",
+        "user.email",
+        "synthetic@example.com",
+    ])?;
+    run_git(&["-C", &repo.to_string_lossy(), "add", "-A"])?;
+    run_git(&[
+        "-C",
+        &repo.to_string_lossy(),
+        "commit",
+        "--quiet",
+        "-m",
+        "synthetic",
+    ])?;
+    let uri = format!("file://{}", repo.to_string_lossy());
+    plugins::add_source(&uri, false)?;
+    let git_locked = {
+        let lock = plugins::lock(&crate::context()?)?;
+        value::get(&lock["plugins"]["acme"], "source").and_then(Value::as_str) == Some(uri.as_str())
+            && value::get(&lock["plugins"]["acme"], "local_path") == Some(&Value::Null)
+    };
+    std::fs::write(repo.join("commands/acme-next.md"), "synthetic next\n")?;
+    run_git(&["-C", &repo.to_string_lossy(), "add", "-A"])?;
+    run_git(&[
+        "-C",
+        &repo.to_string_lossy(),
+        "commit",
+        "--quiet",
+        "-m",
+        "next",
+    ])?;
+    plugins::refresh()?;
+    let git_refreshed = crate::context()?
+        .root
+        .join("plugins/acme/commands/acme-next.md")
+        .is_file()
+        && plugins::verify()?.into_iter().all(|(_, ok)| ok);
+    plugins::remove("acme", false)?;
     let lock_empty = plugins::lock(&crate::context()?)? == json!({"plugins": {}});
     let tuples = |rows: Vec<(String, bool)>| {
         rows.into_iter()
@@ -365,6 +489,11 @@ fn plugin_lifecycle(base: &Path) -> Result<Value> {
         "verified_after": tuples(verified_after),
         "removed": [removed_team, removed_base],
         "purged_left": purged_left,
+        "inbox_left": inbox_left,
+        "inbox_lock": inbox_lock,
+        "home_source": home_ok,
+        "git_locked": git_locked,
+        "git_refreshed": git_refreshed,
         "lock_empty": lock_empty,
     }))
 }
@@ -583,6 +712,36 @@ fn machine_readiness(base: &Path) -> Result<Value> {
         .map(|path| path.file_name().unwrap().to_string_lossy().into_owned())
         .collect::<Vec<_>>();
     repo_names.sort();
+    let goal_inputs = [
+        json!({}),
+        json!({"queue": [{"kind": "interview"}]}),
+        json!({"history": [{"kind": "job-search"}]}),
+        json!({"upcoming": {"kind": "interview"}}),
+        json!({"queue": ["uncertain"]}),
+        json!([]),
+        json!({"queue": [{"kind": "promotion"}]}),
+    ];
+    let goal_counts = goal_inputs
+        .iter()
+        .map(machine::job_hunt_goals)
+        .collect::<Vec<_>>();
+    let mut goal_refusals = Map::new();
+    for (name, data) in [
+        ("history", &goal_inputs[2]),
+        ("upcoming", &goal_inputs[3]),
+        ("malformed", &goal_inputs[4]),
+        ("safe", &goal_inputs[6]),
+    ] {
+        let workspace = Workspace::new(base, &format!("goals-{name}"))?;
+        crate::context()?
+            .store()
+            .write_yaml(&workspace.root.join("goals.yaml"), &value::to_canon(data))?;
+        let answer = match machine::set_role("corporate", "") {
+            Ok(_) => "accepted",
+            Err(error) => error.class,
+        };
+        goal_refusals.insert(name.into(), json!(answer));
+    }
     Ok(json!({
         "ready_count": [rows.iter().filter(|row| row["ok"] == true).count(), rows.len()],
         "failed": failed_rows.iter().filter(|row| row["ok"] == false).map(|row| row["check"].clone()).collect::<Vec<_>>(),
@@ -598,6 +757,8 @@ fn machine_readiness(base: &Path) -> Result<Value> {
         "output_cleanup": output_cleanup,
         "temp_refusal": temp_refusal,
         "repos": repo_names,
+        "goal_counts": goal_counts,
+        "goal_refusals": goal_refusals,
         "work_profile": machine::work_profile("name: Synthetic\ntarget_salary: 1\nemployer: Example\n"),
     }))
 }
@@ -622,9 +783,21 @@ fn oauth_refs(base: &Path) -> Result<Value> {
     let answer = json!({"access_token": "not-reported", "refresh_token": "rotated-not-reported", "expires_in": 3600});
     let reference = "keychain:careerbrew.outlook.refresh";
     let bearer_is_value = answer["access_token"] == "not-reported";
-    let rotated = oauth::secret_backend(reference) == "keychain"
+    let rotated = oauth::secret_backend(reference).is_ok_and(|kind| kind == "keychain")
         && value::bool_value(value::get(&answer, "refresh_token"));
     let fields = ["client_id", "grant_type", "refresh_token", "scope"];
+    let mut secret_refs = Map::new();
+    for (name, reference) in [
+        ("keychain", "keychain:service"),
+        ("op", "op://synthetic/item/field"),
+        ("env", "env:SYNTHETIC"),
+        ("literal", "not-a-reference"),
+    ] {
+        secret_refs.insert(
+            name.into(),
+            json!(oauth::secret_backend(reference).unwrap_or("SecretError")),
+        );
+    }
     oauth::write_reconnect(false)?;
     let state = value::from_canon(&crate::context()?.store().read_json(
         &w.root.join("work/outlook-auth.json"),
@@ -638,6 +811,7 @@ fn oauth_refs(base: &Path) -> Result<Value> {
             oauth::settings("", "", "setting-client", "setting-tenant", "plugin-client", "plugin-tenant"),
             oauth::settings("flag-client", "flag-tenant", "setting-client", "setting-tenant", "plugin-client", "plugin-tenant"),
         ],
+        "secret_refs": secret_refs,
         "bearer_is_value": bearer_is_value,
         "rotated": rotated,
         "fields": [fields],
@@ -781,9 +955,15 @@ fn update_workflow(base: &Path) -> Result<Value> {
     let ready = preflight::launcher_ready();
     std::fs::set_permissions(&launcher, std::fs::Permissions::from_mode(0o600))?;
     let not_executable = preflight::launcher_ready();
+    let repair_ok = w.base.join("repair-ok");
+    let repair_fail = w.base.join("repair-fail");
+    std::fs::write(&repair_ok, "#!/bin/sh\nexit 0\n")?;
+    std::fs::write(&repair_fail, "#!/bin/sh\nexit 1\n")?;
+    std::fs::set_permissions(&repair_ok, std::fs::Permissions::from_mode(0o700))?;
+    std::fs::set_permissions(&repair_fail, std::fs::Permissions::from_mode(0o700))?;
     let repairs = [
-        preflight::repair(&["/bin/true".into()], &w.base),
-        preflight::repair(&["/bin/false".into()], &w.base),
+        preflight::repair(&[repair_ok.to_string_lossy().into_owned()], &w.base),
+        preflight::repair(&[repair_fail.to_string_lossy().into_owned()], &w.base),
         preflight::repair(
             &[w.base.join("missing").to_string_lossy().into_owned()],
             &w.base,
@@ -850,7 +1030,11 @@ fn cli_handlers(base: &Path) -> Result<Value> {
         "machine-show".into(),
         handler(cli::cmd_machine_show(), &w.base),
     );
-    let document = json!({"private_note": "keep", "connectors": [{"kind": "jira", "token": "keychain:careerbrew.jira"}]});
+    let document = json!({"private_note": "keep", "connectors": [
+        {"kind": "jira", "token": "keychain:careerbrew.jira"},
+        {"kind": "jira", "token": "op://synthetic/item/field"},
+        {"kind": "jira", "token": "env:SYNTHETIC"},
+    ]});
     crate::context()?.store().write_yaml(
         &w.root.join("work/connectors.yaml"),
         &value::to_canon(&document),
@@ -916,6 +1100,15 @@ fn cli_handlers(base: &Path) -> Result<Value> {
         handler(cli::cmd_plugin_remove("acme", false), &w.base),
     );
     outputs.insert("pair_key_not_printed".into(), Value::Bool(w.pair.is_file()));
+    let invalid = Workspace::new(base, "cli-invalid-secret")?;
+    crate::context()?.store().write_yaml(
+        &invalid.root.join("work/connectors.yaml"),
+        &value::to_canon(&json!({"connectors": [{"kind": "jira", "token": "literal-value"}]})),
+    )?;
+    outputs.insert(
+        "connectors-list-invalid".into(),
+        handler(cli::cmd_connectors_list(), &invalid.base),
+    );
     Ok(Value::Object(outputs))
 }
 

@@ -56,6 +56,12 @@ impl From<careerbrew_vault::atomic::StoreError> for SetupError {
     }
 }
 
+impl From<careerbrew_vault::secrets::SecretError> for SetupError {
+    fn from(error: careerbrew_vault::secrets::SecretError) -> Self {
+        Self::new("SecretError", error.message)
+    }
+}
+
 impl From<serde_json::Error> for SetupError {
     fn from(_: serde_json::Error) -> Self {
         Self::value("invalid JSON")

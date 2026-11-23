@@ -68,7 +68,7 @@ pub fn cmd_init() -> Result<String> {
 }
 
 pub fn cmd_plugin_add(source: &Path, allow_exec: bool) -> Result<String> {
-    let entry = plugins::add(source, allow_exec)?;
+    let entry = plugins::add_source(&source.to_string_lossy(), allow_exec)?;
     Ok(format!(
         "added plugin {} {} ({}), exec_allowed={}\n",
         value::text(value::get(&entry, "name")),
@@ -237,7 +237,7 @@ pub fn cmd_connectors_list() -> Result<String> {
         };
         out.push_str(&format!(
             "{kind:<8} secret={} allowed_by_policy={}\n",
-            oauth::secret_backend(&value::text(value::get(connector, "token"))),
+            oauth::secret_backend(&value::text(value::get(connector, "token")))?,
             if allowed { "True" } else { "False" },
         ));
     }

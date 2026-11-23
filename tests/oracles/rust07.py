@@ -12,12 +12,13 @@ import io
 import json
 import os
 import stat
+import subprocess
 import sys
 import types
 from pathlib import Path
 from typing import Any
 
-from careerbrew import cli, config, connectors, machine, msauth, plugins, store, sync
+from careerbrew import cli, config, connectors, goals, machine, msauth, plugins, secrets, store, sync
 from careerbrew.workday import mcp_check, self_update, steps, workflow_check
 
 CASES = (
@@ -187,12 +188,28 @@ def _manifest_policy(_base: Path) -> dict[str, Any]:
         "cycle-b": {"extends": "cycle-a"},
         "unknown": {"extends": "absent"},
     }
+    command_semantics = {}
+    for name, field, command in [
+        ("verify-env", "verify", "env python3 -m unittest"),
+        ("verify-shell", "verify", "sh -c 'python3 -m unittest'"),
+        ("verify-managed", "verify", "uv run python -m unittest"),
+        ("cycle-python", "cycle", "python3 -m unittest"),
+        ("review-python", "review_ask_cycle", "python3 -m unittest"),
+        ("cycle-unclosed", "cycle", "python3 -c 'unclosed"),
+    ]:
+        try:
+            plugins.validate_manifest_data(_manifest(work_steps=[{"step": "/review", field: command}]), _facts(), "1.0.0", _step_error)
+        except Exception as exc:
+            command_semantics[name] = type(exc).__name__
+        else:
+            command_semantics[name] = "accepted"
     return {
         "valid": valid["name"],
         "refusals": refusals,
         "merged": merged,
         "denied_agent_read": denied["agent_may_read_business"],
         "real_version_refusal": real_version_refusal,
+        "command_semantics": command_semantics,
         "order": plugins.refresh_order(lock),
     }
 
@@ -253,9 +270,31 @@ def _plugin_lifecycle(base: Path) -> dict[str, Any]:
         refreshed = plugins.refresh()
         verified_after = plugins.verify()
         store.write_jsonl(w.root / "work" / "events.jsonl", [{"id": "a", "origin": "plugin:acme"}, {"id": "b", "origin": "base"}])
+        store.write_json(w.root / "day" / "inbox.json", {"items": [{"id": "inbox-a", "origin": "plugin:acme"}, {"id": "inbox-b", "origin": "base"}]})
         removed_team = plugins.remove("team")
         removed_base = plugins.remove("acme", purge_data=True)
         purged_left = [row["id"] for row in store.read_jsonl(w.root / "work" / "events.jsonl")]
+        inbox_left = [row["id"] for row in store.read_json(w.root / "day" / "inbox.json", {})["items"]]
+        sources = Workspace(base, "plugin-sources")
+        home_source = _write_plugin(sources.home / "home-plugin")
+        plugins.add("~/home-plugin")
+        home_ok = plugins._lock()["plugins"]["acme"]["local_path"] == str(home_source.resolve())
+        plugins.remove("acme")
+        repo = _write_plugin(sources.base / "git-source")
+        env = dict(os.environ, PATH="/usr/bin:/bin", GIT_CONFIG_NOSYSTEM="1")
+        subprocess.run(["git", "init", "--quiet", str(repo)], env=env, check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(repo), "config", "user.name", "Synthetic"], env=env, check=True)
+        subprocess.run(["git", "-C", str(repo), "config", "user.email", "synthetic@example.com"], env=env, check=True)
+        subprocess.run(["git", "-C", str(repo), "add", "-A"], env=env, check=True)
+        subprocess.run(["git", "-C", str(repo), "commit", "--quiet", "-m", "synthetic"], env=env, check=True, capture_output=True)
+        plugins.add(repo.as_uri())
+        git_locked = plugins._lock()["plugins"]["acme"]["source"] == repo.as_uri() and plugins._lock()["plugins"]["acme"]["local_path"] is None
+        (repo / "commands" / "acme-next.md").write_text("synthetic next\n")
+        subprocess.run(["git", "-C", str(repo), "add", "-A"], env=env, check=True)
+        subprocess.run(["git", "-C", str(repo), "commit", "--quiet", "-m", "next"], env=env, check=True, capture_output=True)
+        plugins.refresh()
+        git_refreshed = (plugins.plugins_dir() / "acme" / "commands" / "acme-next.md").is_file() and all(ok for _, ok in plugins.verify())
+        plugins.remove("acme")
         return {
             "added": {key: added[key] for key in ("name", "version", "exec_allowed", "origin")},
             "listed": listed,
@@ -268,6 +307,11 @@ def _plugin_lifecycle(base: Path) -> dict[str, Any]:
             "verified_after": verified_after,
             "removed": [removed_team, removed_base],
             "purged_left": purged_left,
+            "inbox_left": inbox_left,
+            "inbox_lock": (w.root / "day" / "inbox.lock").is_file(),
+            "home_source": home_ok,
+            "git_locked": git_locked,
+            "git_refreshed": git_refreshed,
             "lock_empty": plugins._lock() == {"plugins": {}},
         }
 
@@ -386,6 +430,26 @@ def _machine_readiness(base: Path) -> dict[str, Any]:
     repos = w.base / "repos"
     for rel in ("a/.git", "group/b/.git", "group/deep/x/c/.git", "notrepo"):
         (repos / rel).mkdir(parents=True)
+    goal_inputs = [
+        {},
+        {"queue": [{"kind": "interview"}]},
+        {"history": [{"kind": "job-search"}]},
+        {"upcoming": {"kind": "interview"}},
+        {"queue": ["uncertain"]},
+        [],
+        {"queue": [{"kind": "promotion"}]},
+    ]
+    goal_counts = [goals.job_hunt_goals(data) for data in goal_inputs]
+    goal_refusals = {}
+    for name, data in [("history", goal_inputs[2]), ("upcoming", goal_inputs[3]), ("malformed", goal_inputs[4]), ("safe", goal_inputs[6])]:
+        workspace = Workspace(base, f"goals-{name}")
+        store.write_yaml(workspace.root / "goals.yaml", data)
+        try:
+            machine.set_role("corporate")
+        except Exception as exc:
+            goal_refusals[name] = type(exc).__name__
+        else:
+            goal_refusals[name] = "accepted"
     return {
         "ready_count": [sum(row["ok"] for row in rows), len(rows)],
         "failed": [row["check"] for row in failed_rows if not row["ok"]],
@@ -396,6 +460,8 @@ def _machine_readiness(base: Path) -> dict[str, Any]:
         "output_cleanup": output_cleanup,
         "temp_refusal": temp_refusal,
         "repos": sorted(path.name for path in machine.find_repos(repos)),
+        "goal_counts": goal_counts,
+        "goal_refusals": goal_refusals,
         "work_profile": machine.work_profile("name: Synthetic\ntarget_salary: 1\nemployer: Example\n"),
     }
 
@@ -423,10 +489,17 @@ def _oauth_refs(base: Path) -> dict[str, Any]:
     with _patched(msauth, http_form=form), _patched(msauth.secrets, resolve=lambda _ref: "not-reported", backend_of=lambda _ref: "keychain", store_keychain=lambda name, value: stored.append((name, bool(value))) or "keychain:" + name):
         token = msauth.bearer({"auth": "device", "token": "keychain:careerbrew.outlook.refresh", "client_id": "client", "tenant": "tenant"})
         reconnect = msauth.needs_reconnect()
+    secret_refs = {}
+    for name, ref in [("keychain", "keychain:service"), ("op", "op://synthetic/item/field"), ("env", "env:SYNTHETIC"), ("literal", "not-a-reference")]:
+        try:
+            secret_refs[name] = secrets.backend_of(ref)
+        except Exception as exc:
+            secret_refs[name] = type(exc).__name__
     return {
         "poll": [msauth.classify_poll(answer) for answer in polls],
         "refresh": [msauth.classify_refresh(answer) for answer in refreshes],
         "settings": settings,
+        "secret_refs": secret_refs,
         "bearer_is_value": token == "not-reported",
         "rotated": stored == [("careerbrew.outlook.refresh", True)],
         "fields": calls,
@@ -533,7 +606,13 @@ def _update_workflow(base: Path) -> dict[str, Any]:
     ready = self_update.launcher_ready()
     launcher.chmod(0o600)
     not_executable = self_update.launcher_ready()
-    repairs = [self_update.repair(["/bin/true"], w.base), self_update.repair(["/bin/false"], w.base), self_update.repair([str(w.base / "missing")], w.base)]
+    repair_ok = w.base / "repair-ok"
+    repair_fail = w.base / "repair-fail"
+    repair_ok.write_text("#!/bin/sh\nexit 0\n")
+    repair_fail.write_text("#!/bin/sh\nexit 1\n")
+    repair_ok.chmod(0o700)
+    repair_fail.chmod(0o700)
+    repairs = [self_update.repair([str(repair_ok)], w.base), self_update.repair([str(repair_fail)], w.base), self_update.repair([str(w.base / "missing")], w.base)]
     repo = w.base / "repo"
     (repo / "commands").mkdir(parents=True)
     (repo / "Agentfile.yaml").write_text("commands: [./commands]\n")
@@ -571,7 +650,9 @@ def _cli_handlers_with_deployer(base: Path) -> dict[str, Any]:
     invoke("plugin-verify", cli.cmd_plugin_verify, types.SimpleNamespace())
     invoke("machine-set", cli.cmd_machine_set, types.SimpleNamespace(role="corporate", label="work"))
     invoke("machine-show", cli.cmd_machine_show, types.SimpleNamespace())
-    store.write_yaml(w.root / "work" / "connectors.yaml", {"private_note": "keep", "connectors": [{"kind": "jira", "token": "keychain:careerbrew.jira"}]})
+    store.write_yaml(
+        w.root / "work" / "connectors.yaml", {"private_note": "keep", "connectors": [{"kind": "jira", "token": "keychain:careerbrew.jira"}, {"kind": "jira", "token": "op://synthetic/item/field"}, {"kind": "jira", "token": "env:SYNTHETIC"}]}
+    )
     store.write_yaml(w.root / "work" / "sources.yaml", {"private_note": "keep", "sources": [{"kind": "git", "path": "~/repo", "authors": ["owner@example.com"]}]})
     invoke("connectors-list", cli.cmd_connectors_list, types.SimpleNamespace())
     invoke("pair-init", cli.cmd_pair_init, types.SimpleNamespace())
@@ -591,6 +672,12 @@ def _cli_handlers_with_deployer(base: Path) -> dict[str, Any]:
     invoke("plugin-refresh", cli.cmd_plugin_refresh, types.SimpleNamespace())
     invoke("plugin-remove", cli.cmd_plugin_remove, types.SimpleNamespace(name="acme", purge_data=False))
     outputs["pair_key_not_printed"] = sync.key_path().is_file()
+    invalid = Workspace(base, "cli-invalid-secret")
+    store.write_yaml(
+        invalid.root / "work" / "connectors.yaml",
+        {"connectors": [{"kind": "jira", "token": "literal-value"}]},
+    )
+    invoke("connectors-list-invalid", cli.cmd_connectors_list, types.SimpleNamespace())
     return outputs
 
 

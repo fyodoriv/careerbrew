@@ -7,8 +7,10 @@ use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
+use std::os::fd::AsRawFd;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Component, Path, PathBuf};
+use std::process::Command;
 
 pub const MANIFEST: &str = "careerbrew-plugin.yaml";
 pub const RESOURCE_KINDS: &[&str] = &[
@@ -393,6 +395,45 @@ fn step_strings(value: Option<&Value>, field: &str) -> Result<Vec<String>> {
     Ok(out)
 }
 
+fn shell_words(command: &str) -> Vec<String> {
+    let mut words = Vec::new();
+    let mut word = String::new();
+    let mut quoted = None;
+    let mut escaped = false;
+    let mut started = false;
+    for character in command.chars() {
+        if escaped {
+            word.push(character);
+            escaped = false;
+            started = true;
+        } else if character == '\\' {
+            escaped = true;
+            started = true;
+        } else if matches!(character, '\'' | '"') {
+            if quoted == Some(character) {
+                quoted = None;
+            } else if quoted.is_none() {
+                quoted = Some(character);
+            } else {
+                word.push(character);
+            }
+            started = true;
+        } else if character.is_whitespace() && quoted.is_none() {
+            if started {
+                words.push(std::mem::take(&mut word));
+                started = false;
+            }
+        } else {
+            word.push(character);
+            started = true;
+        }
+    }
+    if started {
+        words.push(word);
+    }
+    words
+}
+
 fn command_line(value: Option<&Value>, field: &str) -> Result<()> {
     let Some(value) = value.filter(|value| !value.is_null()) else {
         return Ok(());
@@ -426,14 +467,39 @@ fn command_line(value: Option<&Value>, field: &str) -> Result<()> {
     if quoted.is_some() {
         return Err(error(format!("`{field}` has an unclosed quote")));
     }
-    let first = command
-        .split_whitespace()
-        .next()
-        .unwrap_or("")
-        .rsplit('/')
-        .next()
+    if field != "verify" {
+        return Ok(());
+    }
+    let words = shell_words(command);
+    let mut head = words;
+    if head.first().is_some_and(|word| word == "env") {
+        head = head
+            .into_iter()
+            .skip(1)
+            .filter(|argument| !argument.starts_with('-') && !argument.contains('='))
+            .collect();
+    }
+    if head
+        .first()
+        .is_some_and(|word| matches!(word.as_str(), "sh" | "bash" | "zsh"))
+    {
+        if let Some(index) = head.iter().position(|word| word == "-c") {
+            head = head
+                .get(index + 1)
+                .map(|command| command.split_whitespace().next().unwrap_or("").into())
+                .into_iter()
+                .collect();
+        }
+    }
+    let first = head
+        .first()
+        .map(|word| word.rsplit('/').next().unwrap_or(""))
         .unwrap_or("");
-    if matches!(first, "python" | "python3") || first.starts_with("python3.") {
+    let bare = matches!(first, "python" | "python3")
+        || first.strip_prefix("python3.").is_some_and(|version| {
+            !version.is_empty() && version.bytes().all(|b| b.is_ascii_digit())
+        });
+    if bare {
         return Err(error(format!(
             "`{field}` names its interpreter; never bare {first}"
         )));
@@ -1145,13 +1211,33 @@ fn stamp() -> String {
 }
 
 pub fn add(source: &Path, allow_exec: bool) -> Result<Value> {
+    add_source(&source.to_string_lossy(), allow_exec)
+}
+
+pub fn add_source(source: &str, allow_exec: bool) -> Result<Value> {
     let ctx = context()?;
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/"));
+    let source_path = crate::expand_user(Path::new(source), &home);
+    let local = source_path.is_dir();
     let staging = plugins_dir(&ctx)?.join(".staging");
     let _ = std::fs::remove_dir_all(&staging);
-    if !source.is_dir() {
-        return Err(error("could not clone plugin source"));
+    if local {
+        copy_tree(&source_path, &staging)?;
+    } else {
+        let done = Command::new("git")
+            .args(["clone", "--depth", "1", source])
+            .arg(&staging)
+            .stdin(std::process::Stdio::null())
+            .output()?;
+        if !done.status.success() {
+            let _ = std::fs::remove_dir_all(&staging);
+            return Err(error(
+                "could not clone plugin source (fix: check the URL and your git access)",
+            ));
+        }
     }
-    copy_tree(source, &staging)?;
     let manifest_path = staging.join(MANIFEST);
     if !manifest_path.exists() {
         let _ = std::fs::remove_dir_all(&staging);
@@ -1244,8 +1330,12 @@ pub fn add(source: &Path, allow_exec: bool) -> Result<Value> {
     let entry = json!({
         "name": name,
         "version": value::text(value::get(&manifest, "version")),
-        "source": "local-folder",
-        "local_path": resolved(source).to_string_lossy(),
+        "source": if local { "local-folder" } else { source },
+        "local_path": if local {
+            Value::String(resolved(&source_path).to_string_lossy().into_owned())
+        } else {
+            Value::Null
+        },
         "tree_sha256": tree_hash(&dest)?,
         "installed_at": now,
         "first_installed_at": first,
@@ -1279,19 +1369,19 @@ pub fn refresh() -> Result<Vec<String>> {
     let order = refresh_order(&lock);
     for name in &order {
         let entry = &value::get(&lock, "plugins").unwrap()[name];
-        let source = value::get(entry, "local_path")
+        let local = value::get(entry, "local_path")
             .and_then(Value::as_str)
-            .map(PathBuf::from)
+            .filter(|path| !path.is_empty());
+        let source = local
+            .or_else(|| value::get(entry, "source").and_then(Value::as_str))
+            .filter(|source| *source != "local-folder")
             .ok_or_else(|| error("plugin was installed before refresh existed"))?;
-        if !source.is_dir() {
+        if local.is_some() && !Path::new(source).is_dir() {
             return Err(error(format!(
                 "plugin {name}: its source folder was moved or deleted; the installed copy is unchanged"
             )));
         }
-        add(
-            &source,
-            value::bool_value(value::get(entry, "exec_allowed")),
-        )?;
+        add_source(source, value::bool_value(value::get(entry, "exec_allowed")))?;
     }
     if order.is_empty() {
         sync_command_sources(&lock)?;
@@ -1302,13 +1392,38 @@ pub fn refresh() -> Result<Vec<String>> {
 fn purge_origin(ctx: &Context, origin: &str) -> Result<usize> {
     let day = ctx.root.join("day");
     std::fs::create_dir_all(&day)?;
-    std::fs::OpenOptions::new()
+    let lock = std::fs::OpenOptions::new()
         .append(true)
         .create(true)
         .open(day.join("inbox.lock"))?;
+    // SAFETY: the invocation owns this descriptor; Drop releases the lock.
+    if unsafe { libc::flock(lock.as_raw_fd(), libc::LOCK_EX) } != 0 {
+        return Err(SetupError::io());
+    }
+    let inbox_path = day.join("inbox.json");
+    let inbox = ctx.store().read_json(
+        &inbox_path,
+        careerbrew_vault::canon::Canon::Map(Vec::new()),
+        true,
+    )?;
+    let inbox = value::from_canon(&inbox);
+    let items = value::get(&inbox, "items")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let kept = items
+        .iter()
+        .filter(|item| value::get(item, "origin").and_then(Value::as_str) != Some(origin))
+        .cloned()
+        .collect::<Vec<_>>();
+    let inbox_purged = items.len() - kept.len();
+    if inbox_purged > 0 {
+        ctx.store()
+            .write_json(&inbox_path, &value::to_canon(&json!({"items": kept})))?;
+    }
     let mut files = Vec::new();
     all_files(&ctx.root, &ctx.root, &mut files)?;
-    let mut purged = 0;
+    let mut purged = inbox_purged;
     for path in files {
         if path
             .extension()
