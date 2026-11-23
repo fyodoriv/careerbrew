@@ -345,20 +345,22 @@ pub fn record_update(root: &Path, name: &str, kind: &str, value: &str) -> Result
 }
 
 pub fn session_record(root: &Path, name: &str) -> Result<(Value, bool)> {
-    let every = load(root)?;
-    let record = get(&every, name)?.clone();
-    let identity = text(field(&record, "incarnation_id"));
-    if identity.is_empty() {
-        return Ok((record, true));
-    }
-    if identity.len() != 32
-        || !identity
-            .bytes()
-            .all(|b| b.is_ascii_hexdigit() || b.is_ascii_lowercase())
-    {
-        return Err(ProjectError::project("saved project identity is invalid"));
-    }
-    Ok((record, false))
+    with_lock(root, || {
+        let mut every = load(root)?;
+        get(&every, name)?;
+        let missing = field(&every[name], "incarnation_id").is_none();
+        if missing {
+            every[name]["incarnation_id"] = json!(uuid::Uuid::new_v4().simple().to_string());
+            let record = every[name].clone();
+            save(root, &every)?;
+            return Ok((record, true));
+        }
+        let record = get(&every, name)?.clone();
+        if !valid_identity(&record) {
+            return Err(ProjectError::project("saved project identity is invalid"));
+        }
+        Ok((record, false))
+    })
 }
 
 pub fn root_name(every: &Value, name: &str) -> String {

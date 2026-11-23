@@ -80,16 +80,8 @@ pub fn work_task_set(
     }
 }
 
-pub fn work_impact(
-    root: &Path,
-    id: &str,
-    expected: &str,
-    who: &str,
-    metric: &str,
-    result: &str,
-    evidence: &[String],
-) -> (i32, String) {
-    match priorities::record_impact(root, id, expected, who, metric, result, evidence) {
+pub fn work_impact(root: &Path, id: &str, input: priorities::ImpactInput<'_>) -> (i32, String) {
+    match priorities::record_impact(root, id, input) {
         Ok(task) => {
             let plan = task["expected_impact"]
                 .as_object()

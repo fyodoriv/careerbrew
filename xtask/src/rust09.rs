@@ -86,7 +86,9 @@ fn observed_files(root: &Path, folder: &Path) -> Result<Trace, String> {
         } else if metadata.is_file() {
             let bytes = std::fs::read(&path).map_err(|_| "cannot read rust-09 file")?;
             let mode = metadata.permissions().mode() & 0o777;
-            let content = if bytes.starts_with(b"CBV1\n") {
+            let content = if relative.ends_with("keys/backup.key") {
+                "generated-key".to_owned()
+            } else if bytes.starts_with(b"CBV1\n") {
                 "sealed".to_owned()
             } else if relative.ends_with(".yaml") || relative.ends_with(".yml") {
                 std::str::from_utf8(&bytes)
@@ -311,7 +313,7 @@ fn component_cases(
         cases.push(json!({
             "case": format!("component:{}", expected.id), "kind": "rust-09-component-phase", "passed": passed,
             "exit_matches": actual.ran, "semantic_match": actual.stdout.as_bytes() == expected.stdout.as_bytes(),
-            "comparison": "typed-results+semantic-write-map+phase-write-counts", "normalization": ["owned-path", "sealed-record", "incarnation-id"],
+            "comparison": "typed-results+semantic-write-map+phase-write-counts", "normalization": ["owned-path", "sealed-record", "incarnation-id", "generated-key"],
             "oracle_sha256": capture_actions::digest(expected.stdout.as_bytes()), "candidate_sha256": capture_actions::digest(actual.stdout.as_bytes()),
             "writes_match": extra + missing + changed == 0, "oracle_writes": expected.writes.len(), "candidate_writes": actual.writes.len(),
             "extra_writes": extra, "missing_writes": missing, "changed_writes": changed,

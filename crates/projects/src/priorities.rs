@@ -6,6 +6,7 @@ use crate::{
 };
 use chrono::NaiveDate;
 use serde_json::{json, Value};
+use std::collections::BTreeSet;
 use std::path::Path;
 
 pub const MAX_HOURS: f64 = 200.0;
@@ -264,19 +265,100 @@ pub fn regrade(
     Err(ProjectError::new("KeyError", "unknown task"))
 }
 
-pub fn record_impact(
-    root: &Path,
-    id: &str,
-    expected: &str,
-    who: &str,
-    metric: &str,
-    result: &str,
-    evidence: &[String],
-) -> Result<Value> {
+fn evidence_tags(title: &str, tags: &[String]) -> Vec<String> {
+    let low = title.to_lowercase();
+    let head = low.split_once(':').map(|(head, _)| head).unwrap_or(&low);
+    let head = head
+        .split_once('(')
+        .map(|(head, _)| head)
+        .unwrap_or(head)
+        .trim();
+    let mut out = BTreeSet::new();
+    let kind = match head {
+        "fix" => &["quality"][..],
+        "feat" => &["delivery"][..],
+        "perf" => &["quality", "impact"][..],
+        "refactor" => &["quality"][..],
+        "docs" => &["communication"][..],
+        "test" => &["quality"][..],
+        "ci" => &["tooling"][..],
+        _ => &[][..],
+    };
+    out.extend(kind.iter().map(|tag| (*tag).to_owned()));
+    for (word, tag) in [
+        ("incident", "ownership"),
+        ("mentor", "leadership"),
+        ("design", "design"),
+        ("rfc", "design"),
+        ("migrat", "impact"),
+        ("latency", "impact"),
+        ("review", "collaboration"),
+    ] {
+        if low.contains(word) {
+            out.insert(tag.to_owned());
+        }
+    }
+    out.extend(tags.iter().cloned());
+    out.into_iter().collect()
+}
+
+fn evidence_note(root: &Path, task: &Value, impact: &str, links: &[String]) -> Result<Value> {
+    let when = stamp();
+    let title = text(field(task, "title"));
+    let id = "note:".to_owned()
+        + &careerbrew_vault::helpers::digest(&[
+            careerbrew_setup::value::to_canon(&json!(title)),
+            careerbrew_setup::value::to_canon(&json!(when)),
+        ])?;
+    let mut item = json!({
+        "id": id,
+        "kind": "note",
+        "title": title,
+        "impact": impact,
+        "at": when,
+        "tags": evidence_tags(&title, &crate::strings(field(task, "competencies"))),
+        "origin": "user",
+    });
+    if !links.is_empty() {
+        item["links"] = json!(links);
+    }
+    let context = crate::context()?;
+    let store = context.store();
+    store.append_jsonl(
+        &root.join("work/evidence.jsonl"),
+        &[careerbrew_setup::value::to_canon(&item)],
+    )?;
+    Ok(item)
+}
+
+#[derive(Default)]
+pub struct ImpactInput<'a> {
+    pub expected: &'a str,
+    pub who: &'a str,
+    pub metric: &'a str,
+    pub result: &'a str,
+    pub evidence: &'a [String],
+    pub unsure: bool,
+}
+
+pub fn record_impact(root: &Path, id: &str, input: ImpactInput<'_>) -> Result<Value> {
+    let ImpactInput {
+        expected,
+        who,
+        metric,
+        result,
+        evidence,
+        unsure,
+    } = input;
+    let links_in = evidence
+        .iter()
+        .map(|link| link.trim().to_owned())
+        .filter(|link| !link.is_empty())
+        .collect::<Vec<_>>();
     if [expected, who, metric, result]
         .iter()
         .all(|value| value.is_empty())
-        && evidence.is_empty()
+        && links_in.is_empty()
     {
         return Err(ProjectError::value(
             "nothing to record: pass --expect, --who, --metric, --result, or --evidence",
@@ -305,20 +387,48 @@ pub fn record_impact(
             }
             task["expected_impact"] = Value::Object(plan);
         }
-        if !result.is_empty() || !evidence.is_empty() {
+        if !result.is_empty() || !links_in.is_empty() {
             let mut measured = task["measured_impact"]
                 .as_object()
                 .cloned()
                 .unwrap_or_default();
             if !result.is_empty() {
-                measured.insert("result".into(), json!(result));
+                let normalized = result.split_whitespace().collect::<Vec<_>>().join(" ");
+                let normalized = crate::chars(&normalized, 300);
+                let normalized = if unsure && !result.starts_with("Not sure:") {
+                    format!("Not sure: {normalized}")
+                } else {
+                    normalized
+                };
+                measured.insert("result".into(), json!(normalized));
             }
-            measured.insert("evidence".into(), json!(evidence));
+            let existing = measured
+                .get("evidence")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            let mut merged = Vec::new();
+            for link in existing.iter().map(|link| text(Some(link))).chain(links_in) {
+                if !merged.contains(&link) {
+                    merged.push(link);
+                }
+            }
+            merged.truncate(8);
+            measured.insert("evidence".into(), json!(merged));
             measured.insert("at".into(), json!(stamp()));
             task["measured_impact"] = Value::Object(measured);
         }
         let answer = task.clone();
         save(root, &tasks)?;
+        if !result.is_empty() {
+            let measured = &answer["measured_impact"];
+            evidence_note(
+                root,
+                &answer,
+                &text(field(measured, "result")),
+                &crate::strings(field(measured, "evidence")),
+            )?;
+        }
         return Ok(answer);
     }
     Err(ProjectError::new("KeyError", "unknown task"))

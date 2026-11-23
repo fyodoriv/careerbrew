@@ -102,6 +102,16 @@ pub fn read_yaml(root: &Path, relative: &str, default: Value) -> Result<Value> {
     Ok(careerbrew_setup::value::from_canon(&value))
 }
 
+pub fn read_jsonl(root: &Path, relative: &str) -> Result<Vec<Value>> {
+    let context = context()?;
+    let store = context.store();
+    Ok(store
+        .read_jsonl(&root.join(relative), true)?
+        .iter()
+        .map(careerbrew_setup::value::from_canon)
+        .collect())
+}
+
 pub fn write_yaml(root: &Path, relative: &str, value: &Value) -> Result<()> {
     let context = context()?;
     let store = context.store();
@@ -182,8 +192,18 @@ pub fn python_g(value: f64) -> String {
 }
 
 pub fn python_round(value: f64, digits: i32) -> f64 {
-    let factor = 10_f64.powi(digits);
-    (value * factor).round() / factor
+    if !value.is_finite() {
+        return value;
+    }
+    if digits < 0 {
+        let factor = 10_f64.powi(-digits);
+        return (value / factor).round_ties_even() * factor;
+    }
+    // Rust's exact decimal formatter and Python's round both use ties-even.
+    // Parsing the formatted decimal avoids a binary multiplication changing
+    // values such as 2.675 across the rounding boundary.
+    let precision = digits as usize;
+    format!("{value:.precision$}").parse().unwrap_or(value)
 }
 
 pub fn date(value: &str) -> Result<chrono::NaiveDate> {

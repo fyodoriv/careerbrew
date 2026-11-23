@@ -308,6 +308,38 @@ pub fn open_task_counts(
     counts
 }
 
+pub fn day_result_counts(
+    rows: &[Value],
+    evidence_urls: &serde_json::Map<String, Value>,
+    entries: &[Value],
+) -> serde_json::Map<String, Value> {
+    let mut counts = entries
+        .iter()
+        .map(|entry| (text(field(entry, "name")), json!(0)))
+        .collect::<serde_json::Map<_, _>>();
+    for row in rows {
+        let id = text(field(row, "id"));
+        let url = evidence_urls
+            .get(&id)
+            .map(|value| text(Some(value)))
+            .unwrap_or_default();
+        let keys = keys(
+            &text(field(row, "title")),
+            &repo_of(&id, &url),
+            &url,
+            "",
+            entries,
+        );
+        if let Some(hit) = matching(&keys, entries) {
+            let name = text(field(&hit, "name"));
+            if let Some(count) = counts.get_mut(&name) {
+                *count = json!(count.as_u64().unwrap_or(0) + 1);
+            }
+        }
+    }
+    counts
+}
+
 pub fn summary(root: &Path) -> Result<Vec<Value>> {
     // Python's day-results reader creates its directory during this summary.
     std::fs::create_dir_all(root.join("day"))?;
@@ -315,14 +347,25 @@ pub fn summary(root: &Path) -> Result<Vec<Value>> {
     let linked = crate::projects::task_projects(root)?;
     let tasks = crate::priorities::load(root)?;
     let counts = open_task_counts(&tasks, &linked, &entries);
+    let evidence = crate::read_jsonl(root, "work/evidence.jsonl")?;
+    let urls = evidence
+        .iter()
+        .map(|row| (text(field(row, "id")), json!(text(field(row, "url")))))
+        .collect::<serde_json::Map<_, _>>();
+    let results = crate::read_jsonl(
+        root,
+        &format!("day/{}.jsonl", crate::today().format("%Y-%m-%d")),
+    )?;
+    let today_counts = day_result_counts(&results, &urls, &entries);
     Ok(entries
         .into_iter()
         .map(|entry| {
             let name = text(field(&entry, "name"));
             let open = counts.get(&name).cloned().unwrap_or_else(|| json!(0));
+            let today = today_counts.get(&name).cloned().unwrap_or_else(|| json!(0));
             let mut row = entry.as_object().expect("entry object").clone();
             row.insert("open_tasks".into(), open);
-            row.insert("today".into(), json!(0));
+            row.insert("today".into(), today);
             Value::Object(row)
         })
         .collect())

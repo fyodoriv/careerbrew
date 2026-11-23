@@ -67,6 +67,43 @@ fn selected(value: &Value, keys: &[&str]) -> Value {
     Value::Object(out)
 }
 
+fn identity_controls(root: &Path, name: &str) -> Result<Value> {
+    projects::with_lock(root, || {
+        let mut every = projects::load(root)?;
+        every[name]
+            .as_object_mut()
+            .expect("project object")
+            .remove("incarnation_id");
+        projects::save(root, &every)
+    })?;
+    let (staged, migrated) = projects::session_record(root, name)?;
+    let generated = text(field(&staged, "incarnation_id"));
+    let persisted = text(field(&projects::load(root)?[name], "incarnation_id"));
+    let (repeated, repeat_migrated) = projects::session_record(root, name)?;
+    let mut invalid = Vec::new();
+    for bad in ["A".repeat(32), "g".repeat(32), "abc".to_owned()] {
+        projects::with_lock(root, || {
+            let mut every = projects::load(root)?;
+            every[name]["incarnation_id"] = json!(bad);
+            projects::save(root, &every)
+        })?;
+        invalid.push(error(projects::session_record(root, name).map(|_| ())));
+    }
+    projects::with_lock(root, || {
+        let mut every = projects::load(root)?;
+        every[name]["incarnation_id"] = json!(generated);
+        projects::save(root, &every)
+    })?;
+    Ok(json!({
+        "migrated": migrated,
+        "generated_shape": projects::valid_identity(&staged),
+        "persisted": persisted == generated,
+        "repeat_migrated": repeat_migrated,
+        "repeat_stable": text(field(&repeated, "incarnation_id")) == generated,
+        "invalid": invalid,
+    }))
+}
+
 fn project_lifecycle(base: &Path) -> Result<Value> {
     let workspace = Workspace::new(base, "project-lifecycle")?;
     if std::env::var("CAREERBREW_RUST09_PLANT_WRITE").as_deref() == Ok("extra") {
@@ -144,6 +181,7 @@ fn project_lifecycle(base: &Path) -> Result<Value> {
             "goal_rows": goals_raw.split(|byte| *byte == b'\n').filter(|line| !line.is_empty()).count() - 1,
         },
         "identity": {"shape": projects::valid_identity(&every["search"]), "stable": first == second, "migrated": migrated},
+        "identity_controls": identity_controls(root, "checkout")?,
         "relations": {"parent": text(field(&every["search-ranking"], "parent")), "links": every["search-ranking"]["links"], "root": projects::root_name(&every, "search-ranking"), "notes_path": projects::notes_path(&every, "search-ranking")},
         "sources": sources,
         "approval": {"kind": text(field(&restricted["latest_update"], "kind")), "restricted_has_text": restricted["latest_update"].get("text").is_some(), "stored": text(field(every["search"]["updates"].as_array().and_then(|rows| rows.last()).expect("approval"), "text")) == "SYNTHCANARY approval"},
@@ -296,14 +334,53 @@ fn priorities_tickets(base: &Path) -> Result<Value> {
     let impacted = priorities::record_impact(
         root,
         "t001",
-        "Fewer synthetic failures",
-        "support",
-        "failures per day",
-        "",
-        &[],
+        priorities::ImpactInput {
+            expected: "Fewer synthetic failures",
+            who: "support",
+            metric: "failures per day",
+            ..Default::default()
+        },
     )?;
     let done = priorities::done(root, "t001", json!(1))?;
     let already_done = error(priorities::done(root, "t001", json!(1)).map(|_| ()));
+    let old_link = "https://evidence.example.com/old".to_owned();
+    let new_link = "https://evidence.example.com/new".to_owned();
+    priorities::record_impact(
+        root,
+        "t001",
+        priorities::ImpactInput {
+            evidence: &[old_link.clone(), old_link.clone()],
+            ..Default::default()
+        },
+    )?;
+    std::env::set_var("CAREERBREW_ENCRYPT", "on");
+    let measured = priorities::record_impact(
+        root,
+        "t001",
+        priorities::ImpactInput {
+            result: "  Fewer   failures ",
+            evidence: &[old_link.clone(), new_link.clone()],
+            ..Default::default()
+        },
+    )?;
+    let evidence_path = root.join("work/evidence.jsonl");
+    let evidence_lock = root.join("work/.evidence.jsonl.lock");
+    let notes = crate::read_jsonl(root, "work/evidence.jsonl")?
+        .iter()
+        .filter(|row| text(field(row, "kind")) == "note")
+        .map(|row| {
+            selected(
+                row,
+                &[
+                    "id", "kind", "title", "impact", "at", "tags", "origin", "links",
+                ],
+            )
+        })
+        .collect::<Vec<_>>();
+    let rounding = [1.125, -1.125, 1.135, 1.124999999, 1.125000001, -1.125000001]
+        .into_iter()
+        .map(|value| crate::python_round(value, 2))
+        .collect::<Vec<_>>();
     Ok(json!({
         "entries": entries,
         "configured_keys": configured,
@@ -317,6 +394,14 @@ fn priorities_tickets(base: &Path) -> Result<Value> {
         "ranked": ranked.iter().map(priority_view).collect::<Vec<_>>(),
         "regraded": selected(&regraded, &["id", "impact", "urgency", "estimate_h"]),
         "impact": impacted["expected_impact"],
+        "measured_result": {
+            "task": measured["measured_impact"],
+            "notes": notes,
+            "sealed": std::fs::read(&evidence_path)?.starts_with(b"CBV1\n"),
+            "mode": std::fs::metadata(&evidence_path)?.permissions().mode() & 0o777,
+            "lock": {"exists": evidence_lock.exists(), "mode": std::fs::metadata(&evidence_lock)?.permissions().mode() & 0o777},
+        },
+        "rounding": rounding,
         "done": selected(&done, &["id", "status", "actual_h", "estimate_h"]),
         "already_done": already_done,
         "focus_blocks": focus::blocks(),
@@ -503,6 +588,31 @@ fn cli_handlers(base: &Path) -> Result<Value> {
     let (exit, stdout) =
         cli::work_priority(root, "set", "billing", Some(1), Some(vec!["BILL-*".into()]));
     let priority_set = cli::invocation(exit, stdout);
+    let (exit, stdout) = cli::work_priority(root, "set", "api", None, Some(vec!["API-*".into()]));
+    let priority_set_api = cli::invocation(exit, stdout);
+    let rows = [
+        json!({"id": "result-1", "at": "2026-11-02T08:00:00Z", "kind": "ticket", "title": "BILL-100", "source": "synthetic", "origin": "user"}),
+        json!({"id": "result-2", "at": "2026-11-02T08:01:00Z", "kind": "ticket", "title": "BILL-101 API-2", "source": "synthetic", "origin": "user"}),
+        json!({"id": "result-3", "at": "2026-11-02T08:02:00Z", "kind": "other", "title": "unmatched", "source": "synthetic", "origin": "user"}),
+    ];
+    let context = crate::context()?;
+    let store = context.store();
+    store.upsert_jsonl(
+        &root.join("day/2026-11-02.jsonl"),
+        &rows
+            .iter()
+            .map(careerbrew_setup::value::to_canon)
+            .collect::<Vec<_>>(),
+        &[
+            "kind",
+            "title",
+            "draft",
+            "state",
+            "merged_at",
+            "feed_source",
+        ],
+    )?;
+    std::env::set_var("CAREERBREW_ENCRYPT", "on");
     let (exit, stdout) = cli::work_priority(root, "show", "", None, None);
     let priority_show = cli::invocation(exit, stdout);
     let (exit, stdout) = cli::work_task_set(root, "t001", Some(4), Some(5), Some(json!(1.5)));
@@ -510,18 +620,43 @@ fn cli_handlers(base: &Path) -> Result<Value> {
     let (exit, stdout) = cli::work_impact(
         root,
         "t001",
-        "Fewer synthetic failures",
-        "support",
-        "failures per day",
-        "",
-        &[],
+        priorities::ImpactInput {
+            expected: "Fewer synthetic failures",
+            who: "support",
+            metric: "failures per day",
+            ..Default::default()
+        },
     );
     let impact = cli::invocation(exit, stdout);
     let (exit, stdout) = cli::work_done(root, "t001", json!(1));
     let done = cli::invocation(exit, stdout);
+    let evidence = vec![
+        "https://evidence.example.com/old".into(),
+        "https://evidence.example.com/new".into(),
+    ];
+    let (exit, stdout) = cli::work_impact(
+        root,
+        "t001",
+        priorities::ImpactInput {
+            result: "  CLI   result ",
+            evidence: &evidence,
+            ..Default::default()
+        },
+    );
+    let impact_result = cli::invocation(exit, stdout);
+    let (exit, stdout) = cli::work_impact(
+        root,
+        "t001",
+        priorities::ImpactInput {
+            result: "uncertain",
+            unsure: true,
+            ..Default::default()
+        },
+    );
+    let impact_unsure = cli::invocation(exit, stdout);
     let (exit, stdout) = cli::work_task_set(root, "t001", None, None, None);
     let task_set_empty = cli::invocation(exit, stdout);
-    let (exit, stdout) = cli::work_impact(root, "t001", "", "", "", "", &[]);
+    let (exit, stdout) = cli::work_impact(root, "t001", priorities::ImpactInput::default());
     let impact_empty = cli::invocation(exit, stdout);
     match std::env::var("CAREERBREW_RUST09_PLANT_WRITE").as_deref() {
         Ok("missing") => std::fs::remove_file(root.join("work/tasks.yaml"))?,
@@ -532,9 +667,11 @@ fn cli_handlers(base: &Path) -> Result<Value> {
         }
         _ => {}
     }
-    Ok(
-        json!({"priority_set": priority_set, "priority_show": priority_show, "task_set": task_set, "impact": impact, "done": done, "task_set_empty": task_set_empty, "impact_empty": impact_empty}),
-    )
+    Ok(json!({
+        "priority_set": priority_set, "priority_set_api": priority_set_api, "priority_show": priority_show,
+        "task_set": task_set, "impact": impact, "done": done, "impact_result": impact_result,
+        "impact_unsure": impact_unsure, "task_set_empty": task_set_empty, "impact_empty": impact_empty
+    }))
 }
 
 fn run(case: &str, base: &Path) -> Result<Value> {

@@ -66,6 +66,14 @@ def test_project_priority_promise_lock_and_cli_contracts_match_python(candidate,
 
         lifecycle = case(report, "project-lifecycle")
         assert lifecycle["identity"] == {"shape": True, "stable": True, "migrated": False}
+        assert lifecycle["identity_controls"] == {
+            "migrated": True,
+            "generated_shape": True,
+            "persisted": True,
+            "repeat_migrated": False,
+            "repeat_stable": True,
+            "invalid": ["ProjectError"] * 3,
+        }
         assert lifecycle["approval"] == {"kind": "approval", "restricted_has_text": False, "stored": True}
         assert lifecycle["errors"] == {"duplicate": "ProjectError", "kind": "ProjectError", "graph": "ProjectError", "remove": "ProjectError"}
         assert lifecycle["relations"]["parent"] == "search"
@@ -95,6 +103,25 @@ def test_project_priority_promise_lock_and_cli_contracts_match_python(candidate,
         assert [row["id"] for row in priority["ranked"]] == ["t001", "t002"]
         assert priority["done"]["status"] == "done"
         assert priority["already_done"] == "ValueError"
+        assert priority["rounding"] == [{"float": value} for value in ("1.12", "-1.12", "1.14", "1.12", "1.13", "-1.13")]
+        measured = priority["measured_result"]
+        assert measured["task"]["result"] == "Fewer failures"
+        assert measured["task"]["evidence"] == ["https://evidence.example.com/old", "https://evidence.example.com/new"]
+        assert measured["sealed"] is True
+        assert measured["mode"] == measured["lock"]["mode"] == {"int": "420"}
+        assert measured["lock"]["exists"] is True
+        assert measured["notes"] == [
+            {
+                "at": "2026-11-02T09:00:00+00:00",
+                "id": "note:a63a72eb6db63c2821cf5039",
+                "impact": "Fewer failures",
+                "kind": "note",
+                "links": ["https://evidence.example.com/old", "https://evidence.example.com/new"],
+                "origin": "user",
+                "tags": [],
+                "title": "Fix UTF-8 and BILL-42",
+            }
+        ]
 
         promise = case(report, "promise-lifecycle")
         assert promise["initial"][0]["title"] == "Send the rollout notes tomorrow"
@@ -131,5 +158,11 @@ def test_project_priority_promise_lock_and_cli_contracts_match_python(candidate,
         assert "done t001 (1.0h vs 1.5h planned)" in handlers["done"]["stdout"]
         assert "nothing to change" in handlers["task_set_empty"]["stdout"]
         assert "nothing to record" in handlers["impact_empty"]["stdout"]
+        assert "2 items today" in handlers["priority_show"]["stdout"]
+        assert "api" in handlers["priority_show"]["stdout"] and "0 items today" in handlers["priority_show"]["stdout"]
+        assert handlers["impact_result"]["exit"] == handlers["impact_unsure"]["exit"] == {"int": "0"}
+        assert "measured yes, 2 evidence link(s)" in handlers["impact_result"]["stdout"]
+        assert "the daily update and promo evidence use the result now" in handlers["impact_result"]["stdout"]
+        assert "measured yes" in handlers["impact_unsure"]["stdout"]
         answers.append(done.stdout)
     assert answers[0] == answers[1]
