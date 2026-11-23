@@ -212,6 +212,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "careerbrew-projects"
+version = "0.1.0"
+dependencies = [
+ "careerbrew-setup",
+ "careerbrew-vault",
+ "chrono",
+ "glob",
+ "regex",
+ "serde_json",
+ "sha2",
+ "uuid",
+]
+
+[[package]]
 name = "careerbrew-purevec"
 version = "0.1.0"
 dependencies = [
