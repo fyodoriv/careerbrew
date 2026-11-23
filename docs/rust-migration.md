@@ -667,6 +667,9 @@ HTTP client crate is pinned yet.
 | Fernet tokens (data at rest, backups) | `fernet` (feature `rustcrypto`) | 0.2.2 | MIT | kept | already pinned by `crates/vault`; the `fernet` vector set: Python-made tokens open in Rust and Rust-made tokens open in Python, old plaintext and a 2020 token still read, a wrong key, a tampered or a truncated token fail on both sides, and a token stamped in the future opens on both sides: Python checks no time without a TTL, so `careerbrew_vault::decrypt_like_python` passes the crate a clock no earlier than the token's stamp (feature `fernet_danger_timestamps`; the MAC and cipher checks stay the crate's). Its AES, CBC, HMAC and SHA-256 come from the RustCrypto crates (`aes`, `cbc`, `hmac`, `sha2`, MIT OR Apache-2.0); no crypto code is ours. It has no way to pass the IV, so a seal vector compares the envelope's shape and plaintext, not its bytes |
 | Fernet tokens | `fernet` (default feature `openssl`) | 0.2.2 | MIT | rejected | needs a system OpenSSL to build and link; `rustcrypto` gives the same tokens in pure Rust |
 | Base64 for tokens | `base64` | 0.22.1 | MIT OR Apache-2.0 | kept | already pinned by `crates/vault`; the strict check `backup.verify` makes (`open-strict` vectors) and the Python-compatible lenient read in `careerbrew-vault` |
+| Backup tar archives | `tar` | 0.4.46 | MIT OR Apache-2.0 | kept | maintained tar reader/writer behind `crates/vault/src/backup.rs`; default features off; Python↔Rust create/verify/restore controls in rust-06 |
+| Backup gzip compression | `flate2` | 1.1.11 | MIT OR Apache-2.0 | kept | maintained gzip stream behind the same adapter; `rust_backend` only; Python↔Rust archive controls in rust-06 |
+| Plugin resource paths | `glob` | 0.3.4 | MIT OR Apache-2.0 | kept | maintained glob matching behind the locked-plugin ladder adapter; valid, escaping and symlink controls in rust-06 |
 | FSRS card schedule | `fsrs` | 7.0.0 | BSD-3-Clause | kept | official Open Spaced Repetition crate (release 2026-11); `FSRS6_DEFAULT_PARAMETERS` equal py-fsrs 6.3.2 `DEFAULT_PARAMETERS` (`parameters` vector) and its FSRS-6 formulas match py-fsrs's (18 `fsrs` vectors). Version 7 no longer pulls `burn`. New dependencies: `ndarray`, `rayon`, `rand` 0.10, `rand_distr`, `itertools`, `snafu`, `num-*`, `crossbeam-*`, `either`, `matrixmultiply`, `rawpointer`, `portable-atomic*`, `chacha20`, `cpufeatures`, `getrandom`, `heck`, `autocfg`, `r-efi` (MIT OR Apache-2.0, `r-efi` also LGPL-2.1-or-later as an option), `bytemuck`, `wide`, `safe_arch` (Zlib OR Apache-2.0 OR MIT), `libm` (MIT) |
 | FSRS card schedule | `rs-fsrs` | 1.2.1 | non-standard (crates.io) | rejected | last release 2024-10; no SPDX licence on crates.io; it predates the 21-weight FSRS-6 set with a trainable decay that py-fsrs 6.3.2 uses |
 | FSRS learning steps, state and due time | (none) | | | adapter | the `fsrs` crate has the memory model only; py-fsrs's step and state rules are a small adapter in `crates/depvec/src/fsrs_schedule.rs`, checked by the `schedule` vectors |
@@ -1635,6 +1638,85 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native backup, restore and sync.
 - **Gate:** 100% of valid archives restore; 100% of tampered, truncated or
   trailing-junk archives are rejected; 0 unapproved exports or lost files.
+- **Component slice (native adapters, no production dispatch):**
+  - `crates/vault/src/backup.rs` ports archive creation, strict verification,
+    restore and retention. `sync.rs` ports pairing keys, the two-setting export
+    allowlist, and corporate import validation. `transfer.rs` adapts
+    `cmd_backup_create`, `cmd_backup_restore`, `cmd_backup_verify`,
+    `cmd_data_status`, `cmd_pair_join`, `cmd_sync_export` and `cmd_sync_import`.
+    The synthetic-only binary is `vault-sync`; it is not a shipped crate or a
+    production route.
+  - Archive base64 decoding is strict, including after completed padding. This
+    intentionally remains different from the lenient vault-token reader.
+    Restore validates every member, every corporate data rule and every
+    existing destination link before the first write. `machine.yaml` does not
+    cross machines. Backup, pairing and sync destinations stay outside the data
+    root; new archives and keys use mode 0600. Corporate cloud detection keeps
+    the exact Python set, including `pCloud Drive` and `Sync`, for both create
+    and restore.
+  - Ladder reads follow Python's source order: base resources, sorted locked
+    plugins, then user ladders. Every source uses the encrypting store and its
+    key adapter, including user ladders. The plugin adapter reads each lock
+    entry and manifest, carries `origin` and source path, and rejects missing,
+    escaping or symlinked resources before import. Validation requires id,
+    levels and competencies, every competency field, an expectation per level,
+    and mapping-shaped descriptions/examples. Differential cases apply valid
+    plugin and encrypted user ladders, then prove escape, symlink and malformed
+    resource refusals.
+  - `tests/oracles/rust06.py` and `synthetic_transfer.rs` run twelve stateful
+    groups: roundtrip and conflicts, strict rejection, malicious names and
+    links, corporate restore, key/target guards, sync roundtrip/refusals,
+    import allowlists, plugin ladders, user ladders and all seven successful
+    handler outputs. `xtask` also
+    creates a real archive with each engine, then verifies and restores it with
+    the other. Both directions compare restored content and modes directly.
+  - Random Fernet ciphertext and gzip bytes are not compared. The report uses
+    typed results, decrypted content hashes, modes, semantic file state and
+    error classes. Only the volatile archive timestamp/hash in CLI output is
+    normalized, to `careerbrew-<archive>.cbk`; no other output is normalized.
+    Reports contain no key, bundle plaintext or synthetic record text.
+  - Verify runs every group as a phase in one owned synthetic home. It compares
+    each phase's semantic write map and per-path write counts, including inode
+    and modification time for same-byte rewrites. Extra, changed, missing and
+    duplicate writes increment their own counters; policy output mismatches
+    also increment role or authorization. Real extra, missing and duplicate
+    native-write plants must each make `decide` return `keep-python`.
+  - Write normalization is explicit: archive names, generated keys, sealed
+    records and bundle ciphertext become type markers; plaintext YAML/JSON is
+    hashed by parsed typed value; other plaintext keeps its content hash. A
+    symlink target is normalized only after proving it stays inside the owned
+    root. No absolute path or private value enters the record.
+  - The step binds the Python oracle and call closure, native adapters, reused
+    rust-05 providers, harness sources, candidate bytes and the generic ladder
+    fixture. Baseline, verify and measure share source revision, evidence-source
+    and fixture hashes; verify and measure also share candidate SHA-256. Both
+    noise floors remain `unmeasured`, so the 1.10 ratio applies fail-closed.
+  - Production Python, `config/native-routes.txt`, shipped crates and activation
+    tables are unchanged. Component parity does not activate backup or sync.
+- **Component measurement after all review fixes (2026-11-23, macOS):**
+  - Clean source revision `82155d47240295fc0afd6e1c7bd2a480abbd37f6`.
+    All three records share evidence-source hash
+    `2436e1e3e21aade145bcb37b9e7c309cfd2419de033431429e0361557063ff38`
+    and fixture hash
+    `6d97d35d117ce9225bb95ac1d92dd2376b02fb25b588a5ea73f94526dcb82ad5`.
+    Verify and measure share release-candidate SHA-256
+    `25ef7a6b6fb3c8ff32b6dc03668a44b40c61267c617739225964526dcbbb59f2`.
+    The earlier `394f7641` and `c1910a6b` verdicts are superseded and do not
+    cover these bytes.
+  - Baseline: 30 runs. Verify: 13/13 checks with 0 contract, privacy, role,
+    authorization, side-effect, missing-write or duplicate-write violations.
+    Measurement: 30 unique, uncached pairs in each regime.
+  - Cold CPU p95 was 280,341 to 76,755 microseconds; warm was 285,561 to
+    80,266. Paired cold tree-RSS maximum was 46,858,240 to 8,552,448 bytes;
+    warm was 46,907,392 to 8,568,832. Each ratio is below 1.10. The
+    unmeasured noise floors keep the ratio fail-closed.
+  - `migration decide --step rust-06` returned `activate` with no reasons.
+    Real extra, missing and duplicate native-write controls each returned
+    `keep-python` with `verify-check-failed` and `verify-violation`; their
+    side-effect, missing-write and duplicate-write counters respectively are
+    nonzero. This is the component verdict only. Production backup, sync and
+    storage routes remain Python; activation still needs the complete native
+    closure, fresh acceptance records and rollback evidence.
 
 ### rust-07: Port plugin, machine and account setup
 

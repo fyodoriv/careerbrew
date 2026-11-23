@@ -10,7 +10,7 @@ use crate::json_yaml::{self, json_line};
 use crate::lock;
 use std::fs::OpenOptions;
 use std::io::{ErrorKind, Read, Write};
-use std::os::unix::fs::OpenOptionsExt;
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Component, Path};
 
 pub trait KeyProvider {
@@ -151,6 +151,8 @@ impl<'a> Store<'a> {
     }
 
     pub fn write_text(&self, path: &Path, text: &str) -> Result<(), StoreError> {
+        std::fs::create_dir_all(&self.root)?;
+        let _ = std::fs::set_permissions(&self.root, std::fs::Permissions::from_mode(0o700));
         let seal = self.encryption_enabled() && self.sealable(path);
         let key = if seal { Some(self.key(true)?) } else { None };
         atomic::write_text(path, key.as_deref(), seal, text)
