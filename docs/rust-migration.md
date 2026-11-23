@@ -1862,6 +1862,28 @@ the crate until the rust-05 and rust-07 closure is native, so
   verifier compares exact typed output, semantic writes and per-phase write
   transitions; planted extra, missing and duplicate writes must fail. Production
   Python, native routes, shipped crates and activation tables are unchanged.
+- **Component measurement (2026-11-23, macOS):**
+  - Clean source revision `23992167c93f1218f64a27c1b392833ee7b4fff8`.
+    All three records share evidence-source hash
+    `58289a84b6bcfded6e9f75829261fd46b1b059b5f8fb9d2c3640f1b6a80c5339`
+    and fixture hash
+    `6c6e83b98ed7ef0a84d82f6477a29704679d0eb44d5758b858a0e3f19d1f4439`.
+    Verify and measure share release-candidate SHA-256
+    `b4d1b4a1ba70be850a1d66b2a4554d3cbd275f11ceb90bba6d23d5c429c2771f`.
+  - Baseline: 30 runs. Verify: 6/6 checks with zero contract, privacy, role,
+    authorization, side-effect, missing-write or duplicate-write violations.
+    Measurement: 30 unique, uncached pairs in each regime.
+  - Cold CPU p95 was 292,729 to 12,072 microseconds; warm was 294,053 to
+    11,926. Cold tree-RSS p95 was 56,934,400 to 9,977,856 bytes; warm was
+    56,508,416 to 9,994,240. Each ratio is below 1.10. The unmeasured noise
+    floors keep the ratio fail-closed.
+  - `migration decide --step rust-08` returned `activate` with no reasons.
+    Real extra, missing and duplicate native-write controls each returned
+    `keep-python` with `verify-check-failed` and `verify-violation`; their
+    side-effect, missing-write and duplicate-write counters respectively are
+    nonzero. This is the component verdict only. Production source, calendar,
+    mail and storage routes remain unchanged; activation still needs the
+    complete native closure, fresh acceptance records and rollback evidence.
 
 ### rust-09: Port projects, priorities and promises
 
