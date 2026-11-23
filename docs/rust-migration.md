@@ -1743,6 +1743,14 @@ the crate until the rust-05 and rust-07 closure is native, so
   facts from `check_facts`; `plugins.installed()` re-checks every installed
   manifest with `validate_manifest` and refuses an invalid one (`remove` skips
   the check so the owner can still uninstall it).
+- **Component oracle baseline before native implementation (2026-11-23, macOS):**
+  clean source revision `89d9b0cd89ab611c9615672aef67cd3ce7617f32`; 30 runs;
+  CPU p50/p95 271,886/291,160 microseconds and tree-RSS p50/p95
+  48,791,552/49,086,464 bytes. Evidence-source hash
+  `4cdc1f8ff96b3088bb592df2bcd47f9fad43a37ee82fad77387d179f64062ad6`;
+  fixture hash `940d3c5822659c7eaef80649a92c7a7582b3d6662f330a5fe12da3b8d1d3c1a2`.
+  The baseline covers nine synthetic groups, including all eleven owned CLI
+  handlers. This is the pre-native prediction record, not a speed result.
 
 ### rust-08: Port HTTP sources, calendar and mail
 
