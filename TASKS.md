@@ -111,17 +111,6 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: any contract disagreement, privacy violation or missing/duplicate write, or CPU/RSS ratio >1.10 B, blocks rollout. Rework the adapter or dependency, register the new approach and remeasure; keep the last verified handler. Preparation fails on any accepted planted defect or unsupported required contract.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
 
-- [ ] Rust migration: Port project imports, exact source links and memory sync
-  - **ID**: rust-11
-  - **Blocked**: prerequisite: rust-08, rust-09 must land and pass its acceptance gates first
-  - **Details**: Port exact URL and repository identity rules, imported project mapping and digest-based memory sync. Preserve modes and concurrent owner appends; avoid broadening an item URL to repository scope. Follow the measured Rust migration plan in `docs/rust-migration.md`: step `rust-11` in "Work breakdown" (its inputs, outputs and gate), "Scope", and "Measurement protocol for every step". Split large capabilities into independently measured PRs. Port this capability's CLI handlers and the assertions of its test files in this step, and route its own commands to native code when its activation closure is native; do not defer them to rust-26 or rust-27 ("Every module has an owner step" lists them). A component-only result does not enable production dispatch: the plan's full native activation closure must be measured before switching.
-  - **Files**: src/careerbrew/work/research.py; project_import.py; memory_sync.py
-  - **Hypothesis**: replacing this slice preserves 100% of its registered behavior with 0 privacy/policy/side-effect violations; native CPU-time p95 and peak RSS stay at or below 1.10 times measured baseline B. Preparation steps instead prove their harness/dependency controls before any product switch. No current speed result is claimed.
-  - **Measurement**: After rust-00 creates the harness: `heavy-run --exclusive cargo xtask migration baseline --step rust-11`, `heavy-run cargo xtask migration verify --step rust-11`, `heavy-run --exclusive cargo xtask migration measure --step rust-11 --pairs 30`, then `cargo xtask migration decide --step rust-11`. Commit the baseline and prediction before implementation.
-  - **Success**: 100% identity/sync fixtures agree; 0 wrong-project matches, lost appends or changed file modes. All applicable shared parity/resource gates pass; whole-repo fast/full checks remain green.
-  - **Pivot**: any contract disagreement, privacy violation or missing/duplicate write, or CPU/RSS ratio >1.10 B, blocks rollout. Rework the adapter or dependency, register the new approach and remeasure; keep the last verified handler. Preparation fails on any accepted planted defect or unsupported required contract.
-  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
-
 - [ ] Rust migration: Port project learning, replay, tours and explainers
   - **ID**: rust-12
   - **Blocked**: prerequisite: rust-09, rust-11 must land and pass its acceptance gates first
