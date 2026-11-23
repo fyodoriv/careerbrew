@@ -1677,9 +1677,26 @@ the crate until the rust-05 and rust-07 closure is native, so
     noise floors remain `unmeasured`, so the 1.10 ratio applies fail-closed.
   - Production Python, `config/native-routes.txt`, shipped crates and activation
     tables are unchanged. Component parity does not activate backup or sync.
-- **Measurement state:** the earlier `394f7641` candidate verdict is superseded
-  by the cloud/plugin review fixes. It is not evidence for the changed bytes.
-  A new clean-source baseline, verify, measure and decide chain is required.
+- **Component measurement after review fixes (2026-11-23, macOS):**
+  - Clean source revision `c1910a6b22532b2f27c0f665143b1e18cac945e0`.
+    All three records share evidence-source hash
+    `e03fb0c137c7732d026a47423428e4a0a300bce84529f9b4ea4f208122a04d32`
+    and fixture hash
+    `6d97d35d117ce9225bb95ac1d92dd2376b02fb25b588a5ea73f94526dcb82ad5`.
+    Verify and measure share release-candidate SHA-256
+    `be9d1be360fba5917677dccc5417889d6cf7ffc3e736fe27e12aa6cb1306395d`.
+    The earlier `394f7641` verdict is superseded and does not cover these bytes.
+  - Baseline: 30 runs. Verify: 2/2 checks with 0 contract, privacy, role,
+    authorization, side-effect, missing-write or duplicate-write violations.
+    Measurement: 30 unique, uncached pairs in each regime.
+  - Cold CPU p95 was 278,334 to 72,858 microseconds; warm was 281,922 to
+    75,425. Paired cold tree-RSS maximum was 49,135,616 to 8,437,760 bytes;
+    warm was 46,809,088 to 8,437,760. Each ratio is below 1.10. The
+    unmeasured noise floors keep the ratio fail-closed.
+  - `migration decide --step rust-06` returned `activate` with no reasons.
+    This is the component verdict only. Production backup, sync and storage
+    routes remain Python; activation still needs the complete native closure,
+    fresh acceptance records and rollback evidence.
 
 ### rust-07: Port plugin, machine and account setup
 
