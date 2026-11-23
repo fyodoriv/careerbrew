@@ -9,8 +9,8 @@ repository can do any step from this page and the task block.
   actions` routes to `careerbrew-native` since `rust-03` activated
   (2026-11-19, [rust-03 verdict](#rust-03-verdict)). No other gain is claimed. See [Current state](#current-state) and
   [State of rust-00](#state-of-rust-00).
-- **Next task:** `rust-10` (sessions, claims, agents and reply drafts).
-  `rust-00` through `rust-09` have their recorded preparation or component
+- **Next task:** `rust-11` (project imports, exact source links and memory sync).
+  `rust-00` through `rust-10` have their recorded preparation or component
   results; only the `rust-03` action catalog is active in production. Follow-ups
   and later activation closure remain tasks in `TASKS.md`.
 - **How to read it:** the [goal](#goal-and-vision) and [decision](#decision-and-rejected-alternatives),
@@ -2055,6 +2055,25 @@ the crate until the rust-05 and rust-07 closure is native, so
   The custom verifier compares exact typed output, semantic writes and per-phase
   write transitions; planted extra, missing and duplicate writes must fail.
   Production Python, native routes, shipped crates and activation are unchanged.
+- **Component acceptance (2026-11-23, macOS):** clean source revision
+  `07f4e18a903dacda40cb6974f9e8c86d0d6f6d1c`; evidence-source hash
+  `acda0222ee11b40e2c3a35b387d08935f3d06a3c38bc9d8467bdd74ab187243d`;
+  fixture hash `5a22d252c0cd1fd4e2235907960fa9b7570ea1dd348af41f9bcb9ec715cf4895`;
+  release-candidate SHA-256
+  `946bb97799bf1ce325986758414b88926f91401ef99d7442a68ecc5692292531`.
+  Baseline: 30 runs. Verify: 6/6 checks with zero contract, privacy,
+  side-effect, missing-write or duplicate-write violations. Measurement: 30
+  unique, uncached pairs in each regime. Cold CPU p95 was 735,739 to 156,838
+  microseconds; warm was 736,824 to 156,492. Cold tree-RSS p95 was 60,555,264
+  to 11,550,720 bytes; warm was 60,702,720 to 11,550,720. Each ratio is below
+  1.10; the unmeasured noise floors apply that ratio without relaxation.
+  `migration decide --step rust-10` returned component-only `activate` with no
+  reasons. Fresh extra, missing and duplicate native-write controls each
+  returned `keep-python` with `verify-check-failed` and `verify-violation`;
+  their respective violation counters are nonzero. The native hosted test also
+  executes 1,000 locked draft operations. Production routes, shipped crates and
+  activation remain unchanged; activation needs the complete native closure,
+  fresh acceptance records and rollback evidence.
 
 ### rust-11: Port project imports, exact source links and memory sync
 
