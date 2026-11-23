@@ -288,24 +288,40 @@ pub fn bonus(rank: usize, count: usize) -> f64 {
     }
 }
 
+pub fn open_task_counts(
+    tasks: &[Value],
+    linked: &serde_json::Map<String, Value>,
+    entries: &[Value],
+) -> serde_json::Map<String, Value> {
+    let mut counts = entries
+        .iter()
+        .map(|entry| (text(field(entry, "name")), json!(0)))
+        .collect::<serde_json::Map<_, _>>();
+    for task in tasks.iter().filter(|task| crate::priorities::is_open(task)) {
+        if let Some(hit) = of_task(task, linked, entries) {
+            let name = text(field(&hit, "name"));
+            if let Some(count) = counts.get_mut(&name) {
+                *count = json!(count.as_u64().unwrap_or(0) + 1);
+            }
+        }
+    }
+    counts
+}
+
 pub fn summary(root: &Path) -> Result<Vec<Value>> {
     // Python's day-results reader creates its directory during this summary.
     std::fs::create_dir_all(root.join("day"))?;
     let entries = entries(root)?;
     let linked = crate::projects::task_projects(root)?;
     let tasks = crate::priorities::load(root)?;
+    let counts = open_task_counts(&tasks, &linked, &entries);
     Ok(entries
         .into_iter()
         .map(|entry| {
-            let open = tasks
-                .iter()
-                .filter(|task| {
-                    crate::priorities::is_open(task)
-                        && of_task(task, &linked, std::slice::from_ref(&entry)).is_some()
-                })
-                .count();
+            let name = text(field(&entry, "name"));
+            let open = counts.get(&name).cloned().unwrap_or_else(|| json!(0));
             let mut row = entry.as_object().expect("entry object").clone();
-            row.insert("open_tasks".into(), json!(open));
+            row.insert("open_tasks".into(), open);
             row.insert("today".into(), json!(0));
             Value::Object(row)
         })

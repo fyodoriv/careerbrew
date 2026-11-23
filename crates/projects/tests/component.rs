@@ -66,3 +66,21 @@ fn project_bonus_keeps_rank_order_and_bounds() {
     assert_eq!(project_priority::bonus(2, 2), 1.5);
     assert_eq!(project_priority::bonus(3, 2), 0.0);
 }
+
+#[test]
+fn a_task_matching_two_projects_counts_only_at_the_first_match() {
+    let entries = vec![
+        json!({"name": "billing", "rank": 1, "match": ["BILL-*"]}),
+        json!({"name": "api", "rank": 2, "match": ["api-*"]}),
+    ];
+    let tasks = vec![json!({
+        "id": "t001", "title": "BILL-1", "status": "open",
+        "links": [{"label": "", "url": "https://github.com/acme/api/pull/1"}]
+    })];
+    let counts = project_priority::open_task_counts(&tasks, &Default::default(), &entries);
+    assert_eq!(
+        counts.get("billing").and_then(|value| value.as_u64()),
+        Some(1)
+    );
+    assert_eq!(counts.get("api").and_then(|value| value.as_u64()), Some(0));
+}
