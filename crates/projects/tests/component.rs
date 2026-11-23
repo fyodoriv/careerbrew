@@ -107,6 +107,9 @@ fn saved_project_identity_requires_lowercase_hex_32() {
     for bad in ["A".repeat(32), "g".repeat(32), "abc".to_owned()] {
         assert!(!projects::valid_identity(&json!({"incarnation_id": bad})));
     }
+    assert!(!projects::valid_identity(
+        &json!({"incarnation_id": 12345678901234567890123456789012_u128})
+    ));
 }
 
 #[test]
@@ -119,11 +122,12 @@ fn daily_results_use_real_rows_and_only_the_first_project_match() {
         json!({"id": "result-1", "title": "BILL-100"}),
         json!({"id": "result-2", "title": "BILL-101 API-2"}),
         json!({"id": "result-3", "title": "unmatched"}),
+        json!({"id": "pr:acme/api#4", "title": "unmatched"}),
     ];
     let counts = project_priority::day_result_counts(&rows, &Default::default(), &entries);
     assert_eq!(
         counts.get("billing").and_then(|value| value.as_u64()),
         Some(2)
     );
-    assert_eq!(counts.get("api").and_then(|value| value.as_u64()), Some(0));
+    assert_eq!(counts.get("api").and_then(|value| value.as_u64()), Some(1));
 }

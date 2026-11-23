@@ -1983,6 +1983,15 @@ the crate until the rust-05 and rust-07 closure is native, so
   `activate`; fresh extra, missing and duplicate write controls returned
   `keep-python` with their violation counters nonzero. Production routes,
   shipped crates and activation remain unchanged.
+- **Second review-correction pre-registration (2026-11-23):** source revision
+  `bef47bc5c222df48cbd87d76a633e9a496776d3d` adds a non-string 32-digit YAML
+  identity control and evidence read/decrypt/parse failure controls. The identity
+  must be a string of 32 lowercase hexadecimal characters. An evidence failure
+  falls back to empty URLs while daily results still count by title and ID;
+  result reads, writes and privacy checks remain strict. Success keeps all six
+  cases and prior controls with zero violations, every planted write failing,
+  and fresh 30-pair CPU/RSS ratios at most 1.10. Any disagreement or unexpected
+  swallowed result error keeps Python. Production activation remains unchanged.
 
 ### rust-10: Port sessions, claims, agents and reply drafts
 

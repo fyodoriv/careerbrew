@@ -72,7 +72,7 @@ def test_project_priority_promise_lock_and_cli_contracts_match_python(candidate,
             "persisted": True,
             "repeat_migrated": False,
             "repeat_stable": True,
-            "invalid": ["ProjectError"] * 3,
+            "invalid": ["ProjectError"] * 4,
         }
         assert lifecycle["approval"] == {"kind": "approval", "restricted_has_text": False, "stored": True}
         assert lifecycle["errors"] == {"duplicate": "ProjectError", "kind": "ProjectError", "graph": "ProjectError", "remove": "ProjectError"}
@@ -159,10 +159,14 @@ def test_project_priority_promise_lock_and_cli_contracts_match_python(candidate,
         assert "nothing to change" in handlers["task_set_empty"]["stdout"]
         assert "nothing to record" in handlers["impact_empty"]["stdout"]
         assert "2 items today" in handlers["priority_show"]["stdout"]
-        assert "api" in handlers["priority_show"]["stdout"] and "0 items today" in handlers["priority_show"]["stdout"]
+        assert "api" in handlers["priority_show"]["stdout"] and "1 item today" in handlers["priority_show"]["stdout"]
         assert handlers["impact_result"]["exit"] == handlers["impact_unsure"]["exit"] == {"int": "0"}
         assert "measured yes, 2 evidence link(s)" in handlers["impact_result"]["stdout"]
         assert "the daily update and promo evidence use the result now" in handlers["impact_result"]["stdout"]
         assert "measured yes" in handlers["impact_unsure"]["stdout"]
+        for failure in ("parse", "decrypt", "read"):
+            fallback = handlers["evidence_fallback"][failure]
+            assert fallback["exit"] == {"int": "0"}
+            assert fallback["stdout"] == handlers["priority_show"]["stdout"]
         answers.append(done.stdout)
     assert answers[0] == answers[1]

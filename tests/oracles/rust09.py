@@ -118,7 +118,7 @@ def _identity_controls(name: str) -> dict[str, Any]:
         if repeat_migrated:
             projects._save(every)
     invalid = []
-    for bad in ("A" * 32, "g" * 32, "abc"):
+    for bad in ("A" * 32, "g" * 32, "abc", 12345678901234567890123456789012):
         with projects.locked():
             every = projects._load()
             every[name]["incarnation_id"] = bad
@@ -469,10 +469,20 @@ def _cli_handlers(base: Path) -> dict[str, Any]:
             {"id": "result-1", "at": "2026-11-02T08:00:00Z", "kind": "ticket", "title": "BILL-100", "source": "synthetic", "origin": "user"},
             {"id": "result-2", "at": "2026-11-02T08:01:00Z", "kind": "ticket", "title": "BILL-101 API-2", "source": "synthetic", "origin": "user"},
             {"id": "result-3", "at": "2026-11-02T08:02:00Z", "kind": "other", "title": "unmatched", "source": "synthetic", "origin": "user"},
+            {"id": "pr:acme/api#4", "at": "2026-11-02T08:03:00Z", "kind": "pr", "title": "unmatched", "source": "synthetic", "origin": "user"},
         ],
         day=date(2026, 11, 2),
     )
     os.environ["CAREERBREW_ENCRYPT"] = "on"
+    impact_empty = _invoke(["work", "impact", "t001"])
+    evidence_path = Path(os.environ["CAREERBREW_HOME"]) / "work" / "evidence.jsonl"
+    evidence_path.write_text("not json\n")
+    parse_fallback = _invoke(["work", "priority", "show"])
+    evidence_path.write_bytes(b"CBV1\ninvalid\n")
+    decrypt_fallback = _invoke(["work", "priority", "show"])
+    evidence_path.unlink()
+    evidence_path.mkdir()
+    read_fallback = _invoke(["work", "priority", "show"])
     return {
         "priority_set": priority_set,
         "priority_set_api": priority_set_api,
@@ -483,7 +493,8 @@ def _cli_handlers(base: Path) -> dict[str, Any]:
         "impact_result": _invoke(["work", "impact", "t001", "--result", "  CLI   result ", "--evidence", "https://evidence.example.com/old", "--evidence", "https://evidence.example.com/new"]),
         "impact_unsure": _invoke(["work", "impact", "t001", "--result", "uncertain", "--not-sure"]),
         "task_set_empty": _invoke(["work", "task-set", "t001"]),
-        "impact_empty": _invoke(["work", "impact", "t001"]),
+        "impact_empty": impact_empty,
+        "evidence_fallback": {"parse": parse_fallback, "decrypt": decrypt_fallback, "read": read_fallback},
     }
 
 
