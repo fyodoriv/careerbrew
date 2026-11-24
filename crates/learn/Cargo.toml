@@ -1,0 +1,24 @@
+[package]
+name = "careerbrew-learn"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+careerbrew-vault = { path = "../vault" }
+careerbrew-setup = { path = "../setup" }
+careerbrew-projects = { path = "../projects" }
+serde_json = { version = "=1.0.154", features = ["arbitrary_precision"] }
+chrono = { version = "=0.4.45", default-features = false, features = ["std", "clock"] }
+regex = "=1.13.2"
+sha2 = "=0.10.9"
+glob = "=0.3.4"
+fsrs = "=7.0.0"
+tempfile = "=3.23.0"
+wait-timeout = "=0.2.1"
+icu_casemap = "=2.4.0"
+
+[[bin]]
+name = "learn-component"
+path = "src/bin/learn-component.rs"
