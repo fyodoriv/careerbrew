@@ -37,7 +37,7 @@ pub const REPO_DOCS: &[&str] = &[
 pub fn slug(value: &str) -> String {
     let found = Regex::new(r"[^a-z0-9]+")
         .expect("slug regex")
-        .replace_all(&value.to_lowercase(), "-")
+        .replace_all(&crate::casefold(value), "-")
         .trim_matches('-')
         .to_owned();
     if found.is_empty() {

@@ -16,6 +16,11 @@ use careerbrew_projects::{ProjectError, Result};
 use chrono::{DateTime, FixedOffset, SecondsFormat, Utc};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
+use unicode_casefold::UnicodeCaseFold;
+
+pub fn casefold(value: &str) -> String {
+    value.chars().case_fold().collect()
+}
 
 pub fn context() -> Result<careerbrew_vault::transfer::Context> {
     Ok(careerbrew_vault::transfer::Context::from_env()?)

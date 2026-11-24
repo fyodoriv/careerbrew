@@ -451,10 +451,19 @@ fn learning_schedule(base: &Path) -> Result<Value> {
         None,
         Some(day1),
     )?;
-    let remastered = project::next_step(
+    let remastered_at = day1 + Duration::days(1) + Duration::minutes(1);
+    let remastered = project::next_step(&ws.root, "Toy", Some(remastered_at))?;
+    project::answer(
         &ws.root,
         "Toy",
-        Some(day1 + Duration::days(1) + Duration::minutes(1)),
+        "queue",
+        "correct",
+        "high",
+        "apply",
+        "retest",
+        "open",
+        None,
+        Some(remastered_at),
     )?;
     let day8 = day1 + Duration::days(7) + Duration::minutes(2);
     project::answer(

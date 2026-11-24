@@ -1,6 +1,6 @@
 //! Native rust-12 learning-rule and document-validator controls.
 
-use careerbrew_learn::{explain, prd, project};
+use careerbrew_learn::{cards, explain, prd, project};
 use serde_json::json;
 use std::path::Path;
 
@@ -82,6 +82,37 @@ fn prd_requires_pushback_only_when_estimates_exceed_the_slot() {
     assert!(
         prd::check(&without.replace("Plan slot: 1 dev week", "Plan slot: 3 dev weeks")).is_empty()
     );
+}
+
+#[test]
+fn learning_identity_uses_python_full_unicode_casefold() {
+    assert_eq!(project::slug("Straße"), "strasse");
+    assert_eq!(cards::topic_name("Straße"), "strasse");
+}
+
+#[test]
+fn retention_excludes_reviews_of_removed_concepts() {
+    let scratch = tempfile::tempdir().unwrap();
+    let root = scratch.path().join("data");
+    std::env::set_var("HOME", scratch.path());
+    std::env::set_var("CAREERBREW_HOME", &root);
+    std::env::set_var("CAREERBREW_KEY_FILE", scratch.path().join("backup.key"));
+    std::env::set_var("CAREERBREW_EVENTS", "off");
+    std::env::set_var("CAREERBREW_ENCRYPT", "off");
+    let folder = project::folder(&root, "Toy");
+    let keep = json!({"id": "keep", "question": "Keep?", "answer": "Yes", "tags": ["core"]});
+    let removed =
+        json!({"id": "removed", "question": "Removed?", "answer": "No", "tags": ["core"]});
+    cards::write_deck(&root, &folder, &[keep.clone(), removed.clone()]).unwrap();
+    let at = chrono::DateTime::parse_from_rfc3339("2026-10-26T09:00:00+00:00").unwrap();
+    for (id, ratings) in [("keep", ["good", "good"]), ("removed", ["good", "again"])] {
+        for rating in ratings {
+            cards::review(&root, &folder, id, rating, at, None).unwrap();
+        }
+    }
+    cards::write_deck(&root, &folder, &[keep]).unwrap();
+    let stats = cards::stats(&root, &folder, at).unwrap();
+    assert_eq!(stats["retention_7d"], json!(1.0));
 }
 
 #[test]

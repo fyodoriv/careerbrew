@@ -2326,7 +2326,9 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Component implementation:** `crates/learn` provides source staging and
   citation checks, mastery/retests and project-scoped FSRS decks, isolated PR
   replay, fading tours, explainer/PRD validators and scaffolds, and component
-  CLI adapters. `learn-component` is synthetic-only. The custom verifier
+  CLI adapters. Learning identities use Python-compatible full Unicode case
+  folding, and retention excludes reviews of removed concepts.
+  `learn-component` is synthetic-only. The custom verifier
   compares exact typed output, semantic writes and per-phase write transitions;
   planted extra, missing and duplicate writes must fail. Production Python,
   native routes, shipped crates and activation are unchanged.

@@ -17,6 +17,7 @@ glob = "=0.3.4"
 fsrs = "=7.0.0"
 tempfile = "=3.23.0"
 wait-timeout = "=0.2.1"
+unicode-casefold = "=0.2.0"
 
 [[bin]]
 name = "learn-component"

@@ -84,6 +84,10 @@ pub fn all_cards(root: &Path, folder: &Path) -> Result<BTreeMap<String, Value>> 
     Ok(out)
 }
 
+pub fn topic_name(value: &str) -> String {
+    crate::casefold(value)
+}
+
 pub fn write_deck(root: &Path, folder: &Path, rows: &[Value]) -> Result<usize> {
     let mut clean = Vec::new();
     for card in rows {
@@ -101,7 +105,7 @@ pub fn write_deck(root: &Path, folder: &Path, rows: &[Value]) -> Result<usize> {
         };
         let mut row = json!({
             "id": text(field(card, "id")), "question": question, "answer": answer,
-            "topic": topic.to_lowercase(), "tags": tags,
+            "topic": topic_name(&topic), "tags": tags,
         });
         let source = text(field(card, "source"));
         if !source.is_empty() {
@@ -444,7 +448,9 @@ pub fn stats(root: &Path, folder: &Path, at: DateTime<FixedOffset>) -> Result<Va
     let week = reviews(root, folder)?
         .into_iter()
         .filter(|row| {
-            text(field(row, "at")) >= since && field(row, "first") != Some(&Value::Bool(true))
+            cards.contains_key(&text(field(row, "card")))
+                && text(field(row, "at")) >= since
+                && field(row, "first") != Some(&Value::Bool(true))
         })
         .collect::<Vec<_>>();
     let retention = if week.is_empty() {

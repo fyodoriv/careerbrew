@@ -101,7 +101,7 @@ def _shipped_bins(shipped: set[str]) -> set[str]:
 
 def reaches_off_list(line: str, unlisted: set[str], shipped_bins: set[str]) -> bool:
     """True when a line names an unlisted crate, or a target/ path that is not a listed crate's binary."""
-    if unlisted and re.search(r"\b(" + "|".join(map(re.escape, unlisted)) + r")\b", line):
+    if unlisted and re.search(r"(?<![\w-])(" + "|".join(map(re.escape, unlisted)) + r")(?![\w-])", line):
         return True
     paths = re.findall(r"target/(?:debug|release)(?:/[\w.-]+)?", line)
     return any(p.rsplit("/", 1)[-1] not in shipped_bins for p in paths)
@@ -113,6 +113,11 @@ def test_a_target_path_is_allowed_only_for_a_listed_binary():
     assert reaches_off_list("x = 'target/release/other-tool'", set(), {"careerbrew-native"})
     assert reaches_off_list("x = 'target/debug'", set(), {"careerbrew-native"})
     assert reaches_off_list("run purevec here", {"purevec"}, set())
+
+
+def test_a_package_name_does_not_match_a_longer_hyphenated_name():
+    assert not reaches_off_list("skills/careerbrew-learn-project", {"careerbrew-learn"}, set())
+    assert reaches_off_list("cargo run -p careerbrew-learn", {"careerbrew-learn"}, set())
 
 
 def test_app_code_reaches_no_rust_binary_off_the_list():
