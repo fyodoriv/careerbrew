@@ -2276,8 +2276,11 @@ the crate until the rust-05 and rust-07 closure is native, so
   semantic readback of the final encrypted import. Baseline: 30 runs. Verify
   passes 6/6 with zero violations. Measurement: 30 unique, uncached pairs in
   each regime. Cold CPU p95 was 374,226 to 267,614 microseconds; warm was
-  370,083 to 268,258. Cold tree-RSS p95 was 52,756,480 to 13,828,096 bytes;
-  warm was 52,690,944 to 13,844,480. Each ratio is below 1.10. `decide`
+  370,083 to 268,258. The acceptance memory statistic is tree-RSS p95, not the
+  maximum: cold p95 was 52,756,480 to 13,828,096 bytes and warm p95 was
+  52,690,944 to 13,844,480. The actual paired maxima were 53,493,760 to
+  14,909,440 bytes cold and 53,510,144 to 14,778,368 bytes warm. Each p95 ratio
+  is below 1.10. `decide`
   returned component-only `activate`; fresh extra, missing and duplicate
   controls returned `keep-python`. Production routes, shipped crates and
   activation remain unchanged.
