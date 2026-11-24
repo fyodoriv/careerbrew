@@ -808,6 +808,46 @@ pub const STEPS: &[Step] = &[
         ],
     },
     Step {
+        // rust-13 starts with its real Python oracle. The native candidate and
+        // its source bindings join with the component implementation.
+        id: "rust-13",
+        oracle: &["-I", "-B", "tests/oracles/rust13.py", "--all"],
+        cases: &[],
+        candidate: None,
+        http_contract: false,
+        data_contract: false,
+        role_contract: false,
+        registry_projection: false,
+        no_python: true,
+        env: &[],
+        sources: &[
+            "tests/oracles/rust13.py",
+            "src/careerbrew/work/feed.py",
+            "src/careerbrew/work/transcript.py",
+            "src/careerbrew/work/team.py",
+            "src/careerbrew/work/health.py",
+            "src/careerbrew/work/live.py",
+            "src/careerbrew/work/promises.py",
+            "src/careerbrew/work/project_priority.py",
+            "src/careerbrew/connectors.py",
+            "src/careerbrew/calendar.py",
+            "src/careerbrew/config.py",
+            "src/careerbrew/events.py",
+            "src/careerbrew/paths.py",
+            "src/careerbrew/plugins.py",
+            "src/careerbrew/secrets.py",
+            "src/careerbrew/store.py",
+            "src/careerbrew/vault.py",
+            "src/careerbrew/cli.py",
+        ],
+        fixtures: &[
+            "tests/fixtures/feed/next-step-ask.jsonl",
+            "tests/fixtures/feed/web-asks.jsonl",
+            "tests/fixtures/transcripts/feed-cycle.jsonl",
+            "tests/fixtures/transcripts/feed-cycle/tool-results/big.txt",
+        ],
+    },
+    Step {
         // rust-04 is a vector step (privacy, policy and approval decisions).
         // Its Python oracle `--all` runs every set over the generator's
         // vectors in one isolated process. `verify` routes the step to the

@@ -2391,6 +2391,24 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native feed ingestion.
 - **Gate:** 100% of event vectors agree; 0 dropped edits, duplicate events or
   idle change-version churn.
+- **Component pre-registration (2026-11-24):** source revision
+  `8b041f81eed739c98b95b39e611bf7aa58850276`; Python oracle
+  `tests/oracles/rust13.py`. Eight fixed synthetic cases cover recorded source
+  ingestion, edited upserts, raw ticket/mail/calendar replies, Claude and Codex
+  transcripts, saved-output containment and `since`, open-ask/cycle closure, and
+  team feeds. Exact typed results and semantic write maps are compared per
+  phase. Only owned paths, generated keys and sealed-record bytes are
+  normalized; event facts, source timestamps, cycle counts, privacy and write
+  transitions remain strict. Thirty fresh Python runs establish baseline B.
+  Verify requires all eight cases with zero contract, privacy, side-effect,
+  missing-write or duplicate-write violations. Measure requires 30 unique
+  interleaved pairs in each cold and warm regime. CPU-time p95 and process-tree
+  peak RSS must each be at most 1.10 x the paired oracle in each regime;
+  unmeasured noise floors use that ratio without relaxation. Any mismatch,
+  dropped edit, duplicate event, idle write, containment or resource violation
+  keeps Python. Not-yet-native health/live/completion and promise/evidence
+  integration stay behind typed component providers. This is component parity
+  only: production dispatch, shipped crates and activation do not change.
 
 ### rust-14: Port live listening, review asks and notifications
 
