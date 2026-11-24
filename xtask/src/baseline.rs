@@ -790,6 +790,7 @@ pub const STEPS: &[Step] = &[
             "crates/vault/src/keyfile.rs",
             "crates/vault/src/lock.rs",
             "crates/vault/src/store.rs",
+            "crates/vault/src/synthetic.rs",
             "crates/vault/src/transfer.rs",
             "xtask/src/rust12.rs",
         ],

@@ -33,6 +33,7 @@ fn rust_12_registers_the_release_candidate_and_effective_inputs() {
         "crates/vault/src/helpers.rs",
         "crates/vault/src/transfer.rs",
         "crates/vault/src/store.rs",
+        "crates/vault/src/synthetic.rs",
         "crates/vault/src/canon.rs",
         "crates/vault/src/json_yaml.rs",
         "crates/setup/src/lib.rs",

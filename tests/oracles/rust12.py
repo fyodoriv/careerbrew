@@ -198,6 +198,7 @@ def _source_staging(base: Path) -> dict[str, Any]:
             "plain_absent": b"LEARNCANARY" not in raw,
             "repo_unchanged": repo_unchanged,
         },
+        "identity": {"strasse": "Straße".casefold(), "a7d0": "\ua7d0".casefold()},
         "repeat": repeat["freshness"],
         "changed": {"freshness": changed["freshness"], "stale": changed["stale"], "stable_hash": changed["sources"][0]["hash"] == first["sources"][0]["hash"]},
         "note": {"read": note_ok, "bad_path": _error(lambda: lp.note("Toy", "../bad.md", "x")), "missing_project": _error(lambda: lp.note("Missing", "x.md"))},
@@ -390,7 +391,7 @@ def _explainers(base: Path) -> dict[str, Any]:
     example_prd = (skill / "example-prd.md").read_text()
     deep_text = example.replace("## Invariants and boundaries", "## How it runs\n\n- Start everything with `uv run careerbrew`: it starts the watcher and the web app [S1].\n\n## Invariants and boundaries")
     parts = re.split(r"(?m)^(?=## )", example)
-    short_text = "".join(p for p in parts if not p.startswith("## ") or explain._base(p[3:].split("\n")[0].strip()) in set(explain.SHORT)).replace("| S2 | primary | docs/VISION.md@c334531 | c334531 |\n", "")
+    short_text = "".join(p for p in parts if not p.startswith("## ") or explain._base(p[3:].split("\n")[0].strip()) in set(explain.SHORT))
     bad_source = example.replace("| S5 | primary | src/careerbrew/work/ | 2026-10-21 |", "| S5 | lead | src/careerbrew/work/ | 2026-10-21 |\n| S6 | maybe | ??? | |")
     no_pushback = re.sub(r"## Pushback\n\n.*?\n\n(?=## )", "", example_prd, flags=re.S)
     projects.add("billing", "", "7d")

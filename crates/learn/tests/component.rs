@@ -63,6 +63,30 @@ fn reference_explanations_pass_at_full_and_deep_depths() {
 }
 
 #[test]
+fn short_explanation_keeps_every_cited_source_registered() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let example = std::fs::read_to_string(
+        root.join("skills/careerbrew-project-explainer/references/example-careerbrew.md"),
+    )
+    .unwrap();
+    let headings = regex::Regex::new(r"(?m)^## ").unwrap();
+    let starts = headings
+        .find_iter(&example)
+        .map(|found| found.start())
+        .collect::<Vec<_>>();
+    let mut short = String::new();
+    for (index, start) in starts.iter().enumerate() {
+        let end = starts.get(index + 1).copied().unwrap_or(example.len());
+        let section = &example[*start..end];
+        let heading = section[3..].split('\n').next().unwrap_or("").trim();
+        if explain::SHORT.contains(&explain::base(heading).as_str()) {
+            short.push_str(section);
+        }
+    }
+    assert!(explain::check(&short, true, false).is_empty());
+}
+
+#[test]
 fn prd_requires_pushback_only_when_estimates_exceed_the_slot() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let example = std::fs::read_to_string(
@@ -88,6 +112,8 @@ fn prd_requires_pushback_only_when_estimates_exceed_the_slot() {
 fn learning_identity_uses_python_full_unicode_casefold() {
     assert_eq!(project::slug("Straße"), "strasse");
     assert_eq!(cards::topic_name("Straße"), "strasse");
+    assert_eq!(cards::topic_name("\u{A7D0}"), "\u{A7D1}");
+    assert_eq!(careerbrew_learn::casefold("\u{A7D0}"), "\u{A7D1}");
 }
 
 #[test]

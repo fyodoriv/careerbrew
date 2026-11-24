@@ -222,6 +222,7 @@ fn source_staging(base: &Path) -> Result<Value> {
     Ok(json!({
         "first": {"keys": sources.iter().map(|source| text(field(source, "key"))).collect::<Vec<_>>(), "docs": sources.iter().map(|source| field(source, "docs").cloned().unwrap_or(Value::Null)).collect::<Vec<_>>(), "freshness": first["freshness"]},
         "privacy": {"consumed": !doc.exists(), "sealed": raw.starts_with(b"CBV1\n"), "plain_absent": !raw.windows(b"LEARNCANARY".len()).any(|part| part == b"LEARNCANARY"), "repo_unchanged": repo_unchanged},
+        "identity": {"strasse": crate::casefold("Straße"), "a7d0": crate::casefold("\u{A7D0}")},
         "repeat": repeat["freshness"],
         "changed": {"freshness": changed["freshness"], "stale": changed["stale"], "stable_hash": changed_sources[0]["hash"] == sources[0]["hash"]},
         "note": {"read": note_ok, "bad_path": error_of(project::note(&ws.root, "Toy", "../bad.md", Some("x"))), "missing_project": error_of(project::note(&ws.root, "Missing", "x.md", None))},
@@ -705,7 +706,6 @@ fn explainers(base: &Path) -> Result<Value> {
             short_text.push_str(part);
         }
     }
-    short_text = short_text.replace("| S2 | primary | docs/VISION.md@c334531 | c334531 |\n", "");
     let bad_source = example.replace(
         "| S5 | primary | src/careerbrew/work/ | 2026-10-21 |",
         "| S5 | lead | src/careerbrew/work/ | 2026-10-21 |\n| S6 | maybe | ??? | |",
@@ -799,6 +799,22 @@ fn run(name: &str, base: &Path) -> Result<Value> {
     }
 }
 
+fn python_json(value: &Value) -> Result<String> {
+    let compact = serde_json::to_string(value)?;
+    let mut out = String::with_capacity(compact.len());
+    for ch in compact.chars() {
+        if ch == '\x7f' || !ch.is_ascii() {
+            let mut units = [0_u16; 2];
+            for unit in ch.encode_utf16(&mut units) {
+                out.push_str(&format!("\\u{unit:04x}"));
+            }
+        } else {
+            out.push(ch);
+        }
+    }
+    Ok(out)
+}
+
 pub fn run_all(selected: Option<&str>) -> Result<String> {
     let root = crate::root()?;
     let base = root.join("rust12-workload");
@@ -816,7 +832,7 @@ pub fn run_all(selected: Option<&str>) -> Result<String> {
             cases.push(json!({"id": name, "result": result}));
         }
     }
-    Ok(serde_json::to_string(&json!({"cases": typed(&json!({"cases": cases}))["cases"]}))? + "\n")
+    Ok(python_json(&json!({"cases": typed(&json!({"cases": cases}))["cases"]}))? + "\n")
 }
 
 fn duplicate_control(base: &Path) -> Result<String> {
@@ -824,5 +840,5 @@ fn duplicate_control(base: &Path) -> Result<String> {
     let existing = std::fs::read_to_string(&out)?;
     crate::write_text(&out, &existing)?;
     let cases = vec![json!({"id": DUPLICATE_CONTROL, "result": {"ok": true}})];
-    Ok(serde_json::to_string(&json!({"cases": typed(&json!({"cases": cases}))["cases"]}))? + "\n")
+    Ok(python_json(&json!({"cases": typed(&json!({"cases": cases}))["cases"]}))? + "\n")
 }

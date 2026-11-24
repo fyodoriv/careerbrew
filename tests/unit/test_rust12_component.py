@@ -70,6 +70,7 @@ def test_learning_replay_tour_explainer_and_cli_contracts_match_python(candidate
         source = case(report, "source-staging")
         assert source["first"]["keys"] == ["doc:runbook", "repo:toyrepo"]
         assert source["privacy"] == {"consumed": True, "sealed": True, "plain_absent": True, "repo_unchanged": True}
+        assert source["identity"] == {"strasse": "strasse", "a7d0": "\ua7d1"}
         assert source["repeat"] == {"changed": [], "unchanged": ["repo:toyrepo"]}
         assert source["changed"]["freshness"]["changed"] == ["repo:toyrepo"]
         assert source["note"]["bad_path"] == "ValueError"
