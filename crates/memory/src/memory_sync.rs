@@ -651,8 +651,23 @@ fn local_now(root: &Path) -> Result<DateTime<FixedOffset>> {
     let zone = local_zone(root);
     if let Ok(pinned) = std::env::var("CAREERBREW_NOW") {
         if !pinned.is_empty() {
-            return parse_when(root, &pinned)
-                .ok_or_else(|| error("ValueError", "invalid CAREERBREW_NOW"));
+            // Python calendar.now returns an aware pinned value unchanged; only
+            // a naive value receives the current local zone.
+            if let Ok(aware) = DateTime::parse_from_rfc3339(&pinned) {
+                return Ok(aware);
+            }
+            for format in [
+                "%Y-%m-%dT%H:%M:%S%.f",
+                "%Y-%m-%d %H:%M:%S%.f",
+                "%Y-%m-%dT%H:%M",
+                "%Y-%m-%d %H:%M",
+            ] {
+                if let Ok(naive) = chrono::NaiveDateTime::parse_from_str(&pinned, format) {
+                    return local_naive(zone, naive)
+                        .ok_or_else(|| error("ValueError", "invalid CAREERBREW_NOW"));
+                }
+            }
+            return Err(error("ValueError", "invalid CAREERBREW_NOW"));
         }
     }
     Ok(chrono::Utc::now().with_timezone(&zone).fixed_offset())

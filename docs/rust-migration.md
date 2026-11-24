@@ -2038,7 +2038,10 @@ the crate until the rust-05 and rust-07 closure is native, so
   the native `synthetic::CASES`, `xtask/src/rust11.rs` `CASE_IDS` and the direct
   Python component test's expected set. The earlier 6/6 verify record did not
   cover local-time behavior. Acceptance now requires a clean 7/7 differential
-  report with zero violations and a fresh 30-pair resource chain.
+  report with zero violations and a fresh 30-pair resource chain. A direct
+  differential isolated the first 7/7 failure to section-header dates:
+  Python returns an aware pinned timestamp unchanged, so native `local_now`
+  now retains that offset; only naive pinned values receive the local zone.
 
 ### rust-10: Port sessions, claims, agents and reply drafts
 
