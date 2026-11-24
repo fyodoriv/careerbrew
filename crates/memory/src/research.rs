@@ -198,7 +198,7 @@ pub fn match_project(root: &Path, kind: &str, reference: &str, content: &str) ->
                 .count()
             })
             .sum::<usize>();
-        let name_pattern = Regex::new(&format!(r"\b{}\b", regex::escape(name))).unwrap();
+        let name_pattern = Regex::new(&format!(r"(?i)\b{}\b", regex::escape(name))).unwrap();
         if reference.to_lowercase().contains(name)
             || (!content.is_empty() && name_pattern.is_match(content))
         {
@@ -262,6 +262,10 @@ pub fn after(stamp: &str, since: Option<&str>) -> bool {
                 DateTime::parse_from_str(&normalized, "%Y-%m-%dT%H:%M:%S%.f%:z")
                     .map(|value| value.with_timezone(&Utc))
             })
+            .or_else(|_| {
+                chrono::NaiveDateTime::parse_from_str(&normalized, "%Y-%m-%dT%H:%M:%S%.f")
+                    .map(|value| value.and_utc())
+            })
     };
     match (parse(stamp), parse(since)) {
         (Ok(left), Ok(right)) => left > right,
@@ -281,7 +285,7 @@ fn file_change(root: &Path, kind: &str, reference: &str, since: Option<&str>) ->
         return None;
     }
     let modified = path.metadata().ok()?.modified().ok()?;
-    let stamp = DateTime::<Utc>::from(modified).to_rfc3339();
+    let stamp = DateTime::<Utc>::from(modified).to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
     Some(after(&stamp, since))
 }
 

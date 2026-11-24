@@ -5,7 +5,7 @@ use crate::{
     write_json_if_changed, write_text, Result,
 };
 use careerbrew_projects::{project_priority, projects};
-use chrono::{DateTime, Duration, FixedOffset, SecondsFormat};
+use chrono::{DateTime, Duration, FixedOffset, SecondsFormat, TimeZone};
 use regex::Regex;
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -580,7 +580,24 @@ fn parse_when(value: &str) -> Option<DateTime<FixedOffset>> {
             &value[value.len() - 2..]
         );
     }
-    DateTime::parse_from_rfc3339(&value).ok()
+    DateTime::parse_from_rfc3339(&value).ok().or_else(|| {
+        chrono::NaiveDateTime::parse_from_str(&value, "%Y-%m-%dT%H:%M:%S%.f")
+            .ok()
+            .and_then(|naive| {
+                careerbrew_projects::now()
+                    .offset()
+                    .from_local_datetime(&naive)
+                    .single()
+            })
+    })
+}
+
+fn aliases(id: &str) -> BTreeSet<String> {
+    Regex::new(r"^slack:[^:]+:(\d+\.\d+)$")
+        .unwrap()
+        .captures(id)
+        .map(|found| BTreeSet::from([format!("slack:{}", &found[1])]))
+        .unwrap_or_default()
 }
 
 fn candidates(root: &Path) -> Result<Vec<Value>> {
@@ -589,9 +606,10 @@ fn candidates(root: &Path) -> Result<Vec<Value>> {
     let mut skip = feed
         .iter()
         .filter(|row| field(row, "personal") == Some(&Value::Bool(true)))
-        .map(|row| text(field(row, "id")))
+        .flat_map(|row| aliases(&text(field(row, "id"))))
         .collect::<BTreeSet<_>>();
     skip.extend(feed.iter().map(|row| text(field(row, "id"))));
+    skip.extend(feed.iter().flat_map(|row| aliases(&text(field(row, "id")))));
     let mut out = Vec::new();
     for row in &feed {
         if field(row, "personal") != Some(&Value::Bool(true))
@@ -797,11 +815,15 @@ struct Work {
 }
 
 fn personal_ids(root: &Path) -> Result<BTreeSet<String>> {
-    Ok(read_jsonl(root, "work/feed/events.jsonl")?
-        .iter()
-        .filter(|row| field(row, "personal") == Some(&Value::Bool(true)))
-        .map(|row| text(field(row, "id")))
-        .collect())
+    let mut ids = BTreeSet::new();
+    for row in read_jsonl(root, "work/feed/events.jsonl")? {
+        if field(&row, "personal") == Some(&Value::Bool(true)) {
+            let id = text(field(&row, "id"));
+            ids.insert(id.clone());
+            ids.extend(aliases(&id));
+        }
+    }
+    Ok(ids)
 }
 
 fn empty_out() -> Value {
@@ -1048,7 +1070,7 @@ fn forget_with(
                     .cloned()
                     .collect::<Vec<_>>();
                 if kept.len() >= lines.len() {
-                    return Ok(false);
+                    return Ok(true);
                 }
                 let new = drop_empty_sections(&kept.join(""));
                 if !rewrite(root, &path, &before, &new)? {

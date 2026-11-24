@@ -124,7 +124,7 @@ def _source_identity(base: Path) -> dict[str, Any]:
         "closest": closest,
         "tied": tied,
         "bad": _error(lambda: research.detect("not a source")),
-        "after": [research._after(stamp, "2026-10-05T09:00:00+00:00") for stamp in ("2026-10-05T06:00:00.000-0400", "2026-10-05T04:00:00.000-0400", "", "bad")],
+        "after": [research._after(stamp, "2026-10-05T09:00:00+00:00") for stamp in ("2026-10-05T06:00:00.000-0400", "2026-10-05T04:00:00.000-0400", "", "bad", "2026-10-05T09:00:00")],
     }
 
 
@@ -243,7 +243,7 @@ def _seed_items() -> None:
         feed.events_path(),
         [
             {
-                "id": "slack:C0BILL:1",
+                "id": "slack:C0BILL:1792594800.000300",
                 "source": "slack",
                 "kind": "mention",
                 "at": "2026-10-21T14:00:00Z",
@@ -264,6 +264,7 @@ def _seed_items() -> None:
         [
             {"id": "jira:PROJ-7", "kind": "jira", "title": "PROJ-7: Freeze the schema", "at": "2026-10-20T12:00:00+00:00", "url": "https://jira.example.com/browse/PROJ-7"},
             {"id": "pr:acme/billing#41", "kind": "pr", "title": "feat: invoice export", "at": "2026-10-19T10:00:00Z", "url": "https://github.com/acme/billing/pull/41"},
+            {"id": "slack:1792594800.000300", "kind": "slack", "title": "Recognition in #eng-billing", "at": "2026-10-21T14:00:00Z", "url": "https://example.slack.com/archives/C0BILL/p1"},
             {"id": "jira:OPS-9", "kind": "jira", "title": "OPS-9: Reindex", "at": "2026-10-20T12:00:00+00:00", "url": "https://jira.example.com/browse/OPS-9"},
             {"id": "jira:PROJ-3", "kind": "jira", "title": "PROJ-3: Old work", "at": "2026-09-01T12:00:00+00:00", "url": "https://jira.example.com/browse/PROJ-3"},
         ],

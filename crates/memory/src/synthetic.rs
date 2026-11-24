@@ -98,6 +98,7 @@ fn source_identity(base: &Path) -> Result<Value> {
         "2026-10-05T04:00:00.000-0400",
         "",
         "bad",
+        "2026-10-05T09:00:00",
     ]
     .into_iter()
     .map(|stamp| research::after(stamp, Some("2026-10-05T09:00:00+00:00")))
@@ -326,7 +327,7 @@ fn seed_items(root: &Path) -> Result<()> {
         root,
         "work/feed/events.jsonl",
         &[
-            json!({"id": "slack:C0BILL:1", "source": "slack", "kind": "mention", "at": "2026-10-21T14:00:00Z", "title": "Mention from sam in #eng-billing", "channel": "eng-billing", "url": "https://example.slack.com/archives/C0BILL/p1", "to_me": true, "triage": "act"}),
+            json!({"id": "slack:C0BILL:1792594800.000300", "source": "slack", "kind": "mention", "at": "2026-10-21T14:00:00Z", "title": "Mention from sam in #eng-billing", "channel": "eng-billing", "url": "https://example.slack.com/archives/C0BILL/p1", "to_me": true, "triage": "act"}),
             json!({"id": "pagerduty:Q9", "source": "pagerduty", "kind": "page", "at": "2026-10-21T15:00:00Z", "title": "Page: Invoice export failing", "url": "https://example.pagerduty.com/incidents/Q9", "to_me": true, "triage": "act"}),
             json!({"id": "slack:C0RAND:2", "source": "slack", "kind": "message", "at": "2026-10-21T14:10:00Z", "title": "ana in #random", "channel": "random", "triage": "fyi"}),
             json!({"id": "slack:C0BILL:3", "source": "slack", "kind": "message", "at": "2026-10-21T14:20:00Z", "title": "monitor in #eng-billing", "channel": "eng-billing", "triage": "noise"}),
@@ -339,6 +340,7 @@ fn seed_items(root: &Path) -> Result<()> {
         &[
             json!({"id": "jira:PROJ-7", "kind": "jira", "title": "PROJ-7: Freeze the schema", "at": "2026-10-20T12:00:00+00:00", "url": "https://jira.example.com/browse/PROJ-7"}),
             json!({"id": "pr:acme/billing#41", "kind": "pr", "title": "feat: invoice export", "at": "2026-10-19T10:00:00Z", "url": "https://github.com/acme/billing/pull/41"}),
+            json!({"id": "slack:1792594800.000300", "kind": "slack", "title": "Recognition in #eng-billing", "at": "2026-10-21T14:00:00Z", "url": "https://example.slack.com/archives/C0BILL/p1"}),
             json!({"id": "jira:OPS-9", "kind": "jira", "title": "OPS-9: Reindex", "at": "2026-10-20T12:00:00+00:00", "url": "https://jira.example.com/browse/OPS-9"}),
             json!({"id": "jira:PROJ-3", "kind": "jira", "title": "PROJ-3: Old work", "at": "2026-09-01T12:00:00+00:00", "url": "https://jira.example.com/browse/PROJ-3"}),
         ],

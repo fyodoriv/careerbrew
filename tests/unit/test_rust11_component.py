@@ -75,7 +75,7 @@ def test_import_identity_sync_lock_and_cli_contracts_match_python(candidate, tmp
         assert identity["detected"][6] == ["url", "https://github.example.com/acme/billing/issues/7"]
         assert identity["detected"][7] == ["repo", "acme/billing"]
         assert identity["items"][5] == ["acme", "billing", "pull", "41"]
-        assert identity["after"] == [True, False, True, True]
+        assert identity["after"] == [True, False, True, True, False]
 
         imported = case(report, "project-import")
         assert imported["dry_empty"] is True
