@@ -2017,7 +2017,7 @@ the crate until the rust-05 and rust-07 closure is native, so
   `activate`; all fresh planted-write controls returned `keep-python`.
   Production routes, shipped crates and activation remain unchanged.
 - **External-rewrite and local-time acceptance (2026-11-23, macOS):** clean source
-  `e7584ea94295f192cbd5dbecb8229d98ecd91992`; evidence-source hash
+  `3f7b06d59b2773e70c528b7ee8575879dfaeff8f`; evidence-source hash
   `48d151216f14ecc89d2c355946d947908228b36cd53e0f04d450187ee2cae480`;
   fixture hash
   `6078f7e2b225285d1c80e90d19fe1aae91235ed89c7d9803da559dc54d6bcd42`;
@@ -2028,12 +2028,12 @@ the crate until the rust-05 and rust-07 closure is native, so
   an owner append. Local-time controls resolve the configured or system zone,
   including an unset `TZ`, an unpinned clock, near-midnight notes and malformed
   Unicode without a panic. Baseline: 30 runs. Verify: 6/6 with zero violations.
-  Cold CPU p95 was 478,720 to 338,342 microseconds; warm was 449,510 to 339,624.
-  Paired cold tree-RSS maximum was 53,510,144 to 14,925,824 bytes; warm was
-  53,444,608 to 14,893,056. Thirty unique uncached pairs ran in each regime and
-  both ratios are below 1.10. The first recording attempt returned
-  `keep-python` for `baseline-dirty-tree`; acceptance requires a clean rerun.
-  Production routes, shipped crates and activation remain unchanged.
+  Cold CPU p95 was 445,732 to 326,920 microseconds; warm was 428,280 to 305,156.
+  Paired cold tree-RSS maximum was 53,542,912 to 14,909,440 bytes; warm was
+  53,428,224 to 14,696,448. Thirty unique uncached pairs ran in each regime and
+  both ratios are below 1.10. The clean rerun returned component-only
+  `activate` with no reasons. Production routes, shipped crates and activation
+  remain unchanged.
 
 ### rust-10: Port sessions, claims, agents and reply drafts
 
