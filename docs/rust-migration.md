@@ -2222,6 +2222,23 @@ the crate until the rust-05 and rust-07 closure is native, so
   returned component-only `activate`; fresh extra, missing and duplicate
   controls returned `keep-python`. Production routes, shipped crates and
   activation remain unchanged.
+- **Second-review acceptance (2026-11-24, macOS):** clean measured source
+  `d7f00d7e900077d707b99435a1f2c68f569ffc18`; evidence-source hash
+  `02e5953d03a4aca4f40be3492defa97fedced26a1bb869f280d3ff1d3847ac2d`;
+  fixture hash `6078f7e2b225285d1c80e90d19fe1aae91235ed89c7d9803da559dc54d6bcd42`;
+  release-candidate SHA-256
+  `08bd6ff334d4fb15c4590b3a65a7c68cf51809a712d1b0e67efb3989e6be8777`.
+  Direct controls prove Python `ensure_ascii` digest continuity, Unicode item
+  digits, malformed-Unicode timestamp refusal, remote UTF-8 BOM removal,
+  local-date and mixed-offset instant ordering, canonical source aliases, and
+  semantic readback of the final encrypted import. Baseline: 30 runs. Verify
+  passes 6/6 with zero violations. Measurement: 30 unique, uncached pairs in
+  each regime. Cold CPU p95 was 374,226 to 267,614 microseconds; warm was
+  370,083 to 268,258. Cold tree-RSS p95 was 52,756,480 to 13,828,096 bytes;
+  warm was 52,690,944 to 13,844,480. Each ratio is below 1.10. `decide`
+  returned component-only `activate`; fresh extra, missing and duplicate
+  controls returned `keep-python`. Production routes, shipped crates and
+  activation remain unchanged.
 
 ### rust-12: Port project learning, replay, tours and explainers
 
