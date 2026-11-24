@@ -2298,6 +2298,24 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native learning and explainer builders.
 - **Gate:** 100% of deterministic learning, replay and PRD contracts agree;
   0 new data exits; 0 repeated computation for unchanged inputs.
+- **Component pre-registration (2026-11-24):** Python oracle
+  `tests/oracles/rust12.py`; native assertion
+  `tests/unit/test_rust12_component.py`. Six fixed synthetic cases cover source
+  staging, concept validation, learning/scheduling, replay, tours and
+  explainer/PRD CLI handlers. Exact typed results and semantic write maps are
+  compared per phase. Only owned paths, generated keys, sealed-record bytes,
+  replay Git internals and FSRS's random due-interval/memory representation are
+  normalized; learning choices, mastery, retests, review counts, privacy and
+  every other output remain strict. Unchanged staged inputs must not rewrite
+  their stored content. Thirty fresh Python runs establish baseline B. Verify
+  requires all six cases with zero contract, privacy, side-effect,
+  missing-write or duplicate-write violations. Measure requires 30 unique
+  interleaved pairs in each cold and warm regime. CPU-time p95 and process-tree
+  peak RSS must each be at most 1.10 x the paired oracle in each regime;
+  unmeasured noise floors use that ratio without relaxation. Any mismatch, new
+  data exit, repeated unchanged-input write or resource excess keeps Python.
+  This is component parity only: production dispatch, shipped crates and
+  activation do not change.
 
 ### rust-13: Port feed ingestion and transcript normalization
 

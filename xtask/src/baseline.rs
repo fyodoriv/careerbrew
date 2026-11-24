@@ -732,6 +732,52 @@ pub const STEPS: &[Step] = &[
         ],
     },
     Step {
+        // rust-12 starts with its real Python oracle. The native candidate and
+        // its source bindings join with the component implementation.
+        id: "rust-12",
+        oracle: &["-I", "-B", "tests/oracles/rust12.py", "--all"],
+        cases: &[],
+        candidate: None,
+        http_contract: false,
+        data_contract: false,
+        role_contract: false,
+        registry_projection: false,
+        no_python: true,
+        env: &[],
+        sources: &[
+            "tests/oracles/rust12.py",
+            "src/careerbrew/learn/project.py",
+            "src/careerbrew/learn/replay.py",
+            "src/careerbrew/learn/tour.py",
+            "src/careerbrew/work/explain.py",
+            "src/careerbrew/work/prd.py",
+            "src/careerbrew/work/projects.py",
+            "src/careerbrew/tutor/cards.py",
+            "src/careerbrew/tutor/public.py",
+            "src/careerbrew/cli.py",
+            "src/careerbrew/calendar.py",
+            "src/careerbrew/config.py",
+            "src/careerbrew/events.py",
+            "src/careerbrew/keyfile.py",
+            "src/careerbrew/paths.py",
+            "src/careerbrew/plugins.py",
+            "src/careerbrew/store.py",
+            "src/careerbrew/vault.py",
+        ],
+        fixtures: &[
+            "profile/examples/day/calendars.yaml",
+            "profile/examples/jobs/criteria.yaml",
+            "profile/examples/jobs/sources.yaml",
+            "profile/examples/mail.yaml",
+            "profile/examples/profile.yaml",
+            "profile/examples/sensitive-terms.txt",
+            "profile/examples/settings.yaml",
+            "profile/examples/work/sources.yaml",
+            "skills/careerbrew-project-explainer/references/example-careerbrew.md",
+            "skills/careerbrew-project-explainer/references/example-prd.md",
+        ],
+    },
+    Step {
         // rust-04 is a vector step (privacy, policy and approval decisions).
         // Its Python oracle `--all` runs every set over the generator's
         // vectors in one isolated process. `verify` routes the step to the
