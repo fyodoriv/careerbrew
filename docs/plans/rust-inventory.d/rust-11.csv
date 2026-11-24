@@ -1,0 +1,13 @@
+tests/oracles/rust11.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-11 differential gate
+tests/unit/test_rust11_component.py,keep-native,rust-00,rust-11 native component and CLI assertions
+crates/memory/Cargo.toml,keep-native,rust-00,Component-only project memory crate manifest
+crates/memory/src/lib.rs,port,rust-11,Component-only storage clock digest and value boundary
+crates/memory/src/research.rs,port,rust-11,Exact URL repository identity normalization and research adapters
+crates/memory/src/project_import.rs,port,rust-11,All-or-nothing CSV JSON and Sheets project imports under project lock
+crates/memory/src/memory_sync.rs,port,rust-11,Digest-based bidirectional memory sync locks modes and owner appends
+crates/memory/src/cli.rs,port,rust-11,Component import absorb check-since and sync CLI adapters
+crates/memory/src/synthetic.rs,port,rust-11,Synthetic identity import memory research and CLI workload
+crates/memory/src/bin/memory-component.rs,port,rust-11,Synthetic-only native project memory candidate entry point
+crates/memory/tests/component.rs,keep-native,rust-00,rust-11 native item identity mode and rewrite controls
+xtask/src/rust11.rs,keep-native,rust-00,Custom rust-11 semantic privacy and write verification runner
+xtask/tests/rust11.rs,keep-native,rust-00,rust-11 registration evidence identity and planted write controls
