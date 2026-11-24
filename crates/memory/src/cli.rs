@@ -142,7 +142,7 @@ pub fn project_since_command(
                 let since = text(field(row, "since"));
                 let when = format!(
                     "since {} UTC",
-                    &since.get(..16).unwrap_or(&since).replace('T', " ")
+                    since.get(..16).unwrap_or(&since).replace('T', " ")
                 );
                 let detail = match state.as_str() {
                     "changed" => format!("{} change(s) {when}", row["count"].as_u64().unwrap_or(0)),

@@ -139,8 +139,10 @@ fn record(root: &Path, path: &Path, expected: &str, rec: &mut Value) -> Result<(
     Ok(())
 }
 
-fn files(root: &Path) -> Result<BTreeMap<String, (PathBuf, Vec<(String, String)>)>> {
-    let mut out = BTreeMap::<String, (PathBuf, Vec<(String, String)>)>::new();
+type MemoryFiles = BTreeMap<String, (PathBuf, Vec<(String, String)>)>;
+
+fn files(root: &Path) -> Result<MemoryFiles> {
+    let mut out = MemoryFiles::new();
     for (name, project) in projects::load(root)?
         .as_object()
         .into_iter()
@@ -252,6 +254,8 @@ fn parse(text: &str, tracked: &BTreeSet<String>, own: &BTreeSet<String>) -> Resu
     let link = Regex::new(r#"https?://[^\s<>()\[\]{}"'`]+"#).unwrap();
     let key = Regex::new(r"(?i)^\s*(?:[-*+]\s+)?[*_]*(status|trackers?|channels?|links|related)[*_]*\s*:[*_]*\s*(.*?)\s*$").unwrap();
     let ticket = Regex::new(r"\b[A-Z][A-Z0-9]+-\d+\b").unwrap();
+    let tracker_key = Regex::new(r"^[A-Z][A-Z0-9]+-\d+$").unwrap();
+    let slug = Regex::new(r"[^a-z0-9]+").unwrap();
     let words = Regex::new(r"[,;|\s]+").unwrap();
     let channel = Regex::new(r"^#?[a-z0-9][a-z0-9._-]{0,79}$").unwrap();
     let mut out = Parsed::default();
@@ -281,10 +285,7 @@ fn parse(text: &str, tracked: &BTreeSet<String>, own: &BTreeSet<String>) -> Resu
             } else if name.starts_with("tracker") {
                 for word in values {
                     let upper = word.to_uppercase();
-                    if Regex::new(r"^[A-Z][A-Z0-9]+-\d+$")
-                        .unwrap()
-                        .is_match(&upper)
-                    {
+                    if tracker_key.is_match(&upper) {
                         push_ref(&mut out.refs, "tracker", upper);
                     }
                 }
@@ -301,8 +302,7 @@ fn parse(text: &str, tracked: &BTreeSet<String>, own: &BTreeSet<String>) -> Resu
                 }
             } else {
                 for word in values {
-                    let slug = Regex::new(r"[^a-z0-9]+")
-                        .unwrap()
+                    let slug = slug
                         .replace_all(&word.to_lowercase(), "-")
                         .trim_matches('-')
                         .to_owned();
@@ -688,8 +688,8 @@ pub fn score_item(item: &Value, project: &Value, globs: &[String]) -> usize {
                 best = best.max(2);
             }
         } else if kind == "chat" {
-            if reference.starts_with('#') {
-                let name = reference[1..].to_lowercase();
+            if let Some(stripped) = reference.strip_prefix('#') {
+                let name = stripped.to_lowercase();
                 let pattern = Regex::new(&format!(
                     r"(?:^|[^\w-])#{}(?:$|[^\w-])",
                     regex::escape(&name)

@@ -242,8 +242,8 @@ pub fn after(stamp: &str, since: Option<&str>) -> bool {
         return true;
     };
     let parse = |value: &str| {
-        let normalized = if value.ends_with('Z') {
-            format!("{}+00:00", &value[..value.len() - 1])
+        let normalized = if let Some(stripped) = value.strip_suffix('Z') {
+            format!("{}+00:00", stripped)
         } else if value.len() >= 5
             && matches!(&value[value.len() - 5..value.len() - 4], "+" | "-")
             && !value[value.len() - 2..].contains(':')
@@ -435,6 +435,7 @@ pub fn normalize_sources(root: &Path) -> Result<()> {
     projects::with_lock(root, || {
         let mut every = projects::load(root)?;
         let before = every.clone();
+        let channel_id = Regex::new(r"^#[CGD][A-Z0-9]+$").unwrap();
         for (_, project) in every
             .as_object_mut()
             .into_iter()
@@ -448,11 +449,7 @@ pub fn normalize_sources(root: &Path) -> Result<()> {
                 let reference_only = field(&source, "reference") == Some(&Value::Bool(true));
                 let replacement = if reference_only && kind != "tracker" {
                     original.clone()
-                } else if kind == "chat"
-                    && Regex::new(r"^#[CGD][A-Z0-9]+$")
-                        .unwrap()
-                        .is_match(&original)
-                {
+                } else if kind == "chat" && channel_id.is_match(&original) {
                     original[1..].to_owned()
                 } else if kind == "memory" {
                     original.clone()

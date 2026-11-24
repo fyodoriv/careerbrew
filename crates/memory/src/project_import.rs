@@ -79,11 +79,11 @@ fn read_source(root: &Path, source: &str) -> Result<(String, String)> {
         return Ok((fetch(source)?, "csv".into()));
     }
     let path = PathBuf::from(source);
-    let path = if source.starts_with("~/") {
+    let path = if let Some(stripped) = source.strip_prefix("~/") {
         std::env::var_os("HOME")
             .map(PathBuf::from)
             .unwrap_or(path)
-            .join(&source[2..])
+            .join(stripped)
     } else {
         path
     };
