@@ -2,6 +2,19 @@
 
 use careerbrew_memory::{memory_sync, project_import, research};
 
+struct RestoreEnv(Vec<(&'static str, Option<std::ffi::OsString>)>);
+impl Drop for RestoreEnv {
+    fn drop(&mut self) {
+        for (name, value) in &self.0 {
+            if let Some(value) = value {
+                std::env::set_var(name, value);
+            } else {
+                std::env::remove_var(name);
+            }
+        }
+    }
+}
+
 #[test]
 fn item_identity_stays_exact_and_repository_identity_stays_separate() {
     let item = research::detect("https://github.com/acme/billing/pull/41/files?x=1#note")
@@ -57,6 +70,17 @@ fn external_rewrite_preserves_mode_and_carries_an_owner_append() {
     let data = scratch.path().join("data");
     std::fs::create_dir_all(&data).unwrap();
     std::fs::create_dir_all(scratch.path().join("external")).unwrap();
+    let restore = RestoreEnv(
+        [
+            "HOME",
+            "CAREERBREW_HOME",
+            "CAREERBREW_KEY_FILE",
+            "CAREERBREW_ENCRYPT",
+        ]
+        .into_iter()
+        .map(|name| (name, std::env::var_os(name)))
+        .collect(),
+    );
     std::env::set_var("HOME", scratch.path().join("home"));
     std::env::set_var("CAREERBREW_HOME", &data);
     std::env::set_var(
@@ -78,4 +102,5 @@ fn external_rewrite_preserves_mode_and_carries_an_owner_append() {
         0o600
     );
     assert!(!memory_sync::rewrite_external(&data, &path, "different", "bad").unwrap());
+    drop(restore);
 }

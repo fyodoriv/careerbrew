@@ -99,10 +99,16 @@ fn append_file(root: &Path, path: &Path, before: &str, section: &str) -> Result<
 }
 
 fn rewrite(root: &Path, path: &Path, old: &str, new: &str) -> Result<bool> {
-    rewrite_with_storage(root, path, old, new)
+    rewrite_with_storage(root, path, old, new, || Ok(()))
 }
 
-fn rewrite_with_storage(root: &Path, path: &Path, old: &str, new: &str) -> Result<bool> {
+fn rewrite_with_storage(
+    root: &Path,
+    path: &Path,
+    old: &str,
+    new: &str,
+    before_replace: impl FnOnce() -> Result<()>,
+) -> Result<bool> {
     let Some(now) = read(root, path)? else {
         return Ok(false);
     };
@@ -122,6 +128,16 @@ fn rewrite_with_storage(root: &Path, path: &Path, old: &str, new: &str) -> Resul
     file.as_file()
         .set_permissions(std::fs::Permissions::from_mode(mode))?;
     file.write_all(text.as_bytes())?;
+    before_replace()?;
+    let latest = read(root, path)?
+        .ok_or_else(|| error("OSError", "memory file disappeared before replacement"))?;
+    if latest == now {
+        // No intervening write.
+    } else if latest.starts_with(&now) {
+        file.write_all(&latest.as_bytes()[now.len()..])?;
+    } else {
+        return Ok(false);
+    }
     file.persist(path).map_err(|error| error.error)?;
     Ok(true)
 }
@@ -1189,4 +1205,68 @@ pub fn append(root: &Path, memory: &str, header: &str, notes: &[String]) -> Resu
 pub fn run(root: &Path, allowed: bool) -> Result<Value> {
     research::normalize_sources(root)?;
     Ok(json!({"enabled": enabled(root)?, "in": sync_in(root)?, "out": sync_out(root, allowed)?}))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct RestoreEnv(Vec<(&'static str, Option<std::ffi::OsString>)>);
+    impl Drop for RestoreEnv {
+        fn drop(&mut self) {
+            for (name, value) in &self.0 {
+                if let Some(value) = value {
+                    std::env::set_var(name, value);
+                } else {
+                    std::env::remove_var(name);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn external_rewrite_preserves_mode_and_carries_an_owner_append() {
+        let scratch = tempfile::tempdir().unwrap();
+        let data = scratch.path().join("data");
+        std::fs::create_dir_all(&data).unwrap();
+        let path = scratch.path().join("external/notes.md");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let restore = RestoreEnv(
+            [
+                "HOME",
+                "CAREERBREW_HOME",
+                "CAREERBREW_KEY_FILE",
+                "CAREERBREW_ENCRYPT",
+            ]
+            .into_iter()
+            .map(|name| (name, std::env::var_os(name)))
+            .collect(),
+        );
+        std::env::set_var("HOME", scratch.path().join("home"));
+        std::env::set_var("CAREERBREW_HOME", &data);
+        std::env::set_var(
+            "CAREERBREW_KEY_FILE",
+            scratch.path().join("keys/backup.key"),
+        );
+        std::env::set_var("CAREERBREW_ENCRYPT", "off");
+        std::fs::write(&path, "# notes\n- old\n").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        let old = std::fs::read_to_string(&path).unwrap();
+        let appended = path.clone();
+        rewrite_with_storage(&data, &path, &old, "# notes\n", || {
+            let mut file = std::fs::OpenOptions::new().append(true).open(&appended)?;
+            file.write_all(b"- owner\n")?;
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            "# notes\n- owner\n"
+        );
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        drop(restore);
+    }
 }
