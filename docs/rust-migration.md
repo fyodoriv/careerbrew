@@ -2316,6 +2316,13 @@ the crate until the rust-05 and rust-07 closure is native, so
   data exit, repeated unchanged-input write or resource excess keeps Python.
   This is component parity only: production dispatch, shipped crates and
   activation do not change.
+- **Component oracle baseline before native implementation (2026-11-24, macOS):**
+  clean source revision `008993072bc861d80b59b44b5eb484723516228e`; 30 runs;
+  CPU p50/p95 6,983,766/7,132,482 microseconds and tree-RSS p50/p95
+  71,647,232/72,089,600 bytes. Evidence-source hash
+  `e3a206c8a6260e72288a7ef69427f42ed8d4658661c5e792b94281dd0188c040`;
+  fixture hash `438cab9a16bcebdf143a1d49f3e5424c60e42ab1ac3c7340967ad9de03c1c7bc`.
+  This is the pre-native prediction record, not a speed result.
 
 ### rust-13: Port feed ingestion and transcript normalization
 
