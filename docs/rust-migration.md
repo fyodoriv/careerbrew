@@ -2045,6 +2045,19 @@ the crate until the rust-05 and rust-07 closure is native, so
   The semantic write comparison normalizes only the named unpinned fixture
   row's real-clock timestamp (`local:3` / `PROJ-1 unpinned`); its output and all
   other timestamps remain strict.
+- **Seven-case acceptance (2026-11-23, macOS):** clean source
+  `61aacad55b4f6da3df4f70ee2ff2220da255fa1b`; evidence-source hash
+  `1c5b3cc04c405a11f41bbe9b7ac1c1f74e4b0510ae737348f504f6b62b4cd6bb`;
+  fixture hash
+  `6078f7e2b225285d1c80e90d19fe1aae91235ed89c7d9803da559dc54d6bcd42`;
+  release-candidate SHA-256
+  `9a926643a42fcc17f4215345ca8331653b4720275a2095c69a87cf1201532309`.
+  Baseline: 30 runs. Verify: 7/7 with zero violations, including `local-time`.
+  Cold CPU p95 was 407,528 to 296,053 microseconds; warm was 406,301 to 290,063.
+  Paired cold tree-RSS maximum was 53,411,840 to 14,336,000 bytes; warm was
+  53,510,144 to 14,008,320. Thirty unique uncached pairs ran in each regime and
+  both ratios are below 1.10. `decide` returned component-only `activate` with
+  no reasons. Production routes, shipped crates and activation remain unchanged.
 
 ### rust-10: Port sessions, claims, agents and reply drafts
 
