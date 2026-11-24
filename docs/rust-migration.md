@@ -9,8 +9,8 @@ repository can do any step from this page and the task block.
   actions` routes to `careerbrew-native` since `rust-03` activated
   (2026-11-19, [rust-03 verdict](#rust-03-verdict)). No other gain is claimed. See [Current state](#current-state) and
   [State of rust-00](#state-of-rust-00).
-- **Next task:** `rust-12` (project learning, replay, tours and explainers).
-  `rust-00` through `rust-11` have their recorded preparation or component
+- **Next task:** `rust-13` (feed ingestion and transcript normalization).
+  `rust-00` through `rust-12` have their recorded preparation or component
   results; only the `rust-03` action catalog is active in production. Follow-ups
   and later activation closure remain tasks in `TASKS.md`.
 - **How to read it:** the [goal](#goal-and-vision) and [decision](#decision-and-rejected-alternatives),
@@ -2332,6 +2332,25 @@ the crate until the rust-05 and rust-07 closure is native, so
   compares exact typed output, semantic writes and per-phase write transitions;
   planted extra, missing and duplicate writes must fail. Production Python,
   native routes, shipped crates and activation are unchanged.
+- **Component acceptance (2026-11-24, macOS):** clean measured source
+  `837a5907eb50a0840ffd8eb89b2898af55a447ad`; evidence-source hash
+  `a38416cdb3bf0ffe515d187ac9e5c741634e4fef096df889bfccbf2ea5dd17b4`;
+  fixture hash `438cab9a16bcebdf143a1d49f3e5424c60e42ab1ac3c7340967ad9de03c1c7bc`;
+  release-candidate SHA-256
+  `6229f42410f377a9ff26f70b3c1115ad7f4ae7a5cfe87db66952ed260649e36a`.
+  Baseline: 30 runs; CPU p50/p95 5,185,416/5,254,055 microseconds and tree-RSS
+  p50/p95 67,223,552/67,829,760 bytes. Verify passes 6/6 with zero contract,
+  privacy, side-effect, missing-write or duplicate-write violations. Measurement:
+  30 unique, uncached pairs in each regime. Cold CPU p95 was 9,225,618 to
+  3,944,666 microseconds; warm was 5,033,498 to 3,846,202. Cold tree-RSS p95
+  was 67,551,232 to 31,604,736 bytes; warm was 67,584,000 to 31,621,120. Each
+  ratio is below 1.10; the unmeasured noise floors apply that ratio without
+  relaxation. `migration decide --step rust-12` returned component-only
+  `activate` with no reasons. Fresh extra, missing and duplicate native-write
+  controls each returned `keep-python` with `verify-check-failed` and
+  `verify-violation`. Production routes, shipped crates and activation remain
+  unchanged; activation needs the complete native closure, fresh acceptance
+  records and rollback evidence.
 
 ### rust-13: Port feed ingestion and transcript normalization
 
