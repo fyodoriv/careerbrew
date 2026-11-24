@@ -54,6 +54,14 @@ fn exact_item_urls_do_not_match_numeric_prefixes_or_repository_scope() {
 #[test]
 fn external_rewrite_preserves_mode_and_carries_an_owner_append() {
     let scratch = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(scratch.path().join("data")).unwrap();
+    std::env::set_var("HOME", scratch.path().join("home"));
+    std::env::set_var("CAREERBREW_HOME", scratch.path().join("data"));
+    std::env::set_var(
+        "CAREERBREW_KEY_FILE",
+        scratch.path().join("keys/backup.key"),
+    );
+    std::env::set_var("CAREERBREW_ENCRYPT", "off");
     let path = scratch.path().join("notes.md");
     std::fs::write(&path, "# notes\n- old\n").unwrap();
     let mut permissions = std::fs::metadata(&path).unwrap().permissions();
