@@ -17,8 +17,6 @@ chrono-tz = "=0.10.4"
 regex = "=1.13.2"
 sha2 = "=0.10.9"
 csv = "=1.4.0"
-
-[dev-dependencies]
 tempfile = "=3.23.0"
 
 [[bin]]

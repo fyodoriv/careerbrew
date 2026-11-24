@@ -1,7 +1,7 @@
 //! Digest-based two-way project memory sync with owner-append preservation.
 
 use crate::{
-    digest, field, read_json, read_jsonl, read_text, research, strings, text, write_json,
+    digest, error, field, read_json, read_jsonl, read_text, research, strings, text, write_json,
     write_json_if_changed, write_text, Result,
 };
 use careerbrew_projects::{project_priority, projects};
@@ -10,7 +10,7 @@ use regex::Regex;
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
-use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 const NOTE_DAYS: i64 = 7;
@@ -99,6 +99,10 @@ fn append_file(root: &Path, path: &Path, before: &str, section: &str) -> Result<
 }
 
 fn rewrite(root: &Path, path: &Path, old: &str, new: &str) -> Result<bool> {
+    rewrite_with_storage(root, path, old, new)
+}
+
+fn rewrite_with_storage(root: &Path, path: &Path, old: &str, new: &str) -> Result<bool> {
     let Some(now) = read(root, path)? else {
         return Ok(false);
     };
@@ -110,26 +114,20 @@ fn rewrite(root: &Path, path: &Path, old: &str, new: &str) -> Result<bool> {
         write_text(path, &text)?;
         return Ok(true);
     }
-    let tmp = path.with_file_name(format!(
-        ".{}.{}.tmp",
-        path.file_name().unwrap_or_default().to_string_lossy(),
-        std::process::id()
-    ));
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .open(&tmp)?;
+    let mut file = tempfile::NamedTempFile::new_in(
+        path.parent()
+            .ok_or_else(|| error("OSError", "memory file has no parent"))?,
+    )?;
     let mode = std::fs::metadata(path)?.permissions().mode() & 0o777;
-    file.set_permissions(std::fs::Permissions::from_mode(mode))?;
+    file.as_file()
+        .set_permissions(std::fs::Permissions::from_mode(mode))?;
     file.write_all(text.as_bytes())?;
-    drop(file);
-    std::fs::rename(&tmp, path)?;
+    file.persist(path).map_err(|error| error.error)?;
     Ok(true)
 }
 
-pub fn rewrite_external(path: &Path, old: &str, new: &str) -> Result<bool> {
-    rewrite(Path::new("/"), path, old, new)
+pub fn rewrite_external(root: &Path, path: &Path, old: &str, new: &str) -> Result<bool> {
+    rewrite(root, path, old, new)
 }
 
 fn record(root: &Path, path: &Path, expected: &str, rec: &mut Value) -> Result<()> {
@@ -570,12 +568,50 @@ fn local_zone(root: &Path) -> chrono_tz::Tz {
         .unwrap_or_else(|_| json!({}));
     let configured = text(field(&settings, "timezone"));
     let system = std::env::var("TZ").unwrap_or_default();
-    let name = if configured.is_empty() {
-        system.trim_start_matches(':')
+    let name = if !configured.is_empty() {
+        configured
+    } else if !system.is_empty() {
+        system.trim_start_matches(':').to_owned()
     } else {
-        configured.as_str()
+        std::fs::canonicalize("/etc/localtime")
+            .ok()
+            .and_then(|path| {
+                path.to_string_lossy()
+                    .split("/zoneinfo/")
+                    .nth(1)
+                    .map(str::to_owned)
+            })
+            .unwrap_or_default()
     };
-    name.parse().unwrap_or(chrono_tz::UTC)
+    // Match Python's explicit warning when no valid zone can be resolved.
+    name.parse().unwrap_or_else(|_| {
+        eprintln!("careerbrew: cannot read this machine's time zone, so times use UTC; fix: careerbrew config set timezone <IANA name, for example Etc/UTC>");
+        chrono_tz::UTC
+    })
+}
+
+fn local_naive(zone: chrono_tz::Tz, naive: chrono::NaiveDateTime) -> Option<DateTime<FixedOffset>> {
+    match zone.from_local_datetime(&naive) {
+        chrono::LocalResult::Single(local) => Some(local.fixed_offset()),
+        chrono::LocalResult::Ambiguous(first, _) => Some(first.fixed_offset()),
+        chrono::LocalResult::None => {
+            // Python's fold=0 uses the offset before a DST gap. Probe a bounded
+            // three hours back, then apply that offset to the supplied time.
+            for minutes in 1..=180 {
+                let earlier = naive - Duration::minutes(minutes);
+                let existing = match zone.from_local_datetime(&earlier) {
+                    chrono::LocalResult::Single(local) => Some(local),
+                    chrono::LocalResult::Ambiguous(first, _) => Some(first),
+                    chrono::LocalResult::None => None,
+                };
+                if let Some(existing) = existing {
+                    let offset = *existing.fixed_offset().offset();
+                    return offset.from_local_datetime(&naive).single();
+                }
+            }
+            None
+        }
+    }
 }
 
 fn parse_when(root: &Path, value: &str) -> Option<DateTime<FixedOffset>> {
@@ -587,9 +623,23 @@ fn parse_when(root: &Path, value: &str) -> Option<DateTime<FixedOffset>> {
         .or_else(|| {
             chrono::NaiveDateTime::parse_from_str(&value, "%Y-%m-%dT%H:%M:%S%.f")
                 .ok()
-                .and_then(|naive| zone.from_local_datetime(&naive).single())
-                .map(|local| local.fixed_offset())
+                .and_then(|naive| local_naive(zone, naive))
         })
+}
+
+pub fn local_time(root: &Path, value: &str) -> Option<String> {
+    parse_when(root, value).map(|when| when.to_rfc3339())
+}
+
+fn local_now(root: &Path) -> Result<DateTime<FixedOffset>> {
+    let zone = local_zone(root);
+    if let Ok(pinned) = std::env::var("CAREERBREW_NOW") {
+        if !pinned.is_empty() {
+            return parse_when(root, &pinned)
+                .ok_or_else(|| error("ValueError", "invalid CAREERBREW_NOW"));
+        }
+    }
+    Ok(chrono::Utc::now().with_timezone(&zone).fixed_offset())
 }
 
 fn aliases(id: &str) -> BTreeSet<String> {
@@ -601,7 +651,7 @@ fn aliases(id: &str) -> BTreeSet<String> {
 }
 
 fn candidates(root: &Path) -> Result<Vec<Value>> {
-    let cut = careerbrew_projects::now() - Duration::days(NOTE_DAYS);
+    let cut = local_now(root)? - Duration::days(NOTE_DAYS);
     let feed = read_jsonl(root, "work/feed/events.jsonl")?;
     let mut skip = feed
         .iter()
@@ -835,8 +885,8 @@ fn empty_out() -> Value {
     json!({"notes": 0, "projects": 0, "removed": 0, "errors": 0, "reason": ""})
 }
 
-fn prune(notes: &mut Value) {
-    let cut = (careerbrew_projects::now() - Duration::days(KEEP_DAYS))
+fn prune(root: &Path, notes: &mut Value) -> Result<()> {
+    let cut = (local_now(root)? - Duration::days(KEEP_DAYS))
         .date_naive()
         .to_string();
     if let Some(map) = notes.as_object_mut() {
@@ -845,6 +895,7 @@ fn prune(notes: &mut Value) {
             day.is_empty() || day >= cut.as_str()
         });
     }
+    Ok(())
 }
 
 pub fn sync_out(root: &Path, allowed: bool) -> Result<Value> {
@@ -907,7 +958,7 @@ pub fn sync_out_with(
     if plan.is_empty() {
         return Ok(out);
     }
-    let header = format!("{} work tools", careerbrew_projects::now().date_naive());
+    let header = format!("{} work tools", local_now(root)?.date_naive());
     let mut written = BTreeSet::new();
     with_lock(root, || {
         let mut state = read_json(root, "work/memory-sync.json", json!({"files": {}}))?;
@@ -982,7 +1033,7 @@ pub fn sync_out_with(
                 for (id, value) in pending {
                     notes[id] = value;
                 }
-                prune(&mut notes);
+                prune(root, &mut notes)?;
                 rec["notes"] = notes;
                 state["files"][&key] = rec;
                 Ok(())

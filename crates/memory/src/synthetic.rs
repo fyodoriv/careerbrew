@@ -16,6 +16,7 @@ pub const CASES: &[&str] = &[
     "memory-out",
     "memory-removal",
     "research-cli",
+    "local-time",
 ];
 
 struct Workspace {
@@ -573,6 +574,72 @@ fn research_cli(base: &Path) -> Result<Value> {
     )
 }
 
+fn local_time_case(base: &Path) -> Result<Value> {
+    let workspace = Workspace::new(base, "local-time")?;
+    let root = &workspace.root;
+    let mem = workspace.base.join("billing.md");
+    std::fs::write(&mem, "# billing\n")?;
+    projects::add(root, "billing", Default::default())?;
+    set_memory(root, "billing", &mem.to_string_lossy())?;
+    projects::add_source(root, "billing", "tracker", "PROJ-1")?;
+    set_setting(root, "timezone", json!("America/New_York"))?;
+    std::env::remove_var("TZ");
+    std::env::set_var("CAREERBREW_NOW", "2026-10-22T02:30:00+00:00");
+    write_jsonl(
+        root,
+        "work/feed/events.jsonl",
+        &[
+            json!({"id": "local:1", "source": "local", "at": "2026-10-22T01:30:00+00:00", "title": "PROJ-1 near midnight", "triage": "act"}),
+        ],
+    )?;
+    let pinned = memory_sync::sync_out(root, true)?;
+    let text = std::fs::read_to_string(&mem)?;
+    let pinned_header = text
+        .lines()
+        .find(|line| line.starts_with("## "))
+        .expect("pinned header")
+        .to_owned();
+    let pinned_note_dates = text
+        .lines()
+        .filter(|line| line.starts_with("- "))
+        .filter_map(|line| line.split_whitespace().nth(1).map(str::to_owned))
+        .collect::<Vec<_>>();
+    let naive = [
+        "2026-11-01T01:30:00",
+        "2026-03-08T02:30:00",
+        "2026-10-21T23:30:00",
+        "a+😀",
+    ]
+    .into_iter()
+    .map(|value| memory_sync::local_time(root, value))
+    .collect::<Vec<_>>();
+
+    set_setting(root, "timezone", json!(""))?;
+    let mut rows = read_jsonl(root, "work/feed/events.jsonl")?;
+    rows.push(json!({"id": "local:2", "source": "local", "at": "2026-10-22T02:00:00+00:00", "title": "PROJ-1 system zone", "triage": "act"}));
+    write_jsonl(root, "work/feed/events.jsonl", &rows)?;
+    let system = memory_sync::sync_out(root, true)?;
+    let system_header = std::fs::read_to_string(&mem)?
+        .lines()
+        .rfind(|line| line.starts_with("## "))
+        .expect("system header")
+        .to_owned();
+
+    std::env::remove_var("CAREERBREW_NOW");
+    let mut rows = read_jsonl(root, "work/feed/events.jsonl")?;
+    rows.push(json!({"id": "local:3", "source": "local", "at": chrono::Utc::now().to_rfc3339(), "title": "PROJ-1 unpinned", "triage": "act"}));
+    write_jsonl(root, "work/feed/events.jsonl", &rows)?;
+    let unpinned = memory_sync::sync_out(root, true)?;
+    let unpinned_header = std::fs::read_to_string(&mem)?
+        .lines()
+        .rfind(|line| line.starts_with("## "))
+        .expect("unpinned header")
+        .to_owned();
+    Ok(
+        json!({"pinned": pinned, "pinned_header": pinned_header, "pinned_note_dates": pinned_note_dates, "naive": naive, "system": system, "system_header": system_header, "unpinned": unpinned, "unpinned_header": unpinned_header}),
+    )
+}
+
 fn run(case: &str, base: &Path) -> Result<Value> {
     match case {
         "source-identity" => source_identity(base),
@@ -581,6 +648,7 @@ fn run(case: &str, base: &Path) -> Result<Value> {
         "memory-out" => memory_out(base),
         "memory-removal" => memory_removal(base),
         "research-cli" => research_cli(base),
+        "local-time" => local_time_case(base),
         _ => Err(crate::error("ValueError", "unknown rust-11 case")),
     }
 }

@@ -54,26 +54,28 @@ fn exact_item_urls_do_not_match_numeric_prefixes_or_repository_scope() {
 #[test]
 fn external_rewrite_preserves_mode_and_carries_an_owner_append() {
     let scratch = tempfile::tempdir().unwrap();
-    std::fs::create_dir_all(scratch.path().join("data")).unwrap();
+    let data = scratch.path().join("data");
+    std::fs::create_dir_all(&data).unwrap();
+    std::fs::create_dir_all(scratch.path().join("external")).unwrap();
     std::env::set_var("HOME", scratch.path().join("home"));
-    std::env::set_var("CAREERBREW_HOME", scratch.path().join("data"));
+    std::env::set_var("CAREERBREW_HOME", &data);
     std::env::set_var(
         "CAREERBREW_KEY_FILE",
         scratch.path().join("keys/backup.key"),
     );
     std::env::set_var("CAREERBREW_ENCRYPT", "off");
-    let path = scratch.path().join("notes.md");
+    let path = scratch.path().join("external/notes.md");
     std::fs::write(&path, "# notes\n- old\n").unwrap();
     let mut permissions = std::fs::metadata(&path).unwrap().permissions();
     use std::os::unix::fs::PermissionsExt;
     permissions.set_mode(0o600);
     std::fs::set_permissions(&path, permissions).unwrap();
     let old = std::fs::read_to_string(&path).unwrap();
-    assert!(memory_sync::rewrite_external(&path, &old, "# notes\n").unwrap());
+    assert!(memory_sync::rewrite_external(&data, &path, &old, "# notes\n").unwrap());
     assert_eq!(std::fs::read_to_string(&path).unwrap(), "# notes\n");
     assert_eq!(
         std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
         0o600
     );
-    assert!(!memory_sync::rewrite_external(&path, "different", "bad").unwrap());
+    assert!(!memory_sync::rewrite_external(&data, &path, "different", "bad").unwrap());
 }

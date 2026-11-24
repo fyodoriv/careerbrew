@@ -13,6 +13,7 @@ import json
 import os
 import stat
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,7 @@ CASES = (
     "memory-out",
     "memory-removal",
     "research-cli",
+    "local-time",
 )
 FIX = Path(__file__).resolve().parents[1] / "fixtures"
 
@@ -425,6 +427,43 @@ def _research_cli(base: Path) -> dict[str, Any]:
     }
 
 
+def _local_time(base: Path) -> dict[str, Any]:
+    workspace = Workspace(base, "local-time")
+    mem = workspace.base / "billing.md"
+    mem.write_text("# billing\n")
+    projects.add("billing", memory=str(mem))
+    projects.add_source("billing", "tracker", "PROJ-1")
+    config.set_value("timezone", "America/New_York")
+    os.environ.pop("TZ", None)
+    os.environ["CAREERBREW_NOW"] = "2026-10-22T02:30:00+00:00"
+    store.write_jsonl(feed.events_path(), [{"id": "local:1", "source": "local", "at": "2026-10-22T01:30:00+00:00", "title": "PROJ-1 near midnight", "triage": "act"}])
+    pinned = memory_sync.sync_out(allowed=True)
+    text = mem.read_text()
+    pinned_header = next(line for line in text.splitlines() if line.startswith("## "))
+    pinned_note_dates = [line.split()[1] for line in text.splitlines() if line.startswith("- ")]
+    naive = [memory_sync._when(value).isoformat() if memory_sync._when(value) is not None else None for value in ("2026-11-01T01:30:00", "2026-03-08T02:30:00", "2026-10-21T23:30:00", "a+😀")]
+
+    config.set_value("timezone", "")
+    store.write_jsonl(feed.events_path(), [*store.read_jsonl(feed.events_path()), {"id": "local:2", "source": "local", "at": "2026-10-22T02:00:00+00:00", "title": "PROJ-1 system zone", "triage": "act"}])
+    system = memory_sync.sync_out(allowed=True)
+    system_header = [line for line in mem.read_text().splitlines() if line.startswith("## ")][-1]
+
+    os.environ.pop("CAREERBREW_NOW")
+    store.write_jsonl(feed.events_path(), [*store.read_jsonl(feed.events_path()), {"id": "local:3", "source": "local", "at": datetime.now(UTC).isoformat(), "title": "PROJ-1 unpinned", "triage": "act"}])
+    unpinned = memory_sync.sync_out(allowed=True)
+    unpinned_header = [line for line in mem.read_text().splitlines() if line.startswith("## ")][-1]
+    return {
+        "pinned": pinned,
+        "pinned_header": pinned_header,
+        "pinned_note_dates": pinned_note_dates,
+        "naive": naive,
+        "system": system,
+        "system_header": system_header,
+        "unpinned": unpinned,
+        "unpinned_header": unpinned_header,
+    }
+
+
 def run_all(selected: str | None = None) -> dict[str, Any]:
     base = Path(os.environ["CAREERBREW_HOME"]) / "rust11-workload"
     base.mkdir(parents=True, exist_ok=True)
@@ -435,6 +474,7 @@ def run_all(selected: str | None = None) -> dict[str, Any]:
         "memory-out": _memory_out,
         "memory-removal": _memory_removal,
         "research-cli": _research_cli,
+        "local-time": _local_time,
     }
     cases: list[dict[str, Any]] = []
     for name in CASES:
