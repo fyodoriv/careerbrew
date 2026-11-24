@@ -122,5 +122,9 @@ def test_learning_replay_tour_explainer_and_cli_contracts_match_python(candidate
         assert explained["scaffolds"]["deep"] is True and explained["scaffolds"]["prd"] is True
         assert explained["cli"]["explain_check"]["exit"] == explained["cli"]["prd_check"]["exit"] == {"int": "0"}
         assert explained["cli"]["deep_check"]["exit"] == {"int": "1"}
-        answers.append(done.stdout)
+        # Keep byte-level parity, excluding only this invocation's owned root.
+        normalized = done.stdout
+        for owned in {str(root), str(root.resolve())}:
+            normalized = normalized.replace(owned.encode(), b"<owned>")
+        answers.append(normalized)
     assert answers[0] == answers[1]

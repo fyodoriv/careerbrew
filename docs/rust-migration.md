@@ -2368,6 +2368,14 @@ the crate until the rust-05 and rust-07 closure is native, so
   `activate`; fresh extra, missing and duplicate controls returned
   `keep-python` with `verify-check-failed` and `verify-violation`. Production
   routes, shipped crates and activation remain unchanged.
+- **Hosted unit-control correction (2026-11-24):** both OS check parts failed
+  only at the final raw-output comparison. A direct fresh synthetic comparison
+  found identical parsed results; the raw JSON retained different owned
+  `python/` and `rust/` root paths. The unit control now replaces each lexical
+  and canonical owned root with `<owned>` before its byte comparison. Candidate
+  bytes and every source bound by the review-correction acceptance record are
+  unchanged, so that identity-bound acceptance chain remains valid. Hosted CI
+  must still pass on the corrected head.
 
 ### rust-13: Port feed ingestion and transcript normalization
 
