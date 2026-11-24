@@ -65,7 +65,11 @@ fn fetch(value: &str) -> Result<String> {
                 project_error(format!("could not reach docs.google.com ({}); download the sheet as CSV and import the file", error.class))
             }
         })?;
-    let text = String::from_utf8_lossy(&raw).into_owned();
+    let decoded = String::from_utf8_lossy(&raw);
+    let text = decoded
+        .strip_prefix('\u{feff}')
+        .unwrap_or(&decoded)
+        .to_owned();
     if text.trim_start().starts_with('<') {
         return Err(project_error(format!(
             "the link returned a sign-in page, not CSV: the sheet is private ({FIX_SHARE})"

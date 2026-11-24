@@ -75,7 +75,10 @@ def test_import_identity_sync_lock_and_cli_contracts_match_python(candidate, tmp
         assert identity["detected"][6] == ["url", "https://github.example.com/acme/billing/issues/7"]
         assert identity["detected"][7] == ["repo", "acme/billing"]
         assert identity["items"][5] == ["acme", "billing", "pull", "41"]
-        assert identity["after"] == [True, False, True, True, False]
+        assert identity["after"] == [True, False, True, True, False, True]
+        assert identity["detected"][-1] == ["url", "https://github.com/acme/billing/pull/٤١"]
+        assert identity["items"][-1] == ["acme", "billing", "pull", "٤١"]
+        assert len(identity["unicode_digest"]) == 24
 
         imported = case(report, "project-import")
         assert imported["dry_empty"] is True
@@ -91,9 +94,11 @@ def test_import_identity_sync_lock_and_cli_contracts_match_python(candidate, tmp
         assert imported["checked"]["sources"][0][2:] == [True, "epic 3 of 5"]
         assert imported["cutline"]["added"] == ["search", "search-ranking"]
         assert imported["remote"]["added"] == ["reports"]
+        assert imported["remote_bom"]["rows"] == {"int": "2"}
+        assert imported["remote_bom"]["unchanged"] == ["billing", "reports"]
         assert imported["bad_cli"]["exit"] == {"int": "2"}
         assert imported["unchanged"] is True
-        assert imported["sealed"] is True and imported["canary_hidden"] is True
+        assert imported["sealed"] is True and imported["sealed_readback"] is True and imported["canary_hidden"] is True
         assert "nothing written" in imported["cli"]["stdout"]
 
         incoming = case(report, "memory-in")
@@ -115,15 +120,18 @@ def test_import_identity_sync_lock_and_cli_contracts_match_python(candidate, tmp
         outgoing = case(report, "memory-out")
         assert outgoing["denied"]["notes"] == {"int": "0"}
         assert "business reading is off" in outgoing["denied"]["reason"]
-        assert outgoing["first"]["notes"] == {"int": "4"}
+        assert outgoing["first"]["notes"] == {"int": "7"}
         assert outgoing["second"]["notes"] == outgoing["idle"]["notes"] == {"int": "0"}
         assert outgoing["idle_state"] is True and outgoing["rebuilt"]["notes"] == {"int": "0"}
         assert outgoing["other_unmatched"] is True
         assert outgoing["child"]["notes"] == {"int": "1"}
         assert outgoing["child_header"] is True
         assert outgoing["own_write_reread"]["files"] == {"int": "0"}
-        assert len(outgoing["lines"]) == 4
+        assert len(outgoing["lines"]) == 7
         assert outgoing["lines"][0].endswith("<https://github.com/acme/billing/pull/41>")
+        assert "PROJ-12: earlier instant" in outgoing["lines"][2]
+        assert "PROJ-11: later instant" in outgoing["lines"][3]
+        assert outgoing["lines"][6].startswith("- 2026-10-22 jira: PROJ-13: local date")
 
         removal = case(report, "memory-removal")
         assert removal["seeded"]["notes"] == {"int": "1"}
@@ -142,5 +150,8 @@ def test_import_identity_sync_lock_and_cli_contracts_match_python(candidate, tmp
         assert research_cli["cli_absorb"]["exit"] == {"int": "0"}
         assert research_cli["bad_since"]["exit"] == {"int": "2"}
         assert "nothing stamped" in research_cli["cli_since"]["stdout"]
+        assert len(research_cli["alias"]) == 1
+        assert research_cli["alias"][0]["ref"] == "https://github.com/acme/billing/pull/41"
+        assert research_cli["cli_alias"]["exit"] == {"int": "0"}
         answers.append(normalized(done.stdout, root))
     assert answers[0] == answers[1]

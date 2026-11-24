@@ -63,7 +63,7 @@ pub fn github_item(reference: &str) -> Option<Vec<String>> {
     if (host == "github.com" || host.starts_with("github."))
         && parts.len() >= 4
         && matches!(parts[2], "pull" | "issues")
-        && parts[3].bytes().all(|byte| byte.is_ascii_digit())
+        && parts[3].chars().all(careerbrew_policy::text::is_digit)
         && !parts[3].is_empty()
     {
         return Some(parts[..4].iter().map(|part| (*part).to_owned()).collect());
@@ -237,25 +237,31 @@ fn local_path(root: &Path, reference: &str) -> PathBuf {
     }
 }
 
+pub(crate) fn normalize_timestamp(value: &str) -> String {
+    if let Some(stripped) = value.strip_suffix('Z') {
+        return format!("{}+00:00", stripped);
+    }
+    if value.len() >= 5
+        && value.is_char_boundary(value.len() - 5)
+        && matches!(&value[value.len() - 5..value.len() - 4], "+" | "-")
+        && value.is_char_boundary(value.len() - 2)
+        && !value[value.len() - 2..].contains(':')
+    {
+        return format!(
+            "{}:{}",
+            &value[..value.len() - 2],
+            &value[value.len() - 2..]
+        );
+    }
+    value.to_owned()
+}
+
 pub fn after(stamp: &str, since: Option<&str>) -> bool {
     let Some(since) = since.filter(|value| !value.is_empty()) else {
         return true;
     };
     let parse = |value: &str| {
-        let normalized = if let Some(stripped) = value.strip_suffix('Z') {
-            format!("{}+00:00", stripped)
-        } else if value.len() >= 5
-            && matches!(&value[value.len() - 5..value.len() - 4], "+" | "-")
-            && !value[value.len() - 2..].contains(':')
-        {
-            format!(
-                "{}:{}",
-                &value[..value.len() - 2],
-                &value[value.len() - 2..]
-            )
-        } else {
-            value.to_owned()
-        };
+        let normalized = normalize_timestamp(value);
         DateTime::parse_from_rfc3339(&normalized)
             .map(|value| value.with_timezone(&Utc))
             .or_else(|_| {
@@ -289,6 +295,41 @@ fn file_change(root: &Path, kind: &str, reference: &str, since: Option<&str>) ->
     Some(after(&stamp, since))
 }
 
+fn source_alias(source: &Value, wanted: &str) -> bool {
+    let saved = text(field(source, "ref"));
+    if saved == wanted {
+        return true;
+    }
+    let kind = text(field(source, "kind"));
+    if kind == "url" && field(source, "reference") == Some(&Value::Bool(true)) {
+        return false;
+    }
+    if kind == "doc" && !saved.contains("://") && !wanted.contains("://") {
+        let saved_path = PathBuf::from(shellexpand(&saved));
+        let wanted_path = PathBuf::from(shellexpand(wanted));
+        let saved_resolved = saved_path.canonicalize().unwrap_or(saved_path);
+        let wanted_resolved = wanted_path.canonicalize().unwrap_or(wanted_path);
+        if saved_resolved == wanted_resolved {
+            return true;
+        }
+    }
+    let normalize = |reference: &str| match detect(reference) {
+        Ok((detected, normalized)) if detected == kind => Some(normalized),
+        _ if kind == "chat"
+            && Regex::new(r"^#[CGD][A-Z0-9]+$")
+                .unwrap()
+                .is_match(reference) =>
+        {
+            Some(reference[1..].to_owned())
+        }
+        _ => None,
+    };
+    match (normalize(&saved), normalize(wanted)) {
+        (Some(saved), Some(wanted)) => saved == wanted,
+        _ => false,
+    }
+}
+
 pub fn changes(
     root: &Path,
     name: &str,
@@ -302,10 +343,34 @@ pub fn changes(
         ))
     })?;
     let sources = project["sources"].as_array().cloned().unwrap_or_default();
-    let selected = sources
-        .into_iter()
-        .filter(|source| reference.is_none_or(|wanted| text(field(source, "ref")) == wanted))
-        .collect::<Vec<_>>();
+    let selected = if let Some(wanted) = reference {
+        let literal = sources
+            .iter()
+            .filter(|source| text(field(source, "ref")) == wanted)
+            .cloned()
+            .collect::<Vec<_>>();
+        if literal.is_empty() {
+            let aliases = sources
+                .iter()
+                .filter(|source| source_alias(source, wanted))
+                .cloned()
+                .collect::<Vec<_>>();
+            let kinds = aliases
+                .iter()
+                .map(|source| text(field(source, "kind")))
+                .collect::<BTreeSet<_>>();
+            if kinds.len() > 1 {
+                return Err(ProjectError::project(
+                    "source alias matches multiple source kinds; use the exact saved ref from work project show",
+                ));
+            }
+            aliases
+        } else {
+            literal
+        }
+    } else {
+        sources
+    };
     if selected.is_empty() {
         return Err(ProjectError::project(if let Some(reference) = reference {
             format!("{name} has no source {reference} (see `careerbrew work project show {name}`)")

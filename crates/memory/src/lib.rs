@@ -87,9 +87,11 @@ pub fn write_text(path: &Path, text: &str) -> Result<()> {
 
 pub fn digest(text: &str) -> String {
     use sha2::{Digest, Sha256};
-    // Python store.digest JSON-encodes a string and appends NUL. Synthetic
-    // source text is UTF-8; serde_json supplies the same string escaping.
-    let encoded = serde_json::to_string(text).unwrap_or_else(|_| "\"\"".into());
+    // Python store.digest JSON-encodes with ensure_ascii=True and appends NUL.
+    let encoded = careerbrew_vault::json_yaml::json_compact_python(
+        &careerbrew_vault::canon::Canon::Str(text.to_owned()),
+    )
+    .expect("a string always has a Python JSON representation");
     let mut hash = Sha256::new();
     hash.update(encoded.as_bytes());
     hash.update([0]);

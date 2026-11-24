@@ -77,6 +77,7 @@ fn source_identity(base: &Path) -> Result<Value> {
         "https://example.slack.com/archives/C0123/p123",
         "https://example.com/post",
         "acme/billing",
+        "https://github.com/acme/billing/pull/٤١",
     ];
     let detected = refs
         .iter()
@@ -99,6 +100,7 @@ fn source_identity(base: &Path) -> Result<Value> {
         "",
         "bad",
         "2026-10-05T09:00:00",
+        "a+😀",
     ]
     .into_iter()
     .map(|stamp| research::after(stamp, Some("2026-10-05T09:00:00+00:00")))
@@ -110,6 +112,7 @@ fn source_identity(base: &Path) -> Result<Value> {
         "tied": tied,
         "bad": error(research::detect("not a source").map(|_| ())),
         "after": after,
+        "unicode_digest": crate::digest("café ٢"),
     }))
 }
 
@@ -172,6 +175,11 @@ fn project_import_case(base: &Path) -> Result<Value> {
         "https://docs.google.com/spreadsheets/d/sheet-cutline-q4/edit#gid=0",
         false,
     )?;
+    let remote_bom = project_import::run(
+        root,
+        "https://docs.google.com/spreadsheets/d/sheet-cutline-q4/edit",
+        false,
+    )?;
     let bad = workspace.base.join("bad.csv");
     std::fs::write(&bad, "name,title,parent,links\nalpha,Alpha,beta,\nbeta,Beta,alpha,\ngamma,Gamma,nowhere,gamma\n,No name,,\nalpha,Again,,\ndelta,Delta,,ghost\n")?;
     let bad_error = error(project_import::run(root, &bad.to_string_lossy(), false).map(|_| ()));
@@ -184,6 +192,11 @@ fn project_import_case(base: &Path) -> Result<Value> {
     std::fs::write(&private, "name,title\nzebra,PROJECTZEBRA rollout\n")?;
     let private_cli = cli::project_import_command(root, &private.to_string_lossy(), false);
     let sealed = std::fs::read(projects::projects_path(root))?.starts_with(b"CBV1\n");
+    let sealed_readback = projects::load(root)?
+        .get("zebra")
+        .and_then(|project| field(project, "title"))
+        .and_then(Value::as_str)
+        == Some("PROJECTZEBRA rollout");
     let canary_hidden = !text(field(&private_cli, "stdout")).contains("PROJECTZEBRA");
     let missing = workspace.base.join("missing.csv");
     let bad_inputs = vec![
@@ -195,9 +208,9 @@ fn project_import_case(base: &Path) -> Result<Value> {
     }
     Ok(json!({
         "dry": dry, "dry_empty": dry_empty, "first": first, "initial": initial, "second": second,
-        "checked": checked, "cutline": cutline, "sheets": sheets, "remote": remote,
+        "checked": checked, "cutline": cutline, "sheets": sheets, "remote": remote, "remote_bom": remote_bom,
         "bad_error": bad_error, "bad_cli": bad_cli, "unchanged": unchanged, "cli": cli_result,
-        "private_cli": private_cli, "sealed": sealed, "canary_hidden": canary_hidden, "bad_inputs": bad_inputs,
+        "private_cli": private_cli, "sealed": sealed, "sealed_readback": sealed_readback, "canary_hidden": canary_hidden, "bad_inputs": bad_inputs,
     }))
 }
 
@@ -332,6 +345,7 @@ fn seed_items(root: &Path) -> Result<()> {
             json!({"id": "slack:C0RAND:2", "source": "slack", "kind": "message", "at": "2026-10-21T14:10:00Z", "title": "ana in #random", "channel": "random", "triage": "fyi"}),
             json!({"id": "slack:C0BILL:3", "source": "slack", "kind": "message", "at": "2026-10-21T14:20:00Z", "title": "monitor in #eng-billing", "channel": "eng-billing", "triage": "noise"}),
             json!({"id": "slack:D0PAT:4", "source": "slack", "kind": "dm", "at": "2026-10-21T14:30:00Z", "title": "PROJ-1 retro moved", "personal": true, "triage": "fyi"}),
+            json!({"id": "slack:BAD:5", "source": "slack", "kind": "message", "at": "a+😀", "title": "PROJ-1 malformed time", "triage": "fyi"}),
         ],
     )?;
     write_jsonl(
@@ -341,6 +355,9 @@ fn seed_items(root: &Path) -> Result<()> {
             json!({"id": "jira:PROJ-7", "kind": "jira", "title": "PROJ-7: Freeze the schema", "at": "2026-10-20T12:00:00+00:00", "url": "https://jira.example.com/browse/PROJ-7"}),
             json!({"id": "pr:acme/billing#41", "kind": "pr", "title": "feat: invoice export", "at": "2026-10-19T10:00:00Z", "url": "https://github.com/acme/billing/pull/41"}),
             json!({"id": "slack:1792594800.000300", "kind": "slack", "title": "Recognition in #eng-billing", "at": "2026-10-21T14:00:00Z", "url": "https://example.slack.com/archives/C0BILL/p1"}),
+            json!({"id": "jira:PROJ-11", "kind": "jira", "title": "PROJ-11: later instant", "at": "2026-10-21T09:30:00-04:00", "url": "https://jira.example.com/browse/PROJ-11"}),
+            json!({"id": "jira:PROJ-12", "kind": "jira", "title": "PROJ-12: earlier instant", "at": "2026-10-21T14:00:00+02:00", "url": "https://jira.example.com/browse/PROJ-12"}),
+            json!({"id": "jira:PROJ-13", "kind": "jira", "title": "PROJ-13: local date", "at": "2026-10-21T23:30:00-04:00", "url": "https://jira.example.com/browse/PROJ-13"}),
             json!({"id": "jira:OPS-9", "kind": "jira", "title": "OPS-9: Reindex", "at": "2026-10-20T12:00:00+00:00", "url": "https://jira.example.com/browse/OPS-9"}),
             json!({"id": "jira:PROJ-3", "kind": "jira", "title": "PROJ-3: Old work", "at": "2026-09-01T12:00:00+00:00", "url": "https://jira.example.com/browse/PROJ-3"}),
         ],
@@ -538,8 +555,21 @@ fn research_cli(base: &Path) -> Result<Value> {
     );
     let cli_since = cli::project_since_command(root, "billing", None, true, false);
     let bad_since = cli::project_since_command(root, "billing", None, true, true);
+    let alias = research::changes(
+        root,
+        "billing",
+        Some("https://github.com/acme/billing/pull/41/files"),
+        true,
+    )?;
+    let cli_alias = cli::project_since_command(
+        root,
+        "billing",
+        Some("https://github.com/acme/billing/pull/41/files"),
+        true,
+        false,
+    );
     Ok(
-        json!({"changes": changes, "stamps_unchanged": before == after, "absorbed": absorbed, "cli_absorb": cli_absorb, "cli_since": cli_since, "bad_since": bad_since}),
+        json!({"changes": changes, "stamps_unchanged": before == after, "absorbed": absorbed, "cli_absorb": cli_absorb, "cli_since": cli_since, "bad_since": bad_since, "alias": alias, "cli_alias": cli_alias}),
     )
 }
 
@@ -569,5 +599,10 @@ pub fn run_all(selected: Option<&str>) -> Result<String> {
         let bytes = std::fs::read(&path)?;
         std::fs::write(path, bytes)?;
     }
-    Ok(serde_json::to_string(&crate::typed(&json!({"cases": cases})))? + "\n")
+    let report = crate::typed(&json!({"cases": cases}));
+    let encoded = careerbrew_vault::json_yaml::json_compact_python(
+        &careerbrew_setup::value::to_canon(&report),
+    )
+    .map_err(|_| crate::error("ValueError", "cannot encode synthetic report"))?;
+    Ok(encoded + "\n")
 }

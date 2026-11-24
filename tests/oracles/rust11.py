@@ -109,6 +109,7 @@ def _source_identity(base: Path) -> dict[str, Any]:
         "https://example.slack.com/archives/C0123/p123",
         "https://example.com/post",
         "acme/billing",
+        "https://github.com/acme/billing/pull/٤١",
     ]
     detected = [research.detect(ref) for ref in refs]
     projects.add("billing")
@@ -124,7 +125,8 @@ def _source_identity(base: Path) -> dict[str, Any]:
         "closest": closest,
         "tied": tied,
         "bad": _error(lambda: research.detect("not a source")),
-        "after": [research._after(stamp, "2026-10-05T09:00:00+00:00") for stamp in ("2026-10-05T06:00:00.000-0400", "2026-10-05T04:00:00.000-0400", "", "bad", "2026-10-05T09:00:00")],
+        "after": [research._after(stamp, "2026-10-05T09:00:00+00:00") for stamp in ("2026-10-05T06:00:00.000-0400", "2026-10-05T04:00:00.000-0400", "", "bad", "2026-10-05T09:00:00", "a+😀")],
+        "unicode_digest": store.digest("café ٢"),
     }
 
 
@@ -157,6 +159,7 @@ def _project_import(base: Path) -> dict[str, Any]:
         project_import.sheet_csv_url("https://docs.google.com/spreadsheets/d/e/2PACX-pub/pubhtml"),
     ]
     remote = project_import.run("https://docs.google.com/spreadsheets/d/sheet-cutline-q4/edit#gid=0")
+    remote_bom = project_import.run("https://docs.google.com/spreadsheets/d/sheet-cutline-q4/edit")
     bad = workspace.base / "bad.csv"
     bad.write_text("name,title,parent,links\nalpha,Alpha,beta,\nbeta,Beta,alpha,\ngamma,Gamma,nowhere,gamma\n,No name,,\nalpha,Again,,\ndelta,Delta,,ghost\n")
     bad_error = _error(lambda: project_import.run(str(bad)))
@@ -169,6 +172,7 @@ def _project_import(base: Path) -> dict[str, Any]:
     private.write_text("name,title\nzebra,PROJECTZEBRA rollout\n")
     private_cli = _invoke(["work", "project", "import", str(private)])
     sealed = projects.path().read_bytes().startswith(b"CBV1\n")
+    sealed_readback = projects._load().get("zebra", {}).get("title") == "PROJECTZEBRA rollout"
     canary_hidden = "PROJECTZEBRA" not in private_cli["stdout"]
     return {
         "dry": dry,
@@ -180,12 +184,14 @@ def _project_import(base: Path) -> dict[str, Any]:
         "cutline": cutline,
         "sheets": sheets,
         "remote": remote,
+        "remote_bom": remote_bom,
         "bad_error": bad_error,
         "bad_cli": bad_cli,
         "unchanged": unchanged,
         "cli": cli_result,
         "private_cli": private_cli,
         "sealed": sealed,
+        "sealed_readback": sealed_readback,
         "canary_hidden": canary_hidden,
         "bad_inputs": [_error(lambda value=value: project_import.run(value)) for value in (str(workspace.base / "missing.csv"), "https://sheets.example.com/goals.csv")],
     }
@@ -257,6 +263,7 @@ def _seed_items() -> None:
             {"id": "slack:C0RAND:2", "source": "slack", "kind": "message", "at": "2026-10-21T14:10:00Z", "title": "ana in #random", "channel": "random", "triage": "fyi"},
             {"id": "slack:C0BILL:3", "source": "slack", "kind": "message", "at": "2026-10-21T14:20:00Z", "title": "monitor in #eng-billing", "channel": "eng-billing", "triage": "noise"},
             {"id": "slack:D0PAT:4", "source": "slack", "kind": "dm", "at": "2026-10-21T14:30:00Z", "title": "PROJ-1 retro moved", "personal": True, "triage": "fyi"},
+            {"id": "slack:BAD:5", "source": "slack", "kind": "message", "at": "a+😀", "title": "PROJ-1 malformed time", "triage": "fyi"},
         ],
     )
     store.write_jsonl(
@@ -265,6 +272,9 @@ def _seed_items() -> None:
             {"id": "jira:PROJ-7", "kind": "jira", "title": "PROJ-7: Freeze the schema", "at": "2026-10-20T12:00:00+00:00", "url": "https://jira.example.com/browse/PROJ-7"},
             {"id": "pr:acme/billing#41", "kind": "pr", "title": "feat: invoice export", "at": "2026-10-19T10:00:00Z", "url": "https://github.com/acme/billing/pull/41"},
             {"id": "slack:1792594800.000300", "kind": "slack", "title": "Recognition in #eng-billing", "at": "2026-10-21T14:00:00Z", "url": "https://example.slack.com/archives/C0BILL/p1"},
+            {"id": "jira:PROJ-11", "kind": "jira", "title": "PROJ-11: later instant", "at": "2026-10-21T09:30:00-04:00", "url": "https://jira.example.com/browse/PROJ-11"},
+            {"id": "jira:PROJ-12", "kind": "jira", "title": "PROJ-12: earlier instant", "at": "2026-10-21T14:00:00+02:00", "url": "https://jira.example.com/browse/PROJ-12"},
+            {"id": "jira:PROJ-13", "kind": "jira", "title": "PROJ-13: local date", "at": "2026-10-21T23:30:00-04:00", "url": "https://jira.example.com/browse/PROJ-13"},
             {"id": "jira:OPS-9", "kind": "jira", "title": "OPS-9: Reindex", "at": "2026-10-20T12:00:00+00:00", "url": "https://jira.example.com/browse/OPS-9"},
             {"id": "jira:PROJ-3", "kind": "jira", "title": "PROJ-3: Old work", "at": "2026-09-01T12:00:00+00:00", "url": "https://jira.example.com/browse/PROJ-3"},
         ],
@@ -401,6 +411,8 @@ def _research_cli(base: Path) -> dict[str, Any]:
     cli_absorb = _invoke(["work", "project", "absorb", "billing", "https://github.com/acme/billing/issues/41"])
     cli_since = _invoke(["work", "project", "check", "billing", "--since"])
     bad_since = _invoke(["work", "project", "check", "billing", "--since", "--status", "x"])
+    alias = research.changes("billing", "https://github.com/acme/billing/pull/41/files")
+    cli_alias = _invoke(["work", "project", "check", "billing", "https://github.com/acme/billing/pull/41/files", "--since"])
     return {
         "changes": changes,
         "stamps_unchanged": before == after,
@@ -408,6 +420,8 @@ def _research_cli(base: Path) -> dict[str, Any]:
         "cli_absorb": cli_absorb,
         "cli_since": cli_since,
         "bad_since": bad_since,
+        "alias": alias,
+        "cli_alias": cli_alias,
     }
 
 
@@ -426,7 +440,7 @@ def run_all(selected: str | None = None) -> dict[str, Any]:
     for name in CASES:
         if selected is None or name == selected:
             _call(cases, name, lambda fn=functions[name]: fn(base))
-    return {"text": json.dumps({"cases": cases}, sort_keys=True, separators=(",", ":")) + "\n"}
+    return {"text": json.dumps({"cases": cases}, sort_keys=True) + "\n"}
 
 
 def main() -> int:

@@ -565,31 +565,31 @@ pub fn sync_in(root: &Path) -> Result<Value> {
     })
 }
 
-fn parse_when(value: &str) -> Option<DateTime<FixedOffset>> {
-    let mut value = value.trim().to_owned();
-    if value.ends_with('Z') {
-        value = format!("{}+00:00", &value[..value.len() - 1]);
-    }
-    if value.len() >= 5
-        && matches!(&value[value.len() - 5..value.len() - 4], "+" | "-")
-        && !value[value.len() - 2..].contains(':')
-    {
-        value = format!(
-            "{}:{}",
-            &value[..value.len() - 2],
-            &value[value.len() - 2..]
-        );
-    }
-    DateTime::parse_from_rfc3339(&value).ok().or_else(|| {
-        chrono::NaiveDateTime::parse_from_str(&value, "%Y-%m-%dT%H:%M:%S%.f")
-            .ok()
-            .and_then(|naive| {
-                careerbrew_projects::now()
-                    .offset()
-                    .from_local_datetime(&naive)
-                    .single()
-            })
-    })
+fn local_zone(root: &Path) -> chrono_tz::Tz {
+    let settings = careerbrew_projects::read_yaml(root, "settings.yaml", json!({}))
+        .unwrap_or_else(|_| json!({}));
+    let configured = text(field(&settings, "timezone"));
+    let system = std::env::var("TZ").unwrap_or_default();
+    let name = if configured.is_empty() {
+        system.trim_start_matches(':')
+    } else {
+        configured.as_str()
+    };
+    name.parse().unwrap_or(chrono_tz::UTC)
+}
+
+fn parse_when(root: &Path, value: &str) -> Option<DateTime<FixedOffset>> {
+    let value = research::normalize_timestamp(value.trim());
+    let zone = local_zone(root);
+    DateTime::parse_from_rfc3339(&value)
+        .ok()
+        .map(|aware| aware.with_timezone(&zone).fixed_offset())
+        .or_else(|| {
+            chrono::NaiveDateTime::parse_from_str(&value, "%Y-%m-%dT%H:%M:%S%.f")
+                .ok()
+                .and_then(|naive| zone.from_local_datetime(&naive).single())
+                .map(|local| local.fixed_offset())
+        })
 }
 
 fn aliases(id: &str) -> BTreeSet<String> {
@@ -626,13 +626,18 @@ fn candidates(root: &Path) -> Result<Vec<Value>> {
         }
     }
     for item in &mut out {
-        let when = parse_when(&text(field(item, "at")));
+        let when = parse_when(root, &text(field(item, "at")));
         item["when"] = when
             .map(|value| json!(value.to_rfc3339()))
             .unwrap_or(Value::Null);
     }
-    out.retain(|item| parse_when(&text(field(item, "when"))).is_some_and(|when| when >= cut));
-    out.sort_by_key(|item| (text(field(item, "when")), text(field(item, "id"))));
+    out.retain(|item| parse_when(root, &text(field(item, "when"))).is_some_and(|when| when >= cut));
+    out.sort_by_key(|item| {
+        (
+            parse_when(root, &text(field(item, "when"))),
+            text(field(item, "id")),
+        )
+    });
     Ok(out)
 }
 
@@ -758,9 +763,9 @@ fn targets(item: &Value, every: &Value, globs: &BTreeMap<String, Vec<String>>) -
         .collect()
 }
 
-fn note_line(item: &Value) -> String {
-    let when =
-        parse_when(&text(field(item, "when"))).or_else(|| parse_when(&text(field(item, "at"))));
+fn note_line(root: &Path, item: &Value) -> String {
+    let when = parse_when(root, &text(field(item, "when")))
+        .or_else(|| parse_when(root, &text(field(item, "at"))));
     let day = when
         .map(|value| value.date_naive().to_string())
         .unwrap_or_default();
@@ -932,8 +937,8 @@ pub fn sync_out_with(
                     if notes.get(&id_digest).is_some() {
                         continue;
                     }
-                    let line = note_line(item);
-                    let day = parse_when(&text(field(item, "when")))
+                    let line = note_line(root, item);
+                    let day = parse_when(root, &text(field(item, "when")))
                         .map(|when| when.date_naive().to_string())
                         .unwrap_or_default();
                     pending.insert(id_digest, json!([digest(&format!("- {line}")), day]));

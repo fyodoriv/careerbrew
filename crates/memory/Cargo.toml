@@ -10,8 +10,10 @@ careerbrew-vault = { path = "../vault" }
 careerbrew-setup = { path = "../setup" }
 careerbrew-projects = { path = "../projects" }
 careerbrew-sources = { path = "../sources" }
+careerbrew-policy = { path = "../policy" }
 serde_json = { version = "=1.0.154", features = ["arbitrary_precision"] }
 chrono = { version = "=0.4.45", default-features = false, features = ["std", "clock"] }
+chrono-tz = "=0.10.4"
 regex = "=1.13.2"
 sha2 = "=0.10.9"
 csv = "=1.4.0"
