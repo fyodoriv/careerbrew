@@ -67,6 +67,13 @@ fn normalize_value(value: &mut Value, root: &Path) {
                 }
                 normalized.insert(normalized_text(&key, root), item);
             }
+            if normalized.get("id").and_then(Value::as_str) == Some("local:3")
+                && normalized.get("title").and_then(Value::as_str) == Some("PROJ-1 unpinned")
+            {
+                // The fixture deliberately reads the real clock. Normalize only
+                // that named row's timestamp; time-parity output stays strict.
+                normalized.insert("at".into(), Value::String("<unpinned-clock>".into()));
+            }
             *items = normalized;
         }
         _ => {}

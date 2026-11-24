@@ -2042,6 +2042,9 @@ the crate until the rust-05 and rust-07 closure is native, so
   differential isolated the first 7/7 failure to section-header dates:
   Python returns an aware pinned timestamp unchanged, so native `local_now`
   now retains that offset; only naive pinned values receive the local zone.
+  The semantic write comparison normalizes only the named unpinned fixture
+  row's real-clock timestamp (`local:3` / `PROJ-1 unpinned`); its output and all
+  other timestamps remain strict.
 
 ### rust-10: Port sessions, claims, agents and reply drafts
 
