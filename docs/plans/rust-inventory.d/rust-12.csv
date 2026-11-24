@@ -1,2 +1,16 @@
 tests/oracles/rust12.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-12 differential gate
 tests/unit/test_rust12_component.py,keep-native,rust-00,rust-12 native component and CLI assertions
+crates/learn/Cargo.toml,keep-native,rust-00,Component-only learning crate manifest
+crates/learn/src/lib.rs,port,rust-12,Component-only storage clock and value boundary
+crates/learn/src/cards.rs,port,rust-12,Project-scoped FSRS decks scheduling retention and leech controls
+crates/learn/src/project.rs,port,rust-12,Source staging concept validation mastery retests and next-step selection
+crates/learn/src/replay.rs,port,rust-12,Small-PR discovery isolated replay clones and test grading
+crates/learn/src/tour.rs,port,rust-12,Validated maintainer-approved fading code tours
+crates/learn/src/explain.rs,port,rust-12,Layered cited explanation validation and scaffolds
+crates/learn/src/prd.rs,port,rust-12,PRD validation estimates pushback and scaffolds
+crates/learn/src/cli.rs,port,rust-12,Component learning replay tour explainer and PRD CLI adapters
+crates/learn/src/synthetic.rs,port,rust-12,Synthetic learning replay tour and explainer workload
+crates/learn/src/bin/learn-component.rs,port,rust-12,Synthetic-only native learning candidate entry point
+crates/learn/tests/component.rs,keep-native,rust-00,rust-12 native learning and document contract controls
+xtask/src/rust12.rs,keep-native,rust-00,Custom rust-12 semantic privacy and write verification runner
+xtask/tests/rust12.rs,keep-native,rust-00,rust-12 registration evidence identity and planted write controls

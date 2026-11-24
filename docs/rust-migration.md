@@ -2323,6 +2323,13 @@ the crate until the rust-05 and rust-07 closure is native, so
   `e3a206c8a6260e72288a7ef69427f42ed8d4658661c5e792b94281dd0188c040`;
   fixture hash `438cab9a16bcebdf143a1d49f3e5424c60e42ab1ac3c7340967ad9de03c1c7bc`.
   This is the pre-native prediction record, not a speed result.
+- **Component implementation:** `crates/learn` provides source staging and
+  citation checks, mastery/retests and project-scoped FSRS decks, isolated PR
+  replay, fading tours, explainer/PRD validators and scaffolds, and component
+  CLI adapters. `learn-component` is synthetic-only. The custom verifier
+  compares exact typed output, semantic writes and per-phase write transitions;
+  planted extra, missing and duplicate writes must fail. Production Python,
+  native routes, shipped crates and activation are unchanged.
 
 ### rust-13: Port feed ingestion and transcript normalization
 
@@ -2741,6 +2748,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | `crates/projects/` | `careerbrew-projects` | the rust-09 project lifecycle, readiness, priority, promise, focus, team and four-handler CLI component; synthetic `projects-component` transport only | none: component parity only |
 | `crates/sessions/` | `careerbrew-sessions` | the rust-10 session, claim, agent activity, prior-selection, reply-draft and six-handler CLI component; synthetic `sessions-component` transport only | none: component parity only |
 | `crates/memory/` | `careerbrew-memory` | the rust-11 source identity, project import, memory sync and component CLI adapters; synthetic `memory-component` transport only | none: component parity only |
+| `crates/learn/` | `careerbrew-learn` | the rust-12 learning, project-scoped FSRS, replay, tour, explainer, PRD and CLI component; synthetic `learn-component` transport only | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
@@ -3521,6 +3529,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 - `src/careerbrew/work/` (2): `explain.py`, `prd.py`
 - CLI handlers it ports out of `cli.py` (14): `cmd_learn_answer`, `cmd_learn_concepts`, `cmd_learn_list`, `cmd_learn_next`, `cmd_learn_note`, `cmd_learn_replay_check`, `cmd_learn_replay_list`, `cmd_learn_replay_measure`, `cmd_learn_replay_start`, `cmd_learn_start`, `cmd_learn_status`, `cmd_learn_tour_add`, `cmd_learn_tour_approve`, `cmd_learn_tour_export`
 - Assertions it ports (5 test files, the files themselves are listed under `rust-27`): `us-80-learn-project.sh`, `us-83-learn-replay-tour.sh`, `test_issue_223.py`, `test_learn_replay_tour.py`, `test_project_explain.py`
+- Native crate it adds (`keep-native` in the inventory): `crates/learn/` (`project.rs`, `cards.rs`, `replay.rs`, `tour.rs`, `explain.rs`, `prd.rs`, `cli.rs`, `synthetic.rs`, `lib.rs` and `bin/learn-component.rs`), plus `crates/learn/tests/component.rs`, `tests/oracles/rust12.py`, `tests/unit/test_rust12_component.py`, `xtask/src/rust12.rs` and `xtask/tests/rust12.rs`.
 
 #### rust-13: Port feed ingestion and transcript normalization (23 files)
 

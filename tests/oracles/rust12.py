@@ -93,6 +93,11 @@ def _invoke(argv: list[str]) -> dict[str, Any]:
     return {"exit": code, "stdout": out.getvalue()}
 
 
+def _json_invoke(argv: list[str]) -> dict[str, Any]:
+    result = _invoke(argv)
+    return {"exit": result["exit"], "json": json.loads(result["stdout"])}
+
+
 class Workspace:
     def __init__(self, base: Path, name: str):
         self.base = base / name
@@ -173,12 +178,13 @@ def _source_staging(base: Path) -> dict[str, Any]:
     ws = Workspace(base, "source-staging")
     os.environ["CAREERBREW_ENCRYPT"] = "on"
     repo = _learning_repo(ws.base)
-    before = sorted(p.relative_to(repo).as_posix() for p in repo.rglob("*") if ".git" not in p.parts)
+    before = _git(repo, "status", "--porcelain", "--ignored")
     doc = ws.base / "runbook.md"
     doc.write_text("Deploy with make ship. LEARNCANARY\n")
     first = lp.start("Toy", [("repo", str(repo)), ("doc", f"runbook:{doc}")], consume=True)
     stored = lp.folder("Toy") / "inputs" / "doc" / "runbook.md"
     raw = stored.read_bytes()
+    repo_unchanged = before == _git(repo, "status", "--porcelain", "--ignored")
     repeat = lp.start("Toy", [("repo", str(repo))])
     (repo / "README.md").write_text("# Toy\nNow with retries.\n")
     changed = lp.start("Toy", [("repo", str(repo))])
@@ -190,7 +196,7 @@ def _source_staging(base: Path) -> dict[str, Any]:
             "consumed": not doc.exists(),
             "sealed": raw.startswith(b"CBV1\n"),
             "plain_absent": b"LEARNCANARY" not in raw,
-            "repo_unchanged": before == sorted(p.relative_to(repo).as_posix() for p in repo.rglob("*") if ".git" not in p.parts),
+            "repo_unchanged": repo_unchanged,
         },
         "repeat": repeat["freshness"],
         "changed": {"freshness": changed["freshness"], "stale": changed["stale"], "stable_hash": changed["sources"][0]["hash"] == first["sources"][0]["hash"]},
@@ -283,7 +289,11 @@ def _learning_schedule(base: Path) -> dict[str, Any]:
         "final": {"retest_retained_7d": final["retest_retained_7d"], "brier": final["brier"], "answers": final["answers"], "taught": final["taught"]},
         "leech": {"flag": leech_row.get("leech"), "suspended": suspended, "reviews": len([r for r in lp._log("Toy") if r["concept"] == "worker" and r["mode"] == "review"])},
         "queue": queue_ids,
-        "cli": {"answer": _invoke(["learn", "answer", "Toy", "deploy", "--result", "wrong", "--confidence", "high", "--level", "apply"]), "status": _invoke(["learn", "status", "Toy", "--json"]), "next": _invoke(["learn", "next", "Toy"])},
+        "cli": {
+            "answer": _invoke(["learn", "answer", "Toy", "deploy", "--result", "wrong", "--confidence", "high", "--level", "apply"]),
+            "status": _json_invoke(["learn", "status", "Toy", "--json"]),
+            "next": _invoke(["learn", "next", "Toy"]),
+        },
     }
 
 
@@ -312,18 +322,20 @@ def _replay_case(base: Path) -> dict[str, Any]:
     python = os.environ.get("CAREERBREW_RUST12_PYTHON") or sys.executable
     task = replay.start("Toy", 7, python=python)
     work = Path(task["dir"])
+    parent_has_no_double = "double" not in (work / "src" / "toy" / "__init__.py").read_text()
     initial = replay.check("Toy", 7)
     (work / "src" / "toy" / "__init__.py").write_text("def add(a, b):\n    return a + b\n\n\ndef double(n):\n    return 2 * n\n")
     passed = replay.check("Toy", 7)
     measured = replay.measure(repo, limit=50, python=python)
+    cli_check = _invoke(["learn", "replay", "check", "Toy", "7"])
     return {
         "candidates": rows,
-        "task": {"pr": task["pr"], "title": task["title"], "tests": task["tests"], "inside_data": work.is_relative_to(paths.data_root()), "parent_has_no_double": "double" not in (work / "src" / "toy" / "__init__.py").read_text()},
+        "task": {"pr": task["pr"], "title": task["title"], "tests": task["tests"], "inside_data": work.is_relative_to(paths.data_root()), "parent_has_no_double": parent_has_no_double},
         "checks": [{"passed": initial["passed"], "tests": initial["tests"]}, {"passed": passed["passed"], "tests": passed["tests"]}],
         "repo_untouched": before == _git(repo, "status", "--porcelain", "--ignored") and refs == sorted(p.name for p in (repo / ".git").iterdir()),
         "no_tests": _error(lambda: replay.start("Toy", 8, python=python)),
         "measure": measured,
-        "cli": {"list": _invoke(["learn", "replay", "list", "Toy"]), "check": _invoke(["learn", "replay", "check", "Toy", "7"]), "bad": _invoke(["learn", "replay", "start", "Toy", "8", "--python", python])},
+        "cli": {"list": _invoke(["learn", "replay", "list", "Toy"]), "check": {"exit": cli_check["exit"], "passed": "PR #7: pass" in cli_check["stdout"]}, "bad": _invoke(["learn", "replay", "start", "Toy", "8", "--python", python])},
     }
 
 
@@ -339,6 +351,7 @@ def _tours(base: Path) -> dict[str, Any]:
     }
     bad = {"repo": "toyrepo", "title": "x", "steps": [{"file": "missing.py", "line": 1, "description": "d"}, {"file": "README.md", "line": 99, "description": ""}, {"file": "README.md", "line": 1, "description": "d", "concept": "nope"}]}
     problems = tour.check("Toy", bad)
+    os.environ["CAREERBREW_ENCRYPT"] = "on"
     added = tour.add("Toy", "doubling", valid)
     raw = (lp.folder("Toy") / "tours" / "doubling.json").read_bytes()
     out, unreviewed = tour.export("Toy", "doubling")

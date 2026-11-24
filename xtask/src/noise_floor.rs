@@ -130,6 +130,16 @@ pub const REGISTRY: &[Entry] = &[
         os: "linux",
         floor: Floor::Unmeasured,
     },
+    Entry {
+        step: "rust-12",
+        os: "macos",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-12",
+        os: "linux",
+        floor: Floor::Unmeasured,
+    },
 ];
 
 /// The limits decide used, with their state label and provenance.
