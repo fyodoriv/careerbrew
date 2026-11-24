@@ -2191,7 +2191,23 @@ the crate until the rust-05 and rust-07 closure is native, so
   returned `keep-python` with `verify-check-failed` and `verify-violation`;
   their respective violation counters are nonzero. Production routes, shipped
   crates and activation remain unchanged; activation needs the complete native
-  closure, fresh acceptance records and rollback evidence.
+  closure, fresh acceptance records and rollback evidence. The later time/alias
+  correction makes the `e9124bdb` measurement historical, not valid for the
+  final candidate.
+- **Review-correction acceptance (2026-11-23, macOS):** clean measured source
+  `1779d5ece017b793818c8bfffc3badb33759cee8`; evidence-source hash
+  `5675d3b6bd28388939eae4fd446e2e8dfcda5b2e0379ad52ff64b0ddded3e524`;
+  fixture hash `eadc98973473f7d9562f3e748c53abf34a9f6bc4698efc05d54b381f3db5ae8f`;
+  release-candidate SHA-256
+  `854641a8ae16599a6a474458445794f2c675b61fb85bbcd1db4bbdeb370d74d0`.
+  Naive and second-resolution timestamps, Slack aliases and owner-text removal
+  now match Python. Verify passes 6/6 with zero violations. Baseline: 30 runs.
+  Measurement: 30 unique, uncached pairs in each regime. Cold CPU p95 was
+  394,546 to 206,022 microseconds; warm was 403,479 to 210,327. Cold tree-RSS
+  p95 was 51,773,440 to 13,402,112 bytes; warm was 51,789,824 to 13,271,040.
+  Each ratio is below 1.10. `decide` returned component-only `activate`; fresh
+  extra, missing and duplicate controls returned `keep-python`. Production
+  routes, shipped crates and activation remain unchanged.
 
 ### rust-12: Port project learning, replay, tours and explainers
 
