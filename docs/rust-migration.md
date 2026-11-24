@@ -2351,6 +2351,23 @@ the crate until the rust-05 and rust-07 closure is native, so
   `verify-violation`. Production routes, shipped crates and activation remain
   unchanged; activation needs the complete native closure, fresh acceptance
   records and rollback evidence.
+- **Review-correction acceptance (2026-11-24, macOS):** clean measured source
+  `bc4f403f69caf5afe992f6d30c09d2f40af8e7f1`; evidence-source hash
+  `50c2e3fb2dbc31f0482c80eafe9771f85113d1a9f0d7dc6f4904223d5b8cb58e`;
+  fixture hash `438cab9a16bcebdf143a1d49f3e5424c60e42ab1ac3c7340967ad9de03c1c7bc`;
+  release-candidate SHA-256
+  `56cb50ca89154556931ec9e6cc088cd6ecc2e4b5c0d5e2277ed127330004d1e0`.
+  ICU4X full case folding matches Python for `U+A7D0` and `Straße`; short-mode
+  citations retain their sources, and the vault synthetic key-loader source is
+  bound. Baseline: 30 runs; CPU p50/p95 5,362,879/5,438,987 microseconds and
+  tree-RSS p50/p95 67,485,696/67,829,760 bytes. Verify passes 6/6 with zero
+  violations. Measurement: 30 unique, uncached pairs in each regime. Cold CPU
+  p95 was 8,919,980 to 3,903,879 microseconds; warm was 5,041,374 to 3,802,999.
+  Cold tree-RSS p95 was 67,158,016 to 31,604,736 bytes; warm was 67,420,160 to
+  31,604,736. Each ratio is below 1.10. `decide` returned component-only
+  `activate`; fresh extra, missing and duplicate controls returned
+  `keep-python` with `verify-check-failed` and `verify-violation`. Production
+  routes, shipped crates and activation remain unchanged.
 
 ### rust-13: Port feed ingestion and transcript normalization
 
