@@ -88,7 +88,22 @@ fn prd_requires_pushback_only_when_estimates_exceed_the_slot() {
 fn production_route_and_shipped_inventory_stay_untouched_by_the_component() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let routes = std::fs::read_to_string(root.join("config/native-routes.txt")).unwrap();
+    let records = routes
+        .lines()
+        .filter(|line| !line.trim().is_empty() && !line.starts_with('#'))
+        .map(|line| line.split_whitespace().collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+    assert!(records.iter().all(|record| record.len() == 2));
+    let learn = records
+        .iter()
+        .filter(|record| record[0].starts_with("learn."))
+        .collect::<Vec<_>>();
+    assert_eq!(learn.len(), 14);
+    assert!(learn.iter().all(|record| record[1] == "python"));
+    for action in ["work.project.explain", "work.project.prd"] {
+        let route = records.iter().find(|record| record[0] == action).unwrap();
+        assert_eq!(route[1], "python");
+    }
     let shipped = std::fs::read_to_string(root.join("scripts/rust-shipped-crates.txt")).unwrap();
-    assert!(!routes.contains("learn"));
-    assert!(!shipped.contains("careerbrew-learn"));
+    assert!(!shipped.lines().any(|line| line.trim() == "crates/learn"));
 }
