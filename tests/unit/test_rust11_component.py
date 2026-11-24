@@ -13,7 +13,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 ORACLE = ROOT / "tests" / "oracles" / "rust11.py"
-CASES = {"source-identity", "project-import", "memory-in", "memory-out", "memory-removal", "research-cli"}
+CASES = {"source-identity", "project-import", "memory-in", "memory-out", "memory-removal", "research-cli", "local-time"}
 
 
 @pytest.fixture(scope="module")

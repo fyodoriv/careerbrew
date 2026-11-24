@@ -17,6 +17,7 @@ const CASE_IDS: &[&str] = &[
     "memory-out",
     "memory-removal",
     "research-cli",
+    "local-time",
 ];
 const PRIVATE_MARKERS: &[&str] = &["PROJECTZEBRA"];
 

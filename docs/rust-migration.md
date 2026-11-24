@@ -2034,6 +2034,11 @@ the crate until the rust-05 and rust-07 closure is native, so
   both ratios are below 1.10. The clean rerun returned component-only
   `activate` with no reasons. Production routes, shipped crates and activation
   remain unchanged.
+- **Seventh-case registration correction (2026-11-23):** `local-time` is now in
+  the native `synthetic::CASES`, `xtask/src/rust11.rs` `CASE_IDS` and the direct
+  Python component test's expected set. The earlier 6/6 verify record did not
+  cover local-time behavior. Acceptance now requires a clean 7/7 differential
+  report with zero violations and a fresh 30-pair resource chain.
 
 ### rust-10: Port sessions, claims, agents and reply drafts
 
