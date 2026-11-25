@@ -2464,6 +2464,15 @@ the crate until the rust-05 and rust-07 closure is native, so
   entry. Any raw canary, unsafe path, or other regression keeps Python. All 12
   cases and four write controls stay mandatory, with fresh 30-pair resource
   acceptance and no activation change.
+- **Third-review pre-registration (2026-11-25):** source revision
+  `b9609ad334a54c2e05ba290e484b11d5ae4292b4` adds an absent plugin sensitive
+  file, system `/etc/localtime`, colon-prefixed `TZ`, and a nonexistent DST wall
+  time. Missing valid files supply no terms; containment remains mandatory.
+  Reuse the rust-11 local-zone and fold=0 adapters instead of a silent UTC
+  fallback. Bind every executed setup/native adapter, including `setup/lib.rs`.
+  All 12 cases, four write controls, and 30-pair resource limits remain in force.
+  Browser code stays unchanged. Fresh acceptance and hosted claims must name
+  their exact head, with pending checks never described as green.
 
 ### rust-14: Port live listening, review asks and notifications
 
