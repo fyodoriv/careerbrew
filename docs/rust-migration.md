@@ -2496,6 +2496,21 @@ the crate until the rust-05 and rust-07 closure is native, so
   ordinary event content and timestamps follow the existing normalization.
   All 12 cases, existing write controls, clean same-revision acceptance and
   1.10 resource limits remain mandatory. No behavior or activation changes.
+- **Final-review acceptance (2026-11-25, macOS):** clean measured source
+  `ded91e9af578be56c9188a0d38a404fed818f6c3`; evidence-source hash
+  `cbb4a80609ece5909bd668799ab49393aab1e40cb57b45dd95f1a093211c7b6e`;
+  fixture hash `8bf29c5928700145219dd63b425271ade19e5c191df9aef1829e2357d8ebd583`;
+  release-candidate SHA-256
+  `237895cea272b2ef699a3808bf2e1ad8dbfb1c2dc917f81ee673c49466092e79`.
+  Baseline: 30 runs; CPU p50/p95 383,706/413,130 microseconds and tree-RSS
+  p50/p95 53,264,384/53,592,064 bytes. Verify passes 12/12 with zero violations.
+  Cold CPU p95 was 410,227 to 154,796 microseconds; warm was 410,713 to 160,171.
+  Cold tree-RSS p95 was 53,477,376 to 14,073,856 bytes; warm was 53,460,992 to
+  14,516,224. Each ratio is below 1.10. `decide` returned component-only
+  `activate`; extra, missing, phase-transition duplicate, same-phase storage
+  duplicate and direct event duplicate controls returned `keep-python`.
+  Production routes, shipped crates and activation remain unchanged. Hosted
+  claims remain pending until a fresh exact-head run passes.
 
 ### rust-14: Port live listening, review asks and notifications
 
