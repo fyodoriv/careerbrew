@@ -55,9 +55,30 @@ struct Phase {
 
 fn normalized_text(value: &str, root: &Path) -> String {
     let canonical = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
-    value
+    let value = value
         .replace(&canonical.to_string_lossy().into_owned(), "<owned>")
-        .replace(&root.to_string_lossy().into_owned(), "<owned>")
+        .replace(&root.to_string_lossy().into_owned(), "<owned>");
+    let mut out = String::with_capacity(value.len());
+    let mut token = String::new();
+    for ch in value.chars() {
+        if ch.is_ascii_hexdigit() {
+            token.push(ch);
+        } else {
+            if token.len() == 32 {
+                out.push_str("<generated-id>");
+            } else {
+                out.push_str(&token);
+            }
+            token.clear();
+            out.push(ch);
+        }
+    }
+    if token.len() == 32 {
+        out.push_str("<generated-id>");
+    } else {
+        out.push_str(&token);
+    }
+    out
 }
 
 fn normalize_value(value: &mut Value, root: &Path) {
@@ -285,7 +306,7 @@ fn component_side(
                 .into_owned(),
         );
         if let Some(plant) = plant {
-            environment.insert("CAREERBREW_RUST13_PLANT_WRITE".into(), plant.into());
+            environment.insert("CAREERBREW_RUST14_PLANT_WRITE".into(), plant.into());
         }
     }
     let mut phases = Vec::new();

@@ -102,17 +102,7 @@ pub fn set_setting(root: &Path, key: &str, value: Value) -> Result<Value> {
     }
     careerbrew_vault::lock::with_lock(&path, || -> Result<Value> {
         let mut settings = settings(root)?;
-        match value.as_str() {
-            Some("none") | Some("") => {
-                settings
-                    .as_object_mut()
-                    .expect("settings object")
-                    .remove(key);
-            }
-            _ => {
-                settings[key] = value;
-            }
-        }
+        settings[key] = value;
         write_yaml(root, "settings.yaml", &settings)?;
         Ok(field(&settings, key).cloned().unwrap_or(Value::Null))
     })?

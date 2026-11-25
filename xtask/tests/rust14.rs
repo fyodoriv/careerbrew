@@ -131,7 +131,11 @@ fn rust_14_baseline_verify_measure_and_decide_share_identity() {
     for (plant, field, failed_case) in [
         ("extra", "side_effect", "component:live-cycle"),
         ("missing", "missing_writes", "component:live-cycle"),
-        ("duplicate", "duplicate_writes", "component:acquisition-health"),
+        (
+            "duplicate",
+            "duplicate_writes",
+            "component:acquisition-health",
+        ),
         (
             "operation-duplicate",
             "duplicate_writes",

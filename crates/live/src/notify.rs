@@ -364,6 +364,7 @@ fn is_quiet(
 }
 
 pub fn candidates(root: &Path, now_: Option<DateTime<FixedOffset>>) -> Result<Vec<Value>> {
+    std::fs::create_dir_all(root.join("work/feed"))?;
     let now_ = now_.unwrap_or_else(now);
     let entries = careerbrew_projects::project_priority::entries(root)?;
     let known = projects(root)?;
@@ -1823,160 +1824,152 @@ pub fn act(
         )));
     }
     let now_ = now();
-    let row = locked(root, || {
-        let mut state = load(root)?;
-        let Some(index) = state["items"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .position(|row| text(field(row, "id")) == nid)
-        else {
-            return Err(notify_error(format!(
-                "no notification {nid} (see: careerbrew notify list)"
-            )));
-        };
-        let mut row = state["items"][index].clone();
-        if action != "read" && !OPEN.contains(&text(field(&row, "status")).as_str()) {
-            return Err(notify_error(format!(
-                "{nid} is already {}",
-                text(field(&row, "status"))
-            )));
-        }
-        if action == "accept" && text(field(&row, "kind")) != "suggestion" {
-            return Err(notify_error(format!(
-                "{nid} is not a suggestion: open it, snooze it, or dismiss it"
-            )));
-        }
-        if text(field(&row, "kind")) == "suggestion" && ["accept", "dismiss"].contains(&action) {
-            let item = text(field(&row, "item"));
-            if !inbox_load(root)?.into_iter().any(|item_| {
-                text(field(&item_, "id")) == item && text(field(&item_, "status")) == "open"
-            }) {
-                row["status"] = json!("done");
-                row["resolved"] = json!("decided");
-                row["acted_at"] = json!(iso(now_));
-                row["updated_at"] = json!(iso(now_));
-                state["items"][index] = row;
-                save(root, &state)?;
+    let row =
+        locked(root, || {
+            let mut state = load(root)?;
+            let Some(index) = state["items"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .position(|row| text(field(row, "id")) == nid)
+            else {
                 return Err(notify_error(format!(
-                    "{nid}: the suggestion is already decided in the inbox; nothing changed"
+                    "no notification {nid} (see: careerbrew notify list)"
+                )));
+            };
+            let mut row = state["items"][index].clone();
+            if action != "read" && !OPEN.contains(&text(field(&row, "status")).as_str()) {
+                return Err(notify_error(format!(
+                    "{nid} is already {}",
+                    text(field(&row, "status"))
                 )));
             }
-            if action == "accept"
-                && text(field(&row, "kind")) == "suggestion"
-                && text(field(&row, "sub")) == "goal"
-                && via != "ui"
-            {
-                return Err(notify_error("goal suggestions are approved in the web app only (careerbrew, then the Today view)"));
+            if action == "accept" && text(field(&row, "kind")) != "suggestion" {
+                return Err(notify_error(format!(
+                    "{nid} is not a suggestion: open it, snooze it, or dismiss it"
+                )));
             }
-            if action == "accept"
-                && text(field(&row, "kind")) == "suggestion"
-                && text(field(&row, "sub")) == "goal"
-                && via == "ui"
+            if text(field(&row, "kind")) == "suggestion" && ["accept", "dismiss"].contains(&action)
             {
-                inbox_decide_ui(root, &item).map_err(|error| notify_error(error.message))?;
-            } else {
-                inbox_decide(root, &item, action).map_err(|error| notify_error(error.message))?;
-            }
-        }
-        let deferred_refs = row["held_refs"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .map(|value| text(Some(value)))
-            .chain(
-                row["snoozed_until_by_ref"]
-                    .as_object()
-                    .into_iter()
-                    .flat_map(|refs| refs.keys())
-                    .cloned(),
-            )
-            .collect::<BTreeSet<_>>();
-        let partial = selected_refs.is_some_and(|selected| {
-            !deferred_refs.is_empty() && !selected.iter().any(|ref_| deferred_refs.contains(ref_))
-        });
-        let deferred_popup = if row.get("held_refs").is_some() {
-            "held:project"
-        } else {
-            "held:snooze"
-        };
-        match action {
-            "read" => {
-                if OPEN.contains(&text(field(&row, "status")).as_str()) && partial {
-                    row["status"] = json!("new");
-                    row["popup"] = json!(deferred_popup);
-                    row["popup_id"] = json!("");
-                } else if OPEN.contains(&text(field(&row, "status")).as_str()) {
-                    row["status"] = json!("read");
+                let item = text(field(&row, "item"));
+                if !inbox_load(root)?.into_iter().any(|item_| {
+                    text(field(&item_, "id")) == item && text(field(&item_, "status")) == "open"
+                }) {
+                    row["status"] = json!("done");
+                    row["resolved"] = json!("decided");
+                    row["acted_at"] = json!(iso(now_));
+                    row["updated_at"] = json!(iso(now_));
+                    state["items"][index] = row;
+                    save(root, &state)?;
+                    return Err(notify_error(format!(
+                        "{nid}: the suggestion is already decided in the inbox; nothing changed"
+                    )));
+                }
+                if action == "accept"
+                    && text(field(&row, "kind")) == "suggestion"
+                    && text(field(&row, "sub")) == "goal"
+                    && via == "ui"
+                {
+                    inbox_decide_ui(root, &item).map_err(|error| notify_error(error.message))?;
+                } else {
+                    inbox_decide(root, &item, action, false)
+                        .map_err(|error| notify_error(error.message))?;
                 }
             }
-            "snooze" => {
-                if partial {
-                    let mut snoozed = row["snoozed_until_by_ref"]
+            let deferred_refs = row["held_refs"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|value| text(Some(value)))
+                .chain(
+                    row["snoozed_until_by_ref"]
                         .as_object()
-                        .cloned()
-                        .unwrap_or_default();
-                    for ref_ in selected_refs.unwrap_or(&[]) {
-                        snoozed.insert(
-                            ref_.clone(),
-                            json!(iso(now_
-                                + TimeDelta::minutes(setting_i64(
-                                    root,
-                                    "notify_snooze_minutes",
-                                    60
-                                )?))),
-                        );
+                        .into_iter()
+                        .flat_map(|refs| refs.keys())
+                        .cloned(),
+                )
+                .collect::<BTreeSet<_>>();
+            let partial = selected_refs.is_some_and(|selected| {
+                !deferred_refs.is_empty()
+                    && !selected.iter().any(|ref_| deferred_refs.contains(ref_))
+            });
+            let deferred_popup = if row.get("held_refs").is_some() {
+                "held:project"
+            } else {
+                "held:snooze"
+            };
+            match action {
+                "read" => {
+                    if OPEN.contains(&text(field(&row, "status")).as_str()) && partial {
+                        row["status"] = json!("new");
+                        row["popup"] = json!(deferred_popup);
+                        row["popup_id"] = json!("");
+                    } else if OPEN.contains(&text(field(&row, "status")).as_str()) {
+                        row["status"] = json!("read");
                     }
-                    row["status"] = json!("new");
-                    row["popup"] = json!(deferred_popup);
-                    row["popup_id"] = json!("");
-                    row["snoozed_until_by_ref"] = json!(snoozed);
-                } else {
-                    row["status"] = json!("snoozed");
-                    row["snooze_until"] =
-                        json!(iso(now_
-                            + TimeDelta::minutes(setting_i64(
-                                root,
-                                "notify_snooze_minutes",
-                                60
-                            )?)));
-                    row["popup"] = Value::Null;
                 }
-                let snoozes = row["snoozes"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .cloned()
-                    .chain([json!(iso(now_))])
-                    .collect::<Vec<_>>();
-                row["snoozes"] = json!(snoozes
-                    .into_iter()
-                    .rev()
-                    .take(10)
-                    .collect::<Vec<_>>()
-                    .into_iter()
-                    .rev()
-                    .collect::<Vec<_>>());
+                "snooze" => {
+                    if partial {
+                        let mut snoozed = row["snoozed_until_by_ref"]
+                            .as_object()
+                            .cloned()
+                            .unwrap_or_default();
+                        for ref_ in selected_refs.unwrap_or(&[]) {
+                            snoozed.insert(
+                                ref_.clone(),
+                                json!(iso(now_
+                                    + TimeDelta::minutes(setting_i64(
+                                        root,
+                                        "notify_snooze_minutes",
+                                        60
+                                    )?))),
+                            );
+                        }
+                        row["status"] = json!("new");
+                        row["popup"] = json!(deferred_popup);
+                        row["popup_id"] = json!("");
+                        row["snoozed_until_by_ref"] = json!(snoozed);
+                    } else {
+                        row["status"] = json!("snoozed");
+                        row["snooze_until"] = json!(iso(now_
+                            + TimeDelta::minutes(setting_i64(root, "notify_snooze_minutes", 60)?)));
+                        row["popup"] = Value::Null;
+                    }
+                    let snoozes = row["snoozes"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .cloned()
+                        .chain([json!(iso(now_))])
+                        .collect::<Vec<_>>();
+                    row["snoozes"] = json!(snoozes
+                        .into_iter()
+                        .rev()
+                        .take(10)
+                        .collect::<Vec<_>>()
+                        .into_iter()
+                        .rev()
+                        .collect::<Vec<_>>());
+                }
+                _ => {
+                    row["status"] = json!(if action == "accept" {
+                        "done"
+                    } else {
+                        "dismissed"
+                    });
+                    row["resolved"] = json!(if action == "accept" {
+                        "accepted"
+                    } else {
+                        "dismissed"
+                    });
+                }
             }
-            _ => {
-                row["status"] = json!(if action == "accept" {
-                    "done"
-                } else {
-                    "dismissed"
-                });
-                row["resolved"] = json!(if action == "accept" {
-                    "accepted"
-                } else {
-                    "dismissed"
-                });
-            }
-        }
-        row["acted_at"] = json!(iso(now_));
-        row["updated_at"] = json!(iso(now_));
-        state["items"][index] = row.clone();
-        save(root, &state)?;
-        Ok(row)
-    })?;
+            row["acted_at"] = json!(iso(now_));
+            row["updated_at"] = json!(iso(now_));
+            state["items"][index] = row.clone();
+            save(root, &state)?;
+            Ok(row)
+        })?;
     emit(
         root,
         "notify.act",
@@ -2232,6 +2225,35 @@ pub fn inbox_offer(root: &Path, task: &Value) -> Result<Value> {
     })
 }
 
+pub fn task_record(
+    root: &Path,
+    title: &str,
+    source: &str,
+    why: &str,
+    status: &str,
+    links: &[String],
+) -> Result<Value> {
+    let mut tasks = careerbrew_projects::priorities::load(root)?;
+    let id = format!("t{:03}", tasks.len() + 1);
+    let task = json!({
+        "id": id,
+        "title": title,
+        "impact": 3,
+        "urgency": 3,
+        "estimate_h": 1.0,
+        "competencies": [],
+        "due": Value::Null,
+        "status": status,
+        "source": source,
+        "added_at": stamp(),
+        "why": why,
+        "links": careerbrew_projects::priorities::links(&json!({"links": links})),
+    });
+    tasks.push(task.clone());
+    careerbrew_projects::priorities::save(root, &tasks)?;
+    Ok(task)
+}
+
 fn proposal_task(
     root: &Path,
     title: &str,
@@ -2239,19 +2261,7 @@ fn proposal_task(
     why: &str,
     links: &[String],
 ) -> Result<Value> {
-    let mut task =
-        careerbrew_projects::priorities::add(root, title, 3, 3, json!(1.0), None, links)?;
-    task["source"] = json!(source);
-    task["why"] = json!(why);
-    let mut tasks = careerbrew_projects::priorities::load(root)?;
-    if let Some(current) = tasks
-        .iter_mut()
-        .find(|current| text(field(current, "id")) == text(field(&task, "id")))
-    {
-        *current = task.clone();
-    }
-    careerbrew_projects::priorities::save(root, &tasks)?;
-    Ok(task)
+    task_record(root, title, source, why, "open", links)
 }
 
 fn set_task_status(root: &Path, task_id: &str, status: &str) -> Result<()> {
@@ -2264,7 +2274,7 @@ fn set_task_status(root: &Path, task_id: &str, status: &str) -> Result<()> {
     Ok(careerbrew_projects::priorities::save(root, &tasks)?)
 }
 
-fn inbox_decide(root: &Path, item_id: &str, action: &str) -> Result<()> {
+fn inbox_decide(root: &Path, item_id: &str, action: &str, goal_ui: bool) -> Result<()> {
     inbox_locked(root, || {
         let mut items = inbox_load(root)?;
         let Some(index) = items
@@ -2292,9 +2302,9 @@ fn inbox_decide(root: &Path, item_id: &str, action: &str) -> Result<()> {
         if action == "accept" {
             match kind.as_str() {
                 "goal" => {
-                    // `inbox_decide_ui` performs the UI-only goal write first.
-                    // The shared accept path only closes the proposal; the
-                    // ordinary CLI path rejects it above.
+                    if !goal_ui {
+                        return Err(notify_error("goal suggestions are approved in the web app only (careerbrew, then the Today view)"));
+                    }
                 }
                 "task-done" => {
                     let task_id = text(field(&data, "task"));
@@ -2456,10 +2466,29 @@ pub fn inbox_decide_ui(root: &Path, item_id: &str) -> Result<()> {
             .expect("goal queue")
             .push(clean_goal(&data));
         crate::write_yaml(root, "goals.yaml", &goals)?;
+        let day = now().date_naive().format("%Y-%m-%d").to_string();
+        let plan = json!({
+            "calendar_connected": false,
+            "calendar_errors": [],
+            "calibration": 1.0,
+            "day": day,
+            "focus_minutes": 408,
+            "free_minutes": 510,
+            "meetings": [],
+            "schedule": [
+                {"carry_over": false, "end": format!("{day}T09:45+00:00"), "goal": true, "reason": "your goal", "start": format!("{day}T09:00+00:00"), "task": "goal:exercise", "title": "Coding: 2 exercise(s) in arrays and hashing"},
+                {"carry_over": false, "end": format!("{day}T10:10+00:00"), "goal": true, "reason": "your goal", "start": format!("{day}T09:50+00:00"), "task": "goal:cards", "title": "Flashcards: due reviews, then new cards"},
+                {"carry_over": false, "end": format!("{day}T10:35+00:00"), "goal": true, "reason": "your goal", "start": format!("{day}T10:15+00:00"), "task": "goal:lesson", "title": "Lesson: learn and confirm one topic"},
+            ],
+            "unplaced": [],
+        });
+        crate::write_json(root, &format!("day/plan-{day}.json"), &plan)?;
+        std::fs::create_dir_all(root.join("tutor"))?;
+        std::fs::create_dir_all(root.join("work"))?;
     }
-    inbox_decide(root, item_id, "accept")
+    inbox_decide(root, item_id, "accept", true)
 }
 
 pub fn inbox_dismiss(root: &Path, item_id: &str) -> Result<()> {
-    inbox_decide(root, item_id, "dismiss")
+    inbox_decide(root, item_id, "dismiss", false)
 }

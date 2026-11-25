@@ -120,6 +120,12 @@ fn fixture(path: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures")
         .join(path)
+        .canonicalize()
+        .unwrap_or_else(|_| {
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../tests/fixtures")
+                .join(path)
+        })
 }
 
 fn error(result: Result<()>) -> String {
@@ -212,6 +218,9 @@ fn state_projection(root: &Path) -> Result<Value> {
 
 fn clean_text(_root: &Path) -> Result<Value> {
     let root = crate::root()?;
+    std::fs::create_dir_all(root.join("day"))?;
+    std::fs::create_dir_all(root.join("logs"))?;
+    std::fs::create_dir_all(root.join("work/live"))?;
     let mut blobs = Vec::new();
     for path in [
         "work/live/state.json",
@@ -659,37 +668,6 @@ fn link_review(base: &Path) -> Result<Value> {
             Err(error) => private.push(json!({"url": url, "error": error.class})),
         }
     }
-    let partial = json!({"id": "chat:partial", "source": "chat", "kind": "dm", "at": "2026-10-25T16:02:00Z", "title": "partial research", "actor": "other", "to_me": true, "text": "see https://public.example/first"});
-    feed::ingest(
-        root,
-        std::slice::from_ref(&partial),
-        "user",
-        "feed",
-        &[],
-        &live::Provider,
-    )?;
-    feed::research(
-        root,
-        "chat:partial",
-        &json!([{"url": "https://public.example/first", "summary": "agent original"}]),
-    )?;
-    let mut second = partial.clone();
-    second["text"] = json!("see https://public.example/first and https://public.example/second");
-    feed::ingest(root, &[second], "user", "feed", &[], &live::Provider)?;
-    listen::cycle_research(
-        root,
-        "chat:partial",
-        &[json!({"url": "https://public.example/second", "opened": false, "reason": "offline"})],
-    )?;
-    let mut updated = partial.clone();
-    updated["text"] = json!("see https://public.example/first and https://public.example/second and https://public.example/third");
-    feed::ingest(root, &[updated], "user", "feed", &[], &live::Provider)?;
-    let research_merge = feed::load(root)?
-        .into_iter()
-        .find(|row| text(field(row, "id")) == "chat:partial")
-        .expect("partial row")["research"]
-        .clone();
-    let public_summary = listen::read_url("https://public.example/budget")?;
     std::env::remove_var("CAREERBREW_RUST14_ADDRESS_STUB");
     let mut range_controls = Vec::new();
     for url in [
@@ -733,6 +711,37 @@ fn link_review(base: &Path) -> Result<Value> {
         &BTreeSet::new(),
         false,
     )?;
+    let partial = json!({"id": "chat:partial", "source": "chat", "kind": "dm", "at": "2026-10-25T16:02:00Z", "title": "partial research", "actor": "other", "to_me": true, "text": "see https://public.example/first"});
+    feed::ingest(
+        root,
+        std::slice::from_ref(&partial),
+        "user",
+        "feed",
+        &[],
+        &live::Provider,
+    )?;
+    feed::research(
+        root,
+        "chat:partial",
+        &json!([{"url": "https://public.example/first", "summary": "agent original"}]),
+    )?;
+    let mut second = partial.clone();
+    second["text"] = json!("see https://public.example/first and https://public.example/second");
+    feed::ingest(root, &[second], "user", "feed", &[], &live::Provider)?;
+    listen::cycle_research(
+        root,
+        "chat:partial",
+        &[json!({"url": "https://public.example/second", "opened": false, "reason": "offline"})],
+    )?;
+    let mut updated = partial.clone();
+    updated["text"] = json!("see https://public.example/first and https://public.example/second and https://public.example/third");
+    feed::ingest(root, &[updated], "user", "feed", &[], &live::Provider)?;
+    let research_merge = feed::load(root)?
+        .into_iter()
+        .find(|row| text(field(row, "id")) == "chat:partial")
+        .expect("partial row")["research"]
+        .clone();
+    let public_summary = listen::read_url("https://public.example/budget")?;
     Ok(
         json!({"cycle": cycle_projection(&rec), "research": research_rows, "private": private, "range_controls": range_controls, "research_merge": research_merge, "public_summary": public_summary, "reference": reference, "re_review": follow, "sessions": listen::review_sessions(root)?, "clean": clean_text(root)?}),
     )
@@ -1208,18 +1217,14 @@ fn popup_refs(root: &Path) -> Result<Vec<String>> {
 }
 
 fn agent_task(root: &Path, title: &str) -> Result<Value> {
-    let mut task = priorities::add(root, title, 3, 3, json!(1.0), None, &[])?;
-    task["source"] = json!("agent");
-    task["status"] = json!("proposed");
-    task["why"] = json!("the release is Thursday");
-    let mut tasks = priorities::load(root)?;
-    if let Some(current) = tasks
-        .iter_mut()
-        .find(|current| text(field(current, "id")) == text(field(&task, "id")))
-    {
-        *current = task.clone();
-    }
-    priorities::save(root, &tasks)?;
+    let task = notify::task_record(
+        root,
+        title,
+        "agent",
+        "the release is Thursday",
+        "proposed",
+        &[],
+    )?;
     notify::inbox_offer(root, &task)?;
     Ok(task)
 }
