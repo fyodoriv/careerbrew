@@ -165,12 +165,18 @@ def test_feed_transcript_write_and_cli_contracts_match_python(candidate, tmp_pat
         assert local["work_minutes"] == {"int": "60"}
         assert [row["skipped"] for row in local["raw"]] == [{"int": "1"}, {"int": "1"}]
         assert local["transcript"] == ["skipped", "OverflowError"]
+        assert local["colon"] == "2026-10-21T16:00:00-04:00"
+        assert local["gap"] == "2026-03-08T07:30:00Z"
+        assert local["system"].startswith("2026-10-21T16:00:00")
 
         failures = case(report, "source-failures")["result"]
         assert failures["sources"] == failures["errors"] == {"int": "3"}
         assert failures["new"] == {"int": "0"}
         assert all(reason.count("[REDACTED]") == 2 for reason in failures["reasons"])
         assert case(report, "source-failures")["lengths"] == [{"int": "207"}, {"int": "211"}, {"int": "209"}]
+        absent = case(report, "source-failures")["absent"]
+        assert absent["errors"] == {"int": "3"} and absent["new"] == {"int": "0"}
+        assert all("[REDACTED]" in reason for reason in absent["reasons"])
 
         inventory = case(report, "source-inventory")
         assert inventory["result"]["sources"] == {"int": "3"}

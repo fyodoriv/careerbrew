@@ -579,7 +579,7 @@ pub fn sync_in(root: &Path) -> Result<Value> {
     })
 }
 
-fn local_zone(root: &Path) -> chrono_tz::Tz {
+pub fn local_zone(root: &Path) -> chrono_tz::Tz {
     let settings = careerbrew_projects::read_yaml(root, "settings.yaml", json!({}))
         .unwrap_or_else(|_| json!({}));
     let configured = text(field(&settings, "timezone"));
@@ -606,7 +606,10 @@ fn local_zone(root: &Path) -> chrono_tz::Tz {
     })
 }
 
-fn local_naive(zone: chrono_tz::Tz, naive: chrono::NaiveDateTime) -> Option<DateTime<FixedOffset>> {
+pub fn local_naive(
+    zone: chrono_tz::Tz,
+    naive: chrono::NaiveDateTime,
+) -> Option<DateTime<FixedOffset>> {
     match zone.from_local_datetime(&naive) {
         chrono::LocalResult::Single(local) => Some(local.fixed_offset()),
         chrono::LocalResult::Ambiguous(first, _) => Some(first.fixed_offset()),

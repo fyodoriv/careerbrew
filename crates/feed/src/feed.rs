@@ -5,7 +5,7 @@ use crate::{
     write_json_if_changed, write_jsonl, ComponentProvider, FeedError, Result,
 };
 use careerbrew_vault::canon::Canon;
-use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, TimeDelta, TimeZone, Utc};
+use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, TimeDelta, Utc};
 use regex::Regex;
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -130,14 +130,18 @@ pub fn utc(value: &Value) -> Result<String> {
         .or_else(|| {
             NaiveDateTime::parse_from_str(&raw, "%Y-%m-%dT%H:%M:%S%.f")
                 .ok()
-                .and_then(|value| crate::local_zone().from_local_datetime(&value).earliest())
+                .and_then(|value| {
+                    careerbrew_memory::memory_sync::local_naive(crate::local_zone(), value)
+                })
                 .map(|value| value.with_timezone(&Utc))
         })
         .or_else(|| {
             NaiveDate::parse_from_str(&raw, "%Y-%m-%d")
                 .ok()
                 .and_then(|value| value.and_hms_opt(0, 0, 0))
-                .and_then(|value| crate::local_zone().from_local_datetime(&value).earliest())
+                .and_then(|value| {
+                    careerbrew_memory::memory_sync::local_naive(crate::local_zone(), value)
+                })
                 .map(|value| value.with_timezone(&Utc))
         });
     parsed
@@ -1507,14 +1511,14 @@ pub fn work_minutes(row: &Value, at: DateTime<chrono::FixedOffset>, settings: &V
             .ok() else {
                 continue;
             };
-            let Some(a) = zone.from_local_datetime(&start).earliest() else {
+            let Some(a) = careerbrew_memory::memory_sync::local_naive(zone, start) else {
                 continue;
             };
-            let Some(b) = zone.from_local_datetime(&end).earliest() else {
+            let Some(b) = careerbrew_memory::memory_sync::local_naive(zone, end) else {
                 continue;
             };
-            let a = lo.max(a);
-            let b = hi.min(b);
+            let a = lo.max(a.with_timezone(&zone));
+            let b = hi.min(b.with_timezone(&zone));
             seconds += (b - a).num_seconds().max(0);
         }
         day += TimeDelta::days(1);

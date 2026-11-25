@@ -429,6 +429,13 @@ def _local_time_and_nan(base: Path) -> dict[str, Any]:
             transcript_results.append("skipped" if event is None else "accepted")
         except Exception as exc:
             transcript_results.append(type(exc).__name__)
+    config.set_value("timezone", "")
+    os.environ["TZ"] = ":America/New_York"
+    colon = feed._now_iso()
+    os.environ.pop("TZ")
+    system = feed._now_iso()
+    config.set_value("timezone", "America/New_York")
+    gap = feed._utc("2026-03-08T02:30:00")
     return {
         "now": feed._now_iso(),
         "naive": naive,
@@ -436,6 +443,9 @@ def _local_time_and_nan(base: Path) -> dict[str, Any]:
         "work_minutes": minutes,
         "raw": raw,
         "transcript": transcript_results,
+        "colon": colon,
+        "system": system,
+        "gap": gap,
     }
 
 
@@ -457,7 +467,21 @@ def _source_failures(base: Path) -> dict[str, Any]:
         result = feed.pull()
     finally:
         connectors.feed = real
-    return {"result": result, "lengths": [len(reason) for reason in result["reasons"]]}
+    Workspace(base, "absent-plugin-term")
+    _connectors(["slack", "pagerduty", "outlook"])
+    store.write_text(paths.sub("sensitive-terms.txt"), "CANARYSOURCE\n")
+    plugin_root = paths.sub("plugins", "feedplug")
+    store.write_yaml(plugin_root / "careerbrew-plugin.yaml", {"name": "feedplug", "version": "0.1.0", "sensitive_terms": "missing.txt"})
+    store.write_json(paths.sub("plugins.lock.json"), {"plugins": {"feedplug": {"origin": "plugin:feedplug"}}})
+    def fail_absent(_cfg):
+        raise RuntimeError("CANARYSOURCE " + "x" * 250)
+
+    connectors.feed = fail_absent
+    try:
+        absent = feed.pull()
+    finally:
+        connectors.feed = real
+    return {"result": result, "lengths": [len(reason) for reason in result["reasons"]], "absent": absent}
 
 
 def _source_inventory(base: Path) -> dict[str, Any]:

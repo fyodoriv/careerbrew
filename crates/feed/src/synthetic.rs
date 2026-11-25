@@ -680,9 +680,28 @@ fn local_time_and_nan(base: &Path) -> Result<Value> {
             }
         })
         .collect::<Vec<_>>();
+    careerbrew_vault::lock::with_lock(&root.join("settings.yaml"), || {
+        write_yaml(root, "settings.yaml", &json!({"timezone": ""}))
+    })??;
+    std::env::set_var("TZ", ":America/New_York");
+    let colon = crate::now_iso();
+    std::env::remove_var("TZ");
+    let system = crate::now_iso();
+    careerbrew_vault::lock::with_lock(&root.join("settings.yaml"), || {
+        write_yaml(
+            root,
+            "settings.yaml",
+            &json!({"timezone": "America/New_York"}),
+        )
+    })??;
+    let gap = match feed::utc(&json!("2026-03-08T02:30:00")) {
+        Ok(value) => value,
+        Err(error) => error.class.into(),
+    };
     Ok(json!({
         "now": crate::now_iso(), "naive": naive["at"], "aware": aware["at"],
         "work_minutes": minutes, "raw": raw, "transcript": transcript_results,
+        "colon": colon, "system": system, "gap": gap,
     }))
 }
 
@@ -713,7 +732,25 @@ fn source_failures(base: &Path) -> Result<Value> {
         .flatten()
         .map(|reason| text(Some(reason)).len())
         .collect::<Vec<_>>();
-    Ok(json!({"result": result, "lengths": lengths}))
+    let absent_workspace = Workspace::new(base, "absent-plugin-term")?;
+    let absent_root = &absent_workspace.root;
+    connectors(absent_root, &["slack", "pagerduty", "outlook"])?;
+    crate::write_text(absent_root, "sensitive-terms.txt", "CANARYSOURCE\n")?;
+    let absent_plugin = absent_root.join("plugins/feedplug");
+    write_yaml(
+        &absent_plugin,
+        "careerbrew-plugin.yaml",
+        &json!({"name": "feedplug", "version": "0.1.0", "sensitive_terms": "missing.txt"}),
+    )?;
+    write_json(
+        absent_root,
+        "plugins.lock.json",
+        &json!({"plugins": {"feedplug": {"origin": "plugin:feedplug"}}}),
+    )?;
+    std::env::set_var("CAREERBREW_RUST13_SOURCE_FAILURE", "root-only");
+    let absent = sources::pull(absent_root, &components)?;
+    std::env::remove_var("CAREERBREW_RUST13_SOURCE_FAILURE");
+    Ok(json!({"result": result, "lengths": lengths, "absent": absent}))
 }
 
 fn source_inventory(base: &Path) -> Result<Value> {

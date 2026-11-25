@@ -189,14 +189,10 @@ pub fn write_text(root: &Path, relative: &str, value: &str) -> Result<()> {
 }
 
 pub fn local_zone() -> chrono_tz::Tz {
-    let configured = context().ok().and_then(|context| {
-        read_yaml(&context.root, "settings.yaml", serde_json::json!({}))
-            .ok()
-            .and_then(|settings| text(field(&settings, "timezone")).parse().ok())
-    });
-    configured
-        .or_else(|| std::env::var("TZ").ok().and_then(|zone| zone.parse().ok()))
-        .unwrap_or(chrono_tz::UTC)
+    match context() {
+        Ok(context) => careerbrew_memory::memory_sync::local_zone(&context.root),
+        Err(_) => careerbrew_memory::memory_sync::local_zone(Path::new("")),
+    }
 }
 
 pub fn now() -> DateTime<FixedOffset> {
@@ -204,14 +200,10 @@ pub fn now() -> DateTime<FixedOffset> {
         .ok()
         .and_then(|value| {
             DateTime::parse_from_rfc3339(&value).ok().or_else(|| {
-                use chrono::TimeZone;
                 chrono::NaiveDateTime::parse_from_str(&value, "%Y-%m-%dT%H:%M:%S%.f")
                     .ok()
                     .and_then(|naive| {
-                        local_zone()
-                            .from_local_datetime(&naive)
-                            .earliest()
-                            .map(|value| value.fixed_offset())
+                        careerbrew_memory::memory_sync::local_naive(local_zone(), naive)
                     })
             })
         })

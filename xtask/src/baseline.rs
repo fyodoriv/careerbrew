@@ -863,6 +863,7 @@ pub const STEPS: &[Step] = &[
             "crates/sources/src/lib.rs",
             "crates/sources/src/http.rs",
             "crates/sources/src/connectors.rs",
+            "crates/setup/src/lib.rs",
             "crates/setup/src/value.rs",
             "crates/setup/src/plugins.rs",
             "crates/policy/Cargo.toml",

@@ -604,10 +604,15 @@ pub fn outlook(root: &Path, cfg: &Value) -> Result<Vec<Value>> {
 
 pub fn read(root: &Path, cfg: &Value) -> Result<Vec<Value>> {
     let kind = text(field(cfg, "kind"));
-    if std::env::var("CAREERBREW_RUST13_SOURCE_FAILURE").as_deref() == Ok("1") {
+    if let Ok(mode) = std::env::var("CAREERBREW_RUST13_SOURCE_FAILURE") {
+        let marker = if mode == "root-only" {
+            "CANARYSOURCE"
+        } else {
+            "CANARYSOURCE CANARYPLUGIN"
+        };
         return Err(FeedError::new(
             "RuntimeError",
-            format!("CANARYSOURCE CANARYPLUGIN {}", "x".repeat(250)),
+            format!("{marker} {}", "x".repeat(250)),
         ));
     }
     let policy = careerbrew_setup::plugins::effective_policy()?;
@@ -674,14 +679,24 @@ fn sensitive_terms(root: &Path) -> Result<Vec<String>> {
         if relative.is_empty() {
             continue;
         }
-        let plugin_root = plugin.root.canonicalize()?;
-        let path = plugin_root.join(&relative).canonicalize()?;
-        if !path.starts_with(&plugin_root) {
+        let candidate = plugin.root.join(&relative);
+        if !careerbrew_setup::inside(&candidate, &plugin.root) {
             return Err(FeedError::new(
                 "PluginError",
                 "sensitive terms escape the plugin root",
             ));
         }
+        let path = match candidate.canonicalize() {
+            Ok(path) if careerbrew_setup::inside(&path, &plugin.root) => path,
+            Ok(_) => {
+                return Err(FeedError::new(
+                    "PluginError",
+                    "sensitive terms escape the plugin root",
+                ));
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(error.into()),
+        };
         if let Some(text) = stored.read_text(&path, None, true)? {
             terms.extend(
                 text.lines()
