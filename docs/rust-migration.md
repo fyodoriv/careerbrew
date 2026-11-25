@@ -2474,17 +2474,17 @@ the crate until the rust-05 and rust-07 closure is native, so
   Browser code stays unchanged. Fresh acceptance and hosted claims must name
   their exact head, with pending checks never described as green.
 - **Third-review acceptance (2026-11-25, macOS):** clean measured source
-  `76716c30733e3721af0361ffc5f0c89959673cd3`; evidence-source hash
-  `b0786024a7131aae6586e95c6deb3c8638404008905c2cebcb1e357d9e9b33c3`;
+  `62c321dde979738b9be76d47c172c79f47372caf`; evidence-source hash
+  `d8ec1ce8f1e3436bf739969cd652326afccf57f986701e0d7d868f6a5ebe53d5`;
   fixture hash `8bf29c5928700145219dd63b425271ade19e5c191df9aef1829e2357d8ebd583`;
   release-candidate SHA-256
   `eed9d6df4f04c84c0fac6f7ecbbaf6d122eba00d1e71786ac37460d8825cac0d`.
-  Baseline: 30 runs; CPU p50/p95 396,529/419,106 microseconds and tree-RSS
-  p50/p95 53,460,992/53,903,360 bytes. Verify passes 12/12 with zero violations,
+  Baseline: 30 runs; CPU p50/p95 384,630/410,962 microseconds and tree-RSS
+  p50/p95 53,231,616/53,592,064 bytes. Verify passes 12/12 with zero violations,
   including absent plugin files, system/colon timezones and DST gaps. Cold CPU
-  p95 was 419,902 to 159,059 microseconds; warm was 422,561 to 159,354. Cold
-  tree-RSS p95 was 53,952,512 to 14,417,920 bytes; warm was 53,805,056 to
-  14,565,376. Each ratio is below 1.10. `decide` returned component-only
+  p95 was 412,191 to 157,896 microseconds; warm was 412,247 to 157,820. Cold
+  tree-RSS p95 was 53,624,832 to 14,450,688 bytes; warm was 53,821,440 to
+  14,417,920. Each ratio is below 1.10. `decide` returned component-only
   `activate`; all four write controls returned `keep-python`. Hosted checks
   remain pending until a fresh run passes. Production routes, shipped crates
   and activation remain unchanged.
