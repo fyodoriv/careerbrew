@@ -444,6 +444,20 @@ pub fn notify_act(root: &Path, id: &str, action: &str) -> Value {
     }
 }
 
+pub fn notify_open(root: &Path, id: &str) -> Value {
+    if !id.is_empty() {
+        if let Err(error) = notify::act(root, id, "read", "cli", None) {
+            return invocation(2, format!("error: {}\n", error.message));
+        }
+    }
+    let view = if id.is_empty() {
+        "notifications".to_owned()
+    } else {
+        format!("notifications/{id}")
+    };
+    invocation(0, format!("opened the web app in your browser: #/{view}\n"))
+}
+
 pub fn invocation_json(value: Value) -> Result<String> {
     Ok(invocation(
         0,

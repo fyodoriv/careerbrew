@@ -116,7 +116,7 @@ def test_live_health_review_and_notification_contracts_match_python(candidate, t
         listening = case(report, "listen-drafts")
         assert listening["holding"] is True and all(listening["review_notes"].values())
         assert len(listening["updates"]) == 1 and listening["second"]["followups"] == []
-        assert listening["first"]["review_sessions"] == 1 and len(listening["sessions"]) == 1
+        assert listening["first"]["review_sessions"] == {"int": "1"} and len(listening["sessions"]) == 1
         assert listening["kept_text"] == "my own words, written earlier"
         assert not any(listening["clean"].values())
 
@@ -163,6 +163,8 @@ def test_live_health_review_and_notification_contracts_match_python(candidate, t
         assert adapters["started"]["exit"] == adapters["cycled"]["exit"] == adapters["stopped"]["exit"] == {"int": "0"}
         assert adapters["review"]["exit"] == {"int": "0"} and adapters["short"]["exit"] == {"int": "1"}
         assert "draft hidden" in adapters["review"]["stdout"] and "ana-dev" not in adapters["review"]["stdout"]
-        assert adapters["checked"]["exit"] == adapters["listed"]["exit"] == adapters["notify_status"]["exit"] == {"int": "0"}
+        assert adapters["checked"]["exit"] == adapters["listed"]["exit"] == adapters["notify_status"]["exit"] == adapters["opened"]["exit"] == {"int": "0"}
+        assert adapters["osascript_ok"]["exit"] == adapters["osascript_missing"]["exit"] == {"int": "0"}
+        assert "on run argv" in adapters["osascript_log"]
         answers.append(normalized(done.stdout, root))
     assert answers[0] == answers[1]

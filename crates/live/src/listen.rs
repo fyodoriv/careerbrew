@@ -154,38 +154,17 @@ pub fn is_review(row: &Value, verdict: &str, text_: &str) -> bool {
 
 fn addresses(host: &str) -> Vec<String> {
     if std::env::var("CAREERBREW_RUST14_ADDRESS_STUB").as_deref() == Ok("1") {
-        return (
-            if host == "private.example" {
-                "localhost"
-            } else {
-                "cloudflare.com"
-            },
-            0,
-        )
-            .to_socket_addrs()
-            .map(|addresses| {
-                addresses
-                    .map(|address| address.ip().to_string())
-                    .collect::<BTreeSet<_>>()
-                    .into_iter()
-                    .collect()
-            })
-            .unwrap_or_default();
+        return if host == "private.example" {
+            vec![std::net::Ipv4Addr::LOCALHOST.to_string()]
+        } else {
+            vec![std::net::Ipv6Addr::from(0x26064700470000000000000000001111u128).to_string()]
+        };
     }
     if host.parse::<std::net::IpAddr>().is_ok() {
         return vec![host.to_owned()];
     }
     if host == "public.example" {
-        return ("cloudflare.com", 0)
-            .to_socket_addrs()
-            .map(|addresses| {
-                addresses
-                    .map(|address| address.ip().to_string())
-                    .collect::<BTreeSet<_>>()
-                    .into_iter()
-                    .collect()
-            })
-            .unwrap_or_default();
+        return vec![std::net::Ipv6Addr::from(0x26064700470000000000000000001111u128).to_string()];
     }
     (host, 0)
         .to_socket_addrs()
@@ -264,7 +243,11 @@ pub fn private_reason(url: &str) -> Result<String> {
     if host == "localhost" || host.ends_with(".localhost") {
         return Ok("not opened: the link points to a private or local address".into());
     }
-    for address in addresses(&host) {
+    let addresses = addresses(&host);
+    if addresses.is_empty() {
+        return Ok("not opened: the host does not resolve".into());
+    }
+    for address in addresses {
         let Ok(ip) = address.parse::<std::net::IpAddr>() else {
             return Ok("not opened: the host does not resolve".into());
         };

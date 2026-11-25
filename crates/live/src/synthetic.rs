@@ -1,8 +1,8 @@
 //! Synthetic rust-14 workload over the native live/review/notify components.
 
 use crate::{
-    cli, compact, field, health, listen, live, notify, read_text, review, root, text, truthy,
-    typed, FeedError, Result,
+    cli, compact, field, health, listen, live, notify, read_json, read_text, review, root, text,
+    truthy, typed, FeedError, Result,
 };
 use careerbrew_feed::feed;
 use careerbrew_projects::{priorities, projects};
@@ -1346,6 +1346,27 @@ fn suggestion_kinds(base: &Path) -> Result<Value> {
             }),
         );
     }
+    let workspace = Workspace::new(base, "goal-existing", false)?;
+    let root = &workspace.root;
+    let existing_plan = json!({
+        "calendar_connected": true,
+        "calendar_errors": [],
+        "calibration": 1.25,
+        "day": "2026-10-25",
+        "focus_minutes": 120,
+        "free_minutes": 300,
+        "meetings": [],
+        "schedule": [{"carry_over": true, "end": "2026-10-25T08:30+00:00", "goal": false, "reason": "existing work", "start": "2026-10-25T08:00+00:00", "task": "owner-task", "title": "Existing work"}],
+        "unplaced": [],
+    });
+    crate::write_json(root, "day/plan-2026-10-25.json", &existing_plan)?;
+    let nid = seed_suggestion(
+        root,
+        "goal",
+        json!({"id": "goal-test", "title": "Grow", "kind": "custom", "date": "2026-12-01"}),
+    )?;
+    let accepted = notify::act(root, &nid, "accept", "ui", None)?;
+    out.insert("goal-existing".into(), json!({"accepted": accepted, "plan": read_json(root, "day/plan-2026-10-25.json", json!({}))?}));
     Ok(Value::Object(out))
 }
 
@@ -1442,8 +1463,39 @@ fn cli_adapters(base: &Path) -> Result<Value> {
     let checked = cli::notify_check(root, true);
     let listed = cli::notify_list(root, false, false);
     let notify_status = cli::notify_status(root);
+    let nid = notify::load(root)?["items"][0]["id"]
+        .as_str()
+        .expect("notification id")
+        .to_owned();
+    let opened = cli::notify_open(root, &nid);
+    let os_bin = workspace.base.join("os-bin");
+    std::fs::create_dir_all(&os_bin)?;
+    std::os::unix::fs::symlink(
+        fixture("notifier/fake-notifier.sh"),
+        os_bin.join("osascript"),
+    )?;
+    std::env::set_var(
+        "PATH",
+        format!("{}:/usr/bin:/bin", os_bin.to_string_lossy()),
+    );
+    std::env::set_var("FAKE_NOTIFIER_LOG", workspace.base.join("osascript.log"));
+    std::env::set_var("CAREERBREW_RUST14_PLATFORM", "darwin");
+    crate::set_setting_text(root, "notify_backend", "osascript")?;
+    feed::ingest(
+        root,
+        &[event("slack:os:1", "dm", "2026-10-21T13:30:00Z", &[])],
+        "user",
+        "feed",
+        &[],
+        &live::Provider,
+    )?;
+    let osascript_ok = cli::notify_check(root, true);
+    let osascript_log =
+        std::fs::read_to_string(workspace.base.join("osascript.log")).unwrap_or_default();
+    std::fs::remove_file(os_bin.join("osascript"))?;
+    let osascript_missing = cli::notify_check(root, true);
     Ok(
-        json!({"started": started, "cycled": cycled, "status": status, "stopped": stopped, "review": review, "short": short, "checked": checked, "listed": listed, "notify_status": notify_status, "clean": clean_text(root)?}),
+        json!({"started": started, "cycled": cycled, "status": status, "stopped": stopped, "review": review, "short": short, "checked": checked, "listed": listed, "notify_status": notify_status, "opened": opened, "osascript_ok": osascript_ok, "osascript_log": osascript_log, "osascript_missing": osascript_missing, "clean": clean_text(root)?}),
     )
 }
 

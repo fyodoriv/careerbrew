@@ -14,11 +14,12 @@ import json
 import os
 import socket
 import sys
+import webbrowser
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from careerbrew import cli, config, events, goals, notify, paths, plugins, store
+from careerbrew import cli, config, events, goals, notify, paths, plugins, server, store
 from careerbrew.day import inbox
 from careerbrew.work import drafts, feed, health, listen, live, priorities, projects, review_ask, team
 
@@ -765,6 +766,22 @@ def _suggestion_kinds(base: Path) -> dict[str, Any]:
             "goals": goals.load(),
             "rules": feed.rules(),
         }
+    Workspace(base, "goal-existing")
+    existing_plan = {
+        "calendar_connected": True,
+        "calendar_errors": [],
+        "calibration": 1.25,
+        "day": "2026-10-25",
+        "focus_minutes": 120,
+        "free_minutes": 300,
+        "meetings": [],
+        "schedule": [{"carry_over": True, "end": "2026-10-25T08:30+00:00", "goal": False, "reason": "existing work", "start": "2026-10-25T08:00+00:00", "task": "owner-task", "title": "Existing work"}],
+        "unplaced": [],
+    }
+    store.write_json(paths.sub("day", "plan-2026-10-25.json"), existing_plan)
+    nid = _seed_suggestion("goal", {"id": "goal-test", "title": "Grow", "kind": "custom", "date": "2026-12-01"})
+    accepted = notify.act(nid, "accept", via="ui")
+    out["goal-existing"] = {"accepted": accepted, "plan": store.read_json(paths.sub("day", "plan-2026-10-25.json"), {})}
     return out
 
 
@@ -823,7 +840,38 @@ def _cli_adapters(base: Path) -> dict[str, Any]:
     checked = _invoke(["notify", "check", "--wait"])
     listed = _invoke(["notify", "list"])
     notify_status = _invoke(["notify", "status"])
-    return {"started": started, "cycled": cycled, "status": status, "stopped": stopped, "review": review, "short": short, "checked": checked, "listed": listed, "notify_status": notify_status, "clean": _clean_text()}
+    server.start_background = lambda port: f"http://127.0.0.1:{port}/#token=synthetic"
+    webbrowser.open = lambda url: True
+    nid = notify.load()["items"][0]["id"]
+    opened = _invoke(["notify", "open", nid])
+    os_bin = workspace.base / "os-bin"
+    os_bin.mkdir()
+    (os_bin / "osascript").symlink_to(FIX / "notifier" / "fake-notifier.sh")
+    os.environ["PATH"] = f"{os_bin}:/usr/bin:/bin"
+    os.environ["FAKE_NOTIFIER_LOG"] = str(workspace.base / "osascript.log")
+    config.set_value("notify_backend", "osascript")
+    notify.sys.platform = "darwin"
+    feed.ingest([_event("slack:os:1", "dm")])
+    osascript_ok = _invoke(["notify", "check", "--wait"])
+    osascript_log = (workspace.base / "osascript.log").read_text()
+    (os_bin / "osascript").unlink()
+    osascript_missing = _invoke(["notify", "check", "--wait"])
+    return {
+        "started": started,
+        "cycled": cycled,
+        "status": status,
+        "stopped": stopped,
+        "review": review,
+        "short": short,
+        "checked": checked,
+        "listed": listed,
+        "notify_status": notify_status,
+        "opened": opened,
+        "osascript_ok": osascript_ok,
+        "osascript_log": osascript_log,
+        "osascript_missing": osascript_missing,
+        "clean": _clean_text(),
+    }
 
 
 def run_all(selected: str | None = None) -> dict[str, Any]:

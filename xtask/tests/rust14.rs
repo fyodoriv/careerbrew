@@ -65,7 +65,7 @@ fn rust_14_baseline_verify_measure_and_decide_share_identity() {
             "--offline",
             "--release",
             "-p",
-            "careerbrew-feed",
+            "careerbrew-live",
             "--bin",
             "live-component",
         ])

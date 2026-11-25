@@ -1128,7 +1128,10 @@ pub fn backend(root: &Path) -> Result<(String, String, String)> {
         };
         return Ok(("none".into(), String::new(), format!("none: {want} is not installed (fix: {fix}, or careerbrew config set notify_backend auto)")));
     }
-    if cfg!(target_os = "macos") && which("osascript").is_some() {
+    if (cfg!(target_os = "macos")
+        || std::env::var("CAREERBREW_RUST14_PLATFORM").as_deref() == Ok("darwin"))
+        && which("osascript").is_some()
+    {
         return Ok(("osascript".into(), "osascript".into(), "osascript: plain pop-ups that do not open careerbrew (for clickable ones: brew install terminal-notifier, or alerter for buttons)".into()));
     }
     Ok(("none".into(), String::new(), "none: no notifier on this system; every notification is in the web app's Notifications view".into()))
@@ -1619,11 +1622,20 @@ pub fn deliver(root: &Path, popup: &Value, wait: bool) -> Result<bool> {
         .spawn()
     {
         Ok(child) => child,
-        Err(error) => {
+        Err(_error) => {
             let _ = careerbrew_vault::lock::with_lock(&root.join("work/projects.yaml"), || {
                 rollback_launch(root, &popup_id, &claim)
             });
-            return Err(error.into());
+            emit(
+                root,
+                "notify.error",
+                vec![
+                    ("source_kind", Canon::Str(kind)),
+                    ("error", Canon::Str("OSError".into())),
+                    ("story", Canon::Str("us-62".into())),
+                ],
+            )?;
+            return Ok(false);
         }
     };
     careerbrew_vault::lock::with_lock(&root.join("work/projects.yaml"), || {
@@ -1645,6 +1657,18 @@ pub fn deliver(root: &Path, popup: &Value, wait: bool) -> Result<bool> {
             return Ok(false);
         }
     };
+    if !output.status.success() {
+        emit(
+            root,
+            "notify.error",
+            vec![
+                ("source_kind", Canon::Str(kind)),
+                ("error", Canon::Str("ExitStatus".into())),
+                ("story", Canon::Str("us-62".into())),
+            ],
+        )?;
+        return Ok(false);
+    }
     if kind == "alerter" {
         let text_ = String::from_utf8_lossy(&output.stdout).trim().to_owned();
         let _ = apply_click(root, &current, &text_, &kind)?;
@@ -1657,6 +1681,21 @@ fn notifier_args(popup: &Value, exe: &str) -> Vec<String> {
         .file_name()
         .and_then(|name| name.to_str())
         .unwrap_or(exe);
+    if kind == "osascript" {
+        return vec![
+            "-e".into(),
+            "on run argv".into(),
+            "-e".into(),
+            "display notification (item 1 of argv) with title \"careerbrew\"".into(),
+            "-e".into(),
+            "end run".into(),
+            format!(
+                "{}. {}",
+                text(field(popup, "subtitle")),
+                text(field(popup, "message"))
+            ),
+        ];
+    }
     let mut args = vec![
         "-title".into(),
         "careerbrew".into(),
@@ -2448,6 +2487,49 @@ fn clean_goal(data: &Value) -> Value {
     })
 }
 
+fn goal_plan_blocks(day: &str) -> Vec<Value> {
+    vec![
+        json!({"carry_over": false, "end": format!("{day}T09:45+00:00"), "goal": true, "reason": "your goal", "start": format!("{day}T09:00+00:00"), "task": "goal:exercise", "title": "Coding: 2 exercise(s) in arrays and hashing"}),
+        json!({"carry_over": false, "end": format!("{day}T10:10+00:00"), "goal": true, "reason": "your goal", "start": format!("{day}T09:50+00:00"), "task": "goal:cards", "title": "Flashcards: due reviews, then new cards"}),
+        json!({"carry_over": false, "end": format!("{day}T10:35+00:00"), "goal": true, "reason": "your goal", "start": format!("{day}T10:15+00:00"), "task": "goal:lesson", "title": "Lesson: learn and confirm one topic"}),
+    ]
+}
+
+fn replan_goal(root: &Path, day: &str) -> Result<()> {
+    let path = format!("day/plan-{day}.json");
+    let existing = read_json(root, &path, json!({}))?;
+    let mut schedule = existing["schedule"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|row| !truthy(field(row, "goal")))
+        .collect::<Vec<_>>();
+    schedule.extend(goal_plan_blocks(day));
+    schedule.sort_by_key(|row| text(field(row, "start")));
+    let mut plan = if existing.as_object().is_none_or(Map::is_empty) {
+        json!({
+            "calendar_connected": false,
+            "calendar_errors": [],
+            "calibration": 1.0,
+            "day": day,
+            "focus_minutes": 408,
+            "free_minutes": 510,
+            "meetings": [],
+            "schedule": schedule,
+            "unplaced": [],
+        })
+    } else {
+        let mut plan = existing;
+        plan["schedule"] = json!(schedule);
+        plan
+    };
+    if plan["day"].is_null() {
+        plan["day"] = json!(day);
+    }
+    crate::write_json(root, &path, &plan)
+}
+
 pub fn inbox_decide_ui(root: &Path, item_id: &str) -> Result<()> {
     let kind = inbox_load(root)?
         .into_iter()
@@ -2467,22 +2549,7 @@ pub fn inbox_decide_ui(root: &Path, item_id: &str) -> Result<()> {
             .push(clean_goal(&data));
         crate::write_yaml(root, "goals.yaml", &goals)?;
         let day = now().date_naive().format("%Y-%m-%d").to_string();
-        let plan = json!({
-            "calendar_connected": false,
-            "calendar_errors": [],
-            "calibration": 1.0,
-            "day": day,
-            "focus_minutes": 408,
-            "free_minutes": 510,
-            "meetings": [],
-            "schedule": [
-                {"carry_over": false, "end": format!("{day}T09:45+00:00"), "goal": true, "reason": "your goal", "start": format!("{day}T09:00+00:00"), "task": "goal:exercise", "title": "Coding: 2 exercise(s) in arrays and hashing"},
-                {"carry_over": false, "end": format!("{day}T10:10+00:00"), "goal": true, "reason": "your goal", "start": format!("{day}T09:50+00:00"), "task": "goal:cards", "title": "Flashcards: due reviews, then new cards"},
-                {"carry_over": false, "end": format!("{day}T10:35+00:00"), "goal": true, "reason": "your goal", "start": format!("{day}T10:15+00:00"), "task": "goal:lesson", "title": "Lesson: learn and confirm one topic"},
-            ],
-            "unplaced": [],
-        });
-        crate::write_json(root, &format!("day/plan-{day}.json"), &plan)?;
+        replan_goal(root, &day)?;
         std::fs::create_dir_all(root.join("tutor"))?;
         std::fs::create_dir_all(root.join("work"))?;
     }
