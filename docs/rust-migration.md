@@ -2418,6 +2418,15 @@ the crate until the rust-05 and rust-07 closure is native, so
   compares exact typed output, semantic writes and per-phase write transitions;
   planted extra, missing and duplicate writes must fail. Production Python,
   native routes, shipped crates and activation are unchanged.
+- **Review-correction pre-registration (2026-11-25):** source revision
+  `f0fd1132720c13165837c11de686ad2bfdbe2140` adds non-UTC naive/aware event
+  cases, local workday boundaries, NaN/infinity controls and redacted bounded
+  connector failures. The verifier also compares every storage-write operation,
+  not only before/after state. Success remains 100% exact typed and write
+  parity, zero privacy/side-effect violations and resource ratios at most 1.10;
+  any mismatch, raw error leak, accepted non-finite timestamp or hidden write
+  keeps Python. The hosted gap assertion must count every configured silent
+  source. Production activation remains unchanged.
 
 ### rust-14: Port live listening, review asks and notifications
 
