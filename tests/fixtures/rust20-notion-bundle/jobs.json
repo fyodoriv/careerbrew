@@ -1,0 +1,6 @@
+[
+  {"id": "j1", "title": "Zzalpha: Sample role A", "stage": "No: Onsite", "want": 8, "salary": 100000, "location": ["Remote"], "remote": "Remote-first", "url": "https://jobs.example.com/1", "reason_no": "sample reason", "last_their_contact": "2024-02-02", "created": "2024-01-01", "markdown": "Sample note one."},
+  {"id": "j2", "title": "Zzbeta: Sample role B", "stage": "Not started", "want": 6, "location": ["Example City"], "created": "2024-01-02", "markdown": ""},
+  {"id": "j3", "title": "Zzgamma: Sample role C", "stage": "Hired", "want": 7, "created": "2024-01-03", "markdown": "Sample note two."},
+  {"id": "j4", "title": "Zzdelta: Sample role D", "stage": "No: Resume", "want": 5, "created": "2024-01-04", "markdown": ""}
+]

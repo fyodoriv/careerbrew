@@ -1,0 +1,21 @@
+tests/oracles/rust20.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-20 differential gate
+tests/unit/test_rust20_component.py,keep-native,rust-00,rust-20 native component and exact numeric differential assertions
+tests/fixtures/rust20-notion-bundle/manifest.json,port,rust-20,Synthetic Notion manifest for idempotence and partial-write controls
+tests/fixtures/rust20-notion-bundle/pages.json,port,rust-20,Synthetic Notion career pages fixture
+tests/fixtures/rust20-notion-bundle/jobs.json,port,rust-20,Synthetic Notion jobs and application stages fixture
+tests/fixtures/rust20-notion-bundle/flashcards.json,port,rust-20,Synthetic Notion flashcards fixture
+tests/fixtures/rust20-notion-bundle/plan.json,port,rust-20,Synthetic Notion job-search plan fixture
+tests/fixtures/rust20-notion-bundle/skills.json,port,rust-20,Synthetic Notion skill merge fixture
+tests/fixtures/rust20-notion-bundle/stories.json,port,rust-20,Synthetic Notion story-bank fixture
+tests/fixtures/rust20-notion-bundle/past_job.json,port,rust-20,Synthetic Notion past-job evidence and leak-term fixture
+crates/tutor/Cargo.toml,keep-native,rust-00,Component-only tutor crate manifest
+crates/tutor/src/lib.rs,port,rust-20,Component-only storage clock value and typed provider boundary
+crates/tutor/src/fsrs.rs,port,rust-20,Lossless old-state codec and exact FSRS scheduling adapter
+crates/tutor/src/cards.rs,port,rust-20,Interview cards queue reviews leeches local-day statistics and deck isolation
+crates/tutor/src/public.rs,port,rust-20,Public study deck validation privacy generation rewrite and private explanations
+crates/tutor/src/notion.rs,port,rust-20,Validated idempotent Notion imports and explicit partial-write boundaries
+crates/tutor/src/engine.rs,port,rust-20,Registered tutor item card attempt mastery and readiness providers
+crates/tutor/src/mistakes.rs,port,rust-20,Mistake records prevention cards repeat metrics and exercise helpers
+crates/tutor/src/synthetic.rs,port,rust-20,Synthetic tutor Notion public-deck provider and depvec mirror workload
+crates/tutor/src/bin/tutor-component.rs,port,rust-20,Synthetic-only native tutor candidate entry point
+crates/tutor/tests/component.rs,keep-native,rust-00,rust-20 native FSRS old-state privacy identity and planted direct controls
