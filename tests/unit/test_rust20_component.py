@@ -24,7 +24,10 @@ CASES = {
     "notion-validation-and-partial-writes",
     "providers-and-mistakes",
 }
-MARKERS = (b"RUST20CANARYPERSON", b"RUST20CANARYEMPLOYER", b"RUST20CANARYANSWER")
+MARKERS = (b"RUST20CANARYPERSON", b"RUST20CANARYEMPLOYER", b"RUST20CANARYANSWER", b"RUST20CANARYPLUGIN")
+# The autouse home fixture changes HOME between tests. Keep Cargo's real registry
+# instead of resolving a new, empty $HOME/.cargo for the direct-control test.
+CARGO_HOME = os.environ.get("CARGO_HOME", str(Path.home() / ".cargo"))
 # FSRS uses f32 in the maintained Rust crate and Python floats in py-fsrs. Compare
 # the actual full-precision values; never replace them with placeholders.
 FLOAT_ABS_TOLERANCE = 0.00001
@@ -40,6 +43,7 @@ def candidate():
         cwd=ROOT,
         check=True,
         capture_output=True,
+        env={**os.environ, "CARGO_HOME": CARGO_HOME},
     )
     return ROOT / "target" / "debug" / "tutor-component"
 
@@ -147,6 +151,7 @@ def test_tutor_public_notion_and_provider_contracts_match_python(candidate, tmp_
         assert all(card_id.startswith("kb-") for card_id in public["public_ids"])
         assert public["partial_write"] == {"error": "PublishError", "unchanged": True}
         assert public["leak_refusal"] == "PublishError"
+        assert public["plugin_leak_refusal"] == "PublishError"
         assert public["check"] == [] and public["flags_cleared"] is True
 
         notion = case(report, "notion-idempotence")
@@ -175,6 +180,7 @@ def test_tutor_public_notion_and_provider_contracts_match_python(candidate, tmp_
         assert providers["item"]["origin"] == "generated"
         assert providers["cards"]["gap-rust-1"]["card_id"] == {"int": "424243"}
         assert providers["attempt_count"] == {"int": "1"}
+        assert providers["now"] == "2026-10-19T13:00:00+00:00"
         assert providers["next_review"]["mode"] == "review"
         assert providers["rating_thresholds"] == ["Again", "Hard", "Hard", "Good", "Good", "Easy", "Easy"]
         assert providers["mistakes"]["deck_count"] == {"int": "2"}
@@ -193,5 +199,6 @@ def test_native_direct_controls():
         cwd=ROOT,
         capture_output=True,
         timeout=180,
+        env={**os.environ, "CARGO_HOME": CARGO_HOME},
     )
     assert done.returncode == 0, done.stdout.decode(errors="replace") + done.stderr.decode(errors="replace")
