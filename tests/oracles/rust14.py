@@ -18,7 +18,7 @@ from typing import Any
 
 from careerbrew import cli, config, events, goals, notify, paths, plugins, store
 from careerbrew.day import inbox
-from careerbrew.work import drafts, feed, health, listen, live, projects, review_ask, team
+from careerbrew.work import drafts, feed, health, listen, live, priorities, projects, review_ask, team
 
 CASES = (
     "source-roster",
@@ -663,20 +663,27 @@ def _notify_project_quiet(base: Path) -> dict[str, Any]:
     }
 
 
+def _agent_task(title: str) -> dict[str, Any]:
+    task = priorities.add(title, 3, 3, 1.0, [], source="agent", why="the release is Thursday")
+    inbox.offer_task(task)
+    return task
+
+
 def _notify_suggestions(base: Path) -> dict[str, Any]:
     workspace = Workspace(base, "notify-suggestions", notifier=True)
     _clock("2026-10-21T10:00:00+00:00")
     workspace.use_notifier()
-    suggestion = inbox.suggest("acme", "Review the synthetic roadmap doc", "the roadmap doc changed", "Plans time to review it")
+    suggestion = _agent_task("Review the rollout checklist")
     first = notify.run(wait=True)
     first_view = _notification_view()
-    inbox.dismiss(suggestion["id"])
+    first_item = notify.load()["items"][0]
+    inbox.dismiss(first_item["item"])
     late = notify._apply_click(notify.load()["popups"][-1], "Accept", "alerter")
     late_view = _notification_view()
     _clock("2026-10-21T10:30:00+00:00")
-    second_suggestion = inbox.suggest("acme", "Update the runbook", "the runbook changed", "Plans the edit")
+    _agent_task("Update the runbook")
     second = notify.run(wait=True)
-    nid = next(row["id"] for row in notify.load()["items"] if row["item"] == second_suggestion["id"])
+    nid = next(row["id"] for row in notify.load()["items"] if row["status"] == "new" and row["kind"] == "suggestion")
     accepted = notify.act(nid, "accept")
     accepted_view = _notification_view()
     inbox_state = [(row["id"], row["status"]) for row in inbox.load()]
