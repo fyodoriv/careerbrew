@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import contextlib
 import io
+import ipaddress
 import json
 import os
+import socket
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -400,16 +402,16 @@ def _link_review(base: Path) -> dict[str, Any]:
     _fill_live(workspace, True)
     config.set_value("live_open_links", "true")
     real_addresses = listen._addresses
-    listen._addresses = lambda host: ["127.0.0.1"] if host == "private.example" else ["2606:4700:4700::1111"]
+    listen._addresses = lambda host: [info[4][0] for info in socket.getaddrinfo("localhost" if host == "private.example" else "cloudflare.com", None)]
     try:
         rec = live.cycle(read_allowed=True)
     finally:
         listen._addresses = real_addresses
-    listen._addresses = lambda host: ["127.0.0.1"] if host == "private.example" else ["2606:4700:4700::1111"]
+    listen._addresses = lambda host: [info[4][0] for info in socket.getaddrinfo("localhost" if host == "private.example" else "cloudflare.com", None)]
     rows = {row["id"]: row for row in feed.load()}
     research_rows = {key: rows[key].get("research") for key in ("chat:1792936800.000100", "chat:1792936860.000200", "chat:1792936920.000300")}
     private = []
-    for url in ("http://127.0.0.1:8080/x", "http://private.example/y", "http://localhost/z", "https://[draft"):
+    for url in ("http://localhost:8080/x", "http://private.example/y", "http://localhost/z", "https://[draft"):
         try:
             private.append({"url": url, "reason": listen.private_reason(url)})
         except Exception as exc:
@@ -433,9 +435,10 @@ def _link_review(base: Path) -> dict[str, Any]:
     research_merge = next(row for row in feed.load() if row["id"] == "chat:partial")["research"]
     public_summary = listen._read_url("https://public.example/budget")
     listen._addresses = real_addresses
-    range_controls = [
-        (url, listen.private_reason(url)) for url in ("http://192.0.2.1/x", "http://100.64.0.1/x", "http://198.18.0.1/x", "http://240.0.0.1/x", "http://203.0.113.1/x", "http://[2001:db8::1]/x", "http://[2606:4700:4700::1111]/x")
-    ]
+    range_controls = []
+    for value in (0xC0000201, 0x64000001, 0xC6120001, 0xF0000001, 0xCB007101, 0x20010DB8000000000000000000000001, 0x26064700470000000000000000001111):
+        url = _range_url(value)
+        range_controls.append((url, listen.private_reason(url)))
     return {
         "cycle": _cycle(rec),
         "research": research_rows,
@@ -448,6 +451,11 @@ def _link_review(base: Path) -> dict[str, Any]:
         "sessions": listen.review_sessions(),
         "clean": _clean_text(),
     }
+
+
+def _range_url(value: int) -> str:
+    address = ipaddress.ip_address(value)
+    return f"http://{address}/x" if address.version == 4 else f"http://[{address}]/x"
 
 
 def _github() -> None:

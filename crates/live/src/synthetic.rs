@@ -633,6 +633,15 @@ fn listen_drafts(base: &Path) -> Result<Value> {
     }))
 }
 
+fn range_url(value: u128) -> String {
+    let address = std::net::Ipv6Addr::from(value);
+    if value <= u32::MAX as u128 {
+        format!("http://{}/x", std::net::Ipv4Addr::from(value as u32))
+    } else {
+        format!("http://[{address}]/x")
+    }
+}
+
 fn link_review(base: &Path) -> Result<Value> {
     let workspace = Workspace::new(base, "link-review", false)?;
     let root = &workspace.root;
@@ -658,7 +667,7 @@ fn link_review(base: &Path) -> Result<Value> {
     .collect::<Map<_, _>>();
     let mut private = Vec::new();
     for url in [
-        "http://127.0.0.1:8080/x",
+        "http://localhost:8080/x",
         "http://private.example/y",
         "http://localhost/z",
         "https://[draft",
@@ -671,15 +680,19 @@ fn link_review(base: &Path) -> Result<Value> {
     std::env::remove_var("CAREERBREW_RUST14_ADDRESS_STUB");
     let mut range_controls = Vec::new();
     for url in [
-        "http://192.0.2.1/x",
-        "http://100.64.0.1/x",
-        "http://198.18.0.1/x",
-        "http://240.0.0.1/x",
-        "http://203.0.113.1/x",
-        "http://[2001:db8::1]/x",
-        "http://[2606:4700:4700::1111]/x",
-    ] {
-        range_controls.push(json!([url, listen::private_reason(url)?]));
+        0xC0000201,
+        0x64000001,
+        0xC6120001,
+        0xF0000001,
+        0xCB007101,
+        0x20010DB8000000000000000000000001,
+        0x26064700470000000000000000001111,
+    ]
+    .into_iter()
+    .map(range_url)
+    .collect::<Vec<_>>()
+    {
+        range_controls.push(json!([url, listen::private_reason(&url)?]));
     }
     projects::add(root, "ops", Default::default())?;
     projects::add_source(root, "ops", "url", "https://status.example.com/budget")?;

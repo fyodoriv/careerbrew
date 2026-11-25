@@ -154,17 +154,38 @@ pub fn is_review(row: &Value, verdict: &str, text_: &str) -> bool {
 
 fn addresses(host: &str) -> Vec<String> {
     if std::env::var("CAREERBREW_RUST14_ADDRESS_STUB").as_deref() == Ok("1") {
-        return if host == "private.example" {
-            vec!["127.0.0.1".into()]
-        } else {
-            vec!["2606:4700:4700::1111".into()]
-        };
+        return (
+            if host == "private.example" {
+                "localhost"
+            } else {
+                "cloudflare.com"
+            },
+            0,
+        )
+            .to_socket_addrs()
+            .map(|addresses| {
+                addresses
+                    .map(|address| address.ip().to_string())
+                    .collect::<BTreeSet<_>>()
+                    .into_iter()
+                    .collect()
+            })
+            .unwrap_or_default();
     }
     if host.parse::<std::net::IpAddr>().is_ok() {
         return vec![host.to_owned()];
     }
     if host == "public.example" {
-        return vec!["2606:4700:4700::1111".into()];
+        return ("cloudflare.com", 0)
+            .to_socket_addrs()
+            .map(|addresses| {
+                addresses
+                    .map(|address| address.ip().to_string())
+                    .collect::<BTreeSet<_>>()
+                    .into_iter()
+                    .collect()
+            })
+            .unwrap_or_default();
     }
     (host, 0)
         .to_socket_addrs()
