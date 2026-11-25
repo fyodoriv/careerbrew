@@ -776,17 +776,21 @@ def _suggestion_kinds(base: Path) -> dict[str, Any]:
             "goals": goals.load(),
             "rules": feed.rules(),
         }
-    Workspace(base, "goal-existing")
+    workspace = Workspace(base, "goal-existing")
     priorities.add("Existing work", 3, 3, 1.0, [])
+    priorities.add("New valid work", 3, 3, 1.0, [])
+    calendar_path = workspace.base / "calendar.ics"
+    calendar_path.write_text("BEGIN:VCALENDAR\nBEGIN:VEVENT\nUID:goal-existing\nDTSTART:20261025T113000Z\nDTEND:20261025T120000Z\nSUMMARY:Team sync\nEND:VEVENT\nEND:VCALENDAR\n", encoding="utf-8")
+    store.write_yaml(paths.sub("day", "calendars.yaml"), {"calendars": [{"kind": "ics", "path": str(calendar_path)}, {"kind": "ics", "path": str(workspace.base / "missing.ics")}]})
     existing_plan = {
         "calendar_connected": True,
-        "calendar_errors": [],
-        "calibration": 1.25,
+        "calendar_errors": ["ics: FileNotFoundError"],
+        "calibration": 1.0,
         "day": "2026-10-25",
-        "focus_minutes": 120,
-        "free_minutes": 300,
-        "meetings": [],
-        "schedule": [{"carry_over": True, "end": "2026-10-25T08:30+00:00", "goal": False, "reason": "existing work", "start": "2026-10-25T08:00+00:00", "task": "t001", "title": "Existing work"}],
+        "focus_minutes": 384,
+        "free_minutes": 480,
+        "meetings": [{"start": "2026-10-25T11:30+00:00", "end": "2026-10-25T12:00+00:00", "title": "Team sync"}],
+        "schedule": [{"carry_over": True, "end": "2026-10-25T08:30+00:00", "goal": False, "reason": "stale work", "start": "2026-10-25T08:00+00:00", "task": "stale-task", "title": "Invalid old work"}],
         "unplaced": [],
     }
     store.write_json(paths.sub("day", "plan-2026-10-25.json"), existing_plan)

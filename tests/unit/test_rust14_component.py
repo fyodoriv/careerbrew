@@ -67,7 +67,17 @@ def case(report: dict, case_id: str) -> dict:
 
 def normalized(data: bytes, root: Path) -> bytes:
     owned = data.replace(str(root).encode(), b"<owned>").replace(str(root.resolve()).encode(), b"<owned>")
-    return re.sub(rb"[0-9A-Fa-f]{32}", b"<generated-id>", owned)
+    return re.sub(rb'("(?:incarnation_id|launch_claim)":\s*")[^"]*(")', rb"\1<generated-id>\2", owned)
+
+
+def test_normalized_only_replaces_generated_identity_fields(tmp_path):
+    task = b"a" * 32
+    generated = b"b" * 32
+    long_hash = b"c" * 64
+    data = b'{"task":"' + task + b'","incarnation_id":"' + generated + b'","hash":"' + long_hash + b'"}'
+    answer = normalized(data, tmp_path)
+    assert task in answer and long_hash in answer
+    assert generated not in answer and b'"incarnation_id":"<generated-id>"' in answer
 
 
 def test_live_health_review_and_notification_contracts_match_python(candidate, tmp_path):
@@ -159,16 +169,29 @@ def test_live_health_review_and_notification_contracts_match_python(candidate, t
         suggestions = case(report, "notify-suggestions")
         assert suggestions["late"] == "" and suggestions["accepted"]["status"] == "done"
         assert suggestions["accepted"]["resolved"] == "accepted" and suggestions["sealed"] is True
-        schedule = suggestions["kinds"]["goal-existing"]["plan"]["schedule"]
-        assert [row["task"] for row in schedule] == ["goal:exercise", "goal:cards", "goal:lesson", "t001"]
-        assert schedule[-1] == {
+        plan = suggestions["kinds"]["goal-existing"]["plan"]
+        schedule = plan["schedule"]
+        assert [row["task"] for row in schedule] == ["goal:exercise", "goal:cards", "goal:lesson", "t001", "t002"]
+        assert schedule[-2] == {
             "carry_over": False,
-            "end": "2026-10-25T11:40+00:00",
+            "end": "2026-10-25T13:00+00:00",
             "reason": "impact 3",
-            "start": "2026-10-25T10:40+00:00",
+            "start": "2026-10-25T12:00+00:00",
             "task": "t001",
             "title": "Existing work",
         }
+        assert schedule[-1] == {
+            "carry_over": False,
+            "end": "2026-10-25T14:05+00:00",
+            "reason": "impact 3",
+            "start": "2026-10-25T13:05+00:00",
+            "task": "t002",
+            "title": "New valid work",
+        }
+        assert plan["calendar_connected"] is True
+        assert plan["calendar_errors"] == ["ics: FileNotFoundError"]
+        assert plan["meetings"] == [{"start": "2026-10-25T11:30+00:00", "end": "2026-10-25T12:00+00:00", "title": "Team sync"}]
+        assert plan["free_minutes"] == {"int": "480"} and plan["focus_minutes"] == {"int": "384"}
         assert not any(suggestions["clean"].values())
 
         adapters = case(report, "cli-adapters")

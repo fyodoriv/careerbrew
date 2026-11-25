@@ -1350,15 +1350,23 @@ fn suggestion_kinds(base: &Path) -> Result<Value> {
     let workspace = Workspace::new(base, "goal-existing", false)?;
     let root = &workspace.root;
     priorities::add(root, "Existing work", 3, 3, json!(1.0), None, &[])?;
+    priorities::add(root, "New valid work", 3, 3, json!(1.0), None, &[])?;
+    let calendar_path = workspace.base.join("calendar.ics");
+    crate::write_plain(&calendar_path, "BEGIN:VCALENDAR\nBEGIN:VEVENT\nUID:goal-existing\nDTSTART:20261025T113000Z\nDTEND:20261025T120000Z\nSUMMARY:Team sync\nEND:VEVENT\nEND:VCALENDAR\n")?;
+    crate::write_yaml(
+        root,
+        "day/calendars.yaml",
+        &json!({"calendars": [{"kind": "ics", "path": calendar_path}, {"kind": "ics", "path": workspace.base.join("missing.ics")}]}),
+    )?;
     let existing_plan = json!({
         "calendar_connected": true,
-        "calendar_errors": [],
-        "calibration": 1.25,
+        "calendar_errors": ["ics: FileNotFoundError"],
+        "calibration": 1.0,
         "day": "2026-10-25",
-        "focus_minutes": 120,
-        "free_minutes": 300,
-        "meetings": [],
-        "schedule": [{"carry_over": true, "end": "2026-10-25T08:30+00:00", "goal": false, "reason": "existing work", "start": "2026-10-25T08:00+00:00", "task": "t001", "title": "Existing work"}],
+        "focus_minutes": 384,
+        "free_minutes": 480,
+        "meetings": [{"start": "2026-10-25T11:30+00:00", "end": "2026-10-25T12:00+00:00", "title": "Team sync"}],
+        "schedule": [{"carry_over": true, "end": "2026-10-25T08:30+00:00", "goal": false, "reason": "stale work", "start": "2026-10-25T08:00+00:00", "task": "stale-task", "title": "Invalid old work"}],
         "unplaced": [],
     });
     crate::write_json(root, "day/plan-2026-10-25.json", &existing_plan)?;

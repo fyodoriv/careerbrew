@@ -7,7 +7,7 @@ use crate::{
 };
 use careerbrew_feed::feed;
 use careerbrew_vault::canon::Canon;
-use chrono::{DateTime, FixedOffset, SecondsFormat, TimeDelta};
+use chrono::{DateTime, FixedOffset, NaiveDate, SecondsFormat, TimeDelta, TimeZone};
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -2495,69 +2495,207 @@ fn goal_plan_blocks(day: &str) -> Vec<Value> {
     ]
 }
 
+#[derive(Clone)]
+struct PlanBlock {
+    start: DateTime<FixedOffset>,
+    end: DateTime<FixedOffset>,
+}
+
+impl PlanBlock {
+    fn minutes(&self) -> i64 {
+        (self.end - self.start).num_minutes()
+    }
+}
+
+fn plan_time(value: &str) -> Option<DateTime<FixedOffset>> {
+    parse_time(value).or_else(|| DateTime::parse_from_str(value, "%Y-%m-%dT%H:%M%:z").ok())
+}
+
+fn plan_at(day: &str, clock: &str) -> Result<DateTime<FixedOffset>> {
+    let date = NaiveDate::parse_from_str(day, "%Y-%m-%d")
+        .map_err(|_| crate::error("ValueError", "invalid goal schedule day"))?;
+    let (hour, minute) = clock
+        .split_once(':')
+        .and_then(|(hour, minute)| Some((hour.parse::<u32>().ok()?, minute.parse::<u32>().ok()?)))
+        .ok_or_else(|| crate::error("ValueError", "invalid goal schedule clock"))?;
+    let naive = date
+        .and_hms_opt(hour, minute, 0)
+        .ok_or_else(|| crate::error("ValueError", "invalid goal schedule clock"))?;
+    careerbrew_feed::local_zone()
+        .from_local_datetime(&naive)
+        .earliest()
+        .map(|at| at.fixed_offset())
+        .ok_or_else(|| crate::error("ValueError", "invalid local goal schedule clock"))
+}
+
+fn plan_free_blocks(
+    start: DateTime<FixedOffset>,
+    end: DateTime<FixedOffset>,
+    busy: &[PlanBlock],
+) -> Vec<PlanBlock> {
+    let mut blocks = Vec::new();
+    let mut current = start;
+    let mut ordered = busy.to_vec();
+    ordered.sort_by_key(|block| block.start);
+    for event in ordered {
+        if event.end <= current || event.start >= end {
+            continue;
+        }
+        if event.start > current {
+            blocks.push(PlanBlock {
+                start: current,
+                end: event.start.min(end),
+            });
+        }
+        current = current.max(event.end);
+    }
+    if current < end {
+        blocks.push(PlanBlock {
+            start: current,
+            end,
+        });
+    }
+    blocks
+        .into_iter()
+        .filter(|block| block.minutes() >= 1)
+        .collect()
+}
+
+fn place_plan_block(blocks: &mut Vec<PlanBlock>, minutes: i64) -> Option<PlanBlock> {
+    let slot = blocks.iter_mut().find(|block| block.minutes() >= minutes)?;
+    let placed = PlanBlock {
+        start: slot.start,
+        end: slot.start + TimeDelta::minutes(minutes),
+    };
+    slot.start = placed.end + TimeDelta::minutes(5);
+    blocks.retain(|block| block.minutes() >= 25);
+    Some(placed)
+}
+
+fn scheduled_plan_row(row: &Value, placed: &PlanBlock, carry_over: bool) -> Value {
+    let mut answer = json!({
+        "carry_over": carry_over,
+        "end": placed.end.format("%Y-%m-%dT%H:%M%:z").to_string(),
+        "reason": text(field(row, "reason")),
+        "start": placed.start.format("%Y-%m-%dT%H:%M%:z").to_string(),
+        "task": text(field(row, "task")),
+        "title": text(field(row, "title")),
+    });
+    if truthy(field(row, "goal")) {
+        answer["goal"] = json!(true);
+    }
+    answer
+}
+
 fn replan_goal(root: &Path, day: &str) -> Result<()> {
     let path = format!("day/plan-{day}.json");
     let existing = read_json(root, &path, json!({}))?;
-    let mut schedule = existing["schedule"]
+    let existing_empty = existing.as_object().is_none_or(Map::is_empty);
+    let day_date = NaiveDate::parse_from_str(day, "%Y-%m-%d")
+        .map_err(|_| crate::error("ValueError", "invalid goal schedule day"))?;
+    let start = plan_at(day, &setting_text(root, "work_start", "09:00")?)?;
+    let end = plan_at(day, &setting_text(root, "work_end", "17:30")?)?;
+    let meetings = existing["meetings"]
         .as_array()
-        .cloned()
-        .unwrap_or_default()
         .into_iter()
-        .filter(|row| !truthy(field(row, "goal")))
-        .collect::<Vec<_>>();
-    schedule.extend(goal_plan_blocks(day));
-    let tasks = careerbrew_projects::priorities::load(root)?;
-    let mut next_start = chrono::DateTime::parse_from_rfc3339(&format!("{day}T10:40:00+00:00"))
-        .map_err(|_| crate::error("ValueError", "invalid goal schedule clock"))?;
-    for row in &mut schedule {
-        if truthy(field(row, "goal")) {
-            continue;
+        .flatten()
+        .map(|meeting| {
+            Ok(PlanBlock {
+                start: plan_time(&text(field(meeting, "start")))
+                    .ok_or_else(|| crate::error("ValueError", "invalid meeting start"))?,
+                end: plan_time(&text(field(meeting, "end")))
+                    .ok_or_else(|| crate::error("ValueError", "invalid meeting end"))?,
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let free_minutes = plan_free_blocks(start, end, &meetings)
+        .iter()
+        .map(PlanBlock::minutes)
+        .sum::<i64>();
+    let mut remaining = plan_free_blocks(start, end, &meetings);
+    let mut budget = free_minutes * 4 / 5;
+    let mut schedule = Vec::new();
+    let mut unplaced = Vec::new();
+    for goal in goal_plan_blocks(day) {
+        let minutes = (plan_time(&text(field(&goal, "end")))
+            .ok_or_else(|| crate::error("ValueError", "invalid goal block end"))?
+            - plan_time(&text(field(&goal, "start")))
+                .ok_or_else(|| crate::error("ValueError", "invalid goal block start"))?)
+        .num_minutes();
+        let placed = if minutes <= budget {
+            place_plan_block(&mut remaining, minutes)
+        } else {
+            None
+        };
+        if let Some(placed) = placed {
+            budget -= minutes;
+            schedule.push(scheduled_plan_row(&goal, &placed, false));
+        } else {
+            unplaced.push(text(field(&goal, "task")));
         }
-        let task_id = text(field(row, "task"));
-        let task = tasks
-            .iter()
-            .find(|task| text(field(task, "id")) == task_id)
-            .cloned()
-            .unwrap_or_else(|| json!({}));
-        let impact = task["impact"].as_i64().unwrap_or(3);
-        let estimate = careerbrew_projects::priorities::estimate(&task);
-        let minutes = (estimate * 60.0).round() as i64;
-        let start = next_start.format("%Y-%m-%dT%H:%M%:z").to_string();
-        let end = next_start + TimeDelta::minutes(minutes);
-        *row = json!({
-            "carry_over": false,
-            "end": end.format("%Y-%m-%dT%H:%M%:z").to_string(),
-            "reason": format!("impact {impact}"),
-            "start": start,
-            "task": task_id,
-            "title": text(field(row, "title")),
-        });
-        next_start = end + TimeDelta::minutes(5);
     }
-    schedule.sort_by_key(|row| (!truthy(field(row, "goal")), text(field(row, "start"))));
-    let mut plan = if existing.as_object().is_none_or(Map::is_empty) {
+    let yesterday = day_date
+        .pred_opt()
+        .ok_or_else(|| crate::error("ValueError", "invalid goal schedule carry-over"))?;
+    let previous = read_json(
+        root,
+        &format!("day/plan-{}.json", yesterday.format("%Y-%m-%d")),
+        json!({}),
+    )?;
+    let carry = previous["schedule"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|row| text(field(row, "task")))
+        .collect::<BTreeSet<_>>();
+    let mut ranked = careerbrew_projects::priorities::rank(root, day_date)?;
+    ranked.sort_by_key(|task| !carry.contains(&text(field(task, "id"))));
+    for mut task in ranked {
+        let task_id = text(field(&task, "id"));
+        let minutes = (careerbrew_projects::priorities::estimate(&task) * 60.0) as i64;
+        let placed = if minutes <= budget {
+            place_plan_block(&mut remaining, minutes)
+        } else {
+            None
+        };
+        if let Some(placed) = placed {
+            budget -= minutes;
+            let mut reasons = Vec::new();
+            let due = text(field(&task, "due"));
+            if !due.is_empty() {
+                reasons.push(format!("due {due}"));
+            }
+            let project = text(field(&task["parts"], "project"));
+            if !project.is_empty() {
+                reasons.push(format!(
+                    "project {project} (priority {} of {})",
+                    text(field(&task["parts"], "project_rank")),
+                    text(field(&task["parts"], "projects")),
+                ));
+            }
+            reasons.push(format!("impact {}", text(field(&task, "impact"))));
+            task["reason"] = json!(reasons.join("; "));
+            task["task"] = json!(task_id.clone());
+            schedule.push(scheduled_plan_row(&task, &placed, carry.contains(&task_id)));
+        } else {
+            unplaced.push(task_id);
+        }
+    }
+    let mut plan = if existing_empty {
         json!({
             "calendar_connected": false,
             "calendar_errors": [],
             "calibration": 1.0,
             "day": day,
-            "focus_minutes": 408,
-            "free_minutes": 510,
+            "focus_minutes": free_minutes * 4 / 5,
+            "free_minutes": free_minutes,
             "meetings": [],
-            "schedule": schedule,
-            "unplaced": [],
         })
     } else {
-        let mut plan = existing;
-        plan["calendar_connected"] = json!(false);
-        plan["calendar_errors"] = json!([]);
-        plan["calibration"] = json!(1.0);
-        plan["focus_minutes"] = json!(408);
-        plan["free_minutes"] = json!(510);
-        plan["meetings"] = json!([]);
-        plan["schedule"] = json!(schedule);
-        plan
+        existing
     };
+    plan["schedule"] = json!(schedule);
+    plan["unplaced"] = json!(unplaced);
     if plan["day"].is_null() {
         plan["day"] = json!(day);
     }

@@ -2556,7 +2556,9 @@ the crate until the rust-05 and rust-07 closure is native, so
   synthetic-only. Production Python, native routes, shipped crates and
   activation are unchanged. Differential controls include re-review message
   dispatch, old-candidate freshness, quiet-project popup identity, exact
-  goal-first schedule order and minute-precision work blocks, generated
+  goal-first schedule order and minute-precision work blocks, calendar
+  state/error/capacity preservation, meeting-aware first-fit placement,
+  stale-task rejection and new valid task inclusion, field-only generated
   identity normalization, and osascript transport. The full differential and
   paired-resource evidence is recorded only after every registered case and
   control passes.
