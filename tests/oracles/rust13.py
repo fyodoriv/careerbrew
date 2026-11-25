@@ -443,10 +443,14 @@ def _source_failures(base: Path) -> dict[str, Any]:
     Workspace(base, "source-failures")
     _connectors(["slack", "pagerduty", "outlook"])
     store.write_text(paths.sub("sensitive-terms.txt"), "CANARYSOURCE\n")
+    plugin_root = paths.sub("plugins", "feedplug")
+    store.write_yaml(plugin_root / "careerbrew-plugin.yaml", {"name": "feedplug", "version": "0.1.0", "sensitive_terms": "sensitive-terms.txt"})
+    store.write_text(plugin_root / "sensitive-terms.txt", "CANARYPLUGIN\n")
+    store.write_json(paths.sub("plugins.lock.json"), {"plugins": {"feedplug": {"origin": "plugin:feedplug"}}})
     real = connectors.feed
 
     def fail(_cfg):
-        raise RuntimeError("CANARYSOURCE " + "x" * 250)
+        raise RuntimeError("CANARYSOURCE CANARYPLUGIN " + "x" * 250)
 
     connectors.feed = fail
     try:

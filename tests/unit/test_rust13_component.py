@@ -27,7 +27,7 @@ CASES = {
     "source-inventory",
     "partial-transport",
 }
-MARKERS = (b"PROJECTZEBRA", b"CANARYCHAT", b"CANARYTICKET", b"CANARYMAIL", b"CANARY-NATIVE-ERROR", b"CANARYSOURCE", b"CANARYTRANSPORT", b"synthetic-not-reported")
+MARKERS = (b"PROJECTZEBRA", b"CANARYCHAT", b"CANARYTICKET", b"CANARYMAIL", b"CANARY-NATIVE-ERROR", b"CANARYSOURCE", b"CANARYPLUGIN", b"CANARYTRANSPORT", b"synthetic-not-reported")
 
 
 @pytest.fixture(scope="module")
@@ -169,7 +169,7 @@ def test_feed_transcript_write_and_cli_contracts_match_python(candidate, tmp_pat
         failures = case(report, "source-failures")["result"]
         assert failures["sources"] == failures["errors"] == {"int": "3"}
         assert failures["new"] == {"int": "0"}
-        assert all("[REDACTED]" in reason for reason in failures["reasons"])
+        assert all(reason.count("[REDACTED]") == 2 for reason in failures["reasons"])
         assert case(report, "source-failures")["lengths"] == [{"int": "207"}, {"int": "211"}, {"int": "209"}]
 
         inventory = case(report, "source-inventory")

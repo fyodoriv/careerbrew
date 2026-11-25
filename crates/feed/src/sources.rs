@@ -607,7 +607,7 @@ pub fn read(root: &Path, cfg: &Value) -> Result<Vec<Value>> {
     if std::env::var("CAREERBREW_RUST13_SOURCE_FAILURE").as_deref() == Ok("1") {
         return Err(FeedError::new(
             "RuntimeError",
-            format!("CANARYSOURCE {}", "x".repeat(250)),
+            format!("CANARYSOURCE CANARYPLUGIN {}", "x".repeat(250)),
         ));
     }
     let policy = careerbrew_setup::plugins::effective_policy()?;
@@ -670,18 +670,27 @@ fn sensitive_terms(root: &Path) -> Result<Vec<String>> {
             .filter(|value| value.chars().count() >= 3),
     );
     for plugin in careerbrew_setup::plugins::installed()? {
-        let path = text(field(&plugin.entry, "sensitive_terms_path"));
-        if !path.is_empty() {
-            if let Some(text) = stored.read_text(Path::new(&path), None, true)? {
-                terms.extend(
-                    text.lines()
-                        .map(str::trim)
-                        .filter(|line| {
-                            !line.is_empty() && !line.starts_with('#') && line.chars().count() >= 3
-                        })
-                        .map(str::to_owned),
-                );
-            }
+        let relative = text(field(&plugin.manifest, "sensitive_terms"));
+        if relative.is_empty() {
+            continue;
+        }
+        let plugin_root = plugin.root.canonicalize()?;
+        let path = plugin_root.join(&relative).canonicalize()?;
+        if !path.starts_with(&plugin_root) {
+            return Err(FeedError::new(
+                "PluginError",
+                "sensitive terms escape the plugin root",
+            ));
+        }
+        if let Some(text) = stored.read_text(&path, None, true)? {
+            terms.extend(
+                text.lines()
+                    .map(str::trim)
+                    .filter(|line| {
+                        !line.is_empty() && !line.starts_with('#') && line.chars().count() >= 3
+                    })
+                    .map(str::to_owned),
+            );
         }
     }
     let mut terms = terms

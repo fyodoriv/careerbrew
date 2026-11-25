@@ -31,6 +31,7 @@ const PRIVATE_MARKERS: &[&str] = &[
     "CANARYMAIL",
     "CANARY-NATIVE-ERROR",
     "CANARYSOURCE",
+    "CANARYPLUGIN",
     "CANARYTRANSPORT",
     "synthetic-not-reported",
 ];

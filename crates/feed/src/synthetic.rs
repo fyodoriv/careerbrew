@@ -691,6 +691,18 @@ fn source_failures(base: &Path) -> Result<Value> {
     let root = &workspace.root;
     connectors(root, &["slack", "pagerduty", "outlook"])?;
     crate::write_text(root, "sensitive-terms.txt", "CANARYSOURCE\n")?;
+    let plugin_root = root.join("plugins/feedplug");
+    write_yaml(
+        &plugin_root,
+        "careerbrew-plugin.yaml",
+        &json!({"name": "feedplug", "version": "0.1.0", "sensitive_terms": "sensitive-terms.txt"}),
+    )?;
+    crate::write_text(&plugin_root, "sensitive-terms.txt", "CANARYPLUGIN\n")?;
+    write_json(
+        root,
+        "plugins.lock.json",
+        &json!({"plugins": {"feedplug": {"origin": "plugin:feedplug"}}}),
+    )?;
     std::env::set_var("CAREERBREW_RUST13_SOURCE_FAILURE", "1");
     let components = SyntheticComponents;
     let result = sources::pull(root, &components)?;
