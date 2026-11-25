@@ -2488,6 +2488,14 @@ the crate until the rust-05 and rust-07 closure is native, so
   `activate`; all four write controls returned `keep-python`. Hosted checks
   remain pending until a fresh run passes. Production routes, shipped crates
   and activation remain unchanged.
+- **Final-review pre-registration (2026-11-25):** source revision
+  `ce46adf14035174d921f59ac9c546d9881dc54cd` binds `policy/tables.rs`, which
+  the policy text/canary code reads. Complete write tracing now covers the
+  vault's direct event-log append as well as `Store::write_text`. A planted
+  same-phase event-log duplicate must fail with a duplicate-write violation;
+  ordinary event content and timestamps follow the existing normalization.
+  All 12 cases, existing write controls, clean same-revision acceptance and
+  1.10 resource limits remain mandatory. No behavior or activation changes.
 
 ### rust-14: Port live listening, review asks and notifications
 
