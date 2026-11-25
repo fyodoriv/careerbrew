@@ -2410,9 +2410,10 @@ the crate until the rust-05 and rust-07 closure is native, so
   integration stay behind typed component providers. This is component parity
   only: production dispatch, shipped crates and activation do not change.
 - **Component implementation:** `crates/feed` provides recorded Slack,
-  PagerDuty and Outlook readers, raw ticket/mail/calendar conversion, exact
-  original/analysis upserts, Claude/Codex transcript normalization, link and
-  open-ask rules, cycle bookkeeping and component CLI adapters. It reuses vault
+  PagerDuty and Outlook readers with configured/plugin source identities, raw
+  ticket/mail/calendar conversion, exact original/analysis upserts,
+  Claude/Codex transcript normalization, link and open-ask rules, project-aware
+  team matching, partial transport retention and component CLI adapters. It reuses vault
   storage, atomic writes, exact locks and events, recorded source transport and
   native team matching. `feed-component` is synthetic-only. The custom verifier
   compares exact typed output, semantic writes, per-phase write transitions and
@@ -2453,6 +2454,8 @@ the crate until the rust-05 and rust-07 closure is native, so
   errors emit only content-free diagnostics. All cases must pass with zero
   violations and each 30-pair resource ratio must remain at most 1.10. Any
   omitted source, wrong project, lost partial event or leaked error keeps Python.
+  Event-log comparisons normalize only the wall-clock `ts` value; source event
+  timestamps and every diagnostic field remain strict.
 
 ### rust-14: Port live listening, review asks and notifications
 

@@ -21,6 +21,8 @@ const CASE_IDS: &[&str] = &[
     "team-feed",
     "local-time-and-nan",
     "source-failures",
+    "source-inventory",
+    "partial-transport",
 ];
 const PRIVATE_MARKERS: &[&str] = &[
     "PROJECTZEBRA",
@@ -29,6 +31,7 @@ const PRIVATE_MARKERS: &[&str] = &[
     "CANARYMAIL",
     "CANARY-NATIVE-ERROR",
     "CANARYSOURCE",
+    "CANARYTRANSPORT",
     "synthetic-not-reported",
 ];
 
@@ -76,6 +79,26 @@ fn normalize_value(value: &mut Value, root: &Path) {
                 normalized.insert(normalized_text(&key, root), item);
             }
             *items = normalized;
+        }
+        _ => {}
+    }
+}
+
+fn normalize_event_times(value: &mut Value) {
+    match value {
+        Value::Array(items) => {
+            for item in items {
+                normalize_event_times(item);
+            }
+        }
+        Value::Object(items) => {
+            for (key, item) in items {
+                if key == "ts" {
+                    *item = Value::String("<event-time>".into());
+                } else {
+                    normalize_event_times(item);
+                }
+            }
         }
         _ => {}
     }
@@ -142,6 +165,9 @@ fn observed_files(root: &Path, folder: &Path) -> Result<Trace, String> {
                             .filter_map(|line| serde_json::from_str::<Value>(line).ok())
                             .map(|mut value| {
                                 normalize_value(&mut value, root);
+                                if relative.ends_with("logs/events.jsonl") {
+                                    normalize_event_times(&mut value);
+                                }
                                 value
                             })
                             .collect::<Vec<_>>();
@@ -370,7 +396,7 @@ fn component_cases(
         cases.push(json!({
             "case": format!("component:{}", expected.id), "kind": "rust-13-component-phase", "passed": passed,
             "exit_matches": actual.ran, "semantic_match": actual.stdout.as_bytes() == expected.stdout.as_bytes(),
-            "comparison": "typed-results+semantic-write-map+phase-write-counts+write-operations", "normalization": ["owned-path", "sealed-record", "generated-key"],
+            "comparison": "typed-results+semantic-write-map+phase-write-counts+write-operations", "normalization": ["owned-path", "sealed-record", "generated-key", "event-timestamp"],
             "oracle_sha256": capture_actions::digest(expected.stdout.as_bytes()), "candidate_sha256": capture_actions::digest(actual.stdout.as_bytes()),
             "writes_match": extra + missing + changed == 0, "oracle_writes": expected.writes.len(), "candidate_writes": actual.writes.len(),
             "write_operations_match": actual.operations == expected.operations, "oracle_write_operations": expected.operations.len(), "candidate_write_operations": actual.operations.len(),

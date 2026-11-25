@@ -188,6 +188,7 @@ fn slack_replies(
     base: &str,
 ) -> Result<Vec<Value>> {
     let mut out = Vec::new();
+    let mut skipped = 0usize;
     let mut ordered = roots.iter().collect::<Vec<_>>();
     ordered.sort_by(|(_, left), (_, right)| {
         text(field(right, "ts"))
@@ -218,7 +219,31 @@ fn slack_replies(
                     source_connectors::urlencode(&cursor)
                 ));
             }
-            let data = get(root, &url)?;
+            let data =
+                if std::env::var("CAREERBREW_RUST13_TRANSPORT_ERROR").as_deref() == Ok("replies") {
+                    Err(FeedError::new(
+                        "RuntimeError",
+                        "synthetic transport failure",
+                    ))
+                } else {
+                    get(root, &url)
+                };
+            let data = match data {
+                Ok(data) => data,
+                Err(error) => {
+                    emit(
+                        &crate::root()?,
+                        "work.feed.replies",
+                        vec![
+                            ("status", Canon::Str("error".into())),
+                            ("error", Canon::Str(error.class.into())),
+                            ("count", Canon::Int(out.len().into())),
+                            ("story", Canon::Str("us-78".into())),
+                        ],
+                    )?;
+                    return Ok(out);
+                }
+            };
             if !truthy(field(&data, "ok")) {
                 let code = slack_code(&data);
                 if [
@@ -231,8 +256,19 @@ fn slack_replies(
                 .contains(&code.as_str())
                     || (code == "missing_scope" && !truthy(field(channel, "is_private")))
                 {
+                    emit(
+                        &crate::root()?,
+                        "work.feed.replies",
+                        vec![
+                            ("status", Canon::Str("error".into())),
+                            ("error", Canon::Str(code)),
+                            ("count", Canon::Int(out.len().into())),
+                            ("story", Canon::Str("us-78".into())),
+                        ],
+                    )?;
                     return Ok(out);
                 }
+                skipped += 1;
                 break;
             }
             for reply in rows(&data, "messages") {
@@ -264,6 +300,18 @@ fn slack_replies(
                 break;
             }
         }
+    }
+    if !roots.is_empty() {
+        emit(
+            &crate::root()?,
+            "work.feed.replies",
+            vec![
+                ("status", Canon::Str("ok".into())),
+                ("count", Canon::Int(out.len().into())),
+                ("skipped", Canon::Int(skipped.into())),
+                ("story", Canon::Str("us-78".into())),
+            ],
+        )?;
     }
     Ok(out)
 }
@@ -304,7 +352,7 @@ pub fn slack(root: &Path, cfg: &Value) -> Result<Vec<Value>> {
         }
         keep_slack(&mut found, &mut roots, &data, &me)?;
     }
-    let roster = careerbrew_projects::team::load(root)?;
+    let roster = careerbrew_projects::team::load(&crate::root()?)?;
     let ids = roster
         .into_iter()
         .map(|row| text(field(&row, "chat")))
@@ -314,17 +362,50 @@ pub fn slack(root: &Path, cfg: &Value) -> Result<Vec<Value>> {
         let turn = now_utc().timestamp().div_euclid(900);
         let groups = ids.len().div_ceil(5).max(1) as i64;
         let first = (turn.rem_euclid(groups) * 5) as usize;
-        for id in ids.iter().skip(first).take(5) {
+        'teams: for id in ids.iter().skip(first).take(5) {
             for query in [format!("from:<@{id}>"), format!("<@{id}>")] {
-                let data = get(
-                    root,
-                    &format!(
-                        "https://slack.com/api/search.messages?query={}&count=100&sort=timestamp",
-                        source_connectors::urlencode(&format!("{query} after:{after}"))
-                    ),
-                )?;
+                let data = if std::env::var("CAREERBREW_RUST13_TRANSPORT_ERROR").as_deref()
+                    == Ok("team-search")
+                {
+                    Err(FeedError::new(
+                        "RuntimeError",
+                        "synthetic transport failure",
+                    ))
+                } else {
+                    get(
+                        root,
+                        &format!(
+                            "https://slack.com/api/search.messages?query={}&count=100&sort=timestamp",
+                            source_connectors::urlencode(&format!("{query} after:{after}"))
+                        ),
+                    )
+                };
+                let data = match data {
+                    Ok(data) => data,
+                    Err(error) => {
+                        emit(
+                            &crate::root()?,
+                            "work.feed.team_search",
+                            vec![
+                                ("status", Canon::Str("error".into())),
+                                ("error", Canon::Str(error.class.into())),
+                                ("story", Canon::Str("us-78".into())),
+                            ],
+                        )?;
+                        break 'teams;
+                    }
+                };
                 if !truthy(field(&data, "ok")) {
-                    break;
+                    emit(
+                        &crate::root()?,
+                        "work.feed.team_search",
+                        vec![
+                            ("status", Canon::Str("error".into())),
+                            ("error", Canon::Str(slack_code(&data))),
+                            ("story", Canon::Str("us-78".into())),
+                        ],
+                    )?;
+                    break 'teams;
                 }
                 keep_slack(&mut found, &mut roots, &data, &me)?;
             }
@@ -620,11 +701,96 @@ fn redacted_reason(root: &Path, error: &FeedError) -> Result<String> {
         .collect())
 }
 
+pub fn inventory(root: &Path) -> Result<Vec<Value>> {
+    let mut out = Vec::new();
+    for (path, key) in [
+        ("work/sources.yaml", "sources"),
+        ("work/connectors.yaml", "connectors"),
+    ] {
+        let config = read_yaml(root, path, json!({}))?;
+        out.extend(rows(&config, key).iter().map(|row| {
+            let mut row = row.clone();
+            row["origin"] = json!("user");
+            row
+        }));
+    }
+    let context = crate::context()?;
+    let store = context.store();
+    for plugin in careerbrew_setup::plugins::installed()? {
+        let Some(provides) = field(&plugin.manifest, "provides") else {
+            continue;
+        };
+        let Some(resources) = field(provides, "evidence_sources") else {
+            continue;
+        };
+        let resources = if let Some(resources) = resources.as_array() {
+            resources.clone()
+        } else {
+            vec![resources.clone()]
+        };
+        let origin = field(&plugin.entry, "origin")
+            .cloned()
+            .unwrap_or_else(|| json!(""));
+        for resource in resources {
+            let pattern = plugin
+                .root
+                .join(text(Some(&resource)))
+                .to_string_lossy()
+                .into_owned();
+            let mut matches = glob::glob(&pattern)
+                .map_err(|_| FeedError::value("invalid plugin resource pattern"))?
+                .collect::<std::result::Result<Vec<_>, _>>()
+                .map_err(|_| FeedError::value("invalid plugin resource"))?;
+            matches.sort();
+            for matched in matches {
+                let mut files = if matched.is_dir() {
+                    let mut files = Vec::new();
+                    collect_files(&matched, &mut files)?;
+                    files
+                } else {
+                    vec![matched]
+                };
+                files.sort();
+                for file in files {
+                    if !file.is_file() {
+                        continue;
+                    }
+                    let data = careerbrew_setup::value::from_canon(&store.read_yaml(
+                        &file,
+                        careerbrew_vault::canon::Canon::Map(Vec::new()),
+                        true,
+                    )?);
+                    for key in ["sources", "connectors"] {
+                        out.extend(rows(&data, key).iter().map(|row| {
+                            let mut row = row.clone();
+                            row["origin"] = origin.clone();
+                            row
+                        }));
+                    }
+                }
+            }
+        }
+    }
+    Ok(out)
+}
+
+fn collect_files(root: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+    for entry in std::fs::read_dir(root)? {
+        let path = entry?.path();
+        if path.is_dir() {
+            collect_files(&path, out)?;
+        } else if path.is_file() {
+            out.push(path);
+        }
+    }
+    Ok(())
+}
+
 pub fn pull(root: &Path, components: &dyn ComponentProvider) -> Result<Value> {
-    let config = read_yaml(root, "work/connectors.yaml", json!({}))?;
+    let config = inventory(root)?;
     let fixtures = fixture_root()?;
     let mut stats = json!({"sources": 0, "new": 0, "updated": 0, "errors": 0, "reasons": []});
-    for cfg in rows(&config, "connectors") {
+    for cfg in &config {
         let kind = text(field(cfg, "kind"));
         if !["slack", "pagerduty", "outlook"].contains(&kind.as_str()) {
             continue;

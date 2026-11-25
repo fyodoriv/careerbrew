@@ -820,7 +820,7 @@ pub fn score_item(item: &Value, project: &Value, globs: &[String]) -> usize {
     best
 }
 
-fn targets(item: &Value, every: &Value, globs: &BTreeMap<String, Vec<String>>) -> Vec<String> {
+pub fn targets(item: &Value, every: &Value, globs: &BTreeMap<String, Vec<String>>) -> Vec<String> {
     let scores = every
         .as_object()
         .into_iter()

@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from careerbrew import cli, config, connectors, paths, store
-from careerbrew.work import feed, team, transcript
+from careerbrew.work import evidence, feed, projects, team, transcript
 
 CASES = (
     "source-ingestion",
@@ -31,6 +31,8 @@ CASES = (
     "team-feed",
     "local-time-and-nan",
     "source-failures",
+    "source-inventory",
+    "partial-transport",
 )
 FIX = Path(__file__).resolve().parents[1] / "fixtures"
 MAP = "mcp__chat__*=chat, mcp__tickets__*=tickets, mcp__mail__*=mail"
@@ -389,6 +391,13 @@ def _team_feed(base: Path) -> dict[str, Any]:
     cli_feed = _invoke(["work", "team", "feed"])
     os.environ["CAREERBREW_HTTP_FIXTURES"] = str(FIX / "http" / "team-feed-noscope")
     without_scope = [item["id"] for item in connectors.slack_feed({"kind": "slack", "token": TOKEN})]
+    projects.add("export")
+    projects.add_source("export", "chat", "#eng")
+    projects.add("archived")
+    projects.add_source("archived", "chat", "#eng")
+    projects.archive("archived")
+    linked = {row["id"]: row["projects"] for row in team.feed()}
+    linked_cli = _invoke(["work", "team", "feed"])
     return {
         "pulled": pulled,
         "rows": rows,
@@ -396,6 +405,8 @@ def _team_feed(base: Path) -> dict[str, Any]:
         "cli_list": cli_list,
         "cli_feed": cli_feed,
         "without_scope": without_scope,
+        "linked": linked,
+        "linked_cli": linked_cli,
     }
 
 
@@ -445,6 +456,56 @@ def _source_failures(base: Path) -> dict[str, Any]:
     return {"result": result, "lengths": [len(reason) for reason in result["reasons"]]}
 
 
+def _source_inventory(base: Path) -> dict[str, Any]:
+    workspace = Workspace(base, "source-inventory")
+    _connectors(["slack"])
+    slack = {"kind": "slack", "token": TOKEN}
+    store.write_yaml(paths.sub("work", "sources.yaml"), {"sources": [slack]})
+    plugin_root = workspace.root / "plugins" / "feedplug"
+    store.write_yaml(plugin_root / "careerbrew-plugin.yaml", {"name": "feedplug", "version": "0.1.0", "provides": {"evidence_sources": "evidence.yaml"}})
+    store.write_yaml(plugin_root / "evidence.yaml", {"connectors": [slack]})
+    store.write_json(paths.sub("plugins.lock.json"), {"plugins": {"feedplug": {"origin": "plugin:feedplug"}}})
+    result = feed.pull()
+    inventory = [{"kind": row["kind"], "origin": row["origin"]} for row in evidence.sources_list()]
+    origins = {row["id"]: row["origin"] for row in feed.load()}
+    return {"result": result, "inventory": inventory, "origins": origins}
+
+
+def _partial_transport(base: Path) -> dict[str, Any]:
+    Workspace(base, "partial-transport")
+    os.environ["CAREERBREW_HTTP_FIXTURES"] = str(FIX / "http" / "team-feed")
+    os.environ["CAREERBREW_EVENTS"] = "on"
+    team.add("Sam Lee", chat="U0SAM")
+    # Compare feed diagnostics, not the roster setup event.
+    (paths.data_root() / "logs" / "events.jsonl").write_text("")
+    real = connectors.http_json
+
+    def fail_team(url, *args, **kwargs):
+        if "search.messages" in url and "from%3A%3C%40U0SAM" in url:
+            raise RuntimeError("CANARYTRANSPORT")
+        return real(url, *args, **kwargs)
+
+    connectors.http_json = fail_team
+    try:
+        team_search = [row["id"] for row in connectors.slack_feed({"kind": "slack", "token": TOKEN})]
+    finally:
+        connectors.http_json = real
+
+    def fail_replies(url, *args, **kwargs):
+        if "conversations.replies" in url:
+            raise RuntimeError("CANARYTRANSPORT")
+        return real(url, *args, **kwargs)
+
+    connectors.http_json = fail_replies
+    try:
+        replies = [row["id"] for row in connectors.slack_feed({"kind": "slack", "token": TOKEN})]
+    finally:
+        connectors.http_json = real
+    logged = [json.loads(line) for line in (paths.data_root() / "logs" / "events.jsonl").read_text().splitlines()]
+    diagnostics = [row["event"] for row in logged if row["event"] in {"work.feed.team_search", "work.feed.replies"}]
+    return {"team_search": team_search, "replies": replies, "diagnostics": diagnostics}
+
+
 def run_all(selected: str | None = None) -> dict[str, Any]:
     trace = os.environ.get("CAREERBREW_RUST13_WRITE_TRACE")
     if trace:
@@ -469,6 +530,8 @@ def run_all(selected: str | None = None) -> dict[str, Any]:
         "team-feed": _team_feed,
         "local-time-and-nan": _local_time_and_nan,
         "source-failures": _source_failures,
+        "source-inventory": _source_inventory,
+        "partial-transport": _partial_transport,
     }
     cases: list[dict[str, Any]] = []
     for name in CASES:

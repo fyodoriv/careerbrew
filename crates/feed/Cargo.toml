@@ -11,6 +11,7 @@ careerbrew-setup = { path = "../setup" }
 careerbrew-sources = { path = "../sources" }
 careerbrew-projects = { path = "../projects" }
 careerbrew-policy = { path = "../policy" }
+careerbrew-memory = { path = "../memory" }
 serde_json = { version = "=1.0.154", features = ["arbitrary_precision"] }
 chrono = { version = "=0.4.45", default-features = false, features = ["std", "clock"] }
 chrono-tz = "=0.10.4"

@@ -22,6 +22,8 @@ fn rust_13_registers_the_release_candidate_and_effective_inputs() {
         "crates/feed/src/bin/feed-component.rs",
         "crates/projects/src/team.rs",
         "crates/projects/src/project_priority.rs",
+        "crates/memory/src/memory_sync.rs",
+        "src/careerbrew/work/evidence.py",
         "crates/sources/src/http.rs",
         "crates/policy/src/outputs.rs",
         "crates/vault/src/store.rs",

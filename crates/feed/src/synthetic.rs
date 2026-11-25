@@ -25,6 +25,8 @@ pub const CASES: &[&str] = &[
     "team-feed",
     "local-time-and-nan",
     "source-failures",
+    "source-inventory",
+    "partial-transport",
 ];
 const MAP: &str = "mcp__chat__*=chat, mcp__tickets__*=tickets, mcp__mail__*=mail";
 const TOKEN: &str = "env:CB_TEST_TOKEN";
@@ -620,9 +622,19 @@ fn team_feed(base: &Path) -> Result<Value> {
     .iter()
     .map(|item| text(field(item, "id")))
     .collect::<Vec<_>>();
+    careerbrew_projects::projects::add(root, "export", Default::default())?;
+    careerbrew_projects::projects::add_source(root, "export", "chat", "#eng")?;
+    careerbrew_projects::projects::add(root, "archived", Default::default())?;
+    careerbrew_projects::projects::add_source(root, "archived", "chat", "#eng")?;
+    careerbrew_projects::projects::archive(root, "archived", true, false)?;
+    let linked = cli::team_feed_rows(root, 7)?
+        .iter()
+        .map(|row| (text(field(row, "id")), row["projects"].clone()))
+        .collect::<Map<_, _>>();
+    let linked_cli = cli::team_feed_command(root, 7);
     Ok(json!({
         "pulled": pulled, "rows": rows, "kept": kept, "cli_list": cli_list, "cli_feed": cli_feed,
-        "without_scope": without_scope,
+        "without_scope": without_scope, "linked": linked, "linked_cli": linked_cli,
     }))
 }
 
@@ -692,6 +704,81 @@ fn source_failures(base: &Path) -> Result<Value> {
     Ok(json!({"result": result, "lengths": lengths}))
 }
 
+fn source_inventory(base: &Path) -> Result<Value> {
+    let workspace = Workspace::new(base, "source-inventory")?;
+    let root = &workspace.root;
+    connectors(root, &["slack"])?;
+    let slack = json!({"kind": "slack", "token": TOKEN});
+    write_yaml(
+        root,
+        "work/sources.yaml",
+        &json!({"sources": [slack.clone()]}),
+    )?;
+    let plugin_root = root.join("plugins/feedplug");
+    write_yaml(
+        &plugin_root,
+        "careerbrew-plugin.yaml",
+        &json!({"name": "feedplug", "version": "0.1.0", "provides": {"evidence_sources": "evidence.yaml"}}),
+    )?;
+    write_yaml(
+        &plugin_root,
+        "evidence.yaml",
+        &json!({"connectors": [slack]}),
+    )?;
+    write_json(
+        root,
+        "plugins.lock.json",
+        &json!({"plugins": {"feedplug": {"origin": "plugin:feedplug"}}}),
+    )?;
+    let components = SyntheticComponents;
+    let result = sources::pull(root, &components)?;
+    let inventory = sources::inventory(root)?.iter().map(|row| json!({"kind": field(row, "kind").cloned().unwrap_or(Value::Null), "origin": field(row, "origin").cloned().unwrap_or(Value::Null)})).collect::<Vec<_>>();
+    let origins = feed::load(root)?
+        .iter()
+        .map(|row| (text(field(row, "id")), row["origin"].clone()))
+        .collect::<Map<_, _>>();
+    Ok(json!({"result": result, "inventory": inventory, "origins": origins}))
+}
+
+fn slack_ids(result: Result<Vec<Value>>) -> Value {
+    match result {
+        Ok(rows) => json!(rows
+            .iter()
+            .map(|row| text(field(row, "id")))
+            .collect::<Vec<_>>()),
+        Err(error) => json!(error.class),
+    }
+}
+
+fn partial_transport(base: &Path) -> Result<Value> {
+    let workspace = Workspace::new(base, "partial-transport")?;
+    let root = &workspace.root;
+    std::env::set_var("CAREERBREW_HTTP_FIXTURES", fixture("http/team-feed"));
+    std::env::set_var("CAREERBREW_EVENTS", "on");
+    careerbrew_projects::team::add(root, "Sam Lee", "U0SAM", "", "")?;
+    // Compare feed diagnostics, not the roster setup event.
+    std::fs::create_dir_all(root.join("logs"))?;
+    std::fs::write(root.join("logs/events.jsonl"), "")?;
+    std::env::set_var("CAREERBREW_RUST13_TRANSPORT_ERROR", "team-search");
+    let team_search = slack_ids(sources::slack(
+        &fixture("http/team-feed"),
+        &json!({"kind": "slack", "token": TOKEN}),
+    ));
+    std::env::set_var("CAREERBREW_RUST13_TRANSPORT_ERROR", "replies");
+    let replies = slack_ids(sources::slack(
+        &fixture("http/team-feed"),
+        &json!({"kind": "slack", "token": TOKEN}),
+    ));
+    std::env::remove_var("CAREERBREW_RUST13_TRANSPORT_ERROR");
+    let logged = read_jsonl(root, "logs/events.jsonl")?;
+    let diagnostics = logged
+        .iter()
+        .map(|row| text(field(row, "event")))
+        .filter(|event| ["work.feed.team_search", "work.feed.replies"].contains(&event.as_str()))
+        .collect::<Vec<_>>();
+    Ok(json!({"team_search": team_search, "replies": replies, "diagnostics": diagnostics}))
+}
+
 fn run(case: &str, base: &Path) -> Result<Value> {
     match case {
         "source-ingestion" => source_ingestion(base),
@@ -704,6 +791,8 @@ fn run(case: &str, base: &Path) -> Result<Value> {
         "team-feed" => team_feed(base),
         "local-time-and-nan" => local_time_and_nan(base),
         "source-failures" => source_failures(base),
+        "source-inventory" => source_inventory(base),
+        "partial-transport" => partial_transport(base),
         _ => Err(FeedError::value("unknown rust-13 case")),
     }
 }

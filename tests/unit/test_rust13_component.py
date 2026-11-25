@@ -24,8 +24,10 @@ CASES = {
     "team-feed",
     "local-time-and-nan",
     "source-failures",
+    "source-inventory",
+    "partial-transport",
 }
-MARKERS = (b"PROJECTZEBRA", b"CANARYCHAT", b"CANARYTICKET", b"CANARYMAIL", b"CANARY-NATIVE-ERROR", b"CANARYSOURCE", b"synthetic-not-reported")
+MARKERS = (b"PROJECTZEBRA", b"CANARYCHAT", b"CANARYTICKET", b"CANARYMAIL", b"CANARY-NATIVE-ERROR", b"CANARYSOURCE", b"CANARYTRANSPORT", b"synthetic-not-reported")
 
 
 @pytest.fixture(scope="module")
@@ -151,6 +153,10 @@ def test_feed_transcript_write_and_cli_contracts_match_python(candidate, tmp_pat
         assert team["rows"]["slack:C0ENG:1792591260.000300"]["team"] == ["Sam Lee"]
         assert team["rows"]["slack:C0ENG:1792591260.000300"]["triage"] == "fyi"
         assert team["without_scope"] == ["slack:C0ENG:1792591200.000100", "slack:D0SAM:1792591500.000200"]
+        assert team["linked"]["slack:C0ENG:1792591200.000100"] == ["export"]
+        assert team["linked"]["slack:C0ENG:1792591260.000300"] == ["export"]
+        assert team["linked"]["slack:D0SAM:1792591500.000200"] == []
+        assert "2 match a project" in team["linked_cli"]["stdout"]
         assert "titles hidden" in team["cli_feed"]["stdout"]
 
         local = case(report, "local-time-and-nan")
@@ -165,5 +171,19 @@ def test_feed_transcript_write_and_cli_contracts_match_python(candidate, tmp_pat
         assert failures["new"] == {"int": "0"}
         assert all("[REDACTED]" in reason for reason in failures["reasons"])
         assert case(report, "source-failures")["lengths"] == [{"int": "207"}, {"int": "211"}, {"int": "209"}]
+
+        inventory = case(report, "source-inventory")
+        assert inventory["result"]["sources"] == {"int": "3"}
+        assert inventory["inventory"] == [
+            {"kind": "slack", "origin": "user"},
+            {"kind": "slack", "origin": "user"},
+            {"kind": "slack", "origin": "plugin:feedplug"},
+        ]
+        assert set(inventory["origins"].values()) == {"plugin:feedplug"}
+
+        partial = case(report, "partial-transport")
+        assert len(partial["team_search"]) == 4
+        assert partial["replies"] == ["slack:C0ENG:1792591200.000100", "slack:D0SAM:1792591500.000200"]
+        assert partial["diagnostics"] == ["work.feed.team_search", "work.feed.replies", "work.feed.replies"]
         answers.append(normalized(done.stdout, root))
     assert answers[0] == answers[1]

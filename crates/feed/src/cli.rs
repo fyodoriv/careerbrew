@@ -3,6 +3,7 @@
 use crate::{feed, field, text, transcript, ComponentProvider, Result};
 use chrono::TimeDelta;
 use serde_json::{json, Value};
+use std::collections::BTreeMap;
 use std::path::Path;
 
 pub fn invocation(exit: i32, stdout: String) -> Value {
@@ -132,6 +133,22 @@ pub fn team_feed_rows(root: &Path, days: i64) -> Result<Vec<Value>> {
     let cut = (crate::now_utc() - TimeDelta::days(days))
         .format("%Y-%m-%dT%H:%M:%SZ")
         .to_string();
+    let every = careerbrew_projects::projects::load(root)?;
+    let entries = careerbrew_projects::project_priority::entries(root)?;
+    let globs = entries
+        .iter()
+        .map(|entry| {
+            (
+                text(field(entry, "name")),
+                field(entry, "match")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .map(|value| text(Some(value)))
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
     let mut out = feed::load(root)?
         .into_iter()
         .filter(|row| {
@@ -143,7 +160,18 @@ pub fn team_feed_rows(root: &Path, days: i64) -> Result<Vec<Value>> {
                 && text(field(row, "at")) >= cut
         })
         .map(|mut row| {
-            row["projects"] = json!([]);
+            let item = json!({
+                "id": field(&row, "id").cloned().unwrap_or(Value::Null),
+                "source": text(field(&row, "source")),
+                "title": text(field(&row, "title")),
+                "url": text(field(&row, "url")),
+                "channel": text(field(&row, "channel")),
+            });
+            let projects = careerbrew_memory::memory_sync::targets(&item, &every, &globs)
+                .into_iter()
+                .filter(|name| !crate::truthy(field(&every[name], "archived_at")))
+                .collect::<Vec<_>>();
+            row["projects"] = json!(projects);
             row["to_research"] = json!(feed::needs_research(&row));
             row
         })
@@ -167,9 +195,13 @@ pub fn team_feed_command(root: &Path, days: i64) -> Value {
                         .unwrap_or_default()
                 })
                 .sum::<usize>();
+            let matched = rows
+                .iter()
+                .filter(|row| !row["projects"].as_array().is_none_or(Vec::is_empty))
+                .count();
             invocation(
                 0,
-                format!("{} teammate event(s) in the last {days} day(s): 0 match a project (with project memory sync on, their notes go to its memory file), {} match none; {research} link(s) to research\ntitles hidden: stdout is not a terminal and no plugin policy allows agents to read business data\n", rows.len(), rows.len()),
+                format!("{} teammate event(s) in the last {days} day(s): {matched} match a project (with project memory sync on, their notes go to its memory file), {} match none; {research} link(s) to research\ntitles hidden: stdout is not a terminal and no plugin policy allows agents to read business data\n", rows.len(), rows.len() - matched),
             )
         }
         Err(error) => invocation(2, format!("error: {}\n", error.message)),

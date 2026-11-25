@@ -236,7 +236,8 @@ struct EventClock;
 
 impl careerbrew_vault::events::Clock for EventClock {
     fn stamp(&self) -> String {
-        now_iso()
+        // Python events._now() reads the wall clock, not CAREERBREW_NOW.
+        Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
     }
 
     fn version(&self) -> String {
