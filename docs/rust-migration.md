@@ -2456,6 +2456,14 @@ the crate until the rust-05 and rust-07 closure is native, so
   omitted source, wrong project, lost partial event or leaked error keeps Python.
   Event-log comparisons normalize only the wall-clock `ts` value; source event
   timestamps and every diagnostic field remain strict.
+- **Privacy-review pre-registration (2026-11-25):** source revision
+  `b161172d7d73543e20d91a862d9dfab40dd1abb1` adds an installed plugin's
+  manifest-owned sensitive term beside a data-root term. Connector failures must
+  redact both before the existing 200-character bound. The plugin path comes
+  from the validated manifest below its own root, never from an unchanged lock
+  entry. Any raw canary, unsafe path, or other regression keeps Python. All 12
+  cases and four write controls stay mandatory, with fresh 30-pair resource
+  acceptance and no activation change.
 
 ### rust-14: Port live listening, review asks and notifications
 
