@@ -1,0 +1,26 @@
+[package]
+name = "careerbrew-tutor"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+careerbrew-vault = { path = "../vault" }
+careerbrew-setup = { path = "../setup" }
+careerbrew-projects = { path = "../projects" }
+careerbrew-policy = { path = "../policy" }
+careerbrew-memory = { path = "../memory" }
+careerbrew-learn = { path = "../learn" }
+careerbrew-depvec = { path = "../depvec" }
+serde_json = { version = "=1.0.154", features = ["arbitrary_precision"] }
+chrono = { version = "=0.4.45", default-features = false, features = ["std", "clock"] }
+chrono-tz = "=0.10.4"
+regex = "=1.13.2"
+sha2 = "=0.10.9"
+fsrs = "=7.0.0"
+icu_casemap = "=2.4.0"
+
+[[bin]]
+name = "tutor-component"
+path = "src/bin/tutor-component.rs"
