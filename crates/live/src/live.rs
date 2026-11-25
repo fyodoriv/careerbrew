@@ -229,7 +229,16 @@ pub fn roster(root: &Path) -> Result<Vec<Value>> {
             field(&data, "team")
                 .and_then(Value::as_array)
                 .cloned()
-                .unwrap_or_default(),
+                .unwrap_or_default()
+                .into_iter()
+                .map(|row| {
+                    json!({
+                        "name": text(field(&row, "name")),
+                        "chat": text(field(&row, "chat")),
+                        "email": text(field(&row, "email")),
+                        "login": text(field(&row, "login")),
+                    })
+                }),
         );
     }
     let own = careerbrew_projects::team::load(root)?;
@@ -1006,7 +1015,7 @@ pub fn cycle(root: &Path, read_allowed: bool) -> Result<Value> {
             Ok(())
         })();
         if let Err(error) = attempt {
-            row["error"] = json!(careerbrew_policy::redact(&error.message, &[]));
+            row["error"] = json!(crate::redact(root, &error.message)?);
             row["error_kind"] = json!(error.class);
             emit(
                 root,

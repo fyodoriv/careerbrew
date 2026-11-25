@@ -113,7 +113,7 @@ def _clean_text() -> dict[str, bool]:
         if path.exists():
             blobs.append(store.read_text(path) if path != events.log_path() else path.read_text())
     joined = "\n".join(blobs)
-    return {marker: marker in joined for marker in MARKERS}
+    return {"any": any(marker in joined for marker in MARKERS)}
 
 
 def _file_facts(root: Path) -> dict[str, str]:
@@ -400,15 +400,16 @@ def _link_review(base: Path) -> dict[str, Any]:
     _fill_live(workspace, True)
     config.set_value("live_open_links", "true")
     real_addresses = listen._addresses
-    listen._addresses = lambda host: ["93.184.216.34"]
+    listen._addresses = lambda host: ["127.0.0.1"] if host == "private.example" else ["2606:4700:4700::1111"]
     try:
         rec = live.cycle(read_allowed=True)
     finally:
         listen._addresses = real_addresses
+    listen._addresses = lambda host: ["127.0.0.1"] if host == "private.example" else ["2606:4700:4700::1111"]
     rows = {row["id"]: row for row in feed.load()}
     research_rows = {key: rows[key].get("research") for key in ("chat:1792936800.000100", "chat:1792936860.000200", "chat:1792936920.000300")}
     private = []
-    for url in ("http://127.0.0.1:8080/x", "http://10.1.2.3/y", "http://localhost/z", "https://[draft"):
+    for url in ("http://127.0.0.1:8080/x", "http://private.example/y", "http://localhost/z", "https://[draft"):
         try:
             private.append({"url": url, "reason": listen.private_reason(url)})
         except Exception as exc:
@@ -423,7 +424,30 @@ def _link_review(base: Path) -> dict[str, Any]:
     feed.ingest([ping])
     verdict = live.verdict(feed.load()[-1], {row["id"] for row in feed.open_asks()})
     follow, _attached = listen.follow_up({ping["id"]: verdict}, set(), False)
-    return {"cycle": _cycle(rec), "research": research_rows, "private": private, "reference": reference, "re_review": follow, "sessions": listen.review_sessions(), "clean": _clean_text()}
+    partial = {"id": "chat:partial", "source": "chat", "kind": "dm", "at": "2026-10-25T16:02:00Z", "title": "partial research", "actor": "other", "to_me": True, "text": "see https://public.example/first"}
+    feed.ingest([partial])
+    feed.research("chat:partial", [{"url": "https://public.example/first", "summary": "agent original"}])
+    feed.ingest([{**partial, "text": "see https://public.example/first and https://public.example/second"}])
+    feed.cycle_research("chat:partial", [{"url": "https://public.example/second", "opened": False, "reason": "offline"}])
+    feed.ingest([{**partial, "text": "see https://public.example/first and https://public.example/second and https://public.example/third"}])
+    research_merge = next(row for row in feed.load() if row["id"] == "chat:partial")["research"]
+    public_summary = listen._read_url("https://public.example/budget")
+    listen._addresses = real_addresses
+    range_controls = [
+        (url, listen.private_reason(url)) for url in ("http://192.0.2.1/x", "http://100.64.0.1/x", "http://198.18.0.1/x", "http://240.0.0.1/x", "http://203.0.113.1/x", "http://[2001:db8::1]/x", "http://[2606:4700:4700::1111]/x")
+    ]
+    return {
+        "cycle": _cycle(rec),
+        "research": research_rows,
+        "private": private,
+        "range_controls": range_controls,
+        "research_merge": research_merge,
+        "public_summary": public_summary,
+        "reference": reference,
+        "re_review": follow,
+        "sessions": listen.review_sessions(),
+        "clean": _clean_text(),
+    }
 
 
 def _github() -> None:
@@ -511,11 +535,12 @@ def _notify_dedup(base: Path) -> dict[str, Any]:
     _clock("2026-10-21T10:00:00+00:00")
     workspace.use_notifier(notify_batch_minutes="10")
     config.set_value("project_priority", "billing=*invoice*")
+    store.write_text(workspace.root / "sensitive-terms.txt", "CANARYNOTIFY\n")
     feed.ingest(
         [
             _event("pagerduty:P1", "page", source="pagerduty", status="triggered"),
             _event("slack:C1:1.0", "dm"),
-            _event("github:pr-9", "review-request", source="github"),
+            _event("github:pr-9", "review-request", source="CANARYNOTIFY"),
             _event("slack:C3:3.0", "mention", title="Mention about the invoice export"),
             _event("slack:C4:4.0", "message", actor="bot"),
             _event("slack:old", "dm", at="2026-10-19T13:30:00Z"),
@@ -547,6 +572,7 @@ def _notify_dedup(base: Path) -> dict[str, Any]:
         "reopened": reopened,
         "reopened_view": _notification_view(),
         "calls": workspace.notifier_calls(),
+        "notifier_clean": "CANARYNOTIFY" not in (workspace.base / "notifier.log").read_text(),
         "clean": _clean_text(),
         "sealed": notify.path().read_bytes().startswith(b"CBV1\n"),
     }
@@ -671,6 +697,69 @@ def _agent_task(title: str) -> dict[str, Any]:
     return task
 
 
+def _seed_suggestion(kind: str, data: dict[str, Any]) -> str:
+    item_id = f"{kind}-kind"
+    item = {"id": item_id, "type": "proposal", "kind": kind, "status": "open", "data": data}
+    store.write_json(paths.sub("day", "inbox.json"), {"items": [item]})
+    notification = {
+        "id": f"n-{kind}",
+        "key": f"inbox:{item_id}",
+        "item": item_id,
+        "refs": [item_id],
+        "count": 1,
+        "kind": "suggestion",
+        "sub": kind,
+        "source": "careerbrew",
+        "headline": "careerbrew: a suggestion",
+        "why": "a decision waits",
+        "next": "accept or dismiss it",
+        "priority": 3,
+        "priority_why": "3 for a suggestion",
+        "at": "2026-10-21T10:00:00+00:00",
+        "status": "new",
+        "popup": "sent",
+        "created_at": "2026-10-21T10:00:00+00:00",
+        "updated_at": "2026-10-21T10:00:00+00:00",
+        "acted_at": "",
+        "snooze_until": "",
+        "resolved": "",
+    }
+    store.write_json(paths.sub("day", "notifications.json"), {"items": [notification], "popups": []})
+    return f"n-{kind}"
+
+
+def _suggestion_kinds(base: Path) -> dict[str, Any]:
+    out = {}
+    for kind in ("task-done", "new-task", "source", "feed-rule", "plugin", "goal", "goal-cli"):
+        Workspace(base, f"kind-{kind}")
+        data = {
+            "task-done": {"task": "t001"},
+            "new-task": {"title": "Ticket work"},
+            "source": {"project": "billing", "kind": "repo", "ref": "example/added"},
+            "feed-rule": {"rule": {"name": "quiet", "when": {"source": "chat"}, "triage": "fyi"}},
+            "plugin": {"plugin": "acme", "task": "Document the rollout", "link": ""},
+            "goal": {"id": "goal-test", "title": "Grow", "kind": "custom", "date": "2026-12-01"},
+            "goal-cli": {"id": "goal-test", "title": "Grow", "kind": "custom", "date": "2026-12-01"},
+        }[kind]
+        if kind == "task-done":
+            priorities.add("Finish me", 3, 3, 1.0, [])
+        if kind == "source":
+            projects.add("billing")
+        nid = _seed_suggestion("goal" if kind.startswith("goal") else kind, data)
+        if kind == "goal-cli":
+            accepted = _error(lambda: notify.act(nid, "accept", via="cli"))
+        else:
+            accepted = notify.act(nid, "accept", via="ui" if kind == "goal" else "cli")
+        out[kind] = {
+            "accepted": accepted,
+            "tasks": priorities.load(),
+            "projects": projects.records(),
+            "goals": goals.load(),
+            "rules": feed.rules(),
+        }
+    return out
+
+
 def _notify_suggestions(base: Path) -> dict[str, Any]:
     workspace = Workspace(base, "notify-suggestions", notifier=True)
     _clock("2026-10-21T10:00:00+00:00")
@@ -689,6 +778,8 @@ def _notify_suggestions(base: Path) -> dict[str, Any]:
     accepted = notify.act(nid, "accept")
     accepted_view = _notification_view()
     inbox_state = [(row["id"], row["status"]) for row in inbox.load()]
+    repeated_offer = inbox.offer_task(suggestion)
+    kinds = _suggestion_kinds(base)
     return {
         "suggestion": suggestion,
         "first": first,
@@ -700,6 +791,8 @@ def _notify_suggestions(base: Path) -> dict[str, Any]:
         "accepted": accepted,
         "accepted_view": accepted_view,
         "inbox": inbox_state,
+        "repeated_offer": repeated_offer,
+        "kinds": kinds,
         "calls": workspace.notifier_calls(),
         "clean": _clean_text(),
         "sealed": notify.path().read_bytes().startswith(b"CBV1\n"),

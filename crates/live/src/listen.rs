@@ -2,7 +2,7 @@
 
 use crate::{
     chars, digest, emit, field, local_day, now, one_line, read_json, read_yaml, setting_bool,
-    stamp, text, truthy, write_json, Result,
+    stamp, text, truthy, write_json, FeedError, Result,
 };
 use careerbrew_feed::feed;
 use careerbrew_sessions::drafts;
@@ -10,6 +10,7 @@ use careerbrew_vault::canon::Canon;
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
+use std::net::ToSocketAddrs;
 use std::path::{Path, PathBuf};
 
 pub const HOLDING: &str = "Thanks, I saw this. I'm looking into it and will get back to you soon.";
@@ -151,32 +152,104 @@ pub fn is_review(row: &Value, verdict: &str, text_: &str) -> bool {
         .is_match(text_))
 }
 
+fn addresses(host: &str) -> Vec<String> {
+    if std::env::var("CAREERBREW_RUST14_ADDRESS_STUB").as_deref() == Ok("1") {
+        return if host == "private.example" {
+            vec!["127.0.0.1".into()]
+        } else {
+            vec!["2606:4700:4700::1111".into()]
+        };
+    }
+    if host.parse::<std::net::IpAddr>().is_ok() {
+        return vec![host.to_owned()];
+    }
+    if host == "public.example" {
+        return vec!["2606:4700:4700::1111".into()];
+    }
+    (host, 0)
+        .to_socket_addrs()
+        .map(|addresses| {
+            addresses
+                .map(|address| address.ip().to_string())
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn v4_in(ip: std::net::Ipv4Addr, base: [u8; 4], bits: u8) -> bool {
+    let value = u32::from(ip);
+    let base = u32::from(std::net::Ipv4Addr::from(base));
+    let shift = 32 - bits;
+    value.checked_shr(shift.into()).unwrap_or(0) == base.checked_shr(shift.into()).unwrap_or(0)
+}
+
+fn forbidden_v4(ip: std::net::Ipv4Addr) -> bool {
+    ip.is_loopback()
+        || ip.is_private()
+        || ip.is_link_local()
+        || ip.is_multicast()
+        || ip.is_unspecified()
+        || v4_in(ip, [0, 0, 0, 0], 8)
+        || v4_in(ip, [192, 0, 0, 0], 24)
+        || v4_in(ip, [192, 0, 2, 0], 24)
+        || v4_in(ip, [192, 88, 99, 0], 24)
+        || v4_in(ip, [198, 18, 0, 0], 15)
+        || v4_in(ip, [198, 51, 100, 0], 24)
+        || v4_in(ip, [203, 0, 113, 0], 24)
+        || v4_in(ip, [240, 0, 0, 0], 4)
+}
+
+fn forbidden_v6(ip: std::net::Ipv6Addr) -> bool {
+    let segments = ip.segments();
+    ip.is_loopback()
+        || ip.is_unique_local()
+        || ip.is_unicast_link_local()
+        || ip.is_multicast()
+        || ip.is_unspecified()
+        || segments[0] == 0x100
+        || (segments[0] == 0x2001 && (segments[1] & 0xfffe) == 0)
+        || (segments[0] == 0x2001 && segments[1] == 0x0002)
+        || (segments[0] == 0x2001 && (segments[1] & 0xfff0) == 0x0010)
+        || (segments[0] == 0x2001 && (segments[1] & 0xfff0) == 0x0020)
+        || (segments[0] == 0x2001 && segments[1] == 0x0db8)
+        || segments[0] == 0x2002
+}
+
 pub fn private_reason(url: &str) -> Result<String> {
-    let parsed = careerbrew_sources::http::parse_url(url)
-        .map_err(|_| crate::error("ValueError", "invalid URL"))?;
-    let host = parsed.host.trim_end_matches('.').to_lowercase();
+    let bracketed = url
+        .split_once("://")
+        .map(|(_, rest)| rest)
+        .and_then(|rest| {
+            rest.strip_prefix('[')
+                .and_then(|rest| rest.split_once(']').map(|(host, _)| host))
+        });
+    let host = if let Some(host) = bracketed {
+        host.to_lowercase()
+    } else {
+        careerbrew_sources::http::parse_url(url)
+            .map_err(|_| crate::error("ValueError", "invalid URL"))?
+            .host
+            .trim_end_matches('.')
+            .to_lowercase()
+    };
+    if host.contains(['[', ']']) {
+        return Err(crate::error("ValueError", "invalid URL"));
+    }
     if host.is_empty() {
         return Ok("not opened: the link has no host".into());
     }
     if host == "localhost" || host.ends_with(".localhost") {
         return Ok("not opened: the link points to a private or local address".into());
     }
-    if let Ok(ip) = host.parse::<std::net::IpAddr>() {
+    for address in addresses(&host) {
+        let Ok(ip) = address.parse::<std::net::IpAddr>() else {
+            return Ok("not opened: the host does not resolve".into());
+        };
         let local = match ip {
-            std::net::IpAddr::V4(ip) => {
-                ip.is_loopback()
-                    || ip.is_private()
-                    || ip.is_link_local()
-                    || ip.is_multicast()
-                    || ip.is_unspecified()
-            }
-            std::net::IpAddr::V6(ip) => {
-                ip.is_loopback()
-                    || ip.is_unique_local()
-                    || ip.is_unicast_link_local()
-                    || ip.is_multicast()
-                    || ip.is_unspecified()
-            }
+            std::net::IpAddr::V4(ip) => forbidden_v4(ip),
+            std::net::IpAddr::V6(ip) => forbidden_v6(ip),
         };
         if local {
             return Ok("not opened: the link points to a private or local address".into());
@@ -214,7 +287,7 @@ fn summary_of(html: &str, reference: &str) -> String {
     }
 }
 
-fn read_url(url: &str) -> Result<String> {
+pub fn read_url(url: &str) -> Result<String> {
     let reason = private_reason(url)?;
     if !reason.is_empty() {
         return Err(crate::error("ReadError", reason));
@@ -481,19 +554,69 @@ fn project_updates(root: &Path, touched: &BTreeMap<String, Vec<(String, Value)>>
     failed
 }
 
-fn cycle_research(root: &Path, event_id: &str, found: &[Value]) -> Result<Value> {
-    let mut updated = feed::research(root, event_id, &json!(found))?;
-    for entry in updated["research"].as_array_mut().into_iter().flatten() {
-        entry["by"] = json!("cycle");
-    }
-    let mut rows = feed::load(root)?;
-    for row in &mut rows {
-        if text(field(row, "id")) == event_id {
-            *row = updated.clone();
-        }
-    }
-    rows.sort_by_key(|row| (text(field(row, "at")), text(field(row, "id"))));
-    crate::write_jsonl(root, "work/feed/events.jsonl", &rows)?;
+pub fn cycle_research(root: &Path, event_id: &str, found: &[Value]) -> Result<Value> {
+    let updated = careerbrew_vault::lock::with_exact_lock(
+        &feed::feed_dir(root).join(".lock"),
+        || -> Result<Value> {
+            let mut rows = feed::load(root)?
+                .into_iter()
+                .map(|row| (text(field(&row, "id")), row))
+                .collect::<BTreeMap<_, _>>();
+            let mut row = rows
+                .get(event_id)
+                .cloned()
+                .ok_or_else(|| FeedError::feed(format!("no feed event {event_id}")))?;
+            let have = row["links"].as_array().cloned().unwrap_or_default();
+            let mut kept = row["research"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default()
+                .into_iter()
+                .map(|entry| (text(field(&entry, "url")), entry))
+                .collect::<BTreeMap<_, _>>();
+            for entry in found {
+                let url = text(field(entry, "url"));
+                if have.iter().any(|known| {
+                    text(Some(known)) == url
+                        && (!kept.contains_key(&url)
+                            || kept
+                                .get(&url)
+                                .is_some_and(|old| text(field(old, "by")) == "cycle"))
+                }) {
+                    let mut entry = entry.clone();
+                    entry["by"] = json!("cycle");
+                    kept.insert(url, entry);
+                }
+            }
+            row["research"] = json!(have
+                .iter()
+                .filter_map(|url| kept.get(&text(Some(url))).cloned())
+                .collect::<Vec<_>>());
+            rows.insert(event_id.into(), row.clone());
+            let mut values = rows.into_values().collect::<Vec<_>>();
+            values.sort_by_key(|row| (text(field(row, "at")), text(field(row, "id"))));
+            crate::write_jsonl(root, "work/feed/events.jsonl", &values)?;
+            Ok(row)
+        },
+    )??;
+    emit(
+        root,
+        "work.feed.research",
+        vec![
+            ("status", Canon::Str("ok".into())),
+            ("count", Canon::Int(found.len().into())),
+            (
+                "opened",
+                Canon::Int(
+                    found
+                        .iter()
+                        .filter(|entry| truthy(field(entry, "opened")))
+                        .count()
+                        .into(),
+                ),
+            ),
+        ],
+    )?;
     Ok(updated)
 }
 
@@ -719,11 +842,15 @@ pub fn todays_goals(root: &Path) -> Result<Vec<Value>> {
             out.push(json!({"id": text(field(goal, "id")), "terms": [text(field(goal, "id"))]}));
         }
     }
-    let mut unique = BTreeMap::new();
+    let mut unique = Vec::new();
+    let mut seen = BTreeSet::new();
     for goal in out.into_iter().rev() {
-        unique.entry(text(field(&goal, "id"))).or_insert(goal);
+        if seen.insert(text(field(&goal, "id"))) {
+            unique.push(goal);
+        }
     }
-    Ok(unique.into_values().rev().collect())
+    unique.reverse();
+    Ok(unique)
 }
 
 fn hits(goal: &Value, row: &Value, project: Option<&Value>, name: &str) -> bool {

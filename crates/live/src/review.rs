@@ -358,7 +358,10 @@ fn codeowners(repo_api: &str, base: &str) -> Result<Vec<(Regex, Vec<String>)>> {
             careerbrew_sources::connectors::urlencode(base)
         ))? {
             if let Some(content) = field(&got, "content").and_then(Value::as_str) {
-                let decoded = STANDARD.decode(content).unwrap_or_default();
+                let compact = content.split_whitespace().collect::<String>();
+                let decoded = STANDARD
+                    .decode(compact)
+                    .map_err(|_| review_error("CODEOWNERS content is not valid base64"))?;
                 return Ok(parse_codeowners(&String::from_utf8_lossy(&decoded)));
             }
         }

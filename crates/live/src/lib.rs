@@ -183,3 +183,8 @@ pub fn json_string(value: &Value) -> String {
         _ => text(Some(value)),
     }
 }
+
+pub fn redact(root: &Path, value: &str) -> Result<String> {
+    let terms = careerbrew_feed::sources::sensitive_terms(root)?;
+    Ok(careerbrew_policy::redact(value, &terms))
+}

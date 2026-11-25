@@ -210,7 +210,8 @@ fn state_projection(root: &Path) -> Result<Value> {
     }))
 }
 
-fn clean_text(root: &Path) -> Result<Value> {
+fn clean_text(_root: &Path) -> Result<Value> {
+    let root = crate::root()?;
     let mut blobs = Vec::new();
     for path in [
         "work/live/state.json",
@@ -220,8 +221,8 @@ fn clean_text(root: &Path) -> Result<Value> {
         let path = root.join(path);
         if path.exists() {
             blobs.push(read_text(
-                root,
-                path.strip_prefix(root)
+                &root,
+                path.strip_prefix(root.as_path())
                     .expect("owned path")
                     .to_string_lossy()
                     .as_ref(),
@@ -233,10 +234,7 @@ fn clean_text(root: &Path) -> Result<Value> {
         blobs.push(std::fs::read_to_string(events)?);
     }
     let joined = blobs.join("\n");
-    Ok(json!(MARKERS
-        .iter()
-        .map(|marker| ((*marker).to_owned(), json!(joined.contains(marker))))
-        .collect::<Map<_, _>>()))
+    Ok(json!({"any": MARKERS.iter().any(|marker| joined.contains(marker))}))
 }
 
 fn file_facts(root: &Path) -> Result<BTreeMap<String, String>> {
@@ -369,6 +367,9 @@ fn live_cycle(base: &Path) -> Result<Value> {
         root,
         &std::fs::read_to_string(live_sources(&workspace, false)?)?,
     )?;
+    if std::env::var("CAREERBREW_RUST14_PLANT_WRITE").as_deref() == Ok("extra") {
+        std::fs::write(root.join("planted-extra.txt"), "synthetic")?;
+    }
     fill_live(&workspace, false)?;
     crate::write_yaml(
         root,
@@ -376,6 +377,13 @@ fn live_cycle(base: &Path) -> Result<Value> {
         &json!({"rules": [{"name": "shipped", "when": {"source": "tickets", "actor": "me"}, "evidence": true}]}),
     )?;
     let first = live::cycle(root, false)?;
+    if std::env::var("CAREERBREW_RUST14_PLANT_WRITE").as_deref() == Ok("missing") {
+        std::fs::remove_file(feed::originals_path(root))?;
+    }
+    if std::env::var("CAREERBREW_RUST14_PLANT_WRITE").as_deref() == Ok("operation-duplicate") {
+        let rows = crate::read_jsonl(root, "work/feed/events.jsonl")?;
+        crate::write_jsonl(root, "work/feed/events.jsonl", &rows)?;
+    }
     let before = state_projection(root)?;
     let second = live::cycle(root, false)?;
     let after = state_projection(root)?;
@@ -416,6 +424,12 @@ fn healthy_workspace(base: &Path, name: &str) -> Result<Workspace> {
 }
 
 fn acquisition_health(base: &Path) -> Result<Value> {
+    if std::env::var("CAREERBREW_RUST14_PLANT_WRITE").as_deref() == Ok("duplicate") {
+        let path = base.join("live-cycle/data/work/feed/events.jsonl");
+        let bytes = std::fs::read(&path)?;
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        std::fs::write(path, bytes)?;
+    }
     let workspace = healthy_workspace(base, "acquisition-health")?;
     let root = &workspace.root;
     let path = workspace.base.join("inbox.json");
@@ -618,6 +632,7 @@ fn link_review(base: &Path) -> Result<Value> {
         &std::fs::read_to_string(live_sources(&workspace, true)?)?,
     )?;
     fill_live(&workspace, true)?;
+    std::env::set_var("CAREERBREW_RUST14_ADDRESS_STUB", "1");
     crate::set_setting_text(root, "live_open_links", "true")?;
     let rec = live::cycle(root, true)?;
     let rows = feed::load(root)?
@@ -635,7 +650,7 @@ fn link_review(base: &Path) -> Result<Value> {
     let mut private = Vec::new();
     for url in [
         "http://127.0.0.1:8080/x",
-        "http://10.1.2.3/y",
+        "http://private.example/y",
         "http://localhost/z",
         "https://[draft",
     ] {
@@ -643,6 +658,50 @@ fn link_review(base: &Path) -> Result<Value> {
             Ok(reason) => private.push(json!({"url": url, "reason": reason})),
             Err(error) => private.push(json!({"url": url, "error": error.class})),
         }
+    }
+    let partial = json!({"id": "chat:partial", "source": "chat", "kind": "dm", "at": "2026-10-25T16:02:00Z", "title": "partial research", "actor": "other", "to_me": true, "text": "see https://public.example/first"});
+    feed::ingest(
+        root,
+        std::slice::from_ref(&partial),
+        "user",
+        "feed",
+        &[],
+        &live::Provider,
+    )?;
+    feed::research(
+        root,
+        "chat:partial",
+        &json!([{"url": "https://public.example/first", "summary": "agent original"}]),
+    )?;
+    let mut second = partial.clone();
+    second["text"] = json!("see https://public.example/first and https://public.example/second");
+    feed::ingest(root, &[second], "user", "feed", &[], &live::Provider)?;
+    listen::cycle_research(
+        root,
+        "chat:partial",
+        &[json!({"url": "https://public.example/second", "opened": false, "reason": "offline"})],
+    )?;
+    let mut updated = partial.clone();
+    updated["text"] = json!("see https://public.example/first and https://public.example/second and https://public.example/third");
+    feed::ingest(root, &[updated], "user", "feed", &[], &live::Provider)?;
+    let research_merge = feed::load(root)?
+        .into_iter()
+        .find(|row| text(field(row, "id")) == "chat:partial")
+        .expect("partial row")["research"]
+        .clone();
+    let public_summary = listen::read_url("https://public.example/budget")?;
+    std::env::remove_var("CAREERBREW_RUST14_ADDRESS_STUB");
+    let mut range_controls = Vec::new();
+    for url in [
+        "http://192.0.2.1/x",
+        "http://100.64.0.1/x",
+        "http://198.18.0.1/x",
+        "http://240.0.0.1/x",
+        "http://203.0.113.1/x",
+        "http://[2001:db8::1]/x",
+        "http://[2606:4700:4700::1111]/x",
+    ] {
+        range_controls.push(json!([url, listen::private_reason(url)?]));
     }
     projects::add(root, "ops", Default::default())?;
     projects::add_source(root, "ops", "url", "https://status.example.com/budget")?;
@@ -675,7 +734,7 @@ fn link_review(base: &Path) -> Result<Value> {
         false,
     )?;
     Ok(
-        json!({"cycle": cycle_projection(&rec), "research": research_rows, "private": private, "reference": reference, "re_review": follow, "sessions": listen::review_sessions(root)?, "clean": clean_text(root)?}),
+        json!({"cycle": cycle_projection(&rec), "research": research_rows, "private": private, "range_controls": range_controls, "research_merge": research_merge, "public_summary": public_summary, "reference": reference, "re_review": follow, "sessions": listen::review_sessions(root)?, "clean": clean_text(root)?}),
     )
 }
 
@@ -766,7 +825,13 @@ fn notify_dedup(base: &Path) -> Result<Value> {
     let root = &workspace.root;
     clock("2026-10-21T10:00:00+00:00");
     workspace.use_notifier(&[("notify_batch_minutes", "10")])?;
+    if std::env::var("CAREERBREW_RUST14_PLANT_WRITE").as_deref() == Ok("event-duplicate") {
+        std::env::set_var("CAREERBREW_EVENTS", "on");
+        std::fs::create_dir_all(root.join("logs"))?;
+        std::fs::write(root.join("logs/events.jsonl"), "")?;
+    }
     crate::set_setting_text(root, "project_priority", "billing=*invoice*")?;
+    crate::write_text(root, "sensitive-terms.txt", "CANARYNOTIFY\n")?;
     feed::ingest(
         root,
         &[
@@ -784,7 +849,7 @@ fn notify_dedup(base: &Path) -> Result<Value> {
                 "github:pr-9",
                 "review-request",
                 "2026-10-21T13:30:00Z",
-                &[("source", json!("github"))],
+                &[("source", json!("CANARYNOTIFY"))],
             ),
             event(
                 "slack:C3:3.0",
@@ -816,9 +881,15 @@ fn notify_dedup(base: &Path) -> Result<Value> {
         .map(|row| (text(field(&row, "ref")), row["priority"].clone()))
         .collect::<Map<_, _>>();
     let first = notify::run(root, true, None)?;
+    if std::env::var("CAREERBREW_RUST14_PLANT_WRITE").as_deref() == Ok("event-duplicate") {
+        let logged = crate::read_jsonl(root, "logs/events.jsonl")?;
+        if let Some(row) = logged.last() {
+            let row = careerbrew_setup::value::to_canon(row);
+            careerbrew_vault::events::write_row(root, &row)?;
+        }
+    }
     let first_view = notification_view(root)?;
     let repeated = notify::run(root, true, None)?;
-    let first_calls = workspace.notifier_calls()?;
     clock("2026-10-21T10:11:00+00:00");
     feed::ingest(
         root,
@@ -834,7 +905,6 @@ fn notify_dedup(base: &Path) -> Result<Value> {
         &live::Provider,
     )?;
     let merged = notify::run(root, true, None)?;
-    let merged_view = notification_view(root)?;
     feed::ingest(
         root,
         &[event(
@@ -853,7 +923,6 @@ fn notify_dedup(base: &Path) -> Result<Value> {
         &live::Provider,
     )?;
     let closed = notify::run(root, true, None)?;
-    let closed_view = notification_view(root)?;
     clock("2026-10-21T10:30:00+00:00");
     feed::ingest(
         root,
@@ -869,20 +938,20 @@ fn notify_dedup(base: &Path) -> Result<Value> {
         &live::Provider,
     )?;
     let reopened = notify::run(root, true, None)?;
-    let reopened_view = notification_view(root)?;
     Ok(json!({
         "priorities": priorities,
         "first": first,
         "first_view": first_view,
-        "first_calls": first_calls,
+        "first_calls": workspace.notifier_calls()?,
         "repeated": repeated,
         "merged": merged,
-        "merged_view": merged_view,
+        "merged_view": notification_view(root)?,
         "closed": closed,
-        "closed_view": closed_view,
+        "closed_view": notification_view(root)?,
         "reopened": reopened,
-        "reopened_view": reopened_view,
+        "reopened_view": notification_view(root)?,
         "calls": workspace.notifier_calls()?,
+        "notifier_clean": !std::fs::read_to_string(workspace.base.join("notifier.log")).unwrap_or_default().contains("CANARYNOTIFY"),
         "clean": clean_text(root)?,
         "sealed": std::fs::read(root.join("day/notifications.json"))?.starts_with(b"CBV1\n"),
     }))
@@ -978,10 +1047,12 @@ fn notify_time(base: &Path) -> Result<Value> {
             )
         })
         .collect::<Vec<_>>();
+    let cap_view = notification_view(&snooze.root)?;
+    let snooze_view = notification_view(&snooze.root)?;
     Ok(json!({
         "held": held, "held_view": held_view, "released": released, "away_calls": away_calls,
-        "capped": capped, "next_day": next_day, "cap_calls": cap.notifier_calls()?, "cap_view": notification_view(&cap.root)?,
-        "snoozed": snoozed, "early": early, "due": due, "snooze_calls": snooze.notifier_calls()?, "snooze_view": notification_view(&snooze.root)?,
+        "capped": capped, "next_day": next_day, "cap_calls": cap.notifier_calls()?, "cap_view": cap_view,
+        "snoozed": snoozed, "early": early, "due": due, "snooze_calls": snooze.notifier_calls()?, "snooze_view": snooze_view,
         "quiet_boundaries": quiet_boundaries,
     }))
 }
@@ -1118,7 +1189,7 @@ fn notify_project_quiet(base: &Path) -> Result<Value> {
     Ok(json!({
         "candidates": candidates,
         "second_refs": second_refs, "third_refs": third_refs, "fourth_refs": fourth_refs, "final_refs": final_refs,
-        "calls": workspace.notifier_calls()?, "view": notification_view(root)?,
+        "calls": workspace.notifier_calls()?, "view": notification_view(&reserved.root)?,
         "presented": presented, "held": held, "reserved_calls": reserved.notifier_calls()?, "returned": returned, "returned_view": returned_view, "returned_calls": reserved.notifier_calls()?,
     }))
 }
@@ -1153,6 +1224,113 @@ fn agent_task(root: &Path, title: &str) -> Result<Value> {
     Ok(task)
 }
 
+fn seed_suggestion(root: &Path, kind: &str, data: Value) -> Result<String> {
+    let item_id = format!("{kind}-kind");
+    let item =
+        json!({"id": item_id, "type": "proposal", "kind": kind, "status": "open", "data": data});
+    crate::write_json(root, "day/inbox.json", &json!({"items": [item]}))?;
+    let notification = json!({
+        "id": format!("n-{kind}"),
+        "key": format!("inbox:{item_id}"),
+        "item": item_id,
+        "refs": [item_id],
+        "count": 1,
+        "kind": "suggestion",
+        "sub": kind,
+        "source": "careerbrew",
+        "headline": "careerbrew: a suggestion",
+        "why": "a decision waits",
+        "next": "accept or dismiss it",
+        "priority": 3,
+        "priority_why": "3 for a suggestion",
+        "at": "2026-10-21T10:00:00+00:00",
+        "status": "new",
+        "popup": "sent",
+        "created_at": "2026-10-21T10:00:00+00:00",
+        "updated_at": "2026-10-21T10:00:00+00:00",
+        "acted_at": "",
+        "snooze_until": "",
+        "resolved": "",
+    });
+    crate::write_json(
+        root,
+        "day/notifications.json",
+        &json!({"items": [notification], "popups": []}),
+    )?;
+    Ok(format!("n-{kind}"))
+}
+
+fn suggestion_kinds(base: &Path) -> Result<Value> {
+    let mut out = Map::new();
+    for kind in [
+        "task-done",
+        "new-task",
+        "source",
+        "feed-rule",
+        "plugin",
+        "goal",
+        "goal-cli",
+    ] {
+        let workspace = Workspace::new(base, &format!("kind-{kind}"), false)?;
+        let root = &workspace.root;
+        let data = match kind {
+            "task-done" => json!({"task": "t001"}),
+            "new-task" => json!({"title": "Ticket work"}),
+            "source" => json!({"project": "billing", "kind": "repo", "ref": "example/added"}),
+            "feed-rule" => {
+                json!({"rule": {"name": "quiet", "when": {"source": "chat"}, "triage": "fyi"}})
+            }
+            "plugin" => json!({"plugin": "acme", "task": "Document the rollout", "link": ""}),
+            _ => {
+                json!({"id": "goal-test", "title": "Grow", "kind": "custom", "date": "2026-12-01"})
+            }
+        };
+        if kind == "task-done" {
+            priorities::add(root, "Finish me", 3, 3, json!(1.0), None, &[])?;
+        }
+        if kind == "source" {
+            projects::add(root, "billing", Default::default())?;
+        }
+        let nid = seed_suggestion(
+            root,
+            if kind.starts_with("goal") {
+                "goal"
+            } else {
+                kind
+            },
+            data,
+        )?;
+        let accepted: Value = if kind == "goal-cli" {
+            json!(error(
+                notify::act(root, &nid, "accept", "cli", None).map(|_| ())
+            ))
+        } else {
+            notify::act(
+                root,
+                &nid,
+                "accept",
+                if kind == "goal" { "ui" } else { "cli" },
+                None,
+            )?
+        };
+        let tasks = priorities::load(root)?;
+        let every = projects::load(root)?;
+        let goals = notify::goals_load(root)?;
+        let rules = feed::rules(root)?;
+        out.insert(
+            kind.into(),
+            json!({
+                "accepted": accepted,
+                "tasks": tasks,
+                "projects": every,
+                "goals": goals,
+                "rules": rules,
+            }),
+        );
+    }
+    Ok(Value::Object(out))
+}
+
 fn notify_suggestions(base: &Path) -> Result<Value> {
     let workspace = Workspace::new(base, "notify-suggestions", true)?;
     let root = &workspace.root;
@@ -1161,7 +1339,6 @@ fn notify_suggestions(base: &Path) -> Result<Value> {
     let suggestion = agent_task(root, "Review the rollout checklist")?;
     let first = notify::run(root, true, None)?;
     let first_view = notification_view(root)?;
-    let first_calls = workspace.notifier_calls()?;
     let first_item = notify::load(root)?["items"][0].clone();
     notify::inbox_dismiss(root, &text(field(&first_item, "item")))?;
     let popup = notify::load(root)?["popups"]
@@ -1187,12 +1364,16 @@ fn notify_suggestions(base: &Path) -> Result<Value> {
         .into_iter()
         .map(|row| json!([text(field(&row, "id")), text(field(&row, "status"))]))
         .collect::<Vec<_>>();
+    let repeated_offer = notify::inbox_offer(root, &suggestion)?;
+    let kinds = suggestion_kinds(base)?;
+    let clean = clean_text(root)?;
+    let sealed = std::fs::read(root.join("day/notifications.json"))?.starts_with(b"CBV1\n");
     Ok(json!({
         "suggestion": suggestion,
-        "first": first, "first_view": first_view, "first_calls": first_calls,
+        "first": first, "first_view": first_view, "first_calls": workspace.notifier_calls()?,
         "late": late, "late_view": late_view,
         "second": second, "accepted": accepted, "accepted_view": accepted_view,
-        "inbox": inbox_state, "calls": workspace.notifier_calls()?, "clean": clean_text(root)?, "sealed": std::fs::read(root.join("day/notifications.json"))?.starts_with(b"CBV1\n"),
+        "inbox": inbox_state, "repeated_offer": repeated_offer, "kinds": kinds, "calls": workspace.notifier_calls()?, "clean": clean, "sealed": sealed,
     }))
 }
 
@@ -1207,7 +1388,13 @@ fn apply_click_public(root: &Path, popup: &Value, action: &str) -> Result<String
                 .map(|value| text(Some(value)))
                 .collect::<Vec<_>>()
         });
-    match notify::act(root, &target, action, "popup", refs.as_deref()) {
+    match notify::act(
+        root,
+        &target,
+        &action.to_lowercase(),
+        "popup",
+        refs.as_deref(),
+    ) {
         Ok(_) => Ok(action.into()),
         Err(_) => Ok(String::new()),
     }

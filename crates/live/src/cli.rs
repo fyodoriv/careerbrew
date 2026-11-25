@@ -77,11 +77,13 @@ pub fn live_cycle(root: &Path) -> Value {
                     verdicts
                 }
             );
-            for (name, row) in rec["sources"]
-                .as_object()
-                .into_iter()
-                .flat_map(|rows| rows.iter())
-            {
+            let sources = match live::sources(root) {
+                Ok(sources) => sources,
+                Err(error) => return invocation(2, format!("error: {}\n", error.message)),
+            };
+            for source in sources {
+                let name = text(field(&source, "name"));
+                let row = &rec["sources"][&name];
                 let error_kind = text(field(row, "error_kind"));
                 let error = if matches!(error_kind.as_str(), "LiveError" | "FeedError") {
                     text(field(row, "error"))

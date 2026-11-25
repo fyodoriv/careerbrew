@@ -11,3 +11,5 @@ crates/live/src/cli.rs,port,rust-14,Component live review and notification CLI a
 crates/live/src/synthetic.rs,port,rust-14,Synthetic live review and notification workload
 crates/live/src/bin/live-component.rs,port,rust-14,Synthetic-only native live candidate entry point
 crates/live/tests/component.rs,keep-native,rust-00,rust-14 native rule and decision controls
+xtask/src/rust14.rs,keep-native,rust-00,Custom rust-14 semantic privacy and write verification runner
+xtask/tests/rust14.rs,keep-native,rust-00,rust-14 registration evidence identity and planted write controls

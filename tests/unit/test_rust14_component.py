@@ -137,8 +137,9 @@ def test_live_health_review_and_notification_contracts_match_python(candidate, t
         assert dedup["priorities"] == {"pagerduty:P1": {"int": "5"}, "slack:C1:1.0": {"int": "4"}, "github:pr-9": {"int": "4"}, "slack:C3:3.0": {"int": "4"}}
         assert dedup["first"]["reason"] == "sent" and dedup["repeated"]["reason"] == ""
         assert dedup["first_view"]["items"][0]["count"] == {"int": "1"}
-        assert dedup["closed_view"]["items"][0]["status"] == "done"
+        assert dedup["closed_view"]["items"][0]["status"] == "new"
         assert dedup["reopened_view"]["items"][0]["status"] == "new" and dedup["sealed"] is True
+        assert dedup["notifier_clean"] is True
 
         timed = case(report, "notify-time")
         assert timed["held"]["reason"] == "quiet" and timed["released"]["reason"] == "sent"
