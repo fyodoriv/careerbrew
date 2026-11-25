@@ -894,6 +894,37 @@ pub const STEPS: &[Step] = &[
         ],
     },
     Step {
+        // rust-14 starts with its real Python oracle. The native candidate and
+        // its effective source bindings join with the component implementation.
+        id: "rust-14",
+        oracle: &["-I", "-B", "tests/oracles/rust14.py", "--all"],
+        cases: &[],
+        candidate: None,
+        http_contract: false,
+        data_contract: false,
+        role_contract: false,
+        registry_projection: false,
+        no_python: true,
+        env: &[],
+        sources: &[
+            "tests/oracles/rust14.py",
+            "src/careerbrew/work/live.py",
+            "src/careerbrew/work/listen.py",
+            "src/careerbrew/work/review_ask.py",
+            "src/careerbrew/work/health.py",
+            "src/careerbrew/notify.py",
+        ],
+        fixtures: &[
+            "tests/fixtures/live/chat.json",
+            "tests/fixtures/live/mail.json",
+            "tests/fixtures/live/sources.yaml",
+            "tests/fixtures/live/tickets.json",
+            "tests/fixtures/live/listen/chat.json",
+            "tests/fixtures/live/listen/sources.yaml",
+            "tests/fixtures/notifier/fake-notifier.sh",
+        ],
+    },
+    Step {
         // rust-04 is a vector step (privacy, policy and approval decisions).
         // Its Python oracle `--all` runs every set over the generator's
         // vectors in one isolated process. `verify` routes the step to the

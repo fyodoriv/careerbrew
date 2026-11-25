@@ -2526,6 +2526,30 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native live cycle and notifications.
 - **Gate:** 100% of cycle, reviewer and notification cases agree; 0 unsolicited
   sends, duplicate notifications or content-bearing logs.
+- **Component pre-registration (2026-11-25):** source revision
+  `bbab16d06ea75ca8a39cc48e40fc9f3c509bfff9`; Python oracle
+  `tests/oracles/rust14.py`. Twelve fixed synthetic cases cover source config
+  and plugin rosters; live-cycle verdicts and locks; validated-unchanged,
+  stale, malformed, future and reversed acquisition clocks; read-only direct
+  health; reply/review drafts, project updates, goals and review sessions;
+  link policy; reviewer selection and CODEOWNERS; notification priority,
+  deduplication, reopening and batching; quiet hours, caps and snoozes;
+  per-reference project holds and launch reservations; suggestion decisions;
+  and the live/review/notify component CLI adapters. Exact typed results,
+  semantic write maps and every storage/event write operation are compared.
+  Only owned paths, generated record identities, sealed-record bytes and event
+  wall-clock timestamps are normalized; source timestamps, health ages,
+  notification states, privacy and write transitions remain strict. Thirty
+  fresh Python runs establish baseline B. Verify requires all twelve cases
+  with zero contract, privacy, side-effect, missing-write or duplicate-write
+  violations. Measure requires 30 unique interleaved pairs in each cold and
+  warm regime. CPU-time p95 and process-tree peak RSS must each be at most
+  1.10 x the paired oracle in each regime; unmeasured noise floors use that
+  ratio without relaxation. Any mismatch, unsolicited send, duplicate
+  notification, content-bearing log or resource violation keeps Python.
+  Later-owned inbox/results/standup/goal behavior stays behind typed component
+  providers. This is component parity only: production dispatch, shipped
+  crates and activation do not change.
 
 ### rust-15: Port canonical work-day records and questions
 
