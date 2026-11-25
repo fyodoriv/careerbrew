@@ -2506,7 +2506,29 @@ fn replan_goal(root: &Path, day: &str) -> Result<()> {
         .filter(|row| !truthy(field(row, "goal")))
         .collect::<Vec<_>>();
     schedule.extend(goal_plan_blocks(day));
-    schedule.sort_by_key(|row| text(field(row, "start")));
+    let tasks = careerbrew_projects::priorities::load(root)?;
+    let mut next_start = chrono::DateTime::parse_from_rfc3339(&format!("{day}T10:40:00+00:00"))
+        .map_err(|_| crate::error("ValueError", "invalid goal schedule clock"))?;
+    for row in &mut schedule {
+        if truthy(field(row, "goal")) {
+            continue;
+        }
+        let task_id = text(field(row, "task"));
+        let task = tasks
+            .iter()
+            .find(|task| text(field(task, "id")) == task_id)
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        let impact = task["impact"].as_i64().unwrap_or(3);
+        let estimate = careerbrew_projects::priorities::estimate(&task);
+        let minutes = (estimate * 60.0).round() as i64;
+        row["carry_over"] = json!(false);
+        row["reason"] = json!(format!("impact {impact}"));
+        row["start"] = json!(next_start.format("%Y-%m-%dT%H:%M:%S%:z").to_string());
+        let end = next_start + TimeDelta::minutes(minutes);
+        row["end"] = json!(end.format("%Y-%m-%dT%H:%M:%S%:z").to_string());
+        next_start = end + TimeDelta::minutes(5);
+    }
     let mut plan = if existing.as_object().is_none_or(Map::is_empty) {
         json!({
             "calendar_connected": false,
@@ -2521,9 +2543,16 @@ fn replan_goal(root: &Path, day: &str) -> Result<()> {
         })
     } else {
         let mut plan = existing;
+        plan["calendar_connected"] = json!(false);
+        plan["calendar_errors"] = json!([]);
+        plan["calibration"] = json!(1.0);
+        plan["focus_minutes"] = json!(408);
+        plan["free_minutes"] = json!(510);
+        plan["meetings"] = json!([]);
         plan["schedule"] = json!(schedule);
         plan
     };
+    schedule.sort_by_key(|row| text(field(row, "start")));
     if plan["day"].is_null() {
         plan["day"] = json!(day);
     }

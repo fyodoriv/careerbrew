@@ -47,6 +47,7 @@ impl Workspace {
         let base = base.join(name);
         let root = base.join("data");
         std::fs::create_dir_all(&root)?;
+        std::fs::create_dir_all(root.join("work"))?;
         std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o700))?;
         std::fs::create_dir_all(base.join("home"))?;
         std::env::set_var("HOME", base.join("home"));
@@ -1348,6 +1349,7 @@ fn suggestion_kinds(base: &Path) -> Result<Value> {
     }
     let workspace = Workspace::new(base, "goal-existing", false)?;
     let root = &workspace.root;
+    priorities::add(root, "Existing work", 3, 3, json!(1.0), None, &[])?;
     let existing_plan = json!({
         "calendar_connected": true,
         "calendar_errors": [],
@@ -1356,7 +1358,7 @@ fn suggestion_kinds(base: &Path) -> Result<Value> {
         "focus_minutes": 120,
         "free_minutes": 300,
         "meetings": [],
-        "schedule": [{"carry_over": true, "end": "2026-10-25T08:30+00:00", "goal": false, "reason": "existing work", "start": "2026-10-25T08:00+00:00", "task": "owner-task", "title": "Existing work"}],
+        "schedule": [{"carry_over": true, "end": "2026-10-25T08:30+00:00", "goal": false, "reason": "existing work", "start": "2026-10-25T08:00+00:00", "task": "t001", "title": "Existing work"}],
         "unplaced": [],
     });
     crate::write_json(root, "day/plan-2026-10-25.json", &existing_plan)?;

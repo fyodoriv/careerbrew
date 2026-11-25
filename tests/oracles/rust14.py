@@ -767,6 +767,7 @@ def _suggestion_kinds(base: Path) -> dict[str, Any]:
             "rules": feed.rules(),
         }
     Workspace(base, "goal-existing")
+    priorities.add("Existing work", 3, 3, 1.0, [])
     existing_plan = {
         "calendar_connected": True,
         "calendar_errors": [],
@@ -775,7 +776,7 @@ def _suggestion_kinds(base: Path) -> dict[str, Any]:
         "focus_minutes": 120,
         "free_minutes": 300,
         "meetings": [],
-        "schedule": [{"carry_over": True, "end": "2026-10-25T08:30+00:00", "goal": False, "reason": "existing work", "start": "2026-10-25T08:00+00:00", "task": "owner-task", "title": "Existing work"}],
+        "schedule": [{"carry_over": True, "end": "2026-10-25T08:30+00:00", "goal": False, "reason": "existing work", "start": "2026-10-25T08:00+00:00", "task": "t001", "title": "Existing work"}],
         "unplaced": [],
     }
     store.write_json(paths.sub("day", "plan-2026-10-25.json"), existing_plan)
