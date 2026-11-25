@@ -9,8 +9,8 @@ repository can do any step from this page and the task block.
   actions` routes to `careerbrew-native` since `rust-03` activated
   (2026-11-19, [rust-03 verdict](#rust-03-verdict)). No other gain is claimed. See [Current state](#current-state) and
   [State of rust-00](#state-of-rust-00).
-- **Next task:** `rust-13` (feed ingestion and transcript normalization).
-  `rust-00` through `rust-12` have their recorded preparation or component
+- **Next task:** `rust-14` (live listening, review asks and notifications).
+  `rust-00` through `rust-13` have their recorded preparation or component
   results; only the `rust-03` action catalog is active in production. Follow-ups
   and later activation closure remain tasks in `TASKS.md`.
 - **How to read it:** the [goal](#goal-and-vision) and [decision](#decision-and-rejected-alternatives),
@@ -2391,6 +2391,126 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native feed ingestion.
 - **Gate:** 100% of event vectors agree; 0 dropped edits, duplicate events or
   idle change-version churn.
+- **Component pre-registration (2026-11-24):** source revision
+  `8b041f81eed739c98b95b39e611bf7aa58850276`; Python oracle
+  `tests/oracles/rust13.py`. Eight fixed synthetic cases cover recorded source
+  ingestion, edited upserts, raw ticket/mail/calendar replies, Claude and Codex
+  transcripts, saved-output containment and `since`, open-ask/cycle closure, and
+  team feeds. Exact typed results and semantic write maps are compared per
+  phase. Only owned paths, generated keys and sealed-record bytes are
+  normalized; event facts, source timestamps, cycle counts, privacy and write
+  transitions remain strict. Thirty fresh Python runs establish baseline B.
+  Verify requires all eight cases with zero contract, privacy, side-effect,
+  missing-write or duplicate-write violations. Measure requires 30 unique
+  interleaved pairs in each cold and warm regime. CPU-time p95 and process-tree
+  peak RSS must each be at most 1.10 x the paired oracle in each regime;
+  unmeasured noise floors use that ratio without relaxation. Any mismatch,
+  dropped edit, duplicate event, idle write, containment or resource violation
+  keeps Python. Not-yet-native health/live/completion and promise/evidence
+  integration stay behind typed component providers. This is component parity
+  only: production dispatch, shipped crates and activation do not change.
+- **Component implementation:** `crates/feed` provides recorded Slack,
+  PagerDuty and Outlook readers with configured/plugin source identities, raw
+  ticket/mail/calendar conversion, exact original/analysis upserts,
+  Claude/Codex transcript normalization, link and open-ask rules, project-aware
+  team matching, partial transport retention and component CLI adapters. It reuses vault
+  storage, atomic writes, exact locks and events, recorded source transport and
+  native team matching. `feed-component` is synthetic-only. The custom verifier
+  compares exact typed output, semantic writes, per-phase write transitions and
+  every storage-write operation; planted extra, missing, phase-transition and
+  same-phase duplicate writes must fail. Production Python,
+  native routes, shipped crates and activation are unchanged.
+- **Review-correction pre-registration (2026-11-25):** source revision
+  `f0fd1132720c13165837c11de686ad2bfdbe2140` adds non-UTC naive/aware event
+  cases, local workday boundaries, NaN/infinity controls and redacted bounded
+  connector failures. The verifier also compares every storage-write operation,
+  not only before/after state. Success remains 100% exact typed and write
+  parity, zero privacy/side-effect violations and resource ratios at most 1.10;
+  any mismatch, raw error leak, accepted non-finite timestamp or hidden write
+  keeps Python. The hosted gap assertion must count every configured silent
+  source. Production activation remains unchanged.
+- **Review-correction acceptance (2026-11-25, macOS):** clean measured source
+  `fdd2b506074b318528cd639c0cf119d7a602a449`; evidence-source hash
+  `054f593cf37ddffdfa6fbeca7a835c7422486d5998a6ca4e882cec86de481dcc`;
+  fixture hash `8bf29c5928700145219dd63b425271ade19e5c191df9aef1829e2357d8ebd583`;
+  release-candidate SHA-256
+  `9cee9a54238280ffa43ae025c7c78cdd7453da890f13f45995b8c04743a25af3`.
+  Baseline: 30 runs; CPU p50/p95 308,097/332,005 microseconds and tree-RSS
+  p50/p95 52,609,024/53,018,624 bytes. Verify passes 10/10 with zero contract,
+  privacy, side-effect, missing-write or duplicate-write violations, including
+  local-time/non-finite and redacted-source-failure cases. Measurement: 30
+  unique, uncached pairs in each regime. Cold CPU p95 was 335,071 to 101,557
+  microseconds; warm was 333,577 to 98,039. Cold tree-RSS p95 was 52,936,704 to
+  13,058,048 bytes; warm was 52,854,784 to 13,025,280. Each ratio is below
+  1.10. `decide` returned component-only `activate`; fresh extra, missing,
+  prior-phase duplicate and same-phase operation-duplicate controls returned
+  `keep-python`. Production routes, shipped crates and activation remain
+  unchanged; activation needs the complete native closure and rollback evidence.
+- **Second-review pre-registration (2026-11-25):** source revision
+  `185aef0c8088f53922c993c7ded8cb89a6788475` adds configured source/plugin
+  inventory and origin identity, project-linked and archived teammate controls,
+  and partial Slack retention after teammate-search/reply transport failures.
+  Direct output, operation and semantic-write parity remain mandatory; source
+  errors emit only content-free diagnostics. All cases must pass with zero
+  violations and each 30-pair resource ratio must remain at most 1.10. Any
+  omitted source, wrong project, lost partial event or leaked error keeps Python.
+  Event-log comparisons normalize only the wall-clock `ts` value; source event
+  timestamps and every diagnostic field remain strict.
+- **Privacy-review pre-registration (2026-11-25):** source revision
+  `b161172d7d73543e20d91a862d9dfab40dd1abb1` adds an installed plugin's
+  manifest-owned sensitive term beside a data-root term. Connector failures must
+  redact both before the existing 200-character bound. The plugin path comes
+  from the validated manifest below its own root, never from an unchanged lock
+  entry. Any raw canary, unsafe path, or other regression keeps Python. All 12
+  cases and four write controls stay mandatory, with fresh 30-pair resource
+  acceptance and no activation change.
+- **Third-review pre-registration (2026-11-25):** source revision
+  `b9609ad334a54c2e05ba290e484b11d5ae4292b4` adds an absent plugin sensitive
+  file, system `/etc/localtime`, colon-prefixed `TZ`, and a nonexistent DST wall
+  time. Missing valid files supply no terms; containment remains mandatory.
+  Reuse the rust-11 local-zone and fold=0 adapters instead of a silent UTC
+  fallback. Bind every executed setup/native adapter, including `setup/lib.rs`.
+  All 12 cases, four write controls, and 30-pair resource limits remain in force.
+  Browser code stays unchanged. Fresh acceptance and hosted claims must name
+  their exact head, with pending checks never described as green.
+- **Third-review acceptance (2026-11-25, macOS):** clean measured source
+  `62c321dde979738b9be76d47c172c79f47372caf`; evidence-source hash
+  `d8ec1ce8f1e3436bf739969cd652326afccf57f986701e0d7d868f6a5ebe53d5`;
+  fixture hash `8bf29c5928700145219dd63b425271ade19e5c191df9aef1829e2357d8ebd583`;
+  release-candidate SHA-256
+  `eed9d6df4f04c84c0fac6f7ecbbaf6d122eba00d1e71786ac37460d8825cac0d`.
+  Baseline: 30 runs; CPU p50/p95 384,630/410,962 microseconds and tree-RSS
+  p50/p95 53,231,616/53,592,064 bytes. Verify passes 12/12 with zero violations,
+  including absent plugin files, system/colon timezones and DST gaps. Cold CPU
+  p95 was 412,191 to 157,896 microseconds; warm was 412,247 to 157,820. Cold
+  tree-RSS p95 was 53,624,832 to 14,450,688 bytes; warm was 53,821,440 to
+  14,417,920. Each ratio is below 1.10. `decide` returned component-only
+  `activate`; all four write controls returned `keep-python`. Hosted checks
+  remain pending until a fresh run passes. Production routes, shipped crates
+  and activation remain unchanged.
+- **Final-review pre-registration (2026-11-25):** source revision
+  `ce46adf14035174d921f59ac9c546d9881dc54cd` binds `policy/tables.rs`, which
+  the policy text/canary code reads. Complete write tracing now covers the
+  vault's direct event-log append as well as `Store::write_text`. A planted
+  same-phase event-log duplicate must fail with a duplicate-write violation;
+  ordinary event content and timestamps follow the existing normalization.
+  All 12 cases, existing write controls, clean same-revision acceptance and
+  1.10 resource limits remain mandatory. No behavior or activation changes.
+- **Final-review acceptance (2026-11-25, macOS):** clean measured source
+  `ded91e9af578be56c9188a0d38a404fed818f6c3`; evidence-source hash
+  `cbb4a80609ece5909bd668799ab49393aab1e40cb57b45dd95f1a093211c7b6e`;
+  fixture hash `8bf29c5928700145219dd63b425271ade19e5c191df9aef1829e2357d8ebd583`;
+  release-candidate SHA-256
+  `237895cea272b2ef699a3808bf2e1ad8dbfb1c2dc917f81ee673c49466092e79`.
+  Baseline: 30 runs; CPU p50/p95 383,706/413,130 microseconds and tree-RSS
+  p50/p95 53,264,384/53,592,064 bytes. Verify passes 12/12 with zero violations.
+  Cold CPU p95 was 410,227 to 154,796 microseconds; warm was 410,713 to 160,171.
+  Cold tree-RSS p95 was 53,477,376 to 14,073,856 bytes; warm was 53,460,992 to
+  14,516,224. Each ratio is below 1.10. `decide` returned component-only
+  `activate`; extra, missing, phase-transition duplicate, same-phase storage
+  duplicate and direct event duplicate controls returned `keep-python`.
+  Production routes, shipped crates and activation remain unchanged. Hosted
+  claims remain pending until a fresh exact-head run passes.
 
 ### rust-14: Port live listening, review asks and notifications
 
@@ -2795,6 +2915,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | `crates/sessions/` | `careerbrew-sessions` | the rust-10 session, claim, agent activity, prior-selection, reply-draft and six-handler CLI component; synthetic `sessions-component` transport only | none: component parity only |
 | `crates/memory/` | `careerbrew-memory` | the rust-11 source identity, project import, memory sync and component CLI adapters; synthetic `memory-component` transport only | none: component parity only |
 | `crates/learn/` | `careerbrew-learn` | the rust-12 learning, project-scoped FSRS, replay, tour, explainer, PRD and CLI component; synthetic `learn-component` transport only | none: component parity only |
+| `crates/feed/` | `careerbrew-feed` | the rust-13 recorded feed readers, original/analysis transactions, raw replies, Claude/Codex transcript normalization, open asks, cycle and CLI component; synthetic `feed-component` transport only | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
@@ -3591,6 +3712,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 - `tests/fixtures/transcripts/feed-cycle/tool-results/` (1): `big.txt`
 - CLI handlers it ports out of `cli.py` (2): `cmd_work_feed`, `cmd_work_team`
 - Assertions it ports (7 test files, the files themselves are listed under `rust-27`): `us-63-today-open-asks.sh`, `us-78-team-feed.sh`, `test_issue_180.py`, `test_issue_228.py`, `test_issue_234.py`, `test_issue_316.py`, `test_issue_374_legacy_feed.py`
+- Native crate it adds (`keep-native` in the inventory): `crates/feed/` (`feed.rs`, `sources.rs`, `transcript.rs`, `cli.rs`, `synthetic.rs`, `lib.rs` and `bin/feed-component.rs`), plus `crates/feed/tests/component.rs`, `tests/oracles/rust13.py`, `tests/unit/test_rust13_component.py`, `xtask/src/rust13.rs` and `xtask/tests/rust13.rs`.
 
 #### rust-14: Port live listening, review asks and notifications (11 files)
 

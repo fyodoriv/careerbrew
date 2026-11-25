@@ -13,6 +13,17 @@ use std::io::{ErrorKind, Read, Write};
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Component, Path};
 
+/// Optional synthetic-verification write receipt. The log is invocation-scoped
+/// by its explicit path and records paths only, never stored content.
+pub(crate) fn trace_write(path: &Path) -> Result<(), StoreError> {
+    let Some(trace) = std::env::var_os("CAREERBREW_RUST13_WRITE_TRACE") else {
+        return Ok(());
+    };
+    let mut file = OpenOptions::new().append(true).create(true).open(trace)?;
+    writeln!(file, "{}", path.display())?;
+    Ok(())
+}
+
 pub trait KeyProvider {
     fn load_key(&self, create: bool) -> Result<String, StoreError>;
 }
@@ -155,7 +166,8 @@ impl<'a> Store<'a> {
         let _ = std::fs::set_permissions(&self.root, std::fs::Permissions::from_mode(0o700));
         let seal = self.encryption_enabled() && self.sealable(path);
         let key = if seal { Some(self.key(true)?) } else { None };
-        atomic::write_text(path, key.as_deref(), seal, text)
+        atomic::write_text(path, key.as_deref(), seal, text)?;
+        trace_write(path)
     }
 
     pub fn write_text_if_changed(&self, path: &Path, text: &str) -> Result<bool, StoreError> {

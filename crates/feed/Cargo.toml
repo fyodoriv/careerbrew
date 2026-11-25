@@ -1,0 +1,25 @@
+[package]
+name = "careerbrew-feed"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+careerbrew-vault = { path = "../vault" }
+careerbrew-setup = { path = "../setup" }
+careerbrew-sources = { path = "../sources" }
+careerbrew-projects = { path = "../projects" }
+careerbrew-policy = { path = "../policy" }
+careerbrew-memory = { path = "../memory" }
+serde_json = { version = "=1.0.154", features = ["arbitrary_precision"] }
+chrono = { version = "=0.4.45", default-features = false, features = ["std", "clock"] }
+chrono-tz = "=0.10.4"
+regex = "=1.13.2"
+glob = "=0.3.4"
+sha2 = "=0.10.9"
+tempfile = "=3.23.0"
+
+[[bin]]
+name = "feed-component"
+path = "src/bin/feed-component.rs"

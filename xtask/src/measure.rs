@@ -121,6 +121,12 @@ pub const CANDIDATES: &[Candidate] = &[
         args: &["--all"],
         vectors: None,
     },
+    Candidate {
+        step: "rust-13",
+        program: "target/release/feed-component",
+        args: &["--all"],
+        vectors: None,
+    },
 ];
 
 /// The cargo profile a registered candidate was built with, read from its

@@ -194,6 +194,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "careerbrew-feed"
+version = "0.1.0"
+dependencies = [
+ "careerbrew-memory",
+ "careerbrew-policy",
+ "careerbrew-projects",
+ "careerbrew-setup",
+ "careerbrew-sources",
+ "careerbrew-vault",
+ "chrono",
+ "chrono-tz",
+ "glob",
+ "regex",
+ "serde_json",
+ "sha2",
+ "tempfile",
+]
+
+[[package]]
 name = "careerbrew-hash-experiment"
 version = "0.1.0"
 dependencies = [

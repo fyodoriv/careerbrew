@@ -1,0 +1,13 @@
+tests/oracles/rust13.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-13 differential gate
+tests/unit/test_rust13_component.py,keep-native,rust-00,rust-13 native component and CLI assertions
+crates/feed/Cargo.toml,keep-native,rust-00,Component-only feed crate manifest
+crates/feed/src/lib.rs,port,rust-13,Component-only storage clock event and typed provider boundary
+crates/feed/src/feed.rs,port,rust-13,Feed facts raw replies original analysis transactions and ask closure
+crates/feed/src/sources.rs,port,rust-13,Recorded Slack PagerDuty and Outlook feed readers
+crates/feed/src/transcript.rs,port,rust-13,Claude and Codex transcript normalization containment and gap accounting
+crates/feed/src/cli.rs,port,rust-13,Component feed cycle transcript and team CLI adapters
+crates/feed/src/synthetic.rs,port,rust-13,Synthetic feed transcript workload and typed integration providers
+crates/feed/src/bin/feed-component.rs,port,rust-13,Synthetic-only native feed candidate entry point
+crates/feed/tests/component.rs,keep-native,rust-00,rust-13 native raw reply and transcript controls
+xtask/src/rust13.rs,keep-native,rust-00,Custom rust-13 semantic privacy and write verification runner
+xtask/tests/rust13.rs,keep-native,rust-00,rust-13 registration evidence identity and planted write controls
