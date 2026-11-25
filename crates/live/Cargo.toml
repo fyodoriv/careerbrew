@@ -1,0 +1,29 @@
+[package]
+name = "careerbrew-live"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+careerbrew-feed = { path = "../feed" }
+careerbrew-memory = { path = "../memory" }
+careerbrew-policy = { path = "../policy" }
+careerbrew-projects = { path = "../projects" }
+careerbrew-sessions = { path = "../sessions" }
+careerbrew-setup = { path = "../setup" }
+careerbrew-sources = { path = "../sources" }
+careerbrew-vault = { path = "../vault" }
+serde_json = { version = "=1.0.154", features = ["arbitrary_precision"] }
+chrono = { version = "=0.4.45", default-features = false, features = ["std", "clock"] }
+chrono-tz = "=0.10.4"
+regex = "=1.13.2"
+glob = "=0.3.4"
+sha2 = "=0.10.9"
+tempfile = "=3.23.0"
+base64 = "=0.22.1"
+uuid = { version = "=1.29.3", features = ["v4"] }
+
+[[bin]]
+name = "live-component"
+path = "src/bin/live-component.rs"

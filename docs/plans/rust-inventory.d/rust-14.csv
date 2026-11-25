@@ -1,2 +1,13 @@
 tests/oracles/rust14.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-14 differential gate
 tests/unit/test_rust14_component.py,keep-native,rust-00,rust-14 native component and CLI assertions
+crates/live/Cargo.toml,keep-native,rust-00,Component-only live crate manifest
+crates/live/src/lib.rs,port,rust-14,Component-only storage clock event and typed provider boundary
+crates/live/src/live.rs,port,rust-14,Live source config one-lock cycles verdicts and acquisition receipts
+crates/live/src/health.rs,port,rust-14,Read-only direct and adapter acquisition health
+crates/live/src/listen.rs,port,rust-14,Draft-only replies research reviews project updates and goal lines
+crates/live/src/review.rs,port,rust-14,Reviewer selection CODEOWNERS and review-draft validation
+crates/live/src/notify.rs,port,rust-14,Notification dedup quiet snooze project holds and fake notifier adapters
+crates/live/src/cli.rs,port,rust-14,Component live review and notification CLI adapters
+crates/live/src/synthetic.rs,port,rust-14,Synthetic live review and notification workload
+crates/live/src/bin/live-component.rs,port,rust-14,Synthetic-only native live candidate entry point
+crates/live/tests/component.rs,keep-native,rust-00,rust-14 native rule and decision controls

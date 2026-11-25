@@ -2550,6 +2550,12 @@ the crate until the rust-05 and rust-07 closure is native, so
   Later-owned inbox/results/standup/goal behavior stays behind typed component
   providers. This is component parity only: production dispatch, shipped
   crates and activation do not change.
+- **Component implementation:** `crates/live` provides live source/cycle and
+  direct-health adapters, draft-only listening, reviewer selection and
+  notification state with fake notifier transport. `live-component` is
+  synthetic-only. Production Python, native routes, shipped crates and
+  activation are unchanged. The full differential and paired-resource evidence
+  is recorded only after every registered case and control passes.
 
 ### rust-15: Port canonical work-day records and questions
 
@@ -2940,6 +2946,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | `crates/memory/` | `careerbrew-memory` | the rust-11 source identity, project import, memory sync and component CLI adapters; synthetic `memory-component` transport only | none: component parity only |
 | `crates/learn/` | `careerbrew-learn` | the rust-12 learning, project-scoped FSRS, replay, tour, explainer, PRD and CLI component; synthetic `learn-component` transport only | none: component parity only |
 | `crates/feed/` | `careerbrew-feed` | the rust-13 recorded feed readers, original/analysis transactions, raw replies, Claude/Codex transcript normalization, open asks, cycle and CLI component; synthetic `feed-component` transport only | none: component parity only |
+| `crates/live/` | `careerbrew-live` | the rust-14 live-cycle, acquisition/direct health, listening, reviewer and notification component; synthetic `live-component` transport only | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
