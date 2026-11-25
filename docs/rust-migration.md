@@ -2445,6 +2445,14 @@ the crate until the rust-05 and rust-07 closure is native, so
   prior-phase duplicate and same-phase operation-duplicate controls returned
   `keep-python`. Production routes, shipped crates and activation remain
   unchanged; activation needs the complete native closure and rollback evidence.
+- **Second-review pre-registration (2026-11-25):** source revision
+  `185aef0c8088f53922c993c7ded8cb89a6788475` adds configured source/plugin
+  inventory and origin identity, project-linked and archived teammate controls,
+  and partial Slack retention after teammate-search/reply transport failures.
+  Direct output, operation and semantic-write parity remain mandatory; source
+  errors emit only content-free diagnostics. All cases must pass with zero
+  violations and each 30-pair resource ratio must remain at most 1.10. Any
+  omitted source, wrong project, lost partial event or leaked error keeps Python.
 
 ### rust-14: Port live listening, review asks and notifications
 
