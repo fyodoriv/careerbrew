@@ -2428,6 +2428,23 @@ the crate until the rust-05 and rust-07 closure is native, so
   any mismatch, raw error leak, accepted non-finite timestamp or hidden write
   keeps Python. The hosted gap assertion must count every configured silent
   source. Production activation remains unchanged.
+- **Review-correction acceptance (2026-11-25, macOS):** clean measured source
+  `fdd2b506074b318528cd639c0cf119d7a602a449`; evidence-source hash
+  `054f593cf37ddffdfa6fbeca7a835c7422486d5998a6ca4e882cec86de481dcc`;
+  fixture hash `8bf29c5928700145219dd63b425271ade19e5c191df9aef1829e2357d8ebd583`;
+  release-candidate SHA-256
+  `9cee9a54238280ffa43ae025c7c78cdd7453da890f13f45995b8c04743a25af3`.
+  Baseline: 30 runs; CPU p50/p95 308,097/332,005 microseconds and tree-RSS
+  p50/p95 52,609,024/53,018,624 bytes. Verify passes 10/10 with zero contract,
+  privacy, side-effect, missing-write or duplicate-write violations, including
+  local-time/non-finite and redacted-source-failure cases. Measurement: 30
+  unique, uncached pairs in each regime. Cold CPU p95 was 335,071 to 101,557
+  microseconds; warm was 333,577 to 98,039. Cold tree-RSS p95 was 52,936,704 to
+  13,058,048 bytes; warm was 52,854,784 to 13,025,280. Each ratio is below
+  1.10. `decide` returned component-only `activate`; fresh extra, missing,
+  prior-phase duplicate and same-phase operation-duplicate controls returned
+  `keep-python`. Production routes, shipped crates and activation remain
+  unchanged; activation needs the complete native closure and rollback evidence.
 
 ### rust-14: Port live listening, review asks and notifications
 
