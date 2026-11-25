@@ -2556,6 +2556,24 @@ the crate until the rust-05 and rust-07 closure is native, so
   synthetic-only. Production Python, native routes, shipped crates and
   activation are unchanged. The full differential and paired-resource evidence
   is recorded only after every registered case and control passes.
+- **Component acceptance (2026-11-25, macOS):** clean measured source
+  `216b3d63ebb6415cd3c4fecf7b474105aef2f5c0`; evidence-source hash
+  `13ab7fb6570381352e63d94943d2ab517038dd2ec274890d4f57e6a1fd976f07`;
+  fixture hash `6a12e9c239da09f3797293717ff2035f41d745bd104655b58aa6b25e38ff5966`;
+  release-candidate SHA-256
+  `63c355042bdf6ec46781430ffda2e914f02e6266a3e877e960adb0a2af964332`.
+  Baseline: 30 runs; CPU p50/p95 1,410,095/1,480,924 microseconds and tree-RSS
+  p50/p95 64,602,112/65,142,784 bytes. Verify passes 12/12 with zero contract,
+  privacy, side-effect, missing-write or duplicate-write violations, including
+  partial research merge, wrapped CODEOWNERS, all suggestion kinds and
+  reserved-address controls. Measurement: 30 unique, uncached pairs in each
+  regime. Cold CPU p95 was 1,491,488 to 720,678 microseconds; warm was
+  1,501,155 to 714,105. Cold tree-RSS p95 was 64,815,104 to 17,727,488 bytes;
+  warm was 64,913,408 to 17,760,256. Each ratio is below 1.10. `decide`
+  returned component-only `activate`; extra, missing, prior-phase duplicate,
+  same-phase operation duplicate and direct event duplicate controls returned
+  `keep-python`. Production routes, shipped crates and activation remain
+  unchanged; activation needs the complete native closure and rollback evidence.
 
 ### rust-15: Port canonical work-day records and questions
 
