@@ -1,0 +1,12 @@
+tests/oracles/rust15.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-15 differential gate
+tests/unit/test_rust15_component.py,keep-native,rust-00,rust-15 native component and assigned work.session CLI assertions
+crates/workday/Cargo.toml,keep-native,rust-00,Component-only workday crate manifest
+crates/workday/src/lib.rs,port,rust-15,Component-only storage clock event and typed provider boundary
+crates/workday/src/status.rs,port,rust-15,Canonical work-day status schema lock order timing history and no-op receipts
+crates/workday/src/questions.rs,port,rust-15,Question records Unicode limits rechecks stale-writer guards and public projections
+crates/workday/src/steps.rs,port,rust-15,Work-step validation about text workflow resolution and plugin source guards
+crates/workday/src/stages.rs,port,rust-15,Earliest-start stages raw running resource claims and safe readiness batches
+crates/workday/src/work_session.rs,port,rust-15,Assigned work.session component handler over the public sessions API
+crates/workday/src/synthetic.rs,port,rust-15,Synthetic work-day records questions stages sessions and legacy workload
+crates/workday/src/bin/workday-component.rs,port,rust-15,Synthetic-only native workday candidate entry point
+crates/workday/tests/component.rs,keep-native,rust-00,rust-15 direct Unicode no-op lock readiness and privacy controls
