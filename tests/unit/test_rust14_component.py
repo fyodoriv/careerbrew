@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -65,7 +66,8 @@ def case(report: dict, case_id: str) -> dict:
 
 
 def normalized(data: bytes, root: Path) -> bytes:
-    return data.replace(str(root).encode(), b"<owned>").replace(str(root.resolve()).encode(), b"<owned>")
+    owned = data.replace(str(root).encode(), b"<owned>").replace(str(root.resolve()).encode(), b"<owned>")
+    return re.sub(rb"[0-9A-Fa-f]{32}", b"<generated-id>", owned)
 
 
 def test_live_health_review_and_notification_contracts_match_python(candidate, tmp_path):
@@ -134,7 +136,7 @@ def test_live_health_review_and_notification_contracts_match_python(candidate, t
         assert review["last"] == ["src-dev", "org/team"] and review["mismatch"] == "ReviewAskError"
 
         dedup = case(report, "notify-dedup")
-        assert dedup["priorities"] == {"pagerduty:P1": {"int": "5"}, "slack:C1:1.0": {"int": "4"}, "github:pr-9": {"int": "4"}, "slack:C3:3.0": {"int": "4"}}
+        assert dedup["priorities"] == {"pagerduty:P1": {"int": "5"}, "slack:C1:1.0": {"int": "4"}, "github:pr-9": {"int": "4"}, "slack:C3:3.0": {"int": "4"}, "slack:old": {"int": "4"}}
         assert dedup["first"]["reason"] == "sent" and dedup["repeated"]["reason"] == ""
         assert dedup["first_view"]["items"][0]["count"] == {"int": "1"}
         assert dedup["closed_view"]["items"][0]["status"] == "new"
@@ -143,20 +145,30 @@ def test_live_health_review_and_notification_contracts_match_python(candidate, t
 
         timed = case(report, "notify-time")
         assert timed["held"]["reason"] == "quiet" and timed["released"]["reason"] == "sent"
-        assert timed["away_calls"][0][1] == "alerter"
+        assert timed["away_calls"][0][0] == "alerter"
         assert timed["capped"]["reason"] == "cap" and timed["next_day"]["reason"] == "sent"
         assert timed["snoozed"]["items"][0]["status"] == "snoozed"
         assert timed["early"]["reason"] == "" and timed["due"]["reason"] == "sent"
 
         quiet = case(report, "notify-project-quiet")
         assert quiet["candidates"] == [["slack:C1:1.0", True], ["slack:C1:2.0", False]]
-        assert quiet["second_refs"] == ["slack:C1:2.0"] and quiet["third_refs"] == ["slack:C1:3.0"]
+        assert quiet["second_refs"] == quiet["third_refs"] == ["slack:C1:2.0"]
         assert quiet["final_refs"] == ["slack:C1:1.0"] and quiet["presented"] == ""
         assert quiet["held"]["items"][0]["popup"] == "held:project" and quiet["returned"]["reason"] == "sent"
 
         suggestions = case(report, "notify-suggestions")
         assert suggestions["late"] == "" and suggestions["accepted"]["status"] == "done"
         assert suggestions["accepted"]["resolved"] == "accepted" and suggestions["sealed"] is True
+        schedule = suggestions["kinds"]["goal-existing"]["plan"]["schedule"]
+        assert [row["task"] for row in schedule] == ["goal:exercise", "goal:cards", "goal:lesson", "t001"]
+        assert schedule[-1] == {
+            "carry_over": False,
+            "end": "2026-10-25T11:40+00:00",
+            "reason": "impact 3",
+            "start": "2026-10-25T10:40+00:00",
+            "task": "t001",
+            "title": "Existing work",
+        }
         assert not any(suggestions["clean"].values())
 
         adapters = case(report, "cli-adapters")

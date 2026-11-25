@@ -2554,8 +2554,12 @@ the crate until the rust-05 and rust-07 closure is native, so
   direct-health adapters, draft-only listening, reviewer selection and
   notification state with fake notifier transport. `live-component` is
   synthetic-only. Production Python, native routes, shipped crates and
-  activation are unchanged. The full differential and paired-resource evidence
-  is recorded only after every registered case and control passes.
+  activation are unchanged. Differential controls include re-review message
+  dispatch, old-candidate freshness, quiet-project popup identity, exact
+  goal-first schedule order and minute-precision work blocks, generated
+  identity normalization, and osascript transport. The full differential and
+  paired-resource evidence is recorded only after every registered case and
+  control passes.
 - **Component acceptance (2026-11-25, macOS):** clean measured source
   `216b3d63ebb6415cd3c4fecf7b474105aef2f5c0`; evidence-source hash
   `13ab7fb6570381352e63d94943d2ab517038dd2ec274890d4f57e6a1fd976f07`;

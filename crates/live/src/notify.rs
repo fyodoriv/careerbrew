@@ -2522,13 +2522,19 @@ fn replan_goal(root: &Path, day: &str) -> Result<()> {
         let impact = task["impact"].as_i64().unwrap_or(3);
         let estimate = careerbrew_projects::priorities::estimate(&task);
         let minutes = (estimate * 60.0).round() as i64;
-        row["carry_over"] = json!(false);
-        row["reason"] = json!(format!("impact {impact}"));
-        row["start"] = json!(next_start.format("%Y-%m-%dT%H:%M:%S%:z").to_string());
+        let start = next_start.format("%Y-%m-%dT%H:%M%:z").to_string();
         let end = next_start + TimeDelta::minutes(minutes);
-        row["end"] = json!(end.format("%Y-%m-%dT%H:%M:%S%:z").to_string());
+        *row = json!({
+            "carry_over": false,
+            "end": end.format("%Y-%m-%dT%H:%M%:z").to_string(),
+            "reason": format!("impact {impact}"),
+            "start": start,
+            "task": task_id,
+            "title": text(field(row, "title")),
+        });
         next_start = end + TimeDelta::minutes(5);
     }
+    schedule.sort_by_key(|row| (!truthy(field(row, "goal")), text(field(row, "start"))));
     let mut plan = if existing.as_object().is_none_or(Map::is_empty) {
         json!({
             "calendar_connected": false,
@@ -2552,7 +2558,6 @@ fn replan_goal(root: &Path, day: &str) -> Result<()> {
         plan["schedule"] = json!(schedule);
         plan
     };
-    schedule.sort_by_key(|row| text(field(row, "start")));
     if plan["day"].is_null() {
         plan["day"] = json!(day);
     }

@@ -704,7 +704,7 @@ fn link_review(base: &Path) -> Result<Value> {
         .expect("feed row")
         .remove("research");
     let reference = listen::research_links(root, &unresearched, true)?;
-    let ping = json!({"id": "chat:ping", "source": "chat", "kind": "mention", "at": "2026-10-25T16:01:00Z", "title": "re-review", "actor": "other", "to_me": true, "url": "https://github.com/example-shop/api/pull/9"});
+    let ping = json!({"id": "chat:ping", "source": "chat", "kind": "mention", "at": "2026-10-25T16:01:00Z", "title": "re-review", "text": "please re-review https://github.com/example-shop/api/pull/9", "actor": "other", "to_me": true, "url": "https://github.com/example-shop/api/pull/9"});
     feed::ingest(
         root,
         std::slice::from_ref(&ping),

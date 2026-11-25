@@ -423,7 +423,17 @@ def _link_review(base: Path) -> dict[str, Any]:
     unresearched = {**rows["chat:1792936800.000100"]}
     unresearched.pop("research", None)
     reference = listen.research_links(unresearched, True)
-    ping = {"id": "chat:ping", "source": "chat", "kind": "mention", "at": "2026-10-25T16:01:00Z", "title": "re-review", "actor": "other", "to_me": True, "url": "https://github.com/example-shop/api/pull/9"}
+    ping = {
+        "id": "chat:ping",
+        "source": "chat",
+        "kind": "mention",
+        "at": "2026-10-25T16:01:00Z",
+        "title": "re-review",
+        "text": "please re-review https://github.com/example-shop/api/pull/9",
+        "actor": "other",
+        "to_me": True,
+        "url": "https://github.com/example-shop/api/pull/9",
+    }
     feed.ingest([ping])
     verdict = live.verdict(feed.load()[-1], {row["id"] for row in feed.open_asks()})
     follow, _attached = listen.follow_up({ping["id"]: verdict}, set(), False)
