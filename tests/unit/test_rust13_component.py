@@ -122,7 +122,7 @@ def test_feed_transcript_write_and_cli_contracts_match_python(candidate, tmp_pat
         assert codex["response_items"]["new"] == {"int": "0"}
         assert codex["response_items"]["already"] == {"int": "4"}
         assert codex["end_events"]["errors"] == {"int": "1"}
-        assert codex["end_events"]["gaps"] == ["tickets"]
+        assert codex["end_events"]["gaps"] == ["chat", "tickets"]
         assert codex["unsupported"] == "FeedError"
 
         containment = case(report, "containment-since")
