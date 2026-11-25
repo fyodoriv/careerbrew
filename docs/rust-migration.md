@@ -2563,23 +2563,26 @@ the crate until the rust-05 and rust-07 closure is native, so
   paired-resource evidence is recorded only after every registered case and
   control passes.
 - **Component acceptance (2026-11-25, macOS):** clean measured source
-  `c7b65cf9b4fe8bd8534184384e2711b5941c3642`; evidence-source hash
-  `b74387bda9acb9c83f0280d2b96982db5f75e8e64d88fd09ad540df9aa592435`;
+  `c877fc372629d76991f3835f8c6fe31c0495ce2b`; evidence-source hash
+  `0ceea5604057951abce2721ef696bcbada01f094433b1b0c328f84de8017f4f8`;
   fixture hash `6a12e9c239da09f3797293717ff2035f41d745bd104655b58aa6b25e38ff5966`;
   release-candidate SHA-256
-  `1eee3cd67e8ae348fd337da388898ecdf1090e21e246489a30f75d21675d7d44`.
-  Baseline: 30 runs; CPU p50/p95 1,515,024/1,581,682 microseconds and tree-RSS
-  p50/p95 65,191,936/65,421,312 bytes. Verify passes 12/12 with zero contract,
+  `693640596d8e4ce57aa203da09ae5cdfa5099293c4f5ec70a1581037a0c644fa`.
+  Baseline: 30 runs; CPU p50/p95 1,553,414/1,730,745 microseconds and tree-RSS
+  p50/p95 65,323,008/65,863,680 bytes. Verify passes 12/12 with zero contract,
   privacy, side-effect, missing-write or duplicate-write violations, including
   partial research merge, wrapped CODEOWNERS, re-review dispatch, all suggestion
-  kinds, exact goal replanning and reserved-address controls. Measurement: 30
-  unique, uncached pairs in each regime. Cold CPU p95 was 1,805,325 to 819,853
-  microseconds; warm was 1,657,502 to 841,634. Cold tree-RSS p95 was 65,945,600
-  to 18,120,704 bytes; warm was 65,650,688 to 18,235,392. Each ratio is below
-  1.10. `decide` returned component-only `activate`; extra, missing, prior-phase
-  duplicate, same-phase operation duplicate and direct event duplicate controls
-  returned `keep-python`. Production routes, shipped crates and activation remain
-  unchanged; activation needs the complete native closure and rollback evidence.
+  kinds, exact calendar/task replanning and reserved-address controls.
+  Measurement: 30 unique, uncached pairs in each regime. Cold CPU p95 was
+  1,660,571 to 769,546 microseconds; warm was 1,678,979 to 796,834. Cold
+  tree-RSS p95 was 65,814,528 to 18,055,168 bytes; warm was 65,880,064 to
+  18,071,552. Each ratio is below 1.10. `decide` returned component-only
+  `activate`; extra, missing, prior-phase duplicate, same-phase operation
+  duplicate and direct event duplicate controls returned `keep-python`.
+  Independent Kimi v7 review clarified its two initial notes as non-defects and
+  returned `Ready to merge: Yes`. Production routes, shipped crates and
+  activation remain unchanged; activation needs the complete native closure and
+  rollback evidence.
 
 ### rust-15: Port canonical work-day records and questions
 
