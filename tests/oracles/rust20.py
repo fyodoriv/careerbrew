@@ -7,9 +7,7 @@ No production route, owner file, or live account is used.
 
 from __future__ import annotations
 
-import contextlib
 import importlib.util
-import io
 import json
 import os
 import shutil
@@ -271,6 +269,12 @@ def _public_deck(_base: Path) -> dict[str, Any]:
     after = {path.name: path.read_bytes() for path in ws.public.glob("*.yaml")}
     leaky = _public_card("What is a queue?", explanation=EXPLANATION + "\nAt RUST20CANARYEMPLOYER we did this.")
     leak_refusal = _error(lambda: public.publish([leaky]))
+    plugin_root = ws.root / "plugins" / "rust20plug"
+    store.write_yaml(plugin_root / "careerbrew-plugin.yaml", {"name": "rust20plug", "version": "0.1.0", "sensitive_terms": "sensitive-terms.txt"})
+    store.write_text(plugin_root / "sensitive-terms.txt", "RUST20CANARYPLUGIN\n")
+    store.write_json(ws.root / "plugins.lock.json", {"plugins": {"rust20plug": {"origin": "plugin:rust20plug"}}})
+    plugin_leaky = _public_card("What is a map?", explanation=EXPLANATION + "\nRUST20CANARYPLUGIN")
+    plugin_leak_refusal = _error(lambda: public.publish([plugin_leaky]))
     return {
         "initial_hints": {question: row["hint"] for question, row in initial.items()},
         "published": published,
@@ -286,6 +290,7 @@ def _public_deck(_base: Path) -> dict[str, Any]:
         "check": public.check(),
         "partial_write": {"error": refused, "unchanged": before == after},
         "leak_refusal": leak_refusal,
+        "plugin_leak_refusal": plugin_leak_refusal,
         "personal_hits": public.personal_hits(leaky),
         "lint": {
             "local_http": public.lint(_public_card(explanation=EXPLANATION + "\n`proxy_pass http://localhost:8080;`", id="kb-local")),
@@ -303,7 +308,7 @@ def _seed_non_notion_rows() -> None:
 
 def _notion_idempotence(_base: Path) -> dict[str, Any]:
     ws = Workspace(_base, "notion")
-    bundle = ws.base / "bundle"
+    bundle = ws.root / "imports" / "notion"
     shutil.copytree(BUNDLE, bundle)
     store.write_yaml(ws.root / "profile.yaml", {"name": "Synthetic", "skills": {"python": 4}})
     _seed_non_notion_rows()
@@ -444,6 +449,7 @@ def _providers_and_mistakes(_base: Path) -> dict[str, Any]:
         "next_review": next_review,
         "mastery": mastery,
         "readiness": readiness,
+        "now": engine.now().isoformat(timespec="seconds"),
         "rating_thresholds": [engine.score_to_rating(score).name for score in (0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)],
         "mistakes": {
             "first_repeat": first["repeat"],
