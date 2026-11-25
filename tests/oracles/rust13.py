@@ -473,6 +473,7 @@ def _source_failures(base: Path) -> dict[str, Any]:
     plugin_root = paths.sub("plugins", "feedplug")
     store.write_yaml(plugin_root / "careerbrew-plugin.yaml", {"name": "feedplug", "version": "0.1.0", "sensitive_terms": "missing.txt"})
     store.write_json(paths.sub("plugins.lock.json"), {"plugins": {"feedplug": {"origin": "plugin:feedplug"}}})
+
     def fail_absent(_cfg):
         raise RuntimeError("CANARYSOURCE " + "x" * 250)
 
