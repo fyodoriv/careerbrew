@@ -17,7 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from careerbrew import cli, config, connectors, paths, store
+from careerbrew import cli, config, connectors, events, paths, store
 from careerbrew.work import evidence, feed, projects, team, transcript
 
 CASES = (
@@ -505,8 +505,10 @@ def _partial_transport(base: Path) -> dict[str, Any]:
     os.environ["CAREERBREW_HTTP_FIXTURES"] = str(FIX / "http" / "team-feed")
     os.environ["CAREERBREW_EVENTS"] = "on"
     team.add("Sam Lee", chat="U0SAM")
-    # Compare feed diagnostics, not the roster setup event.
+    # Compare feed diagnostics, not the roster setup event or its receipt.
     (paths.data_root() / "logs" / "events.jsonl").write_text("")
+    if trace := os.environ.get("CAREERBREW_RUST13_WRITE_TRACE"):
+        Path(trace).write_text("")
     real = connectors.http_json
 
     def fail_team(url, *args, **kwargs):
@@ -546,6 +548,14 @@ def run_all(selected: str | None = None) -> dict[str, Any]:
                 log.write(f"{path}\n")
 
         store.write_text = traced_write_text
+        real_event_write_row = events.write_row
+
+        def traced_event_write_row(row: dict[str, Any]) -> None:
+            real_event_write_row(row)
+            with Path(trace).open("a", encoding="utf-8") as log:
+                log.write(f"{events.log_path()}\n")
+
+        events.write_row = traced_event_write_row
     base = Path(os.environ["CAREERBREW_HOME"]) / "rust13-workload"
     base.mkdir(parents=True, exist_ok=True)
     functions = {

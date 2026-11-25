@@ -299,10 +299,13 @@ fn component_side(
         let after = observed_files(&owned, &owned)?;
         let counts = write_counts(&state, &after);
         let stdout = normalized_text(&stdout, &owned);
-        let operations = std::fs::read_to_string(&write_trace)
-            .unwrap_or_default()
-            .get(operations_before..)
-            .unwrap_or_default()
+        let operation_text = std::fs::read_to_string(&write_trace).unwrap_or_default();
+        let operation_start = if operation_text.len() < operations_before {
+            0
+        } else {
+            operations_before
+        };
+        let operations = operation_text[operation_start..]
             .lines()
             .map(|line| normalized_text(line, &owned))
             .collect::<Vec<_>>();

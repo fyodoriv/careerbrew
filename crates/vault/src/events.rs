@@ -133,13 +133,13 @@ pub fn write_row(root: &Path, row: &Canon) -> Result<(), StoreError> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let mut file = OpenOptions::new().append(true).create(true).open(path)?;
+    let mut file = OpenOptions::new().append(true).create(true).open(&path)?;
     file.write_all(
         json_line_with_float(row, event_json_float)
             .map_err(|_| StoreError::Codec("jsonl"))?
             .as_bytes(),
     )?;
-    Ok(())
+    crate::store::trace_write(&path)
 }
 
 pub fn emit(

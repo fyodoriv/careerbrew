@@ -26,6 +26,7 @@ fn rust_13_registers_the_release_candidate_and_effective_inputs() {
         "src/careerbrew/work/evidence.py",
         "crates/sources/src/http.rs",
         "crates/policy/src/outputs.rs",
+        "crates/policy/src/tables.rs",
         "crates/setup/src/lib.rs",
         "crates/vault/src/store.rs",
         "crates/vault/src/lock.rs",
@@ -122,6 +123,11 @@ fn rust_13_baseline_verify_measure_and_decide_share_identity() {
             "operation-duplicate",
             "duplicate_writes",
             "component:edited-upsert",
+        ),
+        (
+            "event-duplicate",
+            "duplicate_writes",
+            "component:partial-transport",
         ),
     ] {
         let planted = scratch.path().join(format!("verify-{plant}.json"));

@@ -871,6 +871,7 @@ pub const STEPS: &[Step] = &[
             "crates/policy/src/outputs.rs",
             "crates/policy/src/canary.rs",
             "crates/policy/src/text.rs",
+            "crates/policy/src/tables.rs",
             "crates/policy/src/pyre.rs",
             "crates/vault/src/lib.rs",
             "crates/vault/src/atomic.rs",

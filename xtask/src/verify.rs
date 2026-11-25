@@ -1200,11 +1200,11 @@ pub fn record(
         if plant_write.is_some_and(|plant| {
             !matches!(
                 plant,
-                "extra" | "missing" | "duplicate" | "operation-duplicate"
+                "extra" | "missing" | "duplicate" | "operation-duplicate" | "event-duplicate"
             )
         }) {
             return Err(
-                "rust-13 write control must be extra, missing, duplicate or operation-duplicate"
+                "rust-13 write control must be extra, missing, duplicate, operation-duplicate or event-duplicate"
                     .into(),
             );
         }

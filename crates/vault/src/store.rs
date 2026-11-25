@@ -15,7 +15,7 @@ use std::path::{Component, Path};
 
 /// Optional synthetic-verification write receipt. The log is invocation-scoped
 /// by its explicit path and records paths only, never stored content.
-fn trace_write(path: &Path) -> Result<(), StoreError> {
+pub(crate) fn trace_write(path: &Path) -> Result<(), StoreError> {
     let Some(trace) = std::env::var_os("CAREERBREW_RUST13_WRITE_TRACE") else {
         return Ok(());
     };

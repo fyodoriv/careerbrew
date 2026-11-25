@@ -805,9 +805,12 @@ fn partial_transport(base: &Path) -> Result<Value> {
     std::env::set_var("CAREERBREW_HTTP_FIXTURES", fixture("http/team-feed"));
     std::env::set_var("CAREERBREW_EVENTS", "on");
     careerbrew_projects::team::add(root, "Sam Lee", "U0SAM", "", "")?;
-    // Compare feed diagnostics, not the roster setup event.
+    // Compare feed diagnostics, not the roster setup event or its receipt.
     std::fs::create_dir_all(root.join("logs"))?;
     std::fs::write(root.join("logs/events.jsonl"), "")?;
+    if let Some(trace) = std::env::var_os("CAREERBREW_RUST13_WRITE_TRACE") {
+        std::fs::write(trace, "")?;
+    }
     std::env::set_var("CAREERBREW_RUST13_TRANSPORT_ERROR", "team-search");
     let team_search = slack_ids(sources::slack(
         &fixture("http/team-feed"),
@@ -825,6 +828,10 @@ fn partial_transport(base: &Path) -> Result<Value> {
         .map(|row| text(field(row, "event")))
         .filter(|event| ["work.feed.team_search", "work.feed.replies"].contains(&event.as_str()))
         .collect::<Vec<_>>();
+    if std::env::var("CAREERBREW_RUST13_PLANT_WRITE").as_deref() == Ok("event-duplicate") {
+        let row = careerbrew_setup::value::to_canon(logged.last().expect("diagnostic row"));
+        careerbrew_vault::events::write_row(root, &row)?;
+    }
     Ok(json!({"team_search": team_search, "replies": replies, "diagnostics": diagnostics}))
 }
 
