@@ -130,13 +130,15 @@ pub fn utc(value: &Value) -> Result<String> {
         .or_else(|| {
             NaiveDateTime::parse_from_str(&raw, "%Y-%m-%dT%H:%M:%S%.f")
                 .ok()
-                .map(|value| Utc.from_utc_datetime(&value))
+                .and_then(|value| crate::local_zone().from_local_datetime(&value).earliest())
+                .map(|value| value.with_timezone(&Utc))
         })
         .or_else(|| {
             NaiveDate::parse_from_str(&raw, "%Y-%m-%d")
                 .ok()
                 .and_then(|value| value.and_hms_opt(0, 0, 0))
-                .map(|value| Utc.from_utc_datetime(&value))
+                .and_then(|value| crate::local_zone().from_local_datetime(&value).earliest())
+                .map(|value| value.with_timezone(&Utc))
         });
     parsed
         .map(|value| value.format("%Y-%m-%dT%H:%M:%SZ").to_string())
@@ -575,7 +577,7 @@ fn note_stored(
         .cloned()
         .unwrap_or_default();
     for source in sources {
-        acquired.insert(source.clone(), json!(now_iso()));
+        acquired.insert(source.clone(), json!(crate::now_utc_iso()));
     }
     let mut known_ids = field(&batch, "ids")
         .and_then(Value::as_array)
@@ -765,7 +767,10 @@ fn epoch_or_value(value: &Value) -> Value {
         Value::String(value) => value.parse::<f64>().ok(),
         _ => None,
     };
-    match seconds.and_then(|seconds| DateTime::from_timestamp(seconds as i64, 0)) {
+    match seconds
+        .filter(|seconds| seconds.is_finite())
+        .and_then(|seconds| DateTime::from_timestamp(seconds as i64, 0))
+    {
         Some(value) => json!(value.format("%Y-%m-%dT%H:%M:%SZ").to_string()),
         None => value.clone(),
     }
@@ -1286,15 +1291,9 @@ pub fn research(root: &Path, event_id: &str, entries: &Value) -> Result<Value> {
         }
         row["research"] = json!(out);
         rows.insert(event_id.into(), row.clone());
-        let rows = rows.values().cloned().collect::<Vec<_>>();
-        save(
-            root,
-            &rows
-                .into_iter()
-                .map(|row| (text(field(&row, "id")), row))
-                .collect(),
-            &originals(root)?,
-        )?;
+        let mut values = rows.values().cloned().collect::<Vec<_>>();
+        values.sort_by_key(|row| (text(field(row, "at")), text(field(row, "id"))));
+        write_jsonl(root, "work/feed/events.jsonl", &values)?;
         Ok(row)
     })?
 }
@@ -1463,13 +1462,17 @@ pub fn summary(root: &Path, rows: &[Value]) -> Result<Value> {
     }))
 }
 
-fn work_minutes(row: &Value, at: DateTime<chrono::FixedOffset>, settings: &Value) -> i64 {
+pub fn work_minutes(row: &Value, at: DateTime<chrono::FixedOffset>, settings: &Value) -> i64 {
     let Some(lo) =
         DateTime::parse_from_rfc3339(&text(field(row, "at")).replace("Z", "+00:00")).ok()
     else {
         return 0;
     };
-    let hi = at;
+    let zone = text(field(settings, "timezone"))
+        .parse::<chrono_tz::Tz>()
+        .unwrap_or_else(|_| crate::local_zone());
+    let lo = lo.with_timezone(&zone);
+    let hi = at.with_timezone(&zone);
     let start = text(field(settings, "work_start"));
     let end = text(field(settings, "work_end"));
     let start = if start.is_empty() {
@@ -1477,7 +1480,7 @@ fn work_minutes(row: &Value, at: DateTime<chrono::FixedOffset>, settings: &Value
     } else {
         start
     };
-    let end = if end.is_empty() { "17:00".into() } else { end };
+    let end = if end.is_empty() { "17:30".into() } else { end };
     let days = field(settings, "work_days")
         .and_then(Value::as_array)
         .cloned()
@@ -1504,8 +1507,14 @@ fn work_minutes(row: &Value, at: DateTime<chrono::FixedOffset>, settings: &Value
             .ok() else {
                 continue;
             };
-            let a = lo.max(Utc.from_utc_datetime(&start).fixed_offset());
-            let b = hi.min(Utc.from_utc_datetime(&end).fixed_offset());
+            let Some(a) = zone.from_local_datetime(&start).earliest() else {
+                continue;
+            };
+            let Some(b) = zone.from_local_datetime(&end).earliest() else {
+                continue;
+            };
+            let a = lo.max(a);
+            let b = hi.min(b);
             seconds += (b - a).num_seconds().max(0);
         }
         day += TimeDelta::days(1);

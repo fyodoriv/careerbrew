@@ -197,6 +197,7 @@ dependencies = [
 name = "careerbrew-feed"
 version = "0.1.0"
 dependencies = [
+ "careerbrew-policy",
  "careerbrew-projects",
  "careerbrew-setup",
  "careerbrew-sources",

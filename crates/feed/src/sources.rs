@@ -114,6 +114,9 @@ fn slack_item(message: &Value, me: &str, thread: &str) -> Result<Value> {
     let seconds = ts
         .parse::<f64>()
         .map_err(|_| FeedError::value("invalid Slack timestamp"))?;
+    if !seconds.is_finite() {
+        return Err(FeedError::value("invalid Slack timestamp"));
+    }
     let at = DateTime::from_timestamp(seconds as i64, 0)
         .ok_or_else(|| FeedError::value("invalid Slack timestamp"))?
         .to_rfc3339_opts(chrono::SecondsFormat::Secs, false);
@@ -520,6 +523,12 @@ pub fn outlook(root: &Path, cfg: &Value) -> Result<Vec<Value>> {
 
 pub fn read(root: &Path, cfg: &Value) -> Result<Vec<Value>> {
     let kind = text(field(cfg, "kind"));
+    if std::env::var("CAREERBREW_RUST13_SOURCE_FAILURE").as_deref() == Ok("1") {
+        return Err(FeedError::new(
+            "RuntimeError",
+            format!("CANARYSOURCE {}", "x".repeat(250)),
+        ));
+    }
     let policy = careerbrew_setup::plugins::effective_policy()?;
     if let Some(allowed) = field(&policy, "allowed_connectors").and_then(Value::as_array) {
         if !allowed.iter().any(|allowed| text(Some(allowed)) == kind) {
@@ -548,6 +557,67 @@ pub fn read(root: &Path, cfg: &Value) -> Result<Vec<Value>> {
         ],
     )?;
     Ok(items)
+}
+
+fn sensitive_terms(root: &Path) -> Result<Vec<String>> {
+    let mut terms = Vec::new();
+    let context = crate::context()?;
+    let stored = context.store();
+    if let Some(text) = stored.read_text(&root.join("sensitive-terms.txt"), None, true)? {
+        terms.extend(
+            text.lines()
+                .map(str::trim)
+                .filter(|line| {
+                    !line.is_empty() && !line.starts_with('#') && line.chars().count() >= 3
+                })
+                .map(str::to_owned),
+        );
+    }
+    let profile = read_yaml(root, "profile.yaml", json!({}))?;
+    for key in ["name", "employer", "email"] {
+        let value = text(field(&profile, key));
+        if value.chars().count() >= 3 && !["Your Name", "Your Employer"].contains(&value.as_str()) {
+            terms.push(value);
+        }
+    }
+    terms.extend(
+        field(&profile, "sensitive")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .map(|value| text(Some(value)))
+            .filter(|value| value.chars().count() >= 3),
+    );
+    for plugin in careerbrew_setup::plugins::installed()? {
+        let path = text(field(&plugin.entry, "sensitive_terms_path"));
+        if !path.is_empty() {
+            if let Some(text) = stored.read_text(Path::new(&path), None, true)? {
+                terms.extend(
+                    text.lines()
+                        .map(str::trim)
+                        .filter(|line| {
+                            !line.is_empty() && !line.starts_with('#') && line.chars().count() >= 3
+                        })
+                        .map(str::to_owned),
+                );
+            }
+        }
+    }
+    let mut terms = terms
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    terms.sort_by_key(|term| std::cmp::Reverse(term.chars().count()));
+    Ok(terms)
+}
+
+fn redacted_reason(root: &Path, error: &FeedError) -> Result<String> {
+    let terms = sensitive_terms(root)?;
+    Ok(careerbrew_policy::redact(&error.message, &terms)
+        .chars()
+        .take(200)
+        .collect())
 }
 
 pub fn pull(root: &Path, components: &dyn ComponentProvider) -> Result<Value> {
@@ -583,10 +653,11 @@ pub fn pull(root: &Path, components: &dyn ComponentProvider) -> Result<Value> {
             Err(error) => {
                 crate::feed::note_failure(root, &kind)?;
                 stats["errors"] = json!(stats["errors"].as_i64().unwrap_or_default() + 1);
+                let reason = redacted_reason(root, &error)?;
                 stats["reasons"]
                     .as_array_mut()
                     .expect("reason list")
-                    .push(json!(format!("{kind}: {}", error.message)));
+                    .push(json!(format!("{kind}: {reason}")));
                 emit(
                     root,
                     "work.feed.error",

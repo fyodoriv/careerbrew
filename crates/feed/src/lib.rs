@@ -188,18 +188,47 @@ pub fn write_text(root: &Path, relative: &str, value: &str) -> Result<()> {
     Ok(())
 }
 
+pub fn local_zone() -> chrono_tz::Tz {
+    let configured = context().ok().and_then(|context| {
+        read_yaml(&context.root, "settings.yaml", serde_json::json!({}))
+            .ok()
+            .and_then(|settings| text(field(&settings, "timezone")).parse().ok())
+    });
+    configured
+        .or_else(|| std::env::var("TZ").ok().and_then(|zone| zone.parse().ok()))
+        .unwrap_or(chrono_tz::UTC)
+}
+
 pub fn now() -> DateTime<FixedOffset> {
     std::env::var("CAREERBREW_NOW")
         .ok()
-        .and_then(|value| DateTime::parse_from_rfc3339(&value).ok())
-        .unwrap_or_else(|| Utc::now().fixed_offset())
+        .and_then(|value| {
+            DateTime::parse_from_rfc3339(&value).ok().or_else(|| {
+                use chrono::TimeZone;
+                chrono::NaiveDateTime::parse_from_str(&value, "%Y-%m-%dT%H:%M:%S%.f")
+                    .ok()
+                    .and_then(|naive| {
+                        local_zone()
+                            .from_local_datetime(&naive)
+                            .earliest()
+                            .map(|value| value.fixed_offset())
+                    })
+            })
+        })
+        .unwrap_or_else(|| Utc::now().with_timezone(&local_zone()).fixed_offset())
 }
 
 pub fn now_utc() -> DateTime<Utc> {
     now().with_timezone(&Utc)
 }
 
+/// Python calendar.now().isoformat(timespec="seconds") in the configured zone.
 pub fn now_iso() -> String {
+    now().to_rfc3339_opts(SecondsFormat::Secs, false)
+}
+
+/// Python calendar.now_utc().isoformat() for acquisition stamps.
+pub fn now_utc_iso() -> String {
     now_utc().to_rfc3339_opts(SecondsFormat::Secs, false)
 }
 

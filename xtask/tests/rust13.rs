@@ -23,6 +23,7 @@ fn rust_13_registers_the_release_candidate_and_effective_inputs() {
         "crates/projects/src/team.rs",
         "crates/projects/src/project_priority.rs",
         "crates/sources/src/http.rs",
+        "crates/policy/src/outputs.rs",
         "crates/vault/src/store.rs",
         "crates/vault/src/lock.rs",
         "xtask/src/rust13.rs",
@@ -114,6 +115,11 @@ fn rust_13_baseline_verify_measure_and_decide_share_identity() {
         ("extra", "side_effect", "component:edited-upsert"),
         ("missing", "missing_writes", "component:edited-upsert"),
         ("duplicate", "duplicate_writes", "component:raw-replies"),
+        (
+            "operation-duplicate",
+            "duplicate_writes",
+            "component:edited-upsert",
+        ),
     ] {
         let planted = scratch.path().join(format!("verify-{plant}.json"));
         let run = Command::new(env!("CARGO_BIN_EXE_careerbrew-xtask"))

@@ -22,8 +22,10 @@ CASES = {
     "containment-since",
     "asks-cycle",
     "team-feed",
+    "local-time-and-nan",
+    "source-failures",
 }
-MARKERS = (b"PROJECTZEBRA", b"CANARYCHAT", b"CANARYTICKET", b"CANARYMAIL", b"CANARY-NATIVE-ERROR", b"synthetic-not-reported")
+MARKERS = (b"PROJECTZEBRA", b"CANARYCHAT", b"CANARYTICKET", b"CANARYMAIL", b"CANARY-NATIVE-ERROR", b"CANARYSOURCE", b"synthetic-not-reported")
 
 
 @pytest.fixture(scope="module")
@@ -150,5 +152,18 @@ def test_feed_transcript_write_and_cli_contracts_match_python(candidate, tmp_pat
         assert team["rows"]["slack:C0ENG:1792591260.000300"]["triage"] == "fyi"
         assert team["without_scope"] == ["slack:C0ENG:1792591200.000100", "slack:D0SAM:1792591500.000200"]
         assert "titles hidden" in team["cli_feed"]["stdout"]
+
+        local = case(report, "local-time-and-nan")
+        assert local["now"] == "2026-10-21T16:00:00-04:00"
+        assert local["naive"] == local["aware"] == "2026-10-21T16:00:00Z"
+        assert local["work_minutes"] == {"int": "60"}
+        assert [row["skipped"] for row in local["raw"]] == [{"int": "1"}, {"int": "1"}]
+        assert local["transcript"] == ["skipped", "OverflowError"]
+
+        failures = case(report, "source-failures")["result"]
+        assert failures["sources"] == failures["errors"] == {"int": "3"}
+        assert failures["new"] == {"int": "0"}
+        assert all("[REDACTED]" in reason for reason in failures["reasons"])
+        assert case(report, "source-failures")["lengths"] == [{"int": "207"}, {"int": "211"}, {"int": "209"}]
         answers.append(normalized(done.stdout, root))
     assert answers[0] == answers[1]

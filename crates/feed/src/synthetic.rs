@@ -4,8 +4,8 @@
 //! completion boundary. It is compiled into the synthetic candidate only.
 
 use crate::{
-    cli, feed, field, read_json, read_yaml, sources, text, transcript, write_json, write_yaml,
-    ComponentProvider, Declaration, FeedError, Result,
+    cli, feed, field, read_json, read_jsonl, read_yaml, sources, text, transcript, write_json,
+    write_yaml, ComponentProvider, Declaration, FeedError, Result,
 };
 use chrono::{DateTime, SecondsFormat, Utc};
 use serde_json::{json, Map, Value};
@@ -23,6 +23,8 @@ pub const CASES: &[&str] = &[
     "containment-since",
     "asks-cycle",
     "team-feed",
+    "local-time-and-nan",
+    "source-failures",
 ];
 const MAP: &str = "mcp__chat__*=chat, mcp__tickets__*=tickets, mcp__mail__*=mail";
 const TOKEN: &str = "env:CB_TEST_TOKEN";
@@ -325,6 +327,10 @@ fn edited_upsert(base: &Path) -> Result<Value> {
     if std::env::var("CAREERBREW_RUST13_PLANT_WRITE").as_deref() == Ok("missing") {
         std::fs::remove_file(feed::originals_path(root))?;
     }
+    if std::env::var("CAREERBREW_RUST13_PLANT_WRITE").as_deref() == Ok("operation-duplicate") {
+        let rows = read_jsonl(root, "work/feed/events.jsonl")?;
+        crate::write_jsonl(root, "work/feed/events.jsonl", &rows)?;
+    }
     Ok(result)
 }
 
@@ -620,6 +626,72 @@ fn team_feed(base: &Path) -> Result<Value> {
     }))
 }
 
+fn local_time_and_nan(base: &Path) -> Result<Value> {
+    let workspace = Workspace::new(base, "local-time-and-nan")?;
+    let root = &workspace.root;
+    careerbrew_vault::lock::with_lock(&root.join("settings.yaml"), || {
+        write_yaml(
+            root,
+            "settings.yaml",
+            &json!({"timezone": "America/New_York"}),
+        )
+    })??;
+    std::env::set_var("CAREERBREW_NOW", "2026-10-21T16:00:00");
+    let naive = feed::clean(
+        &json!({"id": "naive", "at": "2026-10-21T12:00:00", "title": "naive"}),
+        "event",
+    )?;
+    let aware = feed::clean(
+        &json!({"id": "aware", "at": "2026-10-21T12:00:00-04:00", "title": "aware"}),
+        "event",
+    )?;
+    let row = json!({"at": "2026-10-19T16:30:00-04:00"});
+    let at = DateTime::parse_from_rfc3339("2026-10-19T17:30:00-04:00")
+        .map_err(|_| FeedError::value("invalid fixture time"))?;
+    let minutes = feed::work_minutes(&row, at, &read_yaml(root, "settings.yaml", json!({}))?);
+    let mut raw = Vec::new();
+    for stamp in ["NaN", "inf"] {
+        let (events, skipped, source) = feed::raw_events(
+            &json!({"messages": [{"id": stamp, "title": "bad", "ts": stamp}]}),
+            "chat",
+        )?
+        .expect("raw reply");
+        raw.push(json!({"events": events.len(), "skipped": skipped, "source": source}));
+    }
+    let transcript_results = ["NaN", "inf"]
+        .iter()
+        .map(|stamp| {
+            match transcript::event(&json!({"id": stamp, "at": stamp, "title": "bad"}), "chat") {
+                Ok(Some(_)) => "accepted",
+                Ok(None) => "skipped",
+                Err(error) => error.class,
+            }
+        })
+        .collect::<Vec<_>>();
+    Ok(json!({
+        "now": crate::now_iso(), "naive": naive["at"], "aware": aware["at"],
+        "work_minutes": minutes, "raw": raw, "transcript": transcript_results,
+    }))
+}
+
+fn source_failures(base: &Path) -> Result<Value> {
+    let workspace = Workspace::new(base, "source-failures")?;
+    let root = &workspace.root;
+    connectors(root, &["slack", "pagerduty", "outlook"])?;
+    crate::write_text(root, "sensitive-terms.txt", "CANARYSOURCE\n")?;
+    std::env::set_var("CAREERBREW_RUST13_SOURCE_FAILURE", "1");
+    let components = SyntheticComponents;
+    let result = sources::pull(root, &components)?;
+    std::env::remove_var("CAREERBREW_RUST13_SOURCE_FAILURE");
+    let lengths = result["reasons"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|reason| text(Some(reason)).len())
+        .collect::<Vec<_>>();
+    Ok(json!({"result": result, "lengths": lengths}))
+}
+
 fn run(case: &str, base: &Path) -> Result<Value> {
     match case {
         "source-ingestion" => source_ingestion(base),
@@ -630,6 +702,8 @@ fn run(case: &str, base: &Path) -> Result<Value> {
         "containment-since" => containment_since(base),
         "asks-cycle" => asks_cycle(base),
         "team-feed" => team_feed(base),
+        "local-time-and-nan" => local_time_and_nan(base),
+        "source-failures" => source_failures(base),
         _ => Err(FeedError::value("unknown rust-13 case")),
     }
 }

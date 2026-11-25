@@ -1197,8 +1197,16 @@ pub fn record(
         if test_scope.is_some() || test_oracle.is_some() || wrong.is_some() {
             return Err("rust-13 does not accept generic verify test overrides".into());
         }
-        if plant_write.is_some_and(|plant| !matches!(plant, "extra" | "missing" | "duplicate")) {
-            return Err("rust-13 write control must be extra, missing or duplicate".into());
+        if plant_write.is_some_and(|plant| {
+            !matches!(
+                plant,
+                "extra" | "missing" | "duplicate" | "operation-duplicate"
+            )
+        }) {
+            return Err(
+                "rust-13 write control must be extra, missing, duplicate or operation-duplicate"
+                    .into(),
+            );
         }
         return rust13::record(root, python, candidate, plant_write);
     }

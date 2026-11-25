@@ -2415,8 +2415,9 @@ the crate until the rust-05 and rust-07 closure is native, so
   open-ask rules, cycle bookkeeping and component CLI adapters. It reuses vault
   storage, atomic writes, exact locks and events, recorded source transport and
   native team matching. `feed-component` is synthetic-only. The custom verifier
-  compares exact typed output, semantic writes and per-phase write transitions;
-  planted extra, missing and duplicate writes must fail. Production Python,
+  compares exact typed output, semantic writes, per-phase write transitions and
+  every storage-write operation; planted extra, missing, phase-transition and
+  same-phase duplicate writes must fail. Production Python,
   native routes, shipped crates and activation are unchanged.
 - **Review-correction pre-registration (2026-11-25):** source revision
   `f0fd1132720c13165837c11de686ad2bfdbe2140` adds non-UTC naive/aware event

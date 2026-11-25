@@ -13,6 +13,7 @@ import json
 import os
 import shutil
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +29,8 @@ CASES = (
     "containment-since",
     "asks-cycle",
     "team-feed",
+    "local-time-and-nan",
+    "source-failures",
 )
 FIX = Path(__file__).resolve().parents[1] / "fixtures"
 MAP = "mcp__chat__*=chat, mcp__tickets__*=tickets, mcp__mail__*=mail"
@@ -396,7 +399,63 @@ def _team_feed(base: Path) -> dict[str, Any]:
     }
 
 
+def _local_time_and_nan(base: Path) -> dict[str, Any]:
+    Workspace(base, "local-time-and-nan")
+    config.set_value("timezone", "America/New_York")
+    os.environ["CAREERBREW_NOW"] = "2026-10-21T16:00:00"
+    naive = feed.clean({"id": "naive", "at": "2026-10-21T12:00:00", "title": "naive"})["at"]
+    aware = feed.clean({"id": "aware", "at": "2026-10-21T12:00:00-04:00", "title": "aware"})["at"]
+    row = {"at": "2026-10-19T16:30:00-04:00"}
+    minutes = feed.work_minutes(row, datetime.fromisoformat("2026-10-19T17:30:00-04:00"), feed.work_hours())
+    raw = []
+    for stamp in ("NaN", "inf"):
+        events, skipped, source = feed.raw_events({"messages": [{"id": stamp, "title": "bad", "ts": stamp}]}, "chat")
+        raw.append({"events": len(events), "skipped": skipped, "source": source})
+    transcript_results = []
+    for stamp in ("NaN", "inf"):
+        try:
+            event = transcript._event({"id": stamp, "at": stamp, "title": "bad"}, "chat")
+            transcript_results.append("skipped" if event is None else "accepted")
+        except Exception as exc:
+            transcript_results.append(type(exc).__name__)
+    return {
+        "now": feed._now_iso(),
+        "naive": naive,
+        "aware": aware,
+        "work_minutes": minutes,
+        "raw": raw,
+        "transcript": transcript_results,
+    }
+
+
+def _source_failures(base: Path) -> dict[str, Any]:
+    Workspace(base, "source-failures")
+    _connectors(["slack", "pagerduty", "outlook"])
+    store.write_text(paths.sub("sensitive-terms.txt"), "CANARYSOURCE\n")
+    real = connectors.feed
+
+    def fail(_cfg):
+        raise RuntimeError("CANARYSOURCE " + "x" * 250)
+
+    connectors.feed = fail
+    try:
+        result = feed.pull()
+    finally:
+        connectors.feed = real
+    return {"result": result, "lengths": [len(reason) for reason in result["reasons"]]}
+
+
 def run_all(selected: str | None = None) -> dict[str, Any]:
+    trace = os.environ.get("CAREERBREW_RUST13_WRITE_TRACE")
+    if trace:
+        real_write_text = store.write_text
+
+        def traced_write_text(path: Path, text: str) -> None:
+            real_write_text(path, text)
+            with Path(trace).open("a", encoding="utf-8") as log:
+                log.write(f"{path}\n")
+
+        store.write_text = traced_write_text
     base = Path(os.environ["CAREERBREW_HOME"]) / "rust13-workload"
     base.mkdir(parents=True, exist_ok=True)
     functions = {
@@ -408,6 +467,8 @@ def run_all(selected: str | None = None) -> dict[str, Any]:
         "containment-since": _containment_since,
         "asks-cycle": _asks_cycle,
         "team-feed": _team_feed,
+        "local-time-and-nan": _local_time_and_nan,
+        "source-failures": _source_failures,
     }
     cases: list[dict[str, Any]] = []
     for name in CASES:

@@ -50,6 +50,31 @@ fn codex_rows_normalize_calls_results_quiet_and_errors() {
 }
 
 #[test]
+fn nonfinite_timestamps_never_become_unix_epoch() {
+    for stamp in ["NaN", "inf"] {
+        let (rows, skipped, _) = feed::raw_events(
+            &json!({"messages": [{"id": stamp, "title": "bad", "ts": stamp}]}),
+            "chat",
+        )
+        .unwrap()
+        .unwrap();
+        assert!(rows.is_empty());
+        assert_eq!(skipped, 1);
+    }
+    assert!(
+        transcript::event(&json!({"id": "nan", "at": "NaN", "title": "bad"}), "chat")
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(
+        transcript::event(&json!({"id": "inf", "at": "inf", "title": "bad"}), "chat")
+            .unwrap_err()
+            .class,
+        "OverflowError",
+    );
+}
+
+#[test]
 fn malformed_times_and_link_boundaries_fail_closed() {
     assert!(feed::utc(&json!("not-a-time")).is_err());
     assert_eq!(

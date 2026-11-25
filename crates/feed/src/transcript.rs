@@ -175,24 +175,32 @@ fn pick(object: &Value, key: &str) -> Value {
         .unwrap_or(Value::Null)
 }
 
-fn at(value: &Value) -> Value {
+fn at(value: &Value) -> Result<Value> {
     let seconds = match value {
         Value::Number(value) => value.as_f64(),
         Value::String(value) => value.parse::<f64>().ok(),
         _ => None,
     };
-    match seconds.and_then(|seconds| DateTime::from_timestamp(seconds as i64, 0)) {
-        Some(value) => json!(value.format("%Y-%m-%dT%H:%M:%SZ").to_string()),
-        None => value.clone(),
+    if seconds.is_some_and(|seconds| seconds.is_infinite()) {
+        return Err(FeedError::new("OverflowError", "timestamp out of range"));
     }
+    Ok(
+        match seconds
+            .filter(|seconds| seconds.is_finite())
+            .and_then(|seconds| DateTime::from_timestamp(seconds as i64, 0))
+        {
+            Some(value) => json!(value.format("%Y-%m-%dT%H:%M:%SZ").to_string()),
+            None => value.clone(),
+        },
+    )
 }
 
-fn event(object: &Value, source: &str) -> Option<Value> {
+pub fn event(object: &Value, source: &str) -> Result<Option<Value>> {
     let ident = pick(object, "id");
     let timestamp = pick(object, "at");
     let title = pick(object, "title");
     if ident.is_null() || timestamp.is_null() || title.is_null() {
-        return None;
+        return Ok(None);
     }
     let mut item = Map::new();
     for key in COPY {
@@ -213,7 +221,7 @@ fn event(object: &Value, source: &str) -> Option<Value> {
         json!(format!("{source}:{}", text(Some(&ident)))),
     );
     item.insert("source".into(), json!(source));
-    item.insert("at".into(), at(&timestamp));
+    item.insert("at".into(), at(&timestamp)?);
     item.insert(
         "title".into(),
         json!(text(Some(&title)).lines().next().unwrap_or_default()),
@@ -221,7 +229,7 @@ fn event(object: &Value, source: &str) -> Option<Value> {
     item.insert("text".into(), body);
     item.insert("original".into(), object.clone());
     let item = Value::Object(item);
-    feed::clean(&item, "event").ok().map(|_| item)
+    Ok(feed::clean(&item, "event").ok().map(|_| item))
 }
 
 fn read_row(line: &str) -> Option<Value> {
@@ -427,7 +435,7 @@ pub fn store(
                 continue;
             }
             for object in candidates(&data) {
-                if let Some(event) = event(&object, &source) {
+                if let Some(event) = event(&object, &source)? {
                     items.insert(text(field(&event, "id")), event);
                 } else {
                     skipped += 1;

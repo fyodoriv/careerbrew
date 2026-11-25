@@ -19,6 +19,8 @@ const CASE_IDS: &[&str] = &[
     "containment-since",
     "asks-cycle",
     "team-feed",
+    "local-time-and-nan",
+    "source-failures",
 ];
 const PRIVATE_MARKERS: &[&str] = &[
     "PROJECTZEBRA",
@@ -26,6 +28,7 @@ const PRIVATE_MARKERS: &[&str] = &[
     "CANARYTICKET",
     "CANARYMAIL",
     "CANARY-NATIVE-ERROR",
+    "CANARYSOURCE",
     "synthetic-not-reported",
 ];
 
@@ -46,6 +49,7 @@ struct Phase {
     stdout: String,
     writes: Writes,
     counts: BTreeMap<String, u64>,
+    operations: Vec<String>,
     leaked: bool,
 }
 
@@ -92,6 +96,9 @@ fn observed_files(root: &Path, folder: &Path) -> Result<Trace, String> {
             .map_err(|_| "rust-13 entry escaped its root")?
             .to_string_lossy()
             .into_owned();
+        if relative == "write-operations.log" {
+            continue;
+        }
         let semantic = if metadata.is_dir() {
             format!("directory:{:o}", metadata.permissions().mode() & 0o777)
         } else if metadata.is_file() {
@@ -229,6 +236,11 @@ fn component_side(
     let scratch = tempfile::tempdir().map_err(|_| "cannot create rust-13 home")?;
     let owned = scratch.path().join("owned");
     let mut environment = capture_actions::owned_environment(root, &owned)?;
+    let write_trace = owned.join("write-operations.log");
+    environment.insert(
+        "CAREERBREW_RUST13_WRITE_TRACE".into(),
+        write_trace.to_string_lossy().into_owned(),
+    );
     if native {
         environment.remove("PYTHONPATH");
         environment.insert(
@@ -246,6 +258,9 @@ fn component_side(
     let mut phases = Vec::new();
     let mut state = observed_files(&owned, &owned)?;
     for id in CASE_IDS {
+        let operations_before = std::fs::read_to_string(&write_trace)
+            .unwrap_or_default()
+            .len();
         let mut command = Command::new(program);
         if native {
             command.args(["--case", id]);
@@ -257,6 +272,13 @@ fn component_side(
         let after = observed_files(&owned, &owned)?;
         let counts = write_counts(&state, &after);
         let stdout = normalized_text(&stdout, &owned);
+        let operations = std::fs::read_to_string(&write_trace)
+            .unwrap_or_default()
+            .get(operations_before..)
+            .unwrap_or_default()
+            .lines()
+            .map(|line| normalized_text(line, &owned))
+            .collect::<Vec<_>>();
         let leaked = PRIVATE_MARKERS
             .iter()
             .any(|marker| stdout.contains(marker) || stderr.contains(marker));
@@ -266,6 +288,7 @@ fn component_side(
             stdout,
             writes: semantic(&after),
             counts,
+            operations,
             leaked,
         });
         state = after;
@@ -303,6 +326,19 @@ fn component_cases(
                 count.saturating_sub(expected.counts.get(path).copied().unwrap_or(0))
             })
             .sum::<u64>();
+        let operation_extra = actual
+            .operations
+            .len()
+            .saturating_sub(expected.operations.len()) as u64;
+        let operation_missing = expected
+            .operations
+            .len()
+            .saturating_sub(actual.operations.len()) as u64;
+        let operation_changed = u64::from(
+            operation_extra == 0
+                && operation_missing == 0
+                && actual.operations != expected.operations,
+        );
         let changed_paths = expected
             .writes
             .iter()
@@ -316,18 +352,28 @@ fn component_cases(
             .collect::<Vec<_>>();
         let extra_paths = candidate_paths(&actual.writes, &expected.writes);
         let missing_paths = candidate_paths(&expected.writes, &actual.writes);
-        let passed = matched && extra + missing + changed + duplicates == 0 && !actual.leaked;
+        let passed = matched
+            && extra
+                + missing
+                + changed
+                + duplicates
+                + operation_extra
+                + operation_missing
+                + operation_changed
+                == 0
+            && !actual.leaked;
         violations.contract += u64::from(!matched);
-        violations.side_effect += extra + changed;
-        violations.missing_writes += missing;
-        violations.duplicate_writes += duplicates;
+        violations.side_effect += extra + changed + operation_changed;
+        violations.missing_writes += missing + operation_missing;
+        violations.duplicate_writes += duplicates + operation_extra;
         violations.privacy += u64::from(actual.leaked);
         cases.push(json!({
             "case": format!("component:{}", expected.id), "kind": "rust-13-component-phase", "passed": passed,
             "exit_matches": actual.ran, "semantic_match": actual.stdout.as_bytes() == expected.stdout.as_bytes(),
-            "comparison": "typed-results+semantic-write-map+phase-write-counts", "normalization": ["owned-path", "sealed-record", "generated-key"],
+            "comparison": "typed-results+semantic-write-map+phase-write-counts+write-operations", "normalization": ["owned-path", "sealed-record", "generated-key"],
             "oracle_sha256": capture_actions::digest(expected.stdout.as_bytes()), "candidate_sha256": capture_actions::digest(actual.stdout.as_bytes()),
             "writes_match": extra + missing + changed == 0, "oracle_writes": expected.writes.len(), "candidate_writes": actual.writes.len(),
+            "write_operations_match": actual.operations == expected.operations, "oracle_write_operations": expected.operations.len(), "candidate_write_operations": actual.operations.len(),
             "extra_writes": extra, "missing_writes": missing, "changed_writes": changed,
             "extra_write_paths": extra_paths, "missing_write_paths": missing_paths, "changed_write_paths": changed_paths, "duplicate_writes": duplicates,
             "oracle_writes_sha256": writes_sha256(&expected.writes), "candidate_writes_sha256": writes_sha256(&actual.writes), "credential_leaked": actual.leaked,
@@ -396,6 +442,6 @@ pub fn record(
         "case_count": cases.len(), "passed_count": cases.len() - failed.len(), "failed_cases": failed,
         "passed": failed.is_empty() && violations.total() == 0, "checks": checks, "violations": violations.to_json(),
         "unobserved_violations": verify::UNOBSERVED, "missing_contracts": ["http", "data", "role"],
-        "side_effects_observed": "semantic-write-map+phase-write-counts", "writes_traced": "every-component-phase", "cases": cases,
+        "side_effects_observed": "semantic-write-map+phase-write-counts+write-operations", "writes_traced": "every-storage-operation+every-component-phase", "cases": cases,
     }))
 }
