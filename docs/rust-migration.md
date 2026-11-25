@@ -9,8 +9,8 @@ repository can do any step from this page and the task block.
   actions` routes to `careerbrew-native` since `rust-03` activated
   (2026-11-19, [rust-03 verdict](#rust-03-verdict)). No other gain is claimed. See [Current state](#current-state) and
   [State of rust-00](#state-of-rust-00).
-- **Next task:** `rust-13` (feed ingestion and transcript normalization).
-  `rust-00` through `rust-12` have their recorded preparation or component
+- **Next task:** `rust-14` (live listening, review asks and notifications).
+  `rust-00` through `rust-13` have their recorded preparation or component
   results; only the `rust-03` action catalog is active in production. Follow-ups
   and later activation closure remain tasks in `TASKS.md`.
 - **How to read it:** the [goal](#goal-and-vision) and [decision](#decision-and-rejected-alternatives),
@@ -2409,6 +2409,15 @@ the crate until the rust-05 and rust-07 closure is native, so
   keeps Python. Not-yet-native health/live/completion and promise/evidence
   integration stay behind typed component providers. This is component parity
   only: production dispatch, shipped crates and activation do not change.
+- **Component implementation:** `crates/feed` provides recorded Slack,
+  PagerDuty and Outlook readers, raw ticket/mail/calendar conversion, exact
+  original/analysis upserts, Claude/Codex transcript normalization, link and
+  open-ask rules, cycle bookkeeping and component CLI adapters. It reuses vault
+  storage, atomic writes, exact locks and events, recorded source transport and
+  native team matching. `feed-component` is synthetic-only. The custom verifier
+  compares exact typed output, semantic writes and per-phase write transitions;
+  planted extra, missing and duplicate writes must fail. Production Python,
+  native routes, shipped crates and activation are unchanged.
 
 ### rust-14: Port live listening, review asks and notifications
 
@@ -2813,6 +2822,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | `crates/sessions/` | `careerbrew-sessions` | the rust-10 session, claim, agent activity, prior-selection, reply-draft and six-handler CLI component; synthetic `sessions-component` transport only | none: component parity only |
 | `crates/memory/` | `careerbrew-memory` | the rust-11 source identity, project import, memory sync and component CLI adapters; synthetic `memory-component` transport only | none: component parity only |
 | `crates/learn/` | `careerbrew-learn` | the rust-12 learning, project-scoped FSRS, replay, tour, explainer, PRD and CLI component; synthetic `learn-component` transport only | none: component parity only |
+| `crates/feed/` | `careerbrew-feed` | the rust-13 recorded feed readers, original/analysis transactions, raw replies, Claude/Codex transcript normalization, open asks, cycle and CLI component; synthetic `feed-component` transport only | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
@@ -3609,6 +3619,7 @@ row stays, but it means the **dispatcher**, not the handlers:
 - `tests/fixtures/transcripts/feed-cycle/tool-results/` (1): `big.txt`
 - CLI handlers it ports out of `cli.py` (2): `cmd_work_feed`, `cmd_work_team`
 - Assertions it ports (7 test files, the files themselves are listed under `rust-27`): `us-63-today-open-asks.sh`, `us-78-team-feed.sh`, `test_issue_180.py`, `test_issue_228.py`, `test_issue_234.py`, `test_issue_316.py`, `test_issue_374_legacy_feed.py`
+- Native crate it adds (`keep-native` in the inventory): `crates/feed/` (`feed.rs`, `sources.rs`, `transcript.rs`, `cli.rs`, `synthetic.rs`, `lib.rs` and `bin/feed-component.rs`), plus `crates/feed/tests/component.rs`, `tests/oracles/rust13.py`, `tests/unit/test_rust13_component.py`, `xtask/src/rust13.rs` and `xtask/tests/rust13.rs`.
 
 #### rust-14: Port live listening, review asks and notifications (11 files)
 

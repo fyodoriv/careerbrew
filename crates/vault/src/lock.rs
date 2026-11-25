@@ -19,17 +19,23 @@ pub fn lock_path(path: &Path) -> PathBuf {
     path.with_file_name(format!(".{name}.lock"))
 }
 
-/// Runs `f` while holding the exclusive lock for `path`.
-pub fn with_lock<T>(path: &Path, f: impl FnOnce() -> T) -> std::io::Result<T> {
-    // Append mode, created if missing, default mode: like Python's `open("a")`.
-    let lock: File = OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open(lock_path(path))?;
+/// Runs `f` while holding an exclusive lock on the exact supplied path.
+/// The caller owns lock-path identity; the handle releases it on drop.
+pub fn with_exact_lock<T>(path: &Path, f: impl FnOnce() -> T) -> std::io::Result<T> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    // Append mode, created if missing, default mode: like Python's `open("a+")`.
+    let lock: File = OpenOptions::new().append(true).create(true).open(path)?;
     lock.lock()?;
     let out = f();
     drop(lock);
     Ok(out)
+}
+
+/// Runs `f` while holding the exclusive lock for `path`.
+pub fn with_lock<T>(path: &Path, f: impl FnOnce() -> T) -> std::io::Result<T> {
+    with_exact_lock(&lock_path(path), f)
 }
 
 /// `store.append_jsonl` for rows already encoded as JSON lines.
@@ -84,6 +90,16 @@ mod tests {
     fn lock_path_is_the_python_sibling() {
         let p = Path::new("a/b/rows.jsonl");
         assert_eq!(lock_path(p), Path::new("a/b/.rows.jsonl.lock"));
+    }
+
+    #[test]
+    fn exact_lock_preserves_the_callers_path_identity() {
+        let dir = scratch("exact");
+        let path = dir.join("work/feed/.lock");
+        with_exact_lock(&path, || ()).unwrap();
+        assert!(path.is_file());
+        assert!(!dir.join("work/feed/.lock.lock").exists());
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
