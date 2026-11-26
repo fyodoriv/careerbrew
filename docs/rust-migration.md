@@ -2661,6 +2661,23 @@ the crate until the rust-05 and rust-07 closure is native, so
   keeps all six differential cases and five planted controls passing, with fresh
   30-run/30-pair resource records and no activation change. Any mismatch keeps
   Python.
+- **Review-correction acceptance (2026-11-26, macOS):** clean measured source
+  `af1e6014914f1ada9406104a35bbf7483d3d123b`; evidence-source hash
+  `1b1d66b94d27bc83eb2aab898f0cef93c7eeebc7404413fa887a5bde58bf6a19`;
+  fixture hash `6cbe4e4a9a4a9e2c3763230f10101341dc588f3c4c64eb8acdb02b475536cb3b`;
+  release-candidate SHA-256
+  `77077d5ac7ad6d81086f10df1bb016fbe4ed48f9abfbebc58f350ee5fcadb887`.
+  Baseline: 30 runs; CPU p50/p95 621,715/665,839 microseconds and tree-RSS
+  p50/p95 61,079,552/61,341,696 bytes. Verify passes 6/6 with zero contract,
+  privacy, side-effect, missing-write or duplicate-write violations, including
+  insertion order, same-record session history and `exit -15`. Measurement:
+  30 unique, uncached pairs in each regime. Cold CPU p95 was 683,928 to 122,530
+  microseconds; warm was 671,028 to 129,629. Cold tree-RSS p95 was 61,423,616
+  to 10,944,512 bytes; warm was 61,636,608 to 10,928,128. Each ratio is below
+  1.10. `decide` returned component-only `activate`; all five same-head planted
+  controls returned `keep-python` with `verify-check-failed` and
+  `verify-violation`. Production routes, shipped crates and activation remain
+  unchanged.
 
 ### rust-16: Port work-day execution, scheduling and watch loops
 
