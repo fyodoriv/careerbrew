@@ -356,6 +356,13 @@ def work_session(base: Path) -> dict[str, Any]:
     event_names = [json.loads(line)["event"] for line in (ws.root / "logs/events.jsonl").read_text().splitlines()[-2:]]
     error_event_statuses = [json.loads(line)["status"] for line in (ws.root / "logs/events.jsonl").read_text().splitlines()[-2:]]
     os.environ["CAREERBREW_EVENTS"] = "off"
+    loop_path = ws.root / "day/loops.json"
+    store.write_json(loop_path, {"passes": [], "inputs": {}, "loops": [{"kind": "work", "id": "conflict", "stopped": ""}]})
+    session_before = store.read_json(sessions.path())
+    loop_before = store.read_json(loop_path)
+    config.set_value("work_session_cap", "3")
+    conflict_error = error(lambda: sessions.open_session("search", "conflict"))
+    conflict_unchanged = store.read_json(sessions.path()) == session_before and store.read_json(loop_path) == loop_before
     raw = (ws.root / "work/sessions.json").read_bytes()
     return {
         "opened": opened,
@@ -378,6 +385,8 @@ def work_session(base: Path) -> dict[str, Any]:
         "error_event": error_event,
         "event_names": event_names,
         "error_event_statuses": error_event_statuses,
+        "conflict_error": conflict_error,
+        "conflict_unchanged": conflict_unchanged,
         "claims_after_end": sessions.claims(),
         "sealed": raw.startswith(b"CBV1\n"),
         "plain_absent": CANARY.encode() not in raw,

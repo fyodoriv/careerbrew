@@ -231,6 +231,27 @@ fn load_loops(root: &Path) -> Result<Value> {
     )
 }
 
+fn validate_loop_state(state: &Value, id: &str, record: &str) -> Result<()> {
+    let running = state["loops"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|row| text(field(row, "stopped")).is_empty() && text(field(row, "id")) == id)
+        .cloned()
+        .collect::<Vec<_>>();
+    if running.iter().any(|row| {
+        text(field(row, "kind")) != "session" || text(field(row, "session_record")) != record
+    }) {
+        return Err(error("WatchError", "session loop id conflicts with another running loop; resolve that loop before continuing"));
+    }
+    Ok(())
+}
+
+fn validate_loop(root: &Path, id: &str, record: &str) -> Result<()> {
+    let state = load_loops(root)?;
+    validate_loop_state(&state, id, record)
+}
+
 fn ensure_loop(root: &Path, id: &str, record: &str) -> Result<bool> {
     let path = root.join("day/loops.json");
     if let Some(parent) = path.parent() {
@@ -245,11 +266,7 @@ fn ensure_loop(root: &Path, id: &str, record: &str) -> Result<bool> {
             .filter(|row| text(field(row, "stopped")).is_empty() && text(field(row, "id")) == id)
             .cloned()
             .collect::<Vec<_>>();
-        if running.iter().any(|row| {
-            text(field(row, "kind")) != "session" || text(field(row, "session_record")) != record
-        }) {
-            return Err(error("WatchError", "session loop id conflicts with another running loop; resolve that loop before continuing"));
-        }
+        validate_loop_state(&state, id, record)?;
         if !running.is_empty() {
             return Ok(false);
         }
@@ -494,6 +511,7 @@ pub fn open_session_with_loop(root: &Path, project: &str, ident: &str) -> Result
                 got["brief_status"] = status.clone();
             }
             state["quiet_receipts"] = Value::Object(receipts);
+            validate_loop(root, &current_id, &current_record)?;
             prune(root, &mut state)?;
             if state != before {
                 write_json(root, PATH, &state)?;

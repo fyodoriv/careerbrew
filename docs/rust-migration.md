@@ -2662,6 +2662,8 @@ the crate until the rust-05 and rust-07 closure is native, so
   values are normalized as generated measurements. Current records are selected
   by `record_id` across days; refusal paths emit `cli.run` with `status=fail`.
   The `ready_when.after` control retains operator declaration order before `/check`.
+  Loop conflicts are validated before session state changes; the refused-open
+  control proves both session and loop files remain unchanged.
   The Python oracle traces
   direct event-log appends explicitly, so every native and Python storage write
   is compared. Success

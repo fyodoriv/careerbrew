@@ -142,6 +142,7 @@ def test_workday_records_questions_stages_and_sessions_match_python(candidate, t
         assert work["reopened"]["value"].get("brief", "")
         assert work["event_names"] == ["work.session", "cli.run"]
         assert work["error_event_statuses"] == ["refused", "fail"]
+        assert work["conflict_error"] == "WatchError" and work["conflict_unchanged"] is True
         assert work["claims_after_end"] == []
         assert work["sealed"] is True and work["plain_absent"] is True
 

@@ -778,6 +778,17 @@ fn work_session_case(base: &Path) -> Result<Value> {
         .rev()
         .collect::<Vec<_>>();
     std::env::set_var("CAREERBREW_EVENTS", "off");
+    write_json(
+        root,
+        "day/loops.json",
+        &json!({"passes": [], "inputs": {}, "loops": [{"kind": "work", "id": "conflict", "stopped": ""}]}),
+    )?;
+    let session_before = read_json(root, "work/sessions.json", json!({}))?;
+    let loop_before = read_json(root, "day/loops.json", json!({}))?;
+    set_setting(root, "work_session_cap", 3)?;
+    let conflict_error = error_of(work_session::open(root, "search", "conflict").map(|_| ()));
+    let conflict_unchanged = read_json(root, "work/sessions.json", json!({}))? == session_before
+        && read_json(root, "day/loops.json", json!({}))? == loop_before;
     let session_path = root.join("work/sessions.json");
     let raw = std::fs::read(&session_path)?;
     match std::env::var("CAREERBREW_RUST15_PLANT_WRITE").as_deref() {
@@ -809,6 +820,8 @@ fn work_session_case(base: &Path) -> Result<Value> {
         "error_event": error_event,
         "event_names": event_names,
         "error_event_statuses": error_event_statuses,
+        "conflict_error": conflict_error,
+        "conflict_unchanged": conflict_unchanged,
         "claims_after_end": careerbrew_sessions::sessions::claims(root).map_err(|error| crate::error(error.class, error.message))?,
         "sealed": raw.starts_with(b"CBV1\n"),
         "plain_absent": !raw.windows(CANARY.len()).any(|part| part == CANARY.as_bytes()),
