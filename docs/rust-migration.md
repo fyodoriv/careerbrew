@@ -2736,6 +2736,22 @@ the crate until the rust-05 and rust-07 closure is native, so
   and every ratio is below 1.10. `decide` returned component-only `activate`;
   all five same-head planted controls returned `keep-python`. Production routes,
   shipped crates and activation remain unchanged.
+- **Lock-held conflict acceptance (2026-11-26, macOS):** clean measured source
+  `d2f35e8fae744abfc8939319fdc3a2468665ed3a`; evidence-source hash
+  `41894329cc5bc5fa9a885be7adf80d5dd3381e3b3ab24cfb736bc6e76e82f6ab`;
+  fixture hash `e2339644f48e45fcbc133178f32c3f79e4fc7a2db047bf0d0bd92532663555d7`;
+  release-candidate SHA-256
+  `d98f1597b2a464c021cd56105f0f9118e3b402d6de80725ffd70ab1183a28752`.
+  Baseline: 30 runs; CPU p50/p95 724,328/761,070 microseconds and tree-RSS
+  p50/p95 61,587,456/61,947,904 bytes. Verify passes 6/6 with zero violations;
+  the interleaved conflict regression proves that one loop lock excludes the
+  competing insertion through session persistence and loop insertion. Cold CPU
+  p95 was 734,963 to 133,419 microseconds; warm was 742,853 to 133,903. Cold
+  tree-RSS p95 was 61,915,136 to 10,977,280 bytes; warm was 62,013,440 to
+  10,993,664. Each regime has 30 unique uncached pairs and every ratio is below
+  1.10. `decide` returned component-only `activate`; all five same-head planted
+  controls returned `keep-python`. Production routes, shipped crates and
+  activation remain unchanged.
 
 ### rust-16: Port work-day execution, scheduling and watch loops
 
