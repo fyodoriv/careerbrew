@@ -2583,6 +2583,16 @@ the crate until the rust-05 and rust-07 closure is native, so
   returned `Ready to merge: Yes`. Production routes, shipped crates and
   activation remain unchanged; activation needs the complete native closure and
   rollback evidence.
+- **Evidence-freshness refresh (2026-11-26, macOS):** clean source
+  `fa43d00574271a1e804847f3f09020ef20666e5b` retains the same evidence-source,
+  fixture and release-candidate hashes above. A fresh 30-run baseline has CPU
+  p50/p95 1,527,761/1,607,853 microseconds and tree-RSS p50/p95
+  65,290,240/65,503,232 bytes. Fresh 30-pair cold CPU p95 was 1,597,024 to
+  784,704 microseconds; warm was 1,635,840 to 796,861. Cold tree-RSS p95 was
+  65,830,912 to 18,038,784 bytes; warm was 65,912,832 to 18,055,168. Every ratio
+  remains below 1.10. All five planted-write controls were regenerated at this
+  exact source and each returned `keep-python` with `verify-check-failed` and
+  `verify-violation`. The candidate and production boundary are unchanged.
 
 ### rust-15: Port canonical work-day records and questions
 
