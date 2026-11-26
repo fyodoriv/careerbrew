@@ -124,7 +124,17 @@ pub fn open_cli(root: &Path, project: &str, ident: &str, as_json: bool, show: bo
     let started = std::time::Instant::now();
     let session = match open(root, project, ident) {
         Ok(session) => session,
-        Err(error) => return failure(&error),
+        Err(error) => {
+            let ms = started.elapsed().as_millis() as u64;
+            if let Err(event_error) = emit(
+                root,
+                "cli.run",
+                json!({"command": "work.session", "status": "fail", "via": "cli", "ms": ms}),
+            ) {
+                return failure(&event_error);
+            }
+            return failure(&error);
+        }
     };
     if as_json {
         let mut result = json!({

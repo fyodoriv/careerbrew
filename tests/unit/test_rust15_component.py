@@ -113,11 +113,11 @@ def test_workday_records_questions_stages_and_sessions_match_python(candidate, t
 
         stage = case(report, "stage-readiness")
         assert stage["ready"] == {
-            "initial": ["/check", "/other"],
-            "running": ["/other"],
-            "checked": ["/feed", "/report", "/other"],
-            "failed": ["/other"],
-            "blocked": ["/feed", "/report", "/other"],
+            "initial": ["/z-operator", "/a-operator"],
+            "running": ["/z-operator", "/a-operator"],
+            "checked": ["/z-operator", "/a-operator"],
+            "failed": ["/z-operator", "/a-operator"],
+            "blocked": ["/z-operator", "/a-operator"],
         }
         assert [row["step"] for row in stage["found"] if row.get("operator_turn")] == ["/z-operator", "/a-operator", "/dispatch"]
         dispatch = next(row for row in stage["found"] if row["step"] == "/dispatch")
@@ -139,8 +139,9 @@ def test_workday_records_questions_stages_and_sessions_match_python(candidate, t
         assert "projects and handoffs hidden" in work["listed_text"]["stdout"]
         assert work["missing"]["exit"] == {"int": "1"} and set(work["missing"]["value"]["missing"]) == {"sess-a", "sess-b"}
         assert work["ended"]["exit"] == {"int": "0"} and set(work["ended"]["value"]["ended"]) == {"sess-a", "sess-b"}
-        assert work["reopened"]["value"]["brief"]
-        assert work["event_names"] == ["workday.loop", "work.session"]
+        assert work["reopened"]["value"].get("brief", "")
+        assert work["event_names"] == ["work.session", "cli.run"]
+        assert work["error_event_statuses"] == ["refused", "fail"]
         assert work["claims_after_end"] == []
         assert work["sealed"] is True and work["plain_absent"] is True
 

@@ -453,7 +453,7 @@ pub fn open_session_with_loop(root: &Path, project: &str, ident: &str) -> Result
                 .as_array_mut()
                 .expect("sessions")
                 .iter_mut()
-                .find(|session| text(field(session, "id")) == current_id)
+                .find(|session| text(field(session, "record_id")) == current_record)
                 .expect("current session");
             if current.get("opening_brief").is_none() {
                 let brief = if quiet_first {

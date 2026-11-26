@@ -746,9 +746,11 @@ fn work_session_case(base: &Path) -> Result<Value> {
     let handoff = work_session::handoff_cli(root, "sess-a", CANARY, "");
     let handoff_b = work_session::handoff_cli(root, "sess-b", "ledger complete", "");
     let ended = work_session::end_cli(root, "", true, true);
+    at("2026-11-03T09:00:00+00:00");
     let reopened = work_session::open_cli(root, "billing", "sess-a", true, false);
     std::env::set_var("CAREERBREW_EVENTS", "on");
     let event_session = work_session::open_cli(root, "ledger", "sess-events", true, false);
+    let error_event = work_session::open_cli(root, "search", "sess-cap", false, false);
     let event_names = std::fs::read_to_string(root.join("logs/events.jsonl"))?
         .lines()
         .rev()
@@ -756,6 +758,19 @@ fn work_session_case(base: &Path) -> Result<Value> {
         .map(|line| {
             serde_json::from_str::<Value>(line)
                 .map(|row| text(field(&row, "event")))
+                .unwrap_or_default()
+        })
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect::<Vec<_>>();
+    let error_event_statuses = std::fs::read_to_string(root.join("logs/events.jsonl"))?
+        .lines()
+        .rev()
+        .take(2)
+        .map(|line| {
+            serde_json::from_str::<Value>(line)
+                .map(|row| text(field(&row, "status")))
                 .unwrap_or_default()
         })
         .collect::<Vec<_>>()
@@ -791,7 +806,9 @@ fn work_session_case(base: &Path) -> Result<Value> {
         "ended": ended,
         "reopened": reopened,
         "event_session": event_session,
+        "error_event": error_event,
         "event_names": event_names,
+        "error_event_statuses": error_event_statuses,
         "claims_after_end": careerbrew_sessions::sessions::claims(root).map_err(|error| crate::error(error.class, error.message))?,
         "sealed": raw.starts_with(b"CBV1\n"),
         "plain_absent": !raw.windows(CANARY.len()).any(|part| part == CANARY.as_bytes()),

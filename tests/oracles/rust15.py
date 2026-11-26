@@ -337,6 +337,7 @@ def work_session(base: Path) -> dict[str, Any]:
     handoff = invoke(["work", "session", "handoff", "sess-a", CANARY])
     handoff_b = invoke(["work", "session", "handoff", "sess-b", "ledger complete"])
     ended = invoke(["work", "session", "end", "--all", "--json"], json_output=True)
+    at("2026-11-03T09:00:00+00:00")
     reopened = invoke(["work", "session", "open", "billing", "--id", "sess-a", "--json"], json_output=True)
     os.environ["CAREERBREW_EVENTS"] = "on"
     original_write_row = event_log.write_row
@@ -349,9 +350,11 @@ def work_session(base: Path) -> dict[str, Any]:
     event_log.write_row = traced_write_row
     try:
         event_session = invoke(["work", "session", "open", "ledger", "--id", "sess-events", "--json"], json_output=True)
+        error_event = invoke(["work", "session", "open", "search", "--id", "sess-cap"])
     finally:
         event_log.write_row = original_write_row
     event_names = [json.loads(line)["event"] for line in (ws.root / "logs/events.jsonl").read_text().splitlines()[-2:]]
+    error_event_statuses = [json.loads(line)["status"] for line in (ws.root / "logs/events.jsonl").read_text().splitlines()[-2:]]
     os.environ["CAREERBREW_EVENTS"] = "off"
     raw = (ws.root / "work/sessions.json").read_bytes()
     return {
@@ -372,7 +375,9 @@ def work_session(base: Path) -> dict[str, Any]:
         "ended": ended,
         "reopened": reopened,
         "event_session": event_session,
+        "error_event": error_event,
         "event_names": event_names,
+        "error_event_statuses": error_event_statuses,
         "claims_after_end": sessions.claims(),
         "sealed": raw.startswith(b"CBV1\n"),
         "plain_absent": CANARY.encode() not in raw,
