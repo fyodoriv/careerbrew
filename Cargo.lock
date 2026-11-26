@@ -333,6 +333,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "careerbrew-tutor"
+version = "0.1.0"
+dependencies = [
+ "careerbrew-depvec",
+ "careerbrew-learn",
+ "careerbrew-memory",
+ "careerbrew-policy",
+ "careerbrew-projects",
+ "careerbrew-setup",
+ "careerbrew-vault",
+ "chrono",
+ "chrono-tz",
+ "fsrs",
+ "glob",
+ "icu_casemap",
+ "regex",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "careerbrew-vault"
 version = "0.1.0"
 dependencies = [

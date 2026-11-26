@@ -186,6 +186,8 @@ def test_tutor_public_notion_and_provider_contracts_match_python(candidate, tmp_
         assert providers["mistakes"]["deck_count"] == {"int": "2"}
         assert providers["mistakes"]["second_repeat"] is True
         assert providers["mistakes"]["from_exercise"] == ["edge-case"]
+        assert providers["plugin_item"]["origin"] == "plugin:rust20plug"
+        assert providers["plugin_rubric_criteria"] == ["plugin-criterion"]
 
     assert_same(reports[1], reports[0], floats=compared_floats)
     assert len(compared_floats) >= 8, "full-precision FSRS and mastery values were really compared"

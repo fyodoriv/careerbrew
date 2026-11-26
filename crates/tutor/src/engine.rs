@@ -3,7 +3,7 @@
 use crate::fsrs::{self, CardState};
 use crate::{
     append_jsonl, chars, emit, field, read_json, read_jsonl, read_yaml, read_yaml_abs, stamp_at,
-    text, write_json, write_yaml, Result, TutorError,
+    strings, text, write_json, write_yaml, Result, TutorError,
 };
 use careerbrew_vault::canon::Canon;
 use chrono::{DateTime, FixedOffset};
@@ -29,6 +29,72 @@ fn attempts_path() -> &'static str {
 
 pub type Resources = [(String, PathBuf)];
 
+/// Base files first, then each installed plugin's declared files, matching
+/// `plugins.resources(kind)` without reading any owner-global plugin state.
+pub fn resources(_root: &Path, repo_root: &Path, kind: &str) -> Result<Vec<(String, PathBuf)>> {
+    if !careerbrew_setup::plugins::RESOURCE_KINDS.contains(&kind) {
+        return Err(TutorError::new(
+            "PluginError",
+            format!("unknown resource kind {kind}"),
+        ));
+    }
+    let mut out = Vec::new();
+    let base = repo_root.join("knowledge").join(kind);
+    if base.is_dir() {
+        let mut files = std::fs::read_dir(base)?
+            .map(|entry| entry.map(|entry| entry.path()))
+            .collect::<std::io::Result<Vec<_>>>()?
+            .into_iter()
+            .filter(|path| path.is_file())
+            .collect::<Vec<_>>();
+        files.sort();
+        out.extend(files.into_iter().map(|path| ("base".to_owned(), path)));
+    }
+    for plugin in careerbrew_setup::plugins::installed()? {
+        let provides = field(&plugin.manifest, "provides");
+        let declared = field(provides.unwrap_or(&Value::Null), kind);
+        let specs = declared
+            .map(|value| {
+                if value.is_string() {
+                    vec![text(Some(value))]
+                } else {
+                    strings(Some(value))
+                }
+            })
+            .unwrap_or_default();
+        let origin = text(field(&plugin.entry, "origin"));
+        for spec in specs {
+            let pattern = plugin.root.join(spec).to_string_lossy().into_owned();
+            let matches = glob::glob(&pattern)
+                .map_err(|_| TutorError::new("PluginError", "invalid plugin resource pattern"))?;
+            for found in matches {
+                let found = found
+                    .map_err(|_| TutorError::new("PluginError", "cannot read plugin resource"))?;
+                let files = if found.is_dir() {
+                    let recursive = found.join("**/*").to_string_lossy().into_owned();
+                    glob::glob(&recursive)
+                        .map_err(|_| {
+                            TutorError::new("PluginError", "invalid plugin resource pattern")
+                        })?
+                        .collect::<std::result::Result<Vec<_>, _>>()
+                        .map_err(|_| {
+                            TutorError::new("PluginError", "cannot read plugin resource")
+                        })?
+                } else {
+                    vec![found]
+                };
+                let mut files = files
+                    .into_iter()
+                    .filter(|path| path.is_file())
+                    .collect::<Vec<_>>();
+                files.sort();
+                out.extend(files.into_iter().map(|path| (origin.clone(), path)));
+            }
+        }
+    }
+    Ok(out)
+}
+
 pub struct Attempt<'a> {
     pub seconds: Option<i64>,
     pub at: DateTime<FixedOffset>,
@@ -37,23 +103,18 @@ pub struct Attempt<'a> {
 
 pub fn rubrics(
     _root: &Path,
-    repo_root: &Path,
+    _repo_root: &Path,
     plugin: &Resources,
 ) -> Result<BTreeMap<String, Value>> {
-    let mut resources = std::fs::read_dir(repo_root.join("knowledge/rubrics"))?
-        .flatten()
-        .map(|entry| ("base".to_owned(), entry.path()))
-        .collect::<Vec<_>>();
-    resources.extend_from_slice(plugin);
     let mut out = BTreeMap::new();
-    for (_, path) in resources {
+    for (_, path) in plugin {
         if !matches!(
             path.extension().and_then(|extension| extension.to_str()),
             Some("yaml" | "yml")
         ) {
             continue;
         }
-        let data = read_yaml_abs(&path, json!({}))?;
+        let data = read_yaml_abs(path, json!({}))?;
         let id = text(field(&data, "id"));
         let id = if id.is_empty() {
             path.file_stem()

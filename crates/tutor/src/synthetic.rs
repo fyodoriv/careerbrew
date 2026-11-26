@@ -1,7 +1,7 @@
 //! Synthetic rust-20 workload over native tutor transactions.
 
 use crate::{
-    cards, compact, engine, field, fsrs, mistakes, notion, public, read_json, read_jsonl,
+    cards, compact, emit, engine, field, fsrs, mistakes, notion, public, read_json, read_jsonl,
     read_yaml, text, typed, write_json, write_jsonl, write_yaml, Result, TutorError,
 };
 use chrono::{DateTime, Duration, FixedOffset, TimeZone, Utc};
@@ -634,11 +634,60 @@ fn notion_validation_and_partial_writes(base: &Path) -> Result<Value> {
 
 fn providers_and_mistakes(base: &Path) -> Result<Value> {
     let ws = Workspace::new(base, "providers")?;
-    let resources = [];
+    if std::env::var("CAREERBREW_RUST20_EVENT_CONTROL").as_deref() == Ok("1") {
+        std::env::set_var("CAREERBREW_EVENTS", "on");
+    }
+    write_yaml(
+        &ws.root,
+        "plugins/rust20plug/careerbrew-plugin.yaml",
+        &json!({
+            "name": "rust20plug",
+            "version": "0.1.0",
+            "provides": {"knowledge": "knowledge", "rubrics": "rubrics"},
+        }),
+    )?;
+    write_yaml(
+        &ws.root,
+        "plugins/rust20plug/knowledge/plugin.yaml",
+        &json!({"items": [{
+            "id": "plugin-rust-1",
+            "topic": "Plugin topic",
+            "round": "skill",
+            "rubric": "plugin-rubric",
+            "teach": "Synthetic plugin lesson",
+            "prompt": "Synthetic plugin prompt",
+        }]}),
+    )?;
+    write_yaml(
+        &ws.root,
+        "plugins/rust20plug/rubrics/plugin.yaml",
+        &json!({"id": "plugin-rubric", "criteria": [{"id": "plugin-criterion", "text": "Synthetic plugin criterion"}]}),
+    )?;
+    write_json(
+        &ws.root,
+        "plugins.lock.json",
+        &json!({"plugins": {"rust20plug": {"origin": "plugin:rust20plug"}}}),
+    )?;
+    let knowledge = engine::resources(&ws.root, &repo_root(), "knowledge")?;
+    let rubric_resources = engine::resources(&ws.root, &repo_root(), "rubrics")?;
+    let plugin_knowledge = knowledge
+        .into_iter()
+        .filter(|(origin, _)| origin != "base")
+        .collect::<Vec<_>>();
     let added = engine::add_gap_items(&ws.root, &["Rust".into()])?;
     let repeated = engine::add_gap_items(&ws.root, &["Rust".into()])?;
-    let item = engine::items(&ws.root, &repo_root(), &resources)?["gap-rust-1"].clone();
-    let rubric = engine::rubrics(&ws.root, &repo_root(), &resources)?["skill"].clone();
+    let all_items = engine::items(&ws.root, &repo_root(), &plugin_knowledge)?;
+    let item = all_items["gap-rust-1"].clone();
+    let plugin_item = all_items["plugin-rust-1"].clone();
+    let all_rubrics = engine::rubrics(&ws.root, &repo_root(), &rubric_resources)?;
+    let rubric = all_rubrics["skill"].clone();
+    let plugin_rubric_criteria = field(&all_rubrics["plugin-rubric"], "criteria")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .map(|row| text(field(row, "id")))
+        .collect::<Vec<_>>();
     let criteria = field(&rubric, "criteria")
         .and_then(Value::as_array)
         .cloned()
@@ -652,8 +701,8 @@ fn providers_and_mistakes(base: &Path) -> Result<Value> {
     let row = engine::record(
         &ws.root,
         &repo_root(),
-        &resources,
-        &resources,
+        &plugin_knowledge,
+        &rubric_resources,
         "gap-rust-1",
         &criteria,
         engine::Attempt {
@@ -662,6 +711,13 @@ fn providers_and_mistakes(base: &Path) -> Result<Value> {
             graded_by: "self",
         },
     )?;
+    if std::env::var("CAREERBREW_RUST20_PLANT_WRITE").as_deref() == Ok("event-duplicate") {
+        emit(
+            &ws.root,
+            "tutor.attempt",
+            vec![("status", careerbrew_vault::canon::Canon::Str("good".into()))],
+        )?;
+    }
     let old_cards = engine::cards(&ws.root)?
         .iter()
         .map(|(id, card)| (id.clone(), card.to_json()))
@@ -670,19 +726,25 @@ fn providers_and_mistakes(base: &Path) -> Result<Value> {
     let next_review = engine::next_item(
         &ws.root,
         &repo_root(),
-        &resources,
+        &plugin_knowledge,
         &["Rust".into()],
         t0() + Duration::days(20),
     )?;
-    let mastery = engine::mastery(&ws.root, &repo_root(), &resources, &resources, t0())?
-        .get("Rust")
-        .cloned()
-        .unwrap_or(Value::Null);
+    let mastery = engine::mastery(
+        &ws.root,
+        &repo_root(),
+        &plugin_knowledge,
+        &rubric_resources,
+        t0(),
+    )?
+    .get("Rust")
+    .cloned()
+    .unwrap_or(Value::Null);
     let readiness = engine::readiness(
         &ws.root,
         &repo_root(),
-        &resources,
-        &resources,
+        &plugin_knowledge,
+        &rubric_resources,
         &["Rust".into()],
         t0(),
     )?;
@@ -731,6 +793,8 @@ fn providers_and_mistakes(base: &Path) -> Result<Value> {
         "readiness": readiness,
         "now": crate::stamp_at(engine::now()),
         "rating_thresholds": rating_thresholds,
+        "plugin_item": plugin_item,
+        "plugin_rubric_criteria": plugin_rubric_criteria,
         "mistakes": {
             "first_repeat": field(&first, "repeat"),
             "second_repeat": field(&second, "repeat"),
@@ -769,6 +833,28 @@ pub fn run_all(selected: Option<&str>) -> Result<String> {
             _ => Err(TutorError::value("unknown synthetic case")),
         };
         call(&mut cases, name, result);
+    }
+    if selected == Some("duplicate-write-control") {
+        std::env::set_var("CAREERBREW_HOME", base.join("providers/data"));
+        std::env::set_var(
+            "CAREERBREW_KEY_FILE",
+            base.join("providers/keys/backup.key"),
+        );
+        let path = base.join("providers/data/tutor/gap-items.yaml");
+        let current = crate::read_yaml_abs(&path, json!({}))?;
+        crate::write_yaml_abs(&path, &current)?;
+    }
+    if std::env::var("CAREERBREW_RUST20_PLANT_WRITE").as_deref() == Ok("extra") {
+        write_json(
+            &crate::root()?,
+            "planted-extra.json",
+            &json!({"synthetic": true}),
+        )?;
+    }
+    if std::env::var("CAREERBREW_RUST20_PLANT_WRITE").as_deref() == Ok("missing")
+        && selected == Some("fsrs-old-state")
+    {
+        std::fs::remove_file(base.join("old-state/data/tutor/card-state.json"))?;
     }
     Ok(format!("{}\n", compact(&json!({"cases": cases}))?))
 }
