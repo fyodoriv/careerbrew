@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
 from careerbrew import cli, config, store  # noqa: E402
+from careerbrew import events as event_log  # noqa: E402
 from careerbrew.work import projects, review_ask, sessions  # noqa: E402
 from careerbrew.workday import gate, questions, stages, status, steps, watch  # noqa: E402
 
@@ -338,7 +339,18 @@ def work_session(base: Path) -> dict[str, Any]:
     ended = invoke(["work", "session", "end", "--all", "--json"], json_output=True)
     reopened = invoke(["work", "session", "open", "billing", "--id", "sess-a", "--json"], json_output=True)
     os.environ["CAREERBREW_EVENTS"] = "on"
-    event_session = invoke(["work", "session", "open", "ledger", "--id", "sess-events", "--json"], json_output=True)
+    original_write_row = event_log.write_row
+
+    def traced_write_row(row):
+        original_write_row(row)
+        with (ws.base / "writes.log").open("a") as trace:
+            trace.write(f"{ws.root / 'logs/events.jsonl'}\n")
+
+    event_log.write_row = traced_write_row
+    try:
+        event_session = invoke(["work", "session", "open", "ledger", "--id", "sess-events", "--json"], json_output=True)
+    finally:
+        event_log.write_row = original_write_row
     event_names = [json.loads(line)["event"] for line in (ws.root / "logs/events.jsonl").read_text().splitlines()[-2:]]
     os.environ["CAREERBREW_EVENTS"] = "off"
     raw = (ws.root / "work/sessions.json").read_bytes()

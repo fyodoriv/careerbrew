@@ -2659,7 +2659,9 @@ the crate until the rust-05 and rust-07 closure is native, so
   before the loop record, matching Python's write order. The `indexmap` crate
   preserves row order; no generated sorting replaces declaration order. New
   sessions emit `workday.loop` and `cli.run` in Python order, while elapsed `ms`
-  values are normalized as generated measurements. Success
+  values are normalized as generated measurements. The Python oracle traces
+  direct event-log appends explicitly, so every native and Python storage write
+  is compared. Success
   keeps all six differential cases and five planted controls passing, with fresh
   30-run/30-pair resource records and no activation change. Any mismatch keeps
   Python.
