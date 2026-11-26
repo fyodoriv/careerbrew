@@ -2715,23 +2715,23 @@ the crate until the rust-05 and rust-07 closure is native, so
   now cover and reject each defect. The earlier resource record is superseded
   by the clean record below.
 - **Measured evidence (2026-11-26):** clean source
-  `83bad96f5fa0c5ee26888cf22e9b2bc5111be4f5` on macOS/aarch64 with Rust
+  `9babf2f4075849117c59dcdcf3525e645d537324` on macOS/aarch64 with Rust
   1.100.0 and Python 3.12.16. Baseline/verify/measure share evidence-source
-  hash `c73b51d54d2c198f45f73ec76716cbf57dc359309a3a497b9b4822959db775aa`
+  hash `3af54897f6fcfe5c470ed044dfa276b587f961171cf5142d087f30d362affe71`
   and fixture hash `e8957893448fb8c1396ab6deee329851658ebbeb2bddbc99195ffcb7f411a0ce`.
   Release-candidate SHA-256 is
-  `c3f29dee682e735dc10941e6e73f6e116f9d2e9ff8d445266d708aaf35ce797b`.
-  Thirty baseline runs gave CPU p50/p95 383,960/412,081 microseconds and
-  tree-RSS p50/p95 46,350,336/46,645,248 bytes. Verify passed 8/8 domain
+  `a3c3ea4dd60b3e65d2226d7df41b20e1e05f80aba06d9e09f7b276bc276e8c1b`.
+  Thirty baseline runs gave CPU p50/p95 378,899/404,918 microseconds and
+  tree-RSS p50/p95 45,203,456/45,563,904 bytes. Verify passed 8/8 domain
   cases, including all 18 FSRS vectors and exactly 14 full-precision float
   leaves, with exact due times and zero observed violations. Each regime has
-  30 unique, uncached pairs. Cold CPU/RSS p95 ratios are 0.4372/0.3108; warm
-  ratios are 0.4611/0.3170, all below 1.10. The decide paired-maximum RSS
-  ratios are 0.3094/0.3224. `decide` returned component-only `activate`; extra,
+  30 unique, uncached pairs. Cold CPU/RSS p95 ratios are 0.4374/0.3165; warm
+  ratios are 0.4465/0.3172, all below 1.10. The decide paired-maximum RSS
+  ratios are 0.3225/0.3161. `decide` returned component-only `activate`; extra,
   missing, duplicate and event-duplicate controls each returned `keep-python`.
-  Local records: `.metrics/baseline-rust-20-83bad96f.json`,
-  `.metrics/verify-rust-20-83bad96f.json`, `.metrics/measure-rust-20-83bad96f.json`,
-  and `.metrics/decide-rust-20-83bad96f.json`.
+  Local records: `.metrics/baseline-rust-20-9babf2f4.json`,
+  `.metrics/verify-rust-20-9babf2f4.json`, `.metrics/measure-rust-20-9babf2f4.json`,
+  and `.metrics/decide-rust-20-9babf2f4.json`.
 - **Evidence limits:** HTTP, DATA and generic role contracts are explicitly
   scoped out of this component record; the domain's corporate-role refusal is
   covered. Python denial is environment-based. Cold differs only by missing
