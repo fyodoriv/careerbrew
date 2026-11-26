@@ -247,34 +247,38 @@ fn validate_loop_state(state: &Value, id: &str, record: &str) -> Result<()> {
     Ok(())
 }
 
-fn validate_loop(root: &Path, id: &str, record: &str) -> Result<()> {
-    let state = load_loops(root)?;
-    validate_loop_state(&state, id, record)
-}
-
-fn ensure_loop(root: &Path, id: &str, record: &str) -> Result<bool> {
+fn commit_session_loop(
+    root: &Path,
+    id: &str,
+    record: &str,
+    before: &Value,
+    state: &Value,
+) -> Result<bool> {
     let path = root.join("day/loops.json");
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
     careerbrew_vault::lock::with_lock(&path, || -> Result<bool> {
-        let mut state = load_loops(root)?;
-        let running = state["loops"]
+        let mut loops = load_loops(root)?;
+        validate_loop_state(&loops, id, record)?;
+        if state != before {
+            write_json(root, PATH, state)?;
+        }
+        let running = loops["loops"]
             .as_array()
             .into_iter()
             .flatten()
             .filter(|row| text(field(row, "stopped")).is_empty() && text(field(row, "id")) == id)
             .cloned()
             .collect::<Vec<_>>();
-        validate_loop_state(&state, id, record)?;
         if !running.is_empty() {
             return Ok(false);
         }
-        state["loops"].as_array_mut().expect("loops").push(json!({
+        loops["loops"].as_array_mut().expect("loops").push(json!({
             "kind": "session", "id": id, "step": "", "day": today().format("%Y-%m-%d").to_string(),
             "started": now().format("%Y-%m-%dT%H:%M%:z").to_string(), "stopped": "", "session_record": record,
         }));
-        write_json(root, "day/loops.json", &state)?;
+        write_json(root, "day/loops.json", &loops)?;
         Ok(true)
     })?
 }
@@ -511,12 +515,9 @@ pub fn open_session_with_loop(root: &Path, project: &str, ident: &str) -> Result
                 got["brief_status"] = status.clone();
             }
             state["quiet_receipts"] = Value::Object(receipts);
-            validate_loop(root, &current_id, &current_record)?;
             prune(root, &mut state)?;
-            if state != before {
-                write_json(root, PATH, &state)?;
-            }
-            let loop_added = ensure_loop(root, &current_id, &current_record)?;
+            let loop_added =
+                commit_session_loop(root, &current_id, &current_record, &before, &state)?;
             Ok((got, loop_added))
         })
     })
@@ -854,4 +855,49 @@ pub fn session_states(root: &Path, include_ended: bool) -> Result<Vec<Value>> {
     Ok(state["sessions"].as_array().into_iter().flatten().rev().filter(|row| include_ended || text(field(row, "ended")).is_empty()).map(|row| {
         json!({"id": text(field(row, "id")), "state": session_state(row, day), "handoff": text(field(row, "handoff"))})
     }).collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_conflicting_loop_cannot_interleave_the_session_transaction() {
+        let scratch = tempfile::tempdir().unwrap();
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join("day")).unwrap();
+        let loop_path = root.join("day/loops.json");
+        std::fs::write(
+            &loop_path,
+            r#"{"passes":[],"inputs":{},"loops":[{"kind":"work","id":"conflict","stopped":""}]}"#,
+        )
+        .unwrap();
+        let session_path = root.join(PATH);
+        std::fs::create_dir_all(session_path.parent().unwrap()).unwrap();
+        let before = json!({"sessions": []});
+        std::fs::write(&session_path, serde_json::to_string(&before).unwrap()).unwrap();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut child = None;
+        careerbrew_vault::lock::with_lock(&loop_path, || {
+            let owned = root.to_path_buf();
+            let before = before.clone();
+            child = Some(std::thread::spawn(move || {
+                let result =
+                    commit_session_loop(&owned, "conflict", "new-record", &before, &before);
+                sender.send(result).unwrap();
+            }));
+            assert!(receiver
+                .recv_timeout(std::time::Duration::from_millis(100))
+                .is_err());
+            Ok::<(), crate::ProjectError>(())
+        })
+        .unwrap()
+        .unwrap();
+        let result = receiver
+            .recv()
+            .expect("child result")
+            .expect_err("conflicting loop");
+        child.expect("child").join().expect("child thread");
+        assert_eq!(result.class, "WatchError");
+    }
 }
