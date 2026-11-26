@@ -2634,6 +2634,30 @@ the crate until the rust-05 and rust-07 closure is native, so
   Semantic phase writes, event rows, and extra/missing/duplicate/event-duplicate
   controls are observed. Production dispatch, shipped crates and activation
   remain unchanged.
+- **Measured evidence (2026-11-26):** clean source
+  `7a193fc36e35bbc482f76a0e7faa6d3c675be04a` on macOS/aarch64 with Rust
+  1.100.0 and Python 3.12.16. Baseline/verify/measure share evidence-source
+  hash `5add1c7418a76fed9a2145c3da18628bdca0d84903afd4fe5fa260c10301bc94`
+  and fixture hash `3f7dd8dc608126ca9da1172c20df6270624c5da29b031a68ed7ce5e470a819ba`.
+  Release-candidate SHA-256 is
+  `e2aedd6f86f7645fedcac1fbabf6703a48bbfc18ae8e07f1bf7115923fe35fcf`.
+  Thirty baseline runs gave CPU p50/p95 367,583/387,528 microseconds and
+  tree-RSS p50/p95 45,006,848/45,367,296 bytes. Verify passed 8/8 domain
+  cases, including all 18 FSRS vectors and 14 full-precision float leaves,
+  with exact due times and zero observed violations. Each regime has 30
+  unique, uncached pairs. Cold CPU/RSS p95 ratios are 0.4482/0.3153; warm
+  ratios are 0.4714/0.3166, all below 1.10. `decide` returned component-only
+  `activate`; extra, missing, duplicate and event-duplicate controls each
+  returned `keep-python`. Local records: `.metrics/baseline-rust-20.json`,
+  `.metrics/verify-rust-20.json`, `.metrics/measure-rust-20.json`, and
+  `.metrics/decide-rust-20.json`.
+- **Evidence limits:** HTTP, DATA and generic role contracts are explicitly
+  scoped out of this component record; the domain's corporate-role refusal is
+  covered. Python denial is environment-based. Cold differs only by missing
+  warm-up on the Rust side, not by a cold OS page cache. Noise floors are
+  unmeasured, so the 1.10 ratio applies. These are macOS component-parity
+  results, not production activation; both hosted OS gates and public
+  readiness remain required.
 
 ### rust-21: Port teacher, goals, practice and mistake tracking
 
