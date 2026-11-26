@@ -2712,7 +2712,8 @@ the crate until the rust-05 and rust-07 closure is native, so
   persisted-state acceptance. Follow-up controls also retain exact file modes,
   refuse missing or malformed step state, keep the review instant's UTC offset
   at local day end across a daylight-saving transition, and normalize pinned
-  clocks to UTC without a wall-clock fallback. Focused controls
+  clocks to UTC without a wall-clock fallback. The DST control injects its zone
+  instead of inheriting the host zone. Focused controls
   now cover and reject each defect. The earlier resource record is superseded
   by the clean record below.
 - **Measured evidence (2026-11-26):** clean source

@@ -462,8 +462,8 @@ fn retention(rows: &[Value]) -> Value {
     ))
 }
 
-fn end_of_day(at: DateTime<FixedOffset>) -> DateTime<FixedOffset> {
-    let local = at.with_timezone(&system_zone()).fixed_offset();
+fn end_of_day_in(at: DateTime<FixedOffset>, zone: chrono_tz::Tz) -> DateTime<FixedOffset> {
+    let local = at.with_timezone(&zone).fixed_offset();
     local
         .date_naive()
         .and_hms_micro_opt(23, 59, 59, 999_999)
@@ -471,6 +471,10 @@ fn end_of_day(at: DateTime<FixedOffset>) -> DateTime<FixedOffset> {
         .and_local_timezone(*local.offset())
         .single()
         .expect("a fixed offset has one local time")
+}
+
+fn end_of_day(at: DateTime<FixedOffset>) -> DateTime<FixedOffset> {
+    end_of_day_in(at, system_zone())
 }
 
 pub fn stats(root: &Path, public_dir: &Path, at: DateTime<FixedOffset>) -> Result<Value> {
@@ -597,7 +601,7 @@ mod tests {
             .earliest()
             .unwrap()
             .fixed_offset();
-        let end = end_of_day(at);
+        let end = end_of_day_in(at, zone);
         assert_eq!(end.offset(), at.offset());
         assert_eq!(end.time().num_seconds_from_midnight(), 86_399);
     }
