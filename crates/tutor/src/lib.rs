@@ -12,7 +12,7 @@ pub mod public;
 pub mod synthetic;
 
 use careerbrew_vault::canon::Canon;
-use chrono::{DateTime, FixedOffset, SecondsFormat, Utc};
+use chrono::{DateTime, FixedOffset, SecondsFormat, TimeZone, Utc};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 
@@ -136,11 +136,28 @@ pub fn digest(text: &str) -> String {
     format!("{:x}", hash.finalize())[..24].to_owned()
 }
 
+fn parse_pinned(value: &str, zone: chrono_tz::Tz) -> Result<DateTime<FixedOffset>> {
+    if let Ok(at) = DateTime::parse_from_rfc3339(value) {
+        return Ok(at.with_timezone(&Utc).fixed_offset());
+    }
+    let naive = chrono::NaiveDateTime::parse_from_str(value, "%Y-%m-%dT%H:%M:%S%.f")
+        .or_else(|_| chrono::NaiveDateTime::parse_from_str(value, "%Y-%m-%d %H:%M:%S%.f"))
+        .map_err(|_| TutorError::value("invalid CAREERBREW_NOW"))?;
+    let local = zone
+        .from_local_datetime(&naive)
+        .earliest()
+        .ok_or_else(|| TutorError::value("invalid CAREERBREW_NOW"))?;
+    Ok(local.with_timezone(&Utc).fixed_offset())
+}
+
 pub fn now() -> DateTime<FixedOffset> {
-    std::env::var("CAREERBREW_NOW")
-        .ok()
-        .and_then(|value| DateTime::parse_from_rfc3339(&value).ok())
-        .unwrap_or_else(|| Utc::now().fixed_offset())
+    let Ok(value) = std::env::var("CAREERBREW_NOW") else {
+        return Utc::now().fixed_offset();
+    };
+    let zone = root()
+        .map(|root| local_zone(&root))
+        .unwrap_or(chrono_tz::UTC);
+    parse_pinned(&value, zone).expect("invalid CAREERBREW_NOW")
 }
 
 pub fn parse_at(value: &str) -> Result<DateTime<FixedOffset>> {
@@ -311,4 +328,22 @@ pub fn error(result: Result<()>) -> String {
         .map(|error| error.class)
         .unwrap_or("accepted")
         .to_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pinned_clock_normalizes_offsets_and_naive_local_time_to_utc() {
+        let aware = parse_pinned("2026-10-19T23:30:00-05:00", chrono_tz::UTC).unwrap();
+        assert_eq!(aware.to_rfc3339(), "2026-10-20T04:30:00+00:00");
+        let naive = parse_pinned("2026-10-19T10:00:00", chrono_tz::America::New_York).unwrap();
+        assert_eq!(naive.to_rfc3339(), "2026-10-19T14:00:00+00:00");
+    }
+
+    #[test]
+    fn malformed_pinned_clock_is_refused() {
+        assert!(parse_pinned("not-a-clock", chrono_tz::UTC).is_err());
+    }
 }
