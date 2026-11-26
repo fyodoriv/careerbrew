@@ -240,6 +240,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "careerbrew-live"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "careerbrew-feed",
+ "careerbrew-memory",
+ "careerbrew-policy",
+ "careerbrew-projects",
+ "careerbrew-sessions",
+ "careerbrew-setup",
+ "careerbrew-sources",
+ "careerbrew-vault",
+ "chrono",
+ "chrono-tz",
+ "glob",
+ "regex",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "uuid",
+]
+
+[[package]]
 name = "careerbrew-memory"
 version = "0.1.0"
 dependencies = [

@@ -2526,6 +2526,73 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native live cycle and notifications.
 - **Gate:** 100% of cycle, reviewer and notification cases agree; 0 unsolicited
   sends, duplicate notifications or content-bearing logs.
+- **Component pre-registration (2026-11-25):** source revision
+  `bbab16d06ea75ca8a39cc48e40fc9f3c509bfff9`; Python oracle
+  `tests/oracles/rust14.py`. Twelve fixed synthetic cases cover source config
+  and plugin rosters; live-cycle verdicts and locks; validated-unchanged,
+  stale, malformed, future and reversed acquisition clocks; read-only direct
+  health; reply/review drafts, project updates, goals and review sessions;
+  link policy; reviewer selection and CODEOWNERS; notification priority,
+  deduplication, reopening and batching; quiet hours, caps and snoozes;
+  per-reference project holds and launch reservations; suggestion decisions;
+  and the live/review/notify component CLI adapters. Exact typed results,
+  semantic write maps and every storage/event write operation are compared.
+  Only owned paths, generated record identities, sealed-record bytes and event
+  wall-clock timestamps are normalized; source timestamps, health ages,
+  notification states, privacy and write transitions remain strict. Thirty
+  fresh Python runs establish baseline B. Verify requires all twelve cases
+  with zero contract, privacy, side-effect, missing-write or duplicate-write
+  violations. Measure requires 30 unique interleaved pairs in each cold and
+  warm regime. CPU-time p95 and process-tree peak RSS must each be at most
+  1.10 x the paired oracle in each regime; unmeasured noise floors use that
+  ratio without relaxation. Any mismatch, unsolicited send, duplicate
+  notification, content-bearing log or resource violation keeps Python.
+  Later-owned inbox/results/standup/goal behavior stays behind typed component
+  providers. This is component parity only: production dispatch, shipped
+  crates and activation do not change.
+- **Component implementation:** `crates/live` provides live source/cycle and
+  direct-health adapters, draft-only listening, reviewer selection and
+  notification state with fake notifier transport. `live-component` is
+  synthetic-only. Production Python, native routes, shipped crates and
+  activation are unchanged. Differential controls include re-review message
+  dispatch, old-candidate freshness, quiet-project popup identity, exact
+  goal-first schedule order and minute-precision work blocks, calendar
+  state/error/capacity preservation, meeting-aware first-fit placement,
+  stale-task rejection and new valid task inclusion, field-only generated
+  identity normalization, and osascript transport. The full differential and
+  paired-resource evidence is recorded only after every registered case and
+  control passes.
+- **Component acceptance (2026-11-25, macOS):** clean measured source
+  `c877fc372629d76991f3835f8c6fe31c0495ce2b`; evidence-source hash
+  `0ceea5604057951abce2721ef696bcbada01f094433b1b0c328f84de8017f4f8`;
+  fixture hash `6a12e9c239da09f3797293717ff2035f41d745bd104655b58aa6b25e38ff5966`;
+  release-candidate SHA-256
+  `693640596d8e4ce57aa203da09ae5cdfa5099293c4f5ec70a1581037a0c644fa`.
+  Baseline: 30 runs; CPU p50/p95 1,553,414/1,730,745 microseconds and tree-RSS
+  p50/p95 65,323,008/65,863,680 bytes. Verify passes 12/12 with zero contract,
+  privacy, side-effect, missing-write or duplicate-write violations, including
+  partial research merge, wrapped CODEOWNERS, re-review dispatch, all suggestion
+  kinds, exact calendar/task replanning and reserved-address controls.
+  Measurement: 30 unique, uncached pairs in each regime. Cold CPU p95 was
+  1,660,571 to 769,546 microseconds; warm was 1,678,979 to 796,834. Cold
+  tree-RSS p95 was 65,814,528 to 18,055,168 bytes; warm was 65,880,064 to
+  18,071,552. Each ratio is below 1.10. `decide` returned component-only
+  `activate`; extra, missing, prior-phase duplicate, same-phase operation
+  duplicate and direct event duplicate controls returned `keep-python`.
+  Independent Kimi v7 review clarified its two initial notes as non-defects and
+  returned `Ready to merge: Yes`. Production routes, shipped crates and
+  activation remain unchanged; activation needs the complete native closure and
+  rollback evidence.
+- **Evidence-freshness refresh (2026-11-26, macOS):** clean source
+  `fa43d00574271a1e804847f3f09020ef20666e5b` retains the same evidence-source,
+  fixture and release-candidate hashes above. A fresh 30-run baseline has CPU
+  p50/p95 1,527,761/1,607,853 microseconds and tree-RSS p50/p95
+  65,290,240/65,503,232 bytes. Fresh 30-pair cold CPU p95 was 1,597,024 to
+  784,704 microseconds; warm was 1,635,840 to 796,861. Cold tree-RSS p95 was
+  65,830,912 to 18,038,784 bytes; warm was 65,912,832 to 18,055,168. Every ratio
+  remains below 1.10. All five planted-write controls were regenerated at this
+  exact source and each returned `keep-python` with `verify-check-failed` and
+  `verify-violation`. The candidate and production boundary are unchanged.
 
 ### rust-15: Port canonical work-day records and questions
 
@@ -2916,6 +2983,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | `crates/memory/` | `careerbrew-memory` | the rust-11 source identity, project import, memory sync and component CLI adapters; synthetic `memory-component` transport only | none: component parity only |
 | `crates/learn/` | `careerbrew-learn` | the rust-12 learning, project-scoped FSRS, replay, tour, explainer, PRD and CLI component; synthetic `learn-component` transport only | none: component parity only |
 | `crates/feed/` | `careerbrew-feed` | the rust-13 recorded feed readers, original/analysis transactions, raw replies, Claude/Codex transcript normalization, open asks, cycle and CLI component; synthetic `feed-component` transport only | none: component parity only |
+| `crates/live/` | `careerbrew-live` | the rust-14 live-cycle, acquisition/direct health, listening, reviewer and notification component; synthetic `live-component` transport only | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |

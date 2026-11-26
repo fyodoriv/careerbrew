@@ -1384,6 +1384,7 @@ pub fn open_asks(
     rows: Option<&[Value]>,
     include_personal: bool,
 ) -> Result<Vec<Value>> {
+    std::fs::create_dir_all(feed_dir(root))?;
     let owned;
     let rows = match rows {
         Some(rows) => rows,

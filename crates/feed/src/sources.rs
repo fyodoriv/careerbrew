@@ -645,7 +645,7 @@ pub fn read(root: &Path, cfg: &Value) -> Result<Vec<Value>> {
     Ok(items)
 }
 
-fn sensitive_terms(root: &Path) -> Result<Vec<String>> {
+pub fn sensitive_terms(root: &Path) -> Result<Vec<String>> {
     let mut terms = Vec::new();
     let context = crate::context()?;
     let stored = context.store();
