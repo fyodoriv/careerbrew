@@ -6,7 +6,7 @@ use crate::{
     strings, system_zone, text, truthy, write_json, write_yaml, Result, TutorError,
 };
 use careerbrew_vault::canon::Canon;
-use chrono::{DateTime, Duration, FixedOffset, NaiveDate, TimeZone};
+use chrono::{DateTime, Duration, FixedOffset, NaiveDate};
 use regex::Regex;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -462,6 +462,17 @@ fn retention(rows: &[Value]) -> Value {
     ))
 }
 
+fn end_of_day(at: DateTime<FixedOffset>) -> DateTime<FixedOffset> {
+    let local = at.with_timezone(&system_zone()).fixed_offset();
+    local
+        .date_naive()
+        .and_hms_micro_opt(23, 59, 59, 999_999)
+        .expect("valid local day end")
+        .and_local_timezone(*local.offset())
+        .single()
+        .expect("a fixed offset has one local time")
+}
+
 pub fn stats(root: &Path, public_dir: &Path, at: DateTime<FixedOffset>) -> Result<Value> {
     let cards = all_cards(root, public_dir)?;
     let states = states(root)?;
@@ -484,16 +495,7 @@ pub fn stats(root: &Path, public_dir: &Path, at: DateTime<FixedOffset>) -> Resul
         .cloned()
         .collect::<Vec<_>>();
     let today = day(root, at);
-    let zone = system_zone();
-    let local = at.with_timezone(&zone);
-    let end_naive = today
-        .and_hms_micro_opt(23, 59, 59, 999_999)
-        .expect("valid local day end");
-    let end_of_day = zone
-        .from_local_datetime(&end_naive)
-        .earliest()
-        .unwrap_or(local)
-        .fixed_offset();
+    let end_of_day = end_of_day(at);
     let mut by_topic = BTreeMap::<String, Value>::new();
     for (id, card) in &cards {
         let topic = text(field(card, "topic"));
@@ -580,4 +582,23 @@ pub fn stats(root: &Path, public_dir: &Path, at: DateTime<FixedOffset>) -> Resul
         "new_per_day": new_per_day(root)?,
         "by_topic": by_topic,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{TimeZone, Timelike};
+
+    #[test]
+    fn end_of_day_keeps_the_offset_at_the_review_instant() {
+        let zone = chrono_tz::America::New_York;
+        let at = zone
+            .with_ymd_and_hms(2026, 11, 1, 1, 30, 0)
+            .earliest()
+            .unwrap()
+            .fixed_offset();
+        let end = end_of_day(at);
+        assert_eq!(end.offset(), at.offset());
+        assert_eq!(end.time().num_seconds_from_midnight(), 86_399);
+    }
 }

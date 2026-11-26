@@ -2709,10 +2709,11 @@ the crate until the rust-05 and rust-07 closure is native, so
   vault/profile-example inputs, an unvalidated measured `--all` path, sealed
   and malformed-JSONL blind spots, generated-card ID collisions, fractional
   elapsed-day drift, process-versus-configured timezone drift, and malformed
-  persisted-state acceptance. A follow-up control also proved that typed
-  plaintext comparison must retain exact file modes. Focused controls now cover
-  and reject each defect. The earlier resource record is superseded by the
-  clean record below.
+  persisted-state acceptance. Follow-up controls also retain exact file modes,
+  refuse missing or malformed step state, and keep the review instant's UTC
+  offset at local day end across a daylight-saving transition. Focused controls
+  now cover and reject each defect. The earlier resource record is superseded
+  by the clean record below.
 - **Measured evidence (2026-11-26):** clean source
   `83bad96f5fa0c5ee26888cf22e9b2bc5111be4f5` on macOS/aarch64 with Rust
   1.100.0 and Python 3.12.16. Baseline/verify/measure share evidence-source

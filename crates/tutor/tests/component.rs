@@ -121,6 +121,7 @@ fn malformed_persisted_fsrs_values_are_refused() {
     for (key, value) in [
         ("last_review", json!("not-a-time")),
         ("last_review", json!(123)),
+        ("step", json!("not-a-step")),
         ("stability", json!("not-a-number")),
         ("difficulty", json!("not-a-number")),
     ] {
@@ -131,7 +132,7 @@ fn malformed_persisted_fsrs_values_are_refused() {
             "{key}: {broken}"
         );
     }
-    for key in ["stability", "difficulty", "last_review"] {
+    for key in ["step", "stability", "difficulty", "last_review"] {
         let mut missing = valid.clone();
         missing.as_object_mut().unwrap().remove(key);
         assert!(

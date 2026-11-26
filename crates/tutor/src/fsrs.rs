@@ -96,10 +96,16 @@ impl CardState {
                 .and_then(Value::as_u64)
                 .ok_or_else(|| TutorError::value("FSRS state lacks state"))?,
         )?;
-        let step = value
-            .get("step")
-            .and_then(Value::as_u64)
-            .map(|step| step as usize);
+        let step = match value.get("step") {
+            Some(Value::Null) => None,
+            Some(Value::Number(number)) => Some(
+                number
+                    .as_u64()
+                    .map(|step| step as usize)
+                    .ok_or_else(|| TutorError::value("FSRS state has invalid step"))?,
+            ),
+            _ => return Err(TutorError::value("FSRS state has invalid step")),
+        };
         let number = |key: &str| -> Result<Option<f64>> {
             let raw = value
                 .get(key)
