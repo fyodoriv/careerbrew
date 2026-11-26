@@ -411,7 +411,38 @@ def _notion_validation_and_partial_writes(_base: Path) -> dict[str, Any]:
 
 
 def _providers_and_mistakes(_base: Path) -> dict[str, Any]:
-    Workspace(_base, "providers")
+    ws = Workspace(_base, "providers")
+    if os.environ.get("CAREERBREW_RUST20_EVENT_CONTROL") == "1":
+        os.environ["CAREERBREW_EVENTS"] = "on"
+    plugin_root = ws.root / "plugins" / "rust20plug"
+    store.write_yaml(
+        plugin_root / "careerbrew-plugin.yaml",
+        {
+            "name": "rust20plug",
+            "version": "0.1.0",
+            "provides": {"knowledge": "knowledge", "rubrics": "rubrics"},
+        },
+    )
+    store.write_yaml(
+        plugin_root / "knowledge" / "plugin.yaml",
+        {
+            "items": [
+                {
+                    "id": "plugin-rust-1",
+                    "topic": "Plugin topic",
+                    "round": "skill",
+                    "rubric": "plugin-rubric",
+                    "teach": "Synthetic plugin lesson",
+                    "prompt": "Synthetic plugin prompt",
+                }
+            ]
+        },
+    )
+    store.write_yaml(
+        plugin_root / "rubrics" / "plugin.yaml",
+        {"id": "plugin-rubric", "criteria": [{"id": "plugin-criterion", "text": "Synthetic plugin criterion"}]},
+    )
+    store.write_json(ws.root / "plugins.lock.json", {"plugins": {"rust20plug": {"origin": "plugin:rust20plug"}}})
     added = engine.add_gap_items(["Rust"])
     repeated = engine.add_gap_items(["Rust"])
     item = engine.items()["gap-rust-1"]
@@ -451,6 +482,8 @@ def _providers_and_mistakes(_base: Path) -> dict[str, Any]:
         "readiness": readiness,
         "now": engine.now().isoformat(timespec="seconds"),
         "rating_thresholds": [engine.score_to_rating(score).name for score in (0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)],
+        "plugin_item": engine.items()["plugin-rust-1"],
+        "plugin_rubric_criteria": [row["id"] for row in engine.rubrics()["plugin-rubric"]["criteria"]],
         "mistakes": {
             "first_repeat": first["repeat"],
             "second_repeat": second["repeat"],

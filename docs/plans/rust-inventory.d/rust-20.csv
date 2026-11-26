@@ -19,3 +19,5 @@ crates/tutor/src/mistakes.rs,port,rust-20,Mistake records prevention cards repea
 crates/tutor/src/synthetic.rs,port,rust-20,Synthetic tutor Notion public-deck provider and depvec mirror workload
 crates/tutor/src/bin/tutor-component.rs,port,rust-20,Synthetic-only native tutor candidate entry point
 crates/tutor/tests/component.rs,keep-native,rust-00,rust-20 native FSRS old-state privacy identity and planted direct controls
+xtask/src/rust20.rs,port,rust-20,Shared differential registration with exact due times typed float tolerance and write controls
+xtask/tests/rust20.rs,keep-native,rust-00,rust-20 registration evidence identity and planted write controls

@@ -262,6 +262,7 @@ A trap that cost time gets a dated row here, or becomes a check.
 
 | Date | Symptom | Fix |
 |---|---|---|
+| 2026-11-26 | a planted duplicate-write phase could not read an earlier phase's sealed tutor records | scope `CAREERBREW_HOME` and `CAREERBREW_KEY_FILE` to that phase's own synthetic workspace; an outer data root makes the sibling key invalid (`xtask/tests/rust20.rs`) |
 | 2026-11-25 | a migration plant used the previous step's environment key, and UUID normalization rejected digits | bind each plant to its step's exact environment key and normalize with ASCII hex, not lowercase-only checks (`xtask/tests/rust14.rs`) |
 | 2026-11-21 | a valid `+ Other:` Markdown bullet left a false cut warning | strip `+` with the other list markers in both backend and browser scanners; retain backend/browser controls (`test_issue_373.py`, `pm-cut.spec.ts`) |
 | 2026-11-21 | full-page paint captures changed height or clipped to the viewport, and a fixed gradient crossed the whole page instead of the text | retain each capture's target coordinates, normalize images to their union, and reject missing or resized targets; make fixed gradients text-width, exclude invisible text, composite supported foreground alpha, and keep disabled text opaque enough for 4.5:1 (`comfort-paint.ts`, `comfort-paint.spec.ts`) |
