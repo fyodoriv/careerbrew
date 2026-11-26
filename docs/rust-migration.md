@@ -2741,6 +2741,20 @@ the crate until the rust-05 and rust-07 closure is native, so
   unmeasured, so the 1.10 ratio applies. These are macOS component-parity
   results, not production activation; both hosted OS gates and public
   readiness remain required.
+- **DST-isolated acceptance (2026-11-26, macOS):** clean source
+  `563bf7b83a95b1de81142fdb83031fade47fece9`; evidence-source hash
+  `e7e4f5745cf1af805d54cef97fe89ae4af4cf32181225dafb3334053b53b3a14`;
+  fixture hash `e8957893448fb8c1396ab6deee329851658ebbeb2bddbc99195ffcb7f411a0ce`;
+  release-candidate SHA-256
+  `e5a244994a63075892670be67e432a64571474409ccdb4cadda5593dc5e38361`.
+  Baseline: 30 runs; CPU p50/p95 533,702/593,652 microseconds and tree-RSS
+  p50/p95 45,727,744/45,989,888 bytes. Verify passes 8/8 with zero violations.
+  Cold CPU p95 was 403,880 to 202,733 microseconds; warm was 571,405 to
+  255,998. Cold tree-RSS p95 was 45,711,360 to 14,516,224 bytes; warm was
+  46,104,576 to 15,204,352. Each regime has 30 unique uncached pairs and every
+  ratio is below 1.10. `decide` returned component-only `activate`; all four
+  same-head planted controls returned `keep-python`. Production routes, shipped
+  crates and activation remain unchanged.
 
 ### rust-21: Port teacher, goals, practice and mistake tracking
 
