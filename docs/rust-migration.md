@@ -2719,6 +2719,21 @@ the crate until the rust-05 and rust-07 closure is native, so
   `decide` returned component-only `activate`; all five same-head planted
   controls returned `keep-python`. Production routes, shipped crates and
   activation remain unchanged.
+- **Loop-conflict acceptance (2026-11-26, macOS):** clean measured source
+  `c2209edbfb8109776204b530eec0a65daeec8ead`; evidence-source hash
+  `151ae9f753a1f230b100189f13475bd37411319fb3a48009058e9b47265da3c6`;
+  fixture hash `e2339644f48e45fcbc133178f32c3f79e4fc7a2db047bf0d0bd92532663555d7`;
+  release-candidate SHA-256
+  `3d8b58ed766ec43305cc615201ec2bf5ef23650be2c520c4781c211af8d12a6b`.
+  Baseline: 30 runs; CPU p50/p95 710,583/751,886 microseconds and tree-RSS
+  p50/p95 61,538,304/61,947,904 bytes. Verify passes 6/6 with zero violations,
+  including the refused-open control that leaves session and loop files
+  unchanged. Cold CPU p95 was 767,877 to 142,945 microseconds; warm was
+  765,030 to 133,069. Cold tree-RSS p95 was 62,029,824 to 11,059,200 bytes;
+  warm was 61,915,136 to 11,042,816. Each regime has 30 unique uncached pairs
+  and every ratio is below 1.10. `decide` returned component-only `activate`;
+  all five same-head planted controls returned `keep-python`. Production routes,
+  shipped crates and activation remain unchanged.
 
 ### rust-16: Port work-day execution, scheduling and watch loops
 
