@@ -123,7 +123,7 @@ def test_workday_records_questions_stages_and_sessions_match_python(candidate, t
         dispatch = next(row for row in stage["found"] if row["step"] == "/dispatch")
         assert dispatch["ready_when"]["signin_required"] is True
         feed = next(row for row in stage["found"] if row["step"] == "/feed")
-        assert feed["ready_when"]["after"] == ["/careerbrew", "/check"]
+        assert feed["ready_when"]["after"] == ["/careerbrew", "/z-operator", "/a-operator", "/check"]
         assert "finite resource work" in feed["why"]
         assert stage["errors"] == ["StepError"] * 4
 

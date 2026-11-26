@@ -2661,6 +2661,7 @@ the crate until the rust-05 and rust-07 closure is native, so
   sessions emit `workday.loop` and `cli.run` in Python order, while elapsed `ms`
   values are normalized as generated measurements. Current records are selected
   by `record_id` across days; refusal paths emit `cli.run` with `status=fail`.
+  The `ready_when.after` control retains operator declaration order before `/check`.
   The Python oracle traces
   direct event-log appends explicitly, so every native and Python storage write
   is compared. Success
