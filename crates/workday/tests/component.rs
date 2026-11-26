@@ -4,6 +4,9 @@ use careerbrew_workday::{questions, stages, status, steps, work_session};
 use serde_json::json;
 use std::collections::BTreeSet;
 use std::path::Path;
+use std::sync::Mutex;
+
+static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 fn setup(root: &Path) {
     std::fs::create_dir_all(root.join("home")).unwrap();
@@ -18,6 +21,7 @@ fn setup(root: &Path) {
 
 #[test]
 fn canonical_unicode_write_readiness_privacy_and_lock_controls() {
+    let _guard = ENV_LOCK.lock().unwrap();
     let scratch = tempfile::tempdir().unwrap();
     setup(scratch.path());
     let root = scratch.path().join("data");
@@ -173,4 +177,53 @@ fn canonical_unicode_write_readiness_privacy_and_lock_controls() {
         rows.iter().all(|row| row["status"] == "done"),
         "the shared day lock preserves every concurrent row"
     );
+}
+
+#[test]
+fn canonical_agentfile_inventory_drives_workflow_resolution() {
+    let _guard = ENV_LOCK.lock().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    setup(scratch.path());
+    let resolved = steps::resolve_origin("/work", "careerbrew").unwrap();
+    assert!(resolved["path"].is_string());
+    assert!(resolved["description"]
+        .as_str()
+        .unwrap()
+        .starts_with("Run the work day with careerbrew"));
+
+    let repo = scratch.path().join("repo");
+    std::fs::create_dir_all(&repo).unwrap();
+    std::fs::write(repo.join("Agentfile.yaml"), "commands: not-a-list\n").unwrap();
+    let inventory = careerbrew_setup::workflow::repository(&repo).unwrap();
+    assert!(!inventory.problems.is_empty());
+}
+
+#[test]
+fn typed_rust14_review_adapter_boundary_is_used() {
+    let _guard = ENV_LOCK.lock().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    setup(scratch.path());
+    let root = scratch.path().join("data");
+    let question = questions::record(
+        "/careerbrew",
+        "review?",
+        None,
+        "",
+        "careerbrew:review-pr https://github.com/example/tools/pull/7",
+        "agent",
+        "",
+        None,
+    )
+    .unwrap();
+    let expected_root = root.clone();
+    let adapter = questions::ReviewRechecks::new(
+        move |actual_root: &Path, url: &str, deadline: Option<f64>| {
+            assert_eq!(actual_root, expected_root);
+            assert_eq!(url, "https://github.com/example/tools/pull/7");
+            assert_eq!(deadline, Some(12.5));
+            Ok(("closed".into(), "review merged".into()))
+        },
+    );
+    let result = questions::check_one(&root, &question, &adapter, Some(12.5)).unwrap();
+    assert_eq!(result, ("closed".into(), "review merged".into()));
 }

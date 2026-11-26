@@ -375,6 +375,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "careerbrew-workday"
+version = "0.1.0"
+dependencies = [
+ "careerbrew-projects",
+ "careerbrew-sessions",
+ "careerbrew-setup",
+ "careerbrew-vault",
+ "chrono",
+ "glob",
+ "regex",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "wait-timeout",
+]
+
+[[package]]
 name = "careerbrew-xtask"
 version = "0.1.0"
 dependencies = [

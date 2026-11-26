@@ -260,6 +260,9 @@ fn status_case(base: &Path) -> Result<Value> {
         &text(field(&retry_running, "started")),
         day,
     )?;
+    if std::env::var("CAREERBREW_RUST15_PLANT_WRITE").as_deref() == Ok("extra") {
+        std::fs::write(root.join("planted-extra.txt"), "synthetic")?;
+    }
     Ok(json!({
         "blank": blank,
         "legacy": legacy,
@@ -448,9 +451,27 @@ fn question_records(base: &Path) -> Result<Value> {
         day("2026-11-01"),
     )?;
     at("2026-11-02T09:00:00+00:00");
+    let plant = std::env::var("CAREERBREW_RUST15_PLANT_WRITE").unwrap_or_default();
+    if plant == "event-duplicate" {
+        std::env::set_var("CAREERBREW_EVENTS", "on");
+    }
     let batch = questions::recheck(root, day("2026-11-02"), &questions::LocalRechecks)?;
     let old_records = questions::records(root, day("2026-11-01"))?;
     let current_records = questions::records(root, day("2026-11-02"))?;
+    if plant == "operation-duplicate" {
+        let document = read_json(root, "day/work-2026-11-02.json", json!({}))?;
+        write_json(root, "day/work-2026-11-02.json", &document)?;
+    }
+    if plant == "event-duplicate" {
+        let logged = std::fs::read_to_string(root.join("logs/events.jsonl"))?;
+        let row = logged
+            .lines()
+            .last()
+            .and_then(|line| serde_json::from_str::<Value>(line).ok())
+            .map(|row| careerbrew_setup::value::to_canon(&row))
+            .ok_or_else(|| error("ValueError", "event plant has no source row"))?;
+        careerbrew_vault::events::write_row(root, &row)?;
+    }
     Ok(json!({
         "first": questions::public(&first),
         "second": questions::public(&second),
@@ -541,6 +562,8 @@ fn step_validation(base: &Path) -> Result<Value> {
     std::fs::write(commands.join("plain.md"), "no front matter\n")?;
     let resolved_raw = steps::resolve("/standup", std::slice::from_ref(&ws.base))?;
     let resolved = json!({"description": resolved_raw["description"], "user_only": resolved_raw["user_only"], "present": !resolved_raw["path"].is_null(), "source_error": resolved_raw.get("source_error").cloned().unwrap_or_else(|| json!(""))});
+    let canonical_raw = steps::resolve_origin("/work", "careerbrew")?;
+    let canonical = json!({"description": canonical_raw["description"], "user_only": canonical_raw["user_only"], "present": !canonical_raw["path"].is_null(), "source_error": canonical_raw.get("source_error").cloned().unwrap_or_else(|| json!(""))});
     let plain_raw = steps::resolve("/plain", std::slice::from_ref(&ws.base))?;
     let plain = json!({"description": plain_raw["description"], "user_only": plain_raw["user_only"], "present": !plain_raw["path"].is_null(), "source_error": plain_raw.get("source_error").cloned().unwrap_or_else(|| json!(""))});
     Ok(json!({
@@ -549,6 +572,7 @@ fn step_validation(base: &Path) -> Result<Value> {
         "verify_errors": verify_errors,
         "other_errors": other_errors,
         "resolved": resolved,
+        "canonical": canonical,
         "plain": plain,
         "about": [json!(steps::about(&json!({"about": "Own words"}), &resolved_raw)), json!(steps::about(&json!({"about": ""}), &resolved_raw)), json!(steps::missing_about(&[json!({"step": "/a", "about": ""}), json!({"step": "/b", "about": "ok"})]))],
         "first_sentences": [steps::first_sentence(" 'One sentence. Next sentence.' "), steps::first_sentence("No punctuation"), steps::first_sentence(&"x".repeat(200))],
@@ -711,7 +735,16 @@ fn work_session_case(base: &Path) -> Result<Value> {
     let handoff = work_session::handoff_cli(root, "sess-a", CANARY, "");
     let handoff_b = work_session::handoff_cli(root, "sess-b", "ledger complete", "");
     let ended = work_session::end_cli(root, "", true, true);
-    let raw = std::fs::read(root.join("work/sessions.json"))?;
+    let session_path = root.join("work/sessions.json");
+    let raw = std::fs::read(&session_path)?;
+    match std::env::var("CAREERBREW_RUST15_PLANT_WRITE").as_deref() {
+        Ok("missing") => std::fs::remove_file(&session_path)?,
+        Ok("duplicate") => {
+            let document = read_json(root, "work/sessions.json", json!({}))?;
+            write_json(root, "work/sessions.json", &document)?;
+        }
+        _ => {}
+    }
     Ok(json!({
         "opened": opened,
         "ledger": ledger,
@@ -767,7 +800,7 @@ impl questions::RecheckProvider for ChangedReview {
 }
 
 fn legacy_receipts(base: &Path) -> Result<Value> {
-    let ws = Workspace::new(base, "legacy-receipts", &["billing"])?;
+    let ws = Workspace::new(base, "legacy-receipts", &[])?;
     let root = &ws.root;
     let day = day("2026-11-02");
     write_json(
@@ -808,6 +841,7 @@ fn legacy_receipts(base: &Path) -> Result<Value> {
             text(field(question, "id")) == "review" && text(field(question, "closed")).is_empty()
         })
         .collect::<Vec<_>>();
+    projects::add(root, "billing", AddOptions::default())?;
     careerbrew_sessions::sessions::open_session(root, "billing", "sess-old")
         .map_err(|error| crate::error(error.class, error.message))?;
     let mut raw = read_json(root, "work/sessions.json", json!({}))?;

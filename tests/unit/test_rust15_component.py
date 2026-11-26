@@ -106,6 +106,8 @@ def test_workday_records_questions_stages_and_sessions_match_python(candidate, t
         assert step["plain"]["description"] == "" and step["plain"]["user_only"] is False
         assert step["about"] == ["Own words", "Draft the standup.", ["/a"]]
         assert step["first_sentences"][0] == "One sentence." and len(step["first_sentences"][2]) == 160
+        assert step["canonical"]["present"] is True
+        assert step["canonical"]["description"].startswith("Run the work day with careerbrew")
 
         stage = case(report, "stage-readiness")
         assert stage["ready"] == {

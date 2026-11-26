@@ -37,6 +37,36 @@ pub trait RecheckProvider {
 
 pub struct LocalRechecks;
 
+/// Typed component boundary for rust-14's review provider. The provider stays
+/// outside this crate until that lane lands; question orchestration does not
+/// depend on its HTTP or connector implementation.
+pub struct ReviewRechecks<F> {
+    review: F,
+}
+
+impl<F> ReviewRechecks<F> {
+    pub fn new(review: F) -> Self {
+        Self { review }
+    }
+}
+
+impl<F> RecheckProvider for ReviewRechecks<F>
+where
+    F: Fn(&Path, &str, Option<f64>) -> Result<(String, String)>,
+{
+    fn signin(&self, root: &Path, command: &str) -> Result<(bool, String)> {
+        LocalRechecks.signin(root, command)
+    }
+
+    fn review_pr(&self, root: &Path, url: &str, deadline: Option<f64>) -> Result<(String, String)> {
+        (self.review)(root, url, deadline)
+    }
+
+    fn may_run(&self, root: &Path, source: &str) -> Result<bool> {
+        LocalRechecks.may_run(root, source)
+    }
+}
+
 impl RecheckProvider for LocalRechecks {
     fn signin(&self, _root: &Path, command: &str) -> Result<(bool, String)> {
         run_verify(command)

@@ -298,12 +298,12 @@ pub fn open_session(root: &Path, project: &str, ident: &str) -> Result<Value> {
                 ));
             }
             let mut state = load(root)?;
+            let before = state.clone();
             state
                 .as_object_mut()
                 .expect("session state")
                 .entry("quiet_receipts")
                 .or_insert_with(|| json!({}));
-            let before = state.clone();
             let day = today();
             if let Some(ambiguous) =
                 state["sessions"]
@@ -394,6 +394,61 @@ pub fn open_session(root: &Path, project: &str, ident: &str) -> Result<Value> {
                         && text(field(session, "id")) != current_id
                 })
                 .cloned();
+            let legacy_history =
+                state["sessions"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .any(|session| {
+                        text(field(session, "project")) == project
+                            && text(field(session, "id")) != current_id
+                            && text(field(session, "project_incarnation")).is_empty()
+                    });
+            let generation = match field(&record, "quiet_generation") {
+                Some(value) => {
+                    let generation = text(Some(value));
+                    if !Regex::new(r"^[0-9a-f]{32}$")
+                        .expect("quiet identity")
+                        .is_match(&generation)
+                    {
+                        return Err(error(
+                            "SessionError",
+                            "saved quiet identity is invalid; set the quiet period again",
+                        ));
+                    }
+                    generation
+                }
+                None => String::new(),
+            };
+            let generations = every
+                .as_object()
+                .into_iter()
+                .flatten()
+                .map(|(_, row)| text(field(row, "quiet_generation")))
+                .filter(|generation| !generation.is_empty())
+                .collect::<Vec<_>>();
+            if generations
+                .iter()
+                .collect::<std::collections::BTreeSet<_>>()
+                .len()
+                != generations.len()
+            {
+                return Err(error(
+                    "SessionError",
+                    "saved quiet identities are ambiguous; set the affected quiet periods again",
+                ));
+            }
+            let mut receipts = state["quiet_receipts"]
+                .as_object()
+                .cloned()
+                .ok_or_else(|| {
+                    error(
+                        "SessionError",
+                        "saved quiet receipts are invalid; repair the session record",
+                    )
+                })?;
+            receipts.retain(|key, _| generations.contains(key));
+            let quiet_first = !generation.is_empty() && !receipts.contains_key(&generation);
             let current = state["sessions"]
                 .as_array_mut()
                 .expect("sessions")
@@ -401,17 +456,44 @@ pub fn open_session(root: &Path, project: &str, ident: &str) -> Result<Value> {
                 .find(|session| text(field(session, "id")) == current_id)
                 .expect("current session");
             if current.get("opening_brief").is_none() {
-                let yesterday = day - Duration::days(1);
-                let brief = latest
-                    .as_ref()
-                    .filter(|row| {
-                        text(field(row, "day")) == yesterday.format("%Y-%m-%d").to_string()
-                    })
-                    .map(|row| text(field(row, "handoff")))
-                    .unwrap_or_default();
+                let brief = if quiet_first {
+                    latest
+                        .as_ref()
+                        .map(|row| text(field(row, "handoff")))
+                        .unwrap_or_default()
+                } else {
+                    let yesterday = day - Duration::days(1);
+                    latest
+                        .as_ref()
+                        .filter(|row| {
+                            text(field(row, "day")) == yesterday.format("%Y-%m-%d").to_string()
+                        })
+                        .map(|row| text(field(row, "handoff")))
+                        .unwrap_or_default()
+                };
                 current["opening_brief"] = json!(brief);
+                if (legacy_history && latest.is_none())
+                    || (generation.is_empty()
+                        && (!text(field(&record, "quiet_until")).is_empty()
+                            || !text(field(&record, "quiet_resumed")).is_empty()))
+                {
+                    current["opening_brief"] = json!("");
+                    current["brief_status"] = json!("legacy-unverified");
+                }
+            } else if quiet_first {
+                current["opening_brief"] = json!(latest
+                    .as_ref()
+                    .map(|row| text(field(row, "handoff")))
+                    .unwrap_or_default());
+            }
+            if quiet_first {
+                receipts.insert(generation, json!(current_record));
             }
             got["brief"] = current["opening_brief"].clone();
+            if let Some(status) = current.get("brief_status") {
+                got["brief_status"] = status.clone();
+            }
+            state["quiet_receipts"] = Value::Object(receipts);
             ensure_loop(root, &current_id, &current_record)?;
             prune(root, &mut state)?;
             if state != before {
@@ -711,11 +793,13 @@ pub fn end(root: &Path, target: &str, every: bool) -> Result<Value> {
                 missing.push(session);
                 continue;
             }
-            stop_loop(
-                root,
-                &text(field(&session, "id")),
-                &text(field(&session, "record_id")),
-            )?;
+            if !text(field(&session, "record_id")).is_empty() {
+                stop_loop(
+                    root,
+                    &text(field(&session, "id")),
+                    &text(field(&session, "record_id")),
+                )?;
+            }
             let current = {
                 let current = state["sessions"]
                     .as_array_mut()

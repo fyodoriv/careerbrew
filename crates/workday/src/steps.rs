@@ -358,17 +358,7 @@ fn resolution(
     out
 }
 
-fn read_resolution(path: &Path, owned: bool) -> Result<Value> {
-    if !owned && !path.is_file() {
-        return Ok(resolution(None, false, String::new(), None));
-    }
-    let head = match std::fs::read_to_string(path) {
-        Ok(text) => text.chars().take(2000).collect::<String>(),
-        Err(_) if owned => {
-            return Ok(resolution(None, false, String::new(), Some("own declared workflow source changed or is unreadable; repair it before this step".into())));
-        }
-        Err(_) => String::new(),
-    };
+fn resolution_from_head(path: &Path, head: &str) -> Result<Value> {
     let normalized = head.replace("\r\n", "\n");
     let front = Regex::new(r"(?s)^---\n(.*?)\n---")
         .expect("frontmatter")
@@ -415,6 +405,42 @@ fn read_resolution(path: &Path, owned: bool) -> Result<Value> {
         },
         None,
     ))
+}
+
+fn read_resolution(path: &Path, owned: bool) -> Result<Value> {
+    if !owned && !path.is_file() {
+        return Ok(resolution(None, false, String::new(), None));
+    }
+    let head = match std::fs::read_to_string(path) {
+        Ok(text) => text.chars().take(2000).collect::<String>(),
+        Err(_) if owned => {
+            return Ok(resolution(None, false, String::new(), Some("own declared workflow source changed or is unreadable; repair it before this step".into())));
+        }
+        Err(_) => String::new(),
+    };
+    resolution_from_head(path, &head)
+}
+
+fn read_owned_resolution(path: &Path, source_directory: Option<&Path>) -> Result<Value> {
+    let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let head = match careerbrew_setup::workflow::read(path, &repo, source_directory) {
+        Ok(bytes) => String::from_utf8(bytes)
+            .ok()
+            .map(|text| text.chars().take(2000).collect::<String>()),
+        Err(_) => None,
+    };
+    match head {
+        Some(head) => resolution_from_head(path, &head),
+        None => Ok(resolution(
+            None,
+            false,
+            String::new(),
+            Some(
+                "own declared workflow source changed or is unreadable; repair it before this step"
+                    .into(),
+            ),
+        )),
+    }
 }
 
 pub fn resolve(step: &str, roots: &[PathBuf]) -> Result<Value> {
@@ -464,6 +490,130 @@ pub fn resolve(step: &str, roots: &[PathBuf]) -> Result<Value> {
     for (path, owned) in candidates {
         if path.is_file() {
             return read_resolution(&path, owned);
+        }
+    }
+    Ok(resolution(None, false, String::new(), None))
+}
+
+fn resolve_canonical(step: &str) -> Result<Value> {
+    let step = normalize(step)?;
+    let name = step.trim_start_matches('/').replace(':', "/");
+    if name.is_empty()
+        || Path::new(&name).is_absolute()
+        || name.split('/').any(|part| matches!(part, "." | ".."))
+    {
+        return Ok(resolution(
+            None,
+            false,
+            String::new(),
+            Some("workflow resource name is empty or unsafe; use a relative step name".into()),
+        ));
+    }
+    let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let inventory = careerbrew_setup::workflow::repository(&repo)
+        .map_err(|error| crate::error(error.class, error.message))?;
+    if !inventory.problems.is_empty() {
+        return Ok(resolution(None, false, String::new(), Some("own declared workflow sources are unavailable; repair the owning Agentfile before this step".into())));
+    }
+    let names = if name.contains('/') || name.starts_with("careerbrew-") {
+        vec![name.clone()]
+    } else {
+        vec![format!("careerbrew-{name}"), name.clone()]
+    };
+    let mut owned = Vec::new();
+    for lookup in &names {
+        for entry in &inventory.entries {
+            if entry.kind == careerbrew_setup::workflow::Kind::Skill
+                && entry
+                    .path
+                    .parent()
+                    .and_then(Path::file_name)
+                    .unwrap_or_default()
+                    == std::ffi::OsStr::new(lookup)
+            {
+                owned.push((entry.path.clone(), None));
+            }
+        }
+    }
+    for entry in &inventory.entries {
+        let nested =
+            name.contains('/') && entry.path == repo.join("commands").join(format!("{name}.md"));
+        if entry.kind == careerbrew_setup::workflow::Kind::Command
+            && (entry.path.file_stem().unwrap_or_default() == std::ffi::OsStr::new(&name) || nested)
+        {
+            owned.push((entry.path.clone(), None));
+        }
+    }
+    if name.contains('/') {
+        for folder in &inventory.skill_sources {
+            let path = folder.join(&name).join("SKILL.md");
+            if path.is_file() {
+                owned.push((path, Some(folder.clone())));
+            }
+        }
+        for folder in &inventory.command_sources {
+            if folder.is_dir() {
+                let path = folder.join(format!("{name}.md"));
+                if path.is_file() {
+                    owned.push((path, Some(folder.clone())));
+                }
+            }
+        }
+    }
+    if let Some((path, source_directory)) = owned.into_iter().next() {
+        return read_owned_resolution(&path, source_directory.as_deref());
+    }
+
+    let roots = vec![
+        PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".agents"),
+        PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".codex"),
+        PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".claude"),
+    ];
+    for root in roots {
+        for (skills, commands) in [
+            (Some(root.join("skills")), Some(root.join("commands"))),
+            (None, Some(root.join("prompts"))),
+        ] {
+            if let Some(skills) = skills {
+                let path = skills.join(&name).join("SKILL.md");
+                if path.is_file() {
+                    return read_resolution(&path, false);
+                }
+            }
+            if let Some(commands) = commands {
+                let path = if commands.is_file() {
+                    commands
+                } else {
+                    commands.join(format!("{name}.md"))
+                };
+                if path.is_file()
+                    && path.file_name().unwrap_or_default()
+                        == std::ffi::OsStr::new(&format!("{name}.md"))
+                {
+                    return read_resolution(&path, false);
+                }
+            }
+        }
+    }
+    for (skills, commands) in plugin_dirs("")? {
+        if let Some(skills) = skills {
+            let path = skills.join(&name).join("SKILL.md");
+            if path.is_file() {
+                return read_resolution(&path, false);
+            }
+        }
+        if let Some(commands) = commands {
+            let path = if commands.is_file() {
+                commands
+            } else {
+                commands.join(format!("{name}.md"))
+            };
+            if path.is_file()
+                && path.file_name().unwrap_or_default()
+                    == std::ffi::OsStr::new(&format!("{name}.md"))
+            {
+                return read_resolution(&path, false);
+            }
         }
     }
     Ok(resolution(None, false, String::new(), None))
@@ -543,13 +693,7 @@ pub fn resolve_origin(step: &str, origin: &str) -> Result<Value> {
         }
         return Ok(resolution(None, false, String::new(), Some(format!("plugin source unavailable for {step}; repair its declared plugin resource before this step"))));
     }
-    let roots = vec![
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
-        PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".agents"),
-        PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".codex"),
-        PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".claude"),
-    ];
-    resolve(step, &roots)
+    resolve_canonical(step)
 }
 
 pub fn about(step: &Value, resolved: &Value) -> String {

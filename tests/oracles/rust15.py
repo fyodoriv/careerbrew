@@ -268,6 +268,8 @@ def step_validation(base: Path) -> dict[str, Any]:
     (commands / "standup.md").write_text('---\ndescription: "Draft the standup. It reads yesterday."\ndisable-model-invocation: true\n---\nbody\n')
     (commands / "plain.md").write_text("no front matter\n")
     resolved = steps.resolve("/standup", roots=[ws.base])
+    canonical_raw = steps.resolve("/work")
+    canonical = {"description": canonical_raw["description"], "user_only": canonical_raw["user_only"], "present": canonical_raw["path"] is not None, "source_error": canonical_raw.get("source_error", "")}
     plain_raw = steps.resolve("/plain", roots=[ws.base])
     plain = {"description": plain_raw["description"], "user_only": plain_raw["user_only"], "present": plain_raw["path"] is not None, "source_error": plain_raw.get("source_error", "")}
     return {
@@ -276,6 +278,7 @@ def step_validation(base: Path) -> dict[str, Any]:
         "verify_errors": verify_errors,
         "other_errors": other_errors,
         "resolved": {"description": resolved["description"], "user_only": resolved["user_only"], "present": resolved["path"] is not None, "source_error": resolved.get("source_error", "")},
+        "canonical": canonical,
         "plain": plain,
         "about": [steps.about({"about": "Own words"}, resolved), steps.about({"about": ""}, resolved), steps.missing_about([{"step": "/a", "about": ""}, {"step": "/b", "about": "ok"}])],
         "first_sentences": [steps.first_sentence(" 'One sentence. Next sentence.' "), steps.first_sentence("No punctuation"), steps.first_sentence("x" * 200)],

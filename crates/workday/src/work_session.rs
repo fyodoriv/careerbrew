@@ -3,7 +3,6 @@
 use crate::{emit, field, read_json, session_error, text, write_json, Result};
 use careerbrew_sessions::{agents, sessions};
 use chrono::{DateTime, Duration};
-use regex::Regex;
 use serde_json::{json, Map, Value};
 use std::path::Path;
 
@@ -67,163 +66,12 @@ fn validate_state(root: &Path) -> Result<Value> {
     Ok(state)
 }
 
-fn quiet_generation(root: &Path, project: &str) -> Result<String> {
-    let projects = careerbrew_projects::projects::load(root)?;
-    let record = projects
-        .get(project)
-        .ok_or_else(|| session_error("unknown project"))?;
-    let generation = text(field(record, "quiet_generation"));
-    let identity = Regex::new(r"^[0-9a-f]{32}$").expect("quiet identity");
-    if !generation.is_empty() && !identity.is_match(&generation) {
-        return Err(session_error(
-            "saved quiet identity is invalid; set the quiet period again",
-        ));
-    }
-    let generations = projects
-        .as_object()
-        .into_iter()
-        .flatten()
-        .map(|(_, record)| text(field(record, "quiet_generation")))
-        .filter(|generation| !generation.is_empty())
-        .collect::<Vec<_>>();
-    let unique = generations
-        .iter()
-        .collect::<std::collections::BTreeSet<_>>();
-    if unique.len() != generations.len() {
-        return Err(session_error(
-            "saved quiet identities are ambiguous; set the affected quiet periods again",
-        ));
-    }
-    Ok(generation)
-}
-
-fn reconcile_open(
-    root: &Path,
-    project: &str,
-    generation: &str,
-    mut got: Value,
-    had_opening_brief: bool,
-) -> Result<Value> {
-    let path = sessions::path(root);
-    careerbrew_vault::lock::with_lock(&path, || -> Result<()> {
-        let mut state =
-            sessions::load(root).map_err(|error| crate::error(error.class, error.message))?;
-        let before = state.clone();
-        let current_id = text(field(&got, "id"));
-        let current_record = text(field(&got, "record_id"));
-        let incarnation = text(field(&got, "project_incarnation"));
-        let rows = state
-            .get("sessions")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        let current = rows
-            .iter()
-            .find(|row| text(field(row, "id")) == current_id)
-            .cloned()
-            .ok_or_else(|| session_error("saved session record is unavailable"))?;
-        let latest = rows
-            .iter()
-            .rev()
-            .find(|row| {
-                text(field(row, "project")) == project
-                    && text(field(row, "project_incarnation")) == incarnation
-                    && text(field(row, "id")) != current_id
-            })
-            .cloned();
-        let legacy_history = rows.iter().any(|row| {
-            text(field(row, "project")) == project
-                && text(field(row, "id")) != current_id
-                && text(field(row, "project_incarnation")).is_empty()
-        });
-        let projects = careerbrew_projects::projects::load(root)?;
-        let record = projects
-            .get(project)
-            .ok_or_else(|| session_error("unknown project"))?;
-        let generations = projects
-            .as_object()
-            .into_iter()
-            .flatten()
-            .map(|(_, record)| text(field(record, "quiet_generation")))
-            .filter(|generation| !generation.is_empty())
-            .collect::<Vec<_>>();
-        let mut receipts = state
-            .get("quiet_receipts")
-            .and_then(Value::as_object)
-            .cloned()
-            .unwrap_or_default();
-        receipts.retain(|key, _| generations.contains(key));
-        let unconsumed = !generation.is_empty() && !receipts.contains_key(generation);
-        let mut updated = current.clone();
-        if unconsumed {
-            updated["opening_brief"] = latest
-                .as_ref()
-                .map(|row| row.get("handoff").cloned().unwrap_or_else(|| json!("")))
-                .unwrap_or_else(|| json!(""));
-            receipts.insert(generation.to_owned(), json!(current_record));
-        } else if !had_opening_brief {
-            let yesterday = (crate::today() - Duration::days(1))
-                .format("%Y-%m-%d")
-                .to_string();
-            updated["opening_brief"] = latest
-                .as_ref()
-                .filter(|row| text(field(row, "day")) == yesterday)
-                .map(|row| row.get("handoff").cloned().unwrap_or_else(|| json!("")))
-                .unwrap_or_else(|| json!(""));
-        }
-        if !had_opening_brief
-            && ((legacy_history && latest.is_none())
-                || (generation.is_empty()
-                    && (field(record, "quiet_until").is_some()
-                        || field(record, "quiet_resumed").is_some())))
-        {
-            updated["opening_brief"] = json!("");
-            updated["brief_status"] = json!("legacy-unverified");
-        }
-        if let Some(row) = state
-            .get_mut("sessions")
-            .and_then(Value::as_array_mut)
-            .into_iter()
-            .flatten()
-            .find(|row| text(field(row, "id")) == current_id)
-        {
-            *row = updated.clone();
-        }
-        state["quiet_receipts"] = Value::Object(receipts);
-        if state != before {
-            write_json(root, "work/sessions.json", &state)?;
-        }
-        got["brief"] = updated
-            .get("opening_brief")
-            .cloned()
-            .unwrap_or_else(|| json!(""));
-        if let Some(status) = updated.get("brief_status") {
-            got["brief_status"] = status.clone();
-        }
-        Ok(())
-    })??;
-    Ok(got)
-}
-
 pub fn open(root: &Path, project: &str, ident: &str) -> Result<Value> {
-    let state = validate_state(root)?;
-    let generation = quiet_generation(root, project)?;
-    let had_opening_brief = state
-        .get("sessions")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .rev()
-        .find(|row| {
-            text(field(row, "project")) == project
-                && sessions::session_state(row, crate::today()) == "live"
-        })
-        .is_some_and(|row| row.get("opening_brief").is_some());
+    validate_state(root)?;
     let result = sessions::open_session(root, project, ident)
         .map_err(|error| crate::error(error.class, error.message));
     match result {
         Ok(session) => {
-            let session = reconcile_open(root, project, &generation, session, had_opening_brief)?;
             let status = if field(&session, "reused")
                 .and_then(Value::as_bool)
                 .unwrap_or(false)
