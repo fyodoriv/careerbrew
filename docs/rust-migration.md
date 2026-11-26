@@ -2629,7 +2629,28 @@ the crate until the rust-05 and rust-07 closure is native, so
   `heavy-run --exclusive cargo xtask migration measure --step rust-15 --python "$PWD/.venv/bin/python" --pairs 30 --out <new-absolute-measure>`;
   `cargo xtask migration decide --step rust-15` over the same-revision records;
   `CAREERBREW_ALLOW_LOCAL_TESTS=1 heavy-run cargo test --locked --offline -p careerbrew-xtask --test rust15`.
-  Final values and hosted-check claims remain pending until recorded below.
+- **Measured component result (2026-11-26):** source
+  `3c9199f335d8a2d67f0147ec1e061eb8b79f3778`; evidence-source hash
+  `15f413a42ade0cf552c2460f7ceecf634c7d0ea2f436af77ea1f968dc849d56f`;
+  fixture hash `6cbe4e4a9a4a9e2c3763230f10101341dc588f3c4c64eb8acdb02b475536cb3b`;
+  release-candidate SHA-256
+  `65d867e19c953dacb42e9ae88e820d18e206b904544c19fcf5c3beb521ce70c8`.
+  All three records are clean and bind this revision and candidate.
+- **Baseline and parity:** 30 baseline runs; CPU p50/p95 602,843/648,411
+  microseconds and process-tree RSS p50/p95 60,964,864/61,390,848 bytes.
+  The unregistered macOS noise-floor proposal is 598,240/658,064 microseconds
+  and 6,553,600/7,208,960 bytes. Verify passes 6/6 with zero violations and
+  traces every storage operation in every component phase.
+- **Resources and decision:** cold CPU p95 was 642,163 to 109,352 microseconds;
+  warm was 645,529 to 112,023. Ratios: 0.170287 and 0.173537. Cold tree-RSS
+  p95 was 61,276,160 to 10,780,672 bytes; warm was 61,194,240 to the same.
+  Ratios: 0.175936 and 0.176171. Each regime has 30 unique uncached pairs.
+  `decide` returned component-only `activate`. All 12 resource controls pass;
+  all five planted write controls produce `keep-python` verdicts.
+- **Limits:** synthetic macOS evidence only. Candidate cold runs still have a
+  warm OS page cache. HTTP, DATA and role contracts are out of scope for this
+  component. Production routes, shipped crates and activation remain unchanged.
+  Independent review and both hosted OS gates remain separate acceptance gates.
 
 ### rust-16: Port work-day execution, scheduling and watch loops
 
