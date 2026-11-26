@@ -18,7 +18,7 @@
 //!
 //! Every sample is a real execution: `cached` is always 0.
 use crate::trial_plan::{self, Arm, CacheRegime};
-use crate::{baseline, baseline_verdict, capture_actions, resources};
+use crate::{baseline, baseline_verdict, capture_actions, resources, rust20};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::ffi::OsString;
@@ -465,6 +465,9 @@ pub fn record(
             env: step.env,
         },
     ];
+    if id == "rust-20" {
+        rust20::validate_measure(root, python, &program)?;
+    }
     let mut method = "unknown";
     let regimes = [CacheRegime::Cold, CacheRegime::Warm]
         .into_iter()

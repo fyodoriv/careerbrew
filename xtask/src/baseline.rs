@@ -1000,6 +1000,9 @@ pub const STEPS: &[Step] = &[
             "tests/fixtures/live/listen/chat.json",
             "tests/fixtures/live/listen/sources.yaml",
             "tests/fixtures/notifier/fake-notifier.sh",
+        ],
+    },
+    Step {
         // rust-20 uses its real Python tutor oracle and synthetic native component.
         id: "rust-20",
         oracle: &["-I", "-B", "tests/oracles/rust20.py", "--all"],
@@ -1079,6 +1082,7 @@ pub const STEPS: &[Step] = &[
             "crates/vault/src/lock.rs",
             "crates/vault/src/secrets.rs",
             "crates/vault/src/store.rs",
+            "crates/vault/src/synthetic.rs",
             "crates/vault/src/transfer.rs",
             "xtask/src/rust20.rs",
         ],
@@ -1098,6 +1102,7 @@ pub const STEPS: &[Step] = &[
             "knowledge/rubrics/skill.yaml",
             "knowledge/rubrics/system-design.yaml",
             "prompts/card-explainer.md",
+            "profile/examples/profile.yaml",
         ],
     },
     Step {

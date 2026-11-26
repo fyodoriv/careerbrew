@@ -107,6 +107,81 @@ fn public_lint_and_leak_controls_reject_remote_http_and_canaries() {
 }
 
 #[test]
+fn malformed_persisted_fsrs_values_are_refused() {
+    let valid = json!({
+        "card_id": 42,
+        "state": 2,
+        "step": null,
+        "stability": 5.0,
+        "difficulty": 5.0,
+        "due": "2026-01-01T00:00:00.900000+00:00",
+        "last_review": "2026-01-01T00:00:00.900000+00:00",
+    });
+    assert!(fsrs::CardState::from_json(&valid).is_ok());
+    for (key, value) in [
+        ("last_review", json!("not-a-time")),
+        ("last_review", json!(123)),
+        ("stability", json!("not-a-number")),
+        ("difficulty", json!("not-a-number")),
+    ] {
+        let mut broken = valid.clone();
+        broken[key] = value;
+        assert!(
+            fsrs::CardState::from_json(&broken).is_err(),
+            "{key}: {broken}"
+        );
+    }
+    for key in ["stability", "difficulty", "last_review"] {
+        let mut missing = valid.clone();
+        missing.as_object_mut().unwrap().remove(key);
+        assert!(
+            fsrs::CardState::from_json(&missing).is_err(),
+            "missing {key}"
+        );
+    }
+}
+
+#[test]
+fn fractional_last_review_matches_python_elapsed_day_semantics() {
+    let last = Utc
+        .with_ymd_and_hms(2026, 1, 1, 0, 0, 0)
+        .unwrap()
+        .fixed_offset()
+        + chrono::Duration::microseconds(900_000);
+    let at = Utc
+        .with_ymd_and_hms(2026, 1, 2, 0, 0, 0)
+        .unwrap()
+        .fixed_offset()
+        + chrono::Duration::microseconds(100_000);
+    let old = fsrs::CardState {
+        card_id: 42,
+        phase: fsrs::Phase::Review,
+        step: None,
+        stability: Some(5.0),
+        difficulty: Some(5.0),
+        due: last,
+        last_review: Some(last),
+    };
+    let next = fsrs::next_state(Some(&old), 3, at).unwrap();
+    assert_eq!(next.stability, Some(5.0));
+    assert_eq!(next.due, at + chrono::Duration::days(5));
+    assert_eq!(fsrs::retrievability(&old, at), 1.0);
+}
+
+#[test]
+fn generated_card_ids_do_not_collide_at_one_fixed_review_time() {
+    let at = Utc
+        .with_ymd_and_hms(2026, 1, 5, 9, 0, 0)
+        .unwrap()
+        .fixed_offset();
+    let first = fsrs::CardState::generated(at);
+    let second = fsrs::CardState::generated(at);
+    assert_ne!(first.card_id, second.card_id);
+    assert_eq!(first.due, at);
+    assert_eq!(second.due, at);
+}
+
+#[test]
 fn notion_plain_text_and_rating_boundaries_match_the_contract() {
     assert_eq!(notion::plain("**What is a \\^heap?**"), "What is a ^heap?");
     assert_eq!(notion::plain("__Why__ `useMemo`?"), "Why useMemo?");

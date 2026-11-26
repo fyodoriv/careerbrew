@@ -339,7 +339,7 @@ pub fn record(
     let old = match cards.get(item_id) {
         Some(card) => Some(card),
         None => {
-            initial = CardState::new(at.timestamp_millis() as u64, at);
+            initial = CardState::generated(at);
             Some(&initial)
         }
     };

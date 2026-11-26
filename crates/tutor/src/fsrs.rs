@@ -4,7 +4,7 @@
 //! maintained crate computes new memory state as f32, matching the depvec gate.
 
 use crate::{stamp_state, Result, TutorError};
-use chrono::{DateTime, Duration, FixedOffset};
+use chrono::{DateTime, Duration, FixedOffset, Utc};
 use fsrs::{MemoryState, FSRS, FSRS6_DEFAULT_PARAMETERS};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
@@ -76,6 +76,15 @@ impl CardState {
         }
     }
 
+    /// Match py-fsrs: allocate from wall-clock milliseconds and wait 1 ms so
+    /// two cards created in one review batch cannot share an id. The supplied
+    /// review clock still controls due and last_review.
+    pub fn generated(at: DateTime<FixedOffset>) -> Self {
+        let id = Utc::now().timestamp_millis() as u64;
+        std::thread::sleep(std::time::Duration::from_millis(1));
+        Self::new(id, at)
+    }
+
     pub fn from_json(value: &Value) -> Result<Self> {
         let card_id = value
             .get("card_id")
@@ -91,27 +100,50 @@ impl CardState {
             .get("step")
             .and_then(Value::as_u64)
             .map(|step| step as usize);
-        let number = |key: &str| {
-            value
+        let number = |key: &str| -> Result<Option<f64>> {
+            let raw = value
                 .get(key)
-                .and_then(Value::as_f64)
-                .filter(|number| *number != 0.0)
+                .ok_or_else(|| TutorError::value(format!("FSRS state lacks {key}")))?;
+            let falsy = match raw {
+                Value::Null => true,
+                Value::Bool(value) => !value,
+                Value::Number(number) => number.as_f64() == Some(0.0),
+                Value::String(text) => text.is_empty(),
+                _ => false,
+            };
+            if falsy {
+                return Ok(None);
+            }
+            let parsed = match raw {
+                Value::Number(number) => number.as_f64(),
+                Value::String(text) => text.parse::<f64>().ok(),
+                Value::Bool(value) => Some(if *value { 1.0 } else { 0.0 }),
+                _ => None,
+            }
+            .filter(|number| number.is_finite());
+            parsed
+                .map(Some)
+                .ok_or_else(|| TutorError::value(format!("FSRS state has invalid {key}")))
         };
         let due = value
             .get("due")
             .and_then(Value::as_str)
             .and_then(|stamp| DateTime::parse_from_rfc3339(stamp).ok())
             .ok_or_else(|| TutorError::value("FSRS state lacks a valid due time"))?;
-        let last_review = value
-            .get("last_review")
-            .and_then(Value::as_str)
-            .and_then(|stamp| DateTime::parse_from_rfc3339(stamp).ok());
+        let last_review = match value.get("last_review") {
+            Some(Value::Null) => None,
+            Some(Value::String(stamp)) => Some(
+                DateTime::parse_from_rfc3339(stamp)
+                    .map_err(|_| TutorError::value("FSRS state has invalid last_review"))?,
+            ),
+            _ => return Err(TutorError::value("FSRS state has invalid last_review")),
+        };
         Ok(Self {
             card_id,
             phase,
             step,
-            stability: number("stability"),
-            difficulty: number("difficulty"),
+            stability: number("stability")?,
+            difficulty: number("difficulty")?,
             due,
             last_review,
         })
@@ -220,7 +252,7 @@ pub fn next_state(
     let mut phase = old.map_or(Phase::Learning, |state| state.phase);
     let mut step = old.map_or(Some(0), |state| state.step);
     let days = old.and_then(|state| state.last_review).map_or(0, |last| {
-        (at.timestamp() - last.timestamp()).div_euclid(DAY)
+        at.signed_duration_since(last).num_seconds().div_euclid(DAY)
     });
     let next = remember(&model, old.and_then(CardState::memory), days, rating)?;
     let review_wait = interval_days(&model, next) * DAY;
@@ -280,6 +312,10 @@ pub fn retrievability(state: &CardState, at: DateTime<FixedOffset>) -> f64 {
     let Some(stability) = state.stability else {
         return 0.0;
     };
-    let elapsed = (at.timestamp() - last.timestamp()).div_euclid(DAY).max(0) as f64;
+    let elapsed = at
+        .signed_duration_since(last)
+        .num_seconds()
+        .div_euclid(DAY)
+        .max(0) as f64;
     (1.0 + RETRIEVABILITY_FACTOR * elapsed / stability).powf(RETRIEVABILITY_DECAY)
 }

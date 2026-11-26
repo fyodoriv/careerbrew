@@ -2,8 +2,8 @@
 
 use crate::fsrs::{self, CardState, Phase};
 use crate::{
-    append_jsonl, casefold, digest, emit, field, local_zone, read_json, read_jsonl, read_yaml,
-    stamp_at, strings, text, truthy, write_json, write_yaml, Result, TutorError,
+    append_jsonl, casefold, digest, emit, field, read_json, read_jsonl, read_yaml, stamp_at,
+    strings, system_zone, text, truthy, write_json, write_yaml, Result, TutorError,
 };
 use careerbrew_vault::canon::Canon;
 use chrono::{DateTime, Duration, FixedOffset, NaiveDate, TimeZone};
@@ -242,8 +242,8 @@ fn interleave(rows: &[Value]) -> Vec<Value> {
     }
 }
 
-fn day(root: &Path, at: DateTime<FixedOffset>) -> NaiveDate {
-    at.with_timezone(&local_zone(root)).date_naive()
+fn day(_root: &Path, at: DateTime<FixedOffset>) -> NaiveDate {
+    at.with_timezone(&system_zone()).date_naive()
 }
 
 fn review_day(root: &Path, value: &Value) -> Option<NaiveDate> {
@@ -364,7 +364,7 @@ pub fn review(
     let old = match states.get(id) {
         Some(state) => Some(state),
         None => {
-            initial = CardState::new(at.timestamp_millis() as u64, at);
+            initial = CardState::generated(at);
             Some(&initial)
         }
     };
@@ -484,7 +484,7 @@ pub fn stats(root: &Path, public_dir: &Path, at: DateTime<FixedOffset>) -> Resul
         .cloned()
         .collect::<Vec<_>>();
     let today = day(root, at);
-    let zone = local_zone(root);
+    let zone = system_zone();
     let local = at.with_timezone(&zone);
     let end_naive = today
         .and_hms_micro_opt(23, 59, 59, 999_999)

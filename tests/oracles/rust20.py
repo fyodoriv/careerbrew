@@ -169,6 +169,7 @@ def _cards_and_decks(_base: Path) -> dict[str, Any]:
     first = cards.queue(at=T0, new_per_day=4)
     reviewed = [cards.review(row["id"], "good", at=T0) for row in first[:2]]
     remaining = cards.queue(at=T0 + timedelta(minutes=1), new_per_day=4)
+    new_ids = [row.card_id for row in cards._states().values()]
 
     learn_root = ws.root / "learn" / "rust20" / "srs"
     with cards.deck_root(learn_root):
@@ -202,6 +203,8 @@ def _cards_and_decks(_base: Path) -> dict[str, Any]:
         "first": [{"id": row["id"], "topic": row["topic"], "mode": row["mode"]} for row in first],
         "reviewed": reviewed,
         "remaining": [row["id"] for row in remaining],
+        "new_card_ids_unique": len(new_ids) == len(set(new_ids)),
+        "new_card_id_count": len(new_ids),
         "isolation": isolation,
         "leech": leech_row,
         "suspended_absent": suspended_absent,
@@ -212,14 +215,16 @@ def _cards_and_decks(_base: Path) -> dict[str, Any]:
 
 
 def _local_day_stats(_base: Path) -> dict[str, Any]:
-    Workspace(_base, "local-day")
+    ws = Workspace(_base, "local-day")
     os.environ["TZ"] = "Etc/GMT+4"
     time.tzset()
+    store.write_yaml(ws.root / "settings.yaml", {"timezone": "Etc/UTC"})
     cards.write_deck("test", [_card(f"c{number}", "coding", number) for number in range(5)])
     evening = datetime(2026, 10, 19, 23, 30, tzinfo=UTC)
     first = cards.queue(at=evening, new_per_day=3)
     for row in first:
         cards.review(row["id"], "good", at=evening)
+    new_ids = [row.card_id for row in cards._states().values()]
     later = evening + timedelta(hours=1)
     queue_later = cards.queue(at=later, new_per_day=3)
     stats = cards.stats(at=later)
@@ -231,6 +236,8 @@ def _local_day_stats(_base: Path) -> dict[str, Any]:
         "reviewed_today": stats["reviewed_today"],
         "streak_days": stats["streak_days"],
         "next_day_streak": next_day["streak_days"],
+        "new_card_ids_unique": len(new_ids) == len(set(new_ids)),
+        "new_card_id_count": len(new_ids),
         "retention_30d": stats["retention_30d"],
         "by_topic": stats["by_topic"],
     }
@@ -457,6 +464,9 @@ def _providers_and_mistakes(_base: Path) -> dict[str, Any]:
     next_review = engine.next_item(["Rust"], at=T0 + timedelta(days=20))
     mastery = engine.mastery(T0).get("Rust")
     readiness = engine.readiness(["Rust"], T0)
+    engine.add_gap_items(["Python"])
+    second_attempt = engine.record("gap-python-1", criteria, at=T0)
+    engine_ids = [row.card_id for row in engine.cards().values()]
 
     first = mistakes.record("ex-1", "arrays", "wrong-answer", "synthetic wrong answer")
     second = mistakes.record("ex-1", "arrays", "wrong-answer", "synthetic repeated answer")
@@ -484,6 +494,9 @@ def _providers_and_mistakes(_base: Path) -> dict[str, Any]:
         "rating_thresholds": [engine.score_to_rating(score).name for score in (0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)],
         "plugin_item": engine.items()["plugin-rust-1"],
         "plugin_rubric_criteria": [row["id"] for row in engine.rubrics()["plugin-rubric"]["criteria"]],
+        "second_attempt_due": second_attempt["due"],
+        "engine_card_ids_unique": len(engine_ids) == len(set(engine_ids)),
+        "engine_card_id_count": len(engine_ids),
         "mistakes": {
             "first_repeat": first["repeat"],
             "second_repeat": second["repeat"],

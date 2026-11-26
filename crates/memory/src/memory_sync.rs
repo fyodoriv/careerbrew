@@ -579,14 +579,11 @@ pub fn sync_in(root: &Path) -> Result<Value> {
     })
 }
 
-pub fn local_zone(root: &Path) -> chrono_tz::Tz {
-    let settings = careerbrew_projects::read_yaml(root, "settings.yaml", json!({}))
-        .unwrap_or_else(|_| json!({}));
-    let configured = text(field(&settings, "timezone"));
+/// The process timezone, without a settings.yaml override. This matches
+/// datetime.astimezone() used by card statistics.
+pub fn system_zone() -> chrono_tz::Tz {
     let system = std::env::var("TZ").unwrap_or_default();
-    let name = if !configured.is_empty() {
-        configured
-    } else if !system.is_empty() {
+    let name = if !system.is_empty() {
         system.trim_start_matches(':').to_owned()
     } else {
         std::fs::canonicalize("/etc/localtime")
@@ -599,11 +596,25 @@ pub fn local_zone(root: &Path) -> chrono_tz::Tz {
             })
             .unwrap_or_default()
     };
-    // Match Python's explicit warning when no valid zone can be resolved.
     name.parse().unwrap_or_else(|_| {
         eprintln!("careerbrew: cannot read this machine's time zone, so times use UTC; fix: careerbrew config set timezone <IANA name, for example Etc/UTC>");
         chrono_tz::UTC
     })
+}
+
+pub fn local_zone(root: &Path) -> chrono_tz::Tz {
+    let settings = careerbrew_projects::read_yaml(root, "settings.yaml", json!({}))
+        .unwrap_or_else(|_| json!({}));
+    let configured = text(field(&settings, "timezone"));
+    if configured.is_empty() {
+        system_zone()
+    } else {
+        // Match Python's explicit warning when no valid zone can be resolved.
+        configured.parse().unwrap_or_else(|_| {
+            eprintln!("careerbrew: cannot read this machine's time zone, so times use UTC; fix: careerbrew config set timezone <IANA name, for example Etc/UTC>");
+            chrono_tz::UTC
+        })
+    }
 }
 
 pub fn local_naive(

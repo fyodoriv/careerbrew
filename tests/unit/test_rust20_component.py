@@ -74,6 +74,7 @@ def assert_same(actual, expected, path: str = "report", floats: list[str] | None
     if floats is None:
         floats = []
     if isinstance(expected, dict) and set(expected) == {"float"}:
+        assert isinstance(actual, dict) and set(actual) == {"float"}, path
         left = float(actual["float"])
         right = float(expected["float"])
         assert math.isfinite(left) and math.isfinite(right), path
@@ -96,6 +97,11 @@ def assert_same(actual, expected, path: str = "report", floats: list[str] | None
     else:
         assert actual == expected, (path, actual, expected)
     return floats
+
+
+def test_float_wrapper_rejects_extra_fields():
+    with pytest.raises(AssertionError):
+        assert_same({"float": "1.0", "extra": True}, {"float": "1.0"})
 
 
 def test_tutor_public_notion_and_provider_contracts_match_python(candidate, tmp_path):
@@ -137,12 +143,14 @@ def test_tutor_public_notion_and_provider_contracts_match_python(candidate, tmp_
         assert deck["isolation"]["learn_has_interview_deck"] is False
         assert deck["leech"]["leech"] is True and deck["leech"]["lapses"] == {"int": "8"}
         assert deck["suspended_absent"] is True and deck["unsuspended_present"] is True
+        assert deck["new_card_ids_unique"] is True and deck["new_card_id_count"] == {"int": "2"}
 
         local = case(report, "local-day-stats")
         assert local["first_count"] == {"int": "3"}
         assert local["later_new"] == []
         assert local["reviewed_today"] == {"int": "3"}
         assert local["streak_days"] == local["next_day_streak"] == {"int": "1"}
+        assert local["new_card_ids_unique"] is True and local["new_card_id_count"] == {"int": "3"}
 
         public = case(report, "public-deck")
         assert public["initial_hints"]["Tell me about a conflict"] == ""
@@ -188,6 +196,7 @@ def test_tutor_public_notion_and_provider_contracts_match_python(candidate, tmp_
         assert providers["mistakes"]["from_exercise"] == ["edge-case"]
         assert providers["plugin_item"]["origin"] == "plugin:rust20plug"
         assert providers["plugin_rubric_criteria"] == ["plugin-criterion"]
+        assert providers["engine_card_ids_unique"] is True and providers["engine_card_id_count"] == {"int": "2"}
 
     assert_same(reports[1], reports[0], floats=compared_floats)
     assert len(compared_floats) >= 8, "full-precision FSRS and mastery values were really compared"

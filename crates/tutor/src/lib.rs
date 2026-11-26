@@ -171,6 +171,10 @@ pub fn local_zone(root: &Path) -> chrono_tz::Tz {
     careerbrew_memory::memory_sync::local_zone(root)
 }
 
+pub fn system_zone() -> chrono_tz::Tz {
+    careerbrew_memory::memory_sync::system_zone()
+}
+
 pub fn read_json(root: &Path, relative: &str, default: Value) -> Result<Value> {
     read_json_abs(&root.join(relative), default)
 }

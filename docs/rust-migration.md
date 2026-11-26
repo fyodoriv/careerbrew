@@ -2699,25 +2699,20 @@ the crate until the rust-05 and rust-07 closure is native, so
   relative `0.000001` tolerance. Typed `Resources` discovery reads base and
   installed-plugin knowledge/rubrics through the existing plugin provider.
   Semantic phase writes, event rows, and extra/missing/duplicate/event-duplicate
-  controls are observed. Production dispatch, shipped crates and activation
-  remain unchanged.
-- **Measured evidence (2026-11-26):** clean source
-  `7a193fc36e35bbc482f76a0e7faa6d3c675be04a` on macOS/aarch64 with Rust
-  1.100.0 and Python 3.12.16. Baseline/verify/measure share evidence-source
-  hash `5add1c7418a76fed9a2145c3da18628bdca0d84903afd4fe5fa260c10301bc94`
-  and fixture hash `3f7dd8dc608126ca9da1172c20df6270624c5da29b031a68ed7ce5e470a819ba`.
-  Release-candidate SHA-256 is
-  `e2aedd6f86f7645fedcac1fbabf6703a48bbfc18ae8e07f1bf7115923fe35fcf`.
-  Thirty baseline runs gave CPU p50/p95 367,583/387,528 microseconds and
-  tree-RSS p50/p95 45,006,848/45,367,296 bytes. Verify passed 8/8 domain
-  cases, including all 18 FSRS vectors and 14 full-precision float leaves,
-  with exact due times and zero observed violations. Each regime has 30
-  unique, uncached pairs. Cold CPU/RSS p95 ratios are 0.4482/0.3153; warm
-  ratios are 0.4714/0.3166, all below 1.10. `decide` returned component-only
-  `activate`; extra, missing, duplicate and event-duplicate controls each
-  returned `keep-python`. Local records: `.metrics/baseline-rust-20.json`,
-  `.metrics/verify-rust-20.json`, `.metrics/measure-rust-20.json`, and
-  `.metrics/decide-rust-20.json`.
+  controls are observed. Sealed records are opened with their own synthetic
+  workspace keys and compared as typed values with the same float tolerance;
+  malformed JSONL is refused. The measured `--all` path must return the same
+  complete eight-case report before timing starts. Production dispatch,
+  shipped crates and activation remain unchanged.
+- **Review correction (2026-11-26):** independent Kimi review at `5aa0aa2d`
+  rejected the earlier component-only `activate` evidence. It found unbound
+  vault/profile-example inputs, an unvalidated measured `--all` path, sealed
+  and malformed-JSONL blind spots, generated-card ID collisions, fractional
+  elapsed-day drift, process-versus-configured timezone drift, and malformed
+  persisted-state acceptance. Those defects are now covered by focused
+  controls and repaired. The earlier resource record is superseded; a fresh
+  clean-revision baseline, full differential, 30-pair measurement, decide and
+  independent review are required before any activation claim.
 - **Evidence limits:** HTTP, DATA and generic role contracts are explicitly
   scoped out of this component record; the domain's corporate-role refusal is
   covered. Python denial is environment-based. Cold differs only by missing

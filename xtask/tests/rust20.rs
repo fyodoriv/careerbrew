@@ -1,5 +1,6 @@
 //! Registration, evidence identity, exact FSRS and write-failure controls for rust-20.
 
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::Command;
 
@@ -29,6 +30,8 @@ fn rust_20_registers_the_release_candidate_and_effective_inputs() {
         "crates/learn/src/cards.rs",
         "crates/policy/src/canary.rs",
         "crates/vault/src/store.rs",
+        "crates/vault/src/synthetic.rs",
+        "profile/examples/profile.yaml",
         "xtask/src/rust20.rs",
     ] {
         assert!(baseline.contains(source), "missing source binding {source}");
@@ -42,6 +45,7 @@ fn rust_20_registers_the_release_candidate_and_effective_inputs() {
     assert!(compare.contains("0.00001"));
     assert!(compare.contains("0.000001"));
     assert!(compare.contains("2026-10-21T09:10:00.123456+00:00"));
+    assert!(compare.contains("total_floats != 14"));
 }
 
 #[test]
@@ -91,6 +95,7 @@ fn rust_20_baseline_verify_measure_decide_and_write_controls_share_identity() {
         serde_json::from_slice(&std::fs::read(&verified).unwrap()).unwrap();
     assert_eq!(record["case_count"], 8);
     assert_eq!(record["passed_count"], 8);
+    assert_eq!(record["float_leaves"], 14);
     assert_eq!(record["violations"]["contract"], 0);
     assert_eq!(record["violations"]["privacy"], 0);
     assert!(record["cases"].as_array().unwrap().iter().all(|case| {
@@ -190,4 +195,29 @@ fn rust_20_baseline_verify_measure_decide_and_write_controls_share_identity() {
             .unwrap()
             .contains(&serde_json::json!("verify-violation")));
     }
+}
+
+#[test]
+fn rust_20_measure_refuses_an_invalid_all_report() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let candidate = scratch.path().join("empty-candidate.sh");
+    std::fs::write(&candidate, "#!/bin/sh\nprintf '{\"cases\":[]}\\n'\n").unwrap();
+    let mut permissions = std::fs::metadata(&candidate).unwrap().permissions();
+    permissions.set_mode(0o755);
+    std::fs::set_permissions(&candidate, permissions).unwrap();
+    let output = scratch.path().join("measure.json");
+    let run = Command::new(env!("CARGO_BIN_EXE_careerbrew-xtask"))
+        .args(["migration", "measure", "--step", "rust-20", "--python"])
+        .arg(root.join(".venv/bin/python"))
+        .arg("--out")
+        .arg(&output)
+        .args(["--pairs", "1", "--test-allow-few-pairs", "--test-candidate"])
+        .arg(&candidate)
+        .env_remove("CAREERBREW_HOME")
+        .output()
+        .unwrap();
+    assert!(!run.status.success(), "{run:?}");
+    let stderr = String::from_utf8_lossy(&run.stderr);
+    assert!(stderr.contains("rust-20 --all report"), "{stderr}");
 }

@@ -185,6 +185,15 @@ fn cards_and_decks(base: &Path) -> Result<Value> {
         50,
         &[],
     )?;
+    let new_ids = cards::states(&ws.root)?
+        .values()
+        .map(|state| state.card_id)
+        .collect::<Vec<_>>();
+    let new_card_ids_unique = new_ids
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len()
+        == new_ids.len();
 
     let learn_folder = ws.root.join("learn/rust20");
     let learn_root = learn_folder.join("srs");
@@ -230,6 +239,8 @@ fn cards_and_decks(base: &Path) -> Result<Value> {
         "first": first.iter().map(|row| json!({"id": text(field(row, "id")), "topic": text(field(row, "topic")), "mode": text(field(row, "mode"))})).collect::<Vec<_>>(),
         "reviewed": reviewed,
         "remaining": remaining.iter().map(|row| text(field(row, "id"))).collect::<Vec<_>>(),
+        "new_card_ids_unique": new_card_ids_unique,
+        "new_card_id_count": new_ids.len(),
         "isolation": isolation,
         "leech": leech_row,
         "suspended_absent": suspended_absent,
@@ -242,6 +253,7 @@ fn cards_and_decks(base: &Path) -> Result<Value> {
 fn local_day_stats(base: &Path) -> Result<Value> {
     let ws = Workspace::new(base, "local-day")?;
     std::env::set_var("TZ", "Etc/GMT+4");
+    write_yaml(&ws.root, "settings.yaml", &json!({"timezone": "Etc/UTC"}))?;
     let deck = (0..5)
         .map(|number| card(&format!("c{number}"), "coding", number))
         .collect::<Vec<_>>();
@@ -261,6 +273,15 @@ fn local_day_stats(base: &Path) -> Result<Value> {
             None,
         )?;
     }
+    let new_ids = cards::states(&ws.root)?
+        .values()
+        .map(|state| state.card_id)
+        .collect::<Vec<_>>();
+    let new_card_ids_unique = new_ids
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len()
+        == new_ids.len();
     let later = evening + Duration::hours(1);
     let queue_later = cards::queue(&ws.root, &ws.public, later, Some(3), 50, &[])?;
     let stats = cards::stats(&ws.root, &ws.public, later)?;
@@ -272,6 +293,8 @@ fn local_day_stats(base: &Path) -> Result<Value> {
         "reviewed_today": stats["reviewed_today"],
         "streak_days": stats["streak_days"],
         "next_day_streak": next_day["streak_days"],
+        "new_card_ids_unique": new_card_ids_unique,
+        "new_card_id_count": new_ids.len(),
         "retention_30d": stats["retention_30d"],
         "by_topic": stats["by_topic"],
     }))
@@ -748,6 +771,29 @@ fn providers_and_mistakes(base: &Path) -> Result<Value> {
         &["Rust".into()],
         t0(),
     )?;
+    engine::add_gap_items(&ws.root, &["Python".into()])?;
+    let second_attempt = engine::record(
+        &ws.root,
+        &repo_root(),
+        &plugin_knowledge,
+        &rubric_resources,
+        "gap-python-1",
+        &criteria,
+        engine::Attempt {
+            seconds: None,
+            at: t0(),
+            graded_by: "self",
+        },
+    )?;
+    let engine_ids = engine::cards(&ws.root)?
+        .values()
+        .map(|state| state.card_id)
+        .collect::<Vec<_>>();
+    let engine_card_ids_unique = engine_ids
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len()
+        == engine_ids.len();
 
     let first = mistakes::record(
         &ws.root,
@@ -795,6 +841,9 @@ fn providers_and_mistakes(base: &Path) -> Result<Value> {
         "rating_thresholds": rating_thresholds,
         "plugin_item": plugin_item,
         "plugin_rubric_criteria": plugin_rubric_criteria,
+        "second_attempt_due": second_attempt["due"],
+        "engine_card_ids_unique": engine_card_ids_unique,
+        "engine_card_id_count": engine_ids.len(),
         "mistakes": {
             "first_repeat": field(&first, "repeat"),
             "second_repeat": field(&second, "repeat"),
