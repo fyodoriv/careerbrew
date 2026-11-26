@@ -2698,8 +2698,8 @@ the crate until the rust-05 and rust-07 closure is native, so
   string exactly and allows only actual float leaves absolute `0.00001` and
   relative `0.000001` tolerance. Typed `Resources` discovery reads base and
   installed-plugin knowledge/rubrics through the existing plugin provider.
-  Semantic phase writes, event rows, and extra/missing/duplicate/event-duplicate
-  controls are observed. Sealed records are opened with their own synthetic
+  Semantic phase writes, exact file modes, event rows, and
+  extra/missing/duplicate/event-duplicate controls are observed. Sealed records are opened with their own synthetic
   workspace keys and compared as typed values with the same float tolerance;
   malformed JSONL is refused. The measured `--all` path must return the same
   complete eight-case report before timing starts. Production dispatch,

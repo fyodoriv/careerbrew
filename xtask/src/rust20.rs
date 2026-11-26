@@ -150,7 +150,15 @@ fn write_payload(text: &str) -> &str {
         .unwrap_or(text)
 }
 
+fn write_mode(text: &str) -> Option<&str> {
+    text.strip_prefix("file:")
+        .and_then(|rest| rest.split_once(':').map(|(mode, _)| mode))
+}
+
 fn write_matches(left: &str, right: &str) -> bool {
+    if write_mode(left) != write_mode(right) {
+        return false;
+    }
     let (left, right) = (write_payload(left), write_payload(right));
     for prefix in [
         "sealed:yaml:",
@@ -780,6 +788,13 @@ mod tests {
         let right =
             semantic_content("data/card-state.json", &right, scratch.path(), &mut 0).unwrap();
         assert!(write_matches(&left, &right), "left={left} right={right}");
+    }
+
+    #[test]
+    fn write_comparison_preserves_file_mode() {
+        let left = "file:600:json:{\"float\":\"1.0\"}";
+        let right = "file:644:json:{\"float\":\"1.0\"}";
+        assert!(!write_matches(left, right));
     }
 
     #[test]
