@@ -2655,7 +2655,8 @@ the crate until the rust-05 and rust-07 closure is native, so
   for existing status rows and operator dispatchers, prior-session history by
   record identity, and negative signal exit receipts. Direct controls cover
   `/standup` before `/careerbrew`, `/z-operator` before `/a-operator`, ending and
-  reopening `sess-a`, and `SIGTERM` returning `exit -15`. The `indexmap` crate
+  reopening `sess-a`, and `SIGTERM` returning `exit -15`. Session state is saved
+  before the loop record, matching Python's write order. The `indexmap` crate
   preserves row order; no generated sorting replaces declaration order. Success
   keeps all six differential cases and five planted controls passing, with fresh
   30-run/30-pair resource records and no activation change. Any mismatch keeps

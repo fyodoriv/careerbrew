@@ -494,11 +494,11 @@ pub fn open_session(root: &Path, project: &str, ident: &str) -> Result<Value> {
                 got["brief_status"] = status.clone();
             }
             state["quiet_receipts"] = Value::Object(receipts);
-            ensure_loop(root, &current_id, &current_record)?;
             prune(root, &mut state)?;
             if state != before {
                 write_json(root, PATH, &state)?;
             }
+            ensure_loop(root, &current_id, &current_record)?;
             Ok(got)
         })
     })
