@@ -87,6 +87,8 @@ fn normalize_event_times(value: &mut Value) {
             for (key, item) in items {
                 if key == "ts" {
                     *item = Value::String("<event-time>".into());
+                } else if key == "ms" {
+                    *item = Value::String("<elapsed>".into());
                 } else {
                     normalize_event_times(item);
                 }

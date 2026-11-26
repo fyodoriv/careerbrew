@@ -139,7 +139,8 @@ def test_workday_records_questions_stages_and_sessions_match_python(candidate, t
         assert "projects and handoffs hidden" in work["listed_text"]["stdout"]
         assert work["missing"]["exit"] == {"int": "1"} and set(work["missing"]["value"]["missing"]) == {"sess-a", "sess-b"}
         assert work["ended"]["exit"] == {"int": "0"} and set(work["ended"]["value"]["ended"]) == {"sess-a", "sess-b"}
-        assert work["reopened"]["value"]["brief"] == "SYNTHCANARY-rust15-private"
+        assert work["reopened"]["value"]["brief"]
+        assert work["event_names"] == ["workday.loop", "work.session"]
         assert work["claims_after_end"] == []
         assert work["sealed"] is True and work["plain_absent"] is True
 

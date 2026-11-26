@@ -337,6 +337,10 @@ def work_session(base: Path) -> dict[str, Any]:
     handoff_b = invoke(["work", "session", "handoff", "sess-b", "ledger complete"])
     ended = invoke(["work", "session", "end", "--all", "--json"], json_output=True)
     reopened = invoke(["work", "session", "open", "billing", "--id", "sess-a", "--json"], json_output=True)
+    os.environ["CAREERBREW_EVENTS"] = "on"
+    event_session = invoke(["work", "session", "open", "ledger", "--id", "sess-events", "--json"], json_output=True)
+    event_names = [json.loads(line)["event"] for line in (ws.root / "logs/events.jsonl").read_text().splitlines()[-2:]]
+    os.environ["CAREERBREW_EVENTS"] = "off"
     raw = (ws.root / "work/sessions.json").read_bytes()
     return {
         "opened": opened,
@@ -355,6 +359,8 @@ def work_session(base: Path) -> dict[str, Any]:
         "handoff_b": handoff_b,
         "ended": ended,
         "reopened": reopened,
+        "event_session": event_session,
+        "event_names": event_names,
         "claims_after_end": sessions.claims(),
         "sealed": raw.startswith(b"CBV1\n"),
         "plain_absent": CANARY.encode() not in raw,

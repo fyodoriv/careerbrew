@@ -747,6 +747,22 @@ fn work_session_case(base: &Path) -> Result<Value> {
     let handoff_b = work_session::handoff_cli(root, "sess-b", "ledger complete", "");
     let ended = work_session::end_cli(root, "", true, true);
     let reopened = work_session::open_cli(root, "billing", "sess-a", true, false);
+    std::env::set_var("CAREERBREW_EVENTS", "on");
+    let event_session = work_session::open_cli(root, "ledger", "sess-events", true, false);
+    let event_names = std::fs::read_to_string(root.join("logs/events.jsonl"))?
+        .lines()
+        .rev()
+        .take(2)
+        .map(|line| {
+            serde_json::from_str::<Value>(line)
+                .map(|row| text(field(&row, "event")))
+                .unwrap_or_default()
+        })
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect::<Vec<_>>();
+    std::env::set_var("CAREERBREW_EVENTS", "off");
     let session_path = root.join("work/sessions.json");
     let raw = std::fs::read(&session_path)?;
     match std::env::var("CAREERBREW_RUST15_PLANT_WRITE").as_deref() {
@@ -774,6 +790,8 @@ fn work_session_case(base: &Path) -> Result<Value> {
         "handoff_b": handoff_b,
         "ended": ended,
         "reopened": reopened,
+        "event_session": event_session,
+        "event_names": event_names,
         "claims_after_end": careerbrew_sessions::sessions::claims(root).map_err(|error| crate::error(error.class, error.message))?,
         "sealed": raw.starts_with(b"CBV1\n"),
         "plain_absent": !raw.windows(CANARY.len()).any(|part| part == CANARY.as_bytes()),

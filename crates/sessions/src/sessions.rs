@@ -262,7 +262,7 @@ fn ensure_loop(root: &Path, id: &str, record: &str) -> Result<bool> {
     })?
 }
 
-pub fn open_session(root: &Path, project: &str, ident: &str) -> Result<Value> {
+pub fn open_session_with_loop(root: &Path, project: &str, ident: &str) -> Result<(Value, bool)> {
     let project = project.trim();
     let every = projects::load(root)?;
     if every.get(project).is_none() {
@@ -498,10 +498,14 @@ pub fn open_session(root: &Path, project: &str, ident: &str) -> Result<Value> {
             if state != before {
                 write_json(root, PATH, &state)?;
             }
-            ensure_loop(root, &current_id, &current_record)?;
-            Ok(got)
+            let loop_added = ensure_loop(root, &current_id, &current_record)?;
+            Ok((got, loop_added))
         })
     })
+}
+
+pub fn open_session(root: &Path, project: &str, ident: &str) -> Result<Value> {
+    open_session_with_loop(root, project, ident).map(|(session, _)| session)
 }
 
 pub fn resource(value: &str) -> Result<String> {

@@ -68,10 +68,17 @@ fn validate_state(root: &Path) -> Result<Value> {
 
 pub fn open(root: &Path, project: &str, ident: &str) -> Result<Value> {
     validate_state(root)?;
-    let result = sessions::open_session(root, project, ident)
+    let result = sessions::open_session_with_loop(root, project, ident)
         .map_err(|error| crate::error(error.class, error.message));
     match result {
-        Ok(session) => {
+        Ok((session, loop_added)) => {
+            if loop_added {
+                emit(
+                    root,
+                    "workday.loop",
+                    json!({"status": "added", "kind_owned": false}),
+                )?;
+            }
             let status = if field(&session, "reused")
                 .and_then(Value::as_bool)
                 .unwrap_or(false)
@@ -114,6 +121,7 @@ pub fn open(root: &Path, project: &str, ident: &str) -> Result<Value> {
 }
 
 pub fn open_cli(root: &Path, project: &str, ident: &str, as_json: bool, show: bool) -> Value {
+    let started = std::time::Instant::now();
     let session = match open(root, project, ident) {
         Ok(session) => session,
         Err(error) => return failure(&error),
@@ -130,6 +138,14 @@ pub fn open_cli(root: &Path, project: &str, ident: &str, as_json: bool, show: bo
         }
         if show && !text(field(&session, "brief")).is_empty() {
             result["brief"] = session["brief"].clone();
+        }
+        let ms = started.elapsed().as_millis() as u64;
+        if let Err(error) = emit(
+            root,
+            "cli.run",
+            json!({"command": "work.session", "status": "ok", "via": "cli", "ms": ms}),
+        ) {
+            return failure(&error);
         }
         return invocation_json(0, result);
     }
@@ -153,6 +169,14 @@ pub fn open_cli(root: &Path, project: &str, ident: &str, as_json: bool, show: bo
             "project handoff: {}\n",
             text(field(&session, "brief"))
         ));
+    }
+    let ms = started.elapsed().as_millis() as u64;
+    if let Err(error) = emit(
+        root,
+        "cli.run",
+        json!({"command": "work.session", "status": "ok", "via": "cli", "ms": ms}),
+    ) {
+        return failure(&error);
     }
     invocation_text(0, output)
 }
