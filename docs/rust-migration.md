@@ -2682,6 +2682,22 @@ the crate until the rust-05 and rust-07 closure is native, so
   controls returned `keep-python` with `verify-check-failed` and
   `verify-violation`. Production routes, shipped crates and activation remain
   unchanged.
+- **Lifecycle-event acceptance (2026-11-26, macOS):** clean measured source
+  `d126b8858e053091e218658262c6313002428351`; evidence-source hash
+  `446821be3a803e6f546c0f0be02bf42f08fb56d061e0fe62a249533f2f161d2d`;
+  fixture hash `e2339644f48e45fcbc133178f32c3f79e4fc7a2db047bf0d0bd92532663555d7`;
+  release-candidate SHA-256
+  `c4e387734589997fa7e62a218ebc854f8463db7742314b3e6e6478e65ddf60e4`.
+  Baseline: 30 runs; CPU p50/p95 656,073/722,958 microseconds and tree-RSS
+  p50/p95 61,243,392/61,669,376 bytes. Verify passes 6/6 with zero violations,
+  including the events-enabled `workday.loop`, `work.session` and `cli.run`
+  sequence and every direct event append. Cold CPU p95 was 721,514 to 136,739
+  microseconds; warm was 709,117 to 124,964. Cold tree-RSS p95 was 61,620,224
+  to 10,862,592 bytes; warm was 61,423,616 to 10,895,360. Each regime has 30
+  unique uncached pairs and every ratio is below 1.10. `decide` returned
+  component-only `activate`; all five same-head planted controls returned
+  `keep-python`. Production routes, shipped crates and activation remain
+  unchanged.
 
 ### rust-16: Port work-day execution, scheduling and watch loops
 
