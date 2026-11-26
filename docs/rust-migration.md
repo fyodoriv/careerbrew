@@ -2651,6 +2651,15 @@ the crate until the rust-05 and rust-07 closure is native, so
   warm OS page cache. HTTP, DATA and role contracts are out of scope for this
   component. Production routes, shipped crates and activation remain unchanged.
   Independent review and both hosted OS gates remain separate acceptance gates.
+- **Review-correction pre-registration (2026-11-26):** preserve insertion order
+  for existing status rows and operator dispatchers, prior-session history by
+  record identity, and negative signal exit receipts. Direct controls cover
+  `/standup` before `/careerbrew`, `/z-operator` before `/a-operator`, ending and
+  reopening `sess-a`, and `SIGTERM` returning `exit -15`. The `indexmap` crate
+  preserves row order; no generated sorting replaces declaration order. Success
+  keeps all six differential cases and five planted controls passing, with fresh
+  30-run/30-pair resource records and no activation change. Any mismatch keeps
+  Python.
 
 ### rust-16: Port work-day execution, scheduling and watch loops
 

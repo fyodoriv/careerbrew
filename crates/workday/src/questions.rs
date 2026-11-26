@@ -5,6 +5,7 @@ use careerbrew_vault::cli::editor_argv;
 use chrono::{DateTime, Duration, NaiveDate};
 use regex::Regex;
 use serde_json::{json, Map, Value};
+use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::Duration as StdDuration;
@@ -486,7 +487,10 @@ pub fn run_verify(command: &str) -> Result<(bool, String)> {
         if status.success() {
             String::new()
         } else {
-            format!("exit {}", status.code().unwrap_or(1))
+            status.code().map_or_else(
+                || format!("exit -{}", status.signal().unwrap_or(1)),
+                |code| format!("exit {code}"),
+            )
         },
     ))
 }

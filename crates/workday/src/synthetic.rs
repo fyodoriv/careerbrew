@@ -277,6 +277,7 @@ fn status_case(base: &Path) -> Result<Value> {
         "timed": timed,
         "handled": status::handled(root, day)?,
         "counts": status::counts(&status::rows(root, &names, day)?),
+        "row_order": crate::read_json(root, "day/work-2026-11-02.json", json!({}))?["rows"].as_array().into_iter().flatten().map(|row| text(field(row, "step"))).collect::<Vec<_>>(),
         "start_kept": status::start_record(root, day)?,
         "sealed": std::fs::read(status::path_for(root, day))?.starts_with(b"CBV1\n"),
         "plain_absent": !std::fs::read(status::path_for(root, day))?.windows(CANARY.len()).any(|part| part == CANARY.as_bytes()),
@@ -456,6 +457,7 @@ fn question_records(base: &Path) -> Result<Value> {
         std::env::set_var("CAREERBREW_EVENTS", "on");
     }
     let batch = questions::recheck(root, day("2026-11-02"), &questions::LocalRechecks)?;
+    let signal_receipt = questions::run_verify("sh -c 'kill -TERM $$'")?;
     let old_records = questions::records(root, day("2026-11-01"))?;
     let current_records = questions::records(root, day("2026-11-02"))?;
     if plant == "operation-duplicate" {
@@ -482,6 +484,7 @@ fn question_records(base: &Path) -> Result<Value> {
         "plugin_public": plugin_public,
         "close": [stale_close, actual_close],
         "batch": batch,
+        "signal_receipt": signal_receipt,
         "old_records": old_records.iter().map(questions::public).collect::<Vec<_>>(),
         "current_records": current_records.iter().map(questions::public).collect::<Vec<_>>(),
         "ages": [questions::age("bad", crate::now()), questions::age("2026-11-01T08:45:00+00:00", crate::now()), questions::age("2026-10-30T08:00:00+00:00", crate::now())],
@@ -583,6 +586,14 @@ fn stage_readiness(base: &Path) -> Result<Value> {
     Workspace::new(base, "stage-readiness", &[])?;
     let declared = vec![
         steps::entry(&json!("/careerbrew"), "settings")?,
+        steps::entry(
+            &json!({"step": "/z-operator", "operatorTurn": true, "uses": "browser:z"}),
+            "settings",
+        )?,
+        steps::entry(
+            &json!({"step": "/a-operator", "operatorTurn": true, "uses": "browser:a"}),
+            "settings",
+        )?,
         steps::entry(
             &json!({"step": "/dispatch", "operatorTurn": true, "uses": "browser:sso"}),
             "settings",
@@ -735,6 +746,7 @@ fn work_session_case(base: &Path) -> Result<Value> {
     let handoff = work_session::handoff_cli(root, "sess-a", CANARY, "");
     let handoff_b = work_session::handoff_cli(root, "sess-b", "ledger complete", "");
     let ended = work_session::end_cli(root, "", true, true);
+    let reopened = work_session::open_cli(root, "billing", "sess-a", true, false);
     let session_path = root.join("work/sessions.json");
     let raw = std::fs::read(&session_path)?;
     match std::env::var("CAREERBREW_RUST15_PLANT_WRITE").as_deref() {
@@ -761,6 +773,7 @@ fn work_session_case(base: &Path) -> Result<Value> {
         "handoff": handoff,
         "handoff_b": handoff_b,
         "ended": ended,
+        "reopened": reopened,
         "claims_after_end": careerbrew_sessions::sessions::claims(root).map_err(|error| crate::error(error.class, error.message))?,
         "sealed": raw.starts_with(b"CBV1\n"),
         "plain_absent": !raw.windows(CANARY.len()).any(|part| part == CANARY.as_bytes()),

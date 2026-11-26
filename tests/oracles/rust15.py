@@ -21,7 +21,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from careerbrew import cli, config, store  # noqa: E402
 from careerbrew.work import projects, review_ask, sessions  # noqa: E402
-from careerbrew.workday import questions, stages, status, steps, watch  # noqa: E402
+from careerbrew.workday import gate, questions, stages, status, steps, watch  # noqa: E402
 
 CASES = (
     "status-schema",
@@ -161,6 +161,7 @@ def status_case(base: Path) -> dict[str, Any]:
         "timed": timed,
         "handled": status.handled(day),
         "counts": status.counts(status.rows(names, day)),
+        "row_order": [row["step"] for row in store.read_json(status.path_for(day))["rows"]],
         "start_kept": status.start_record(day),
         "sealed": status.path_for(day).read_bytes().startswith(b"CBV1\n"),
         "plain_absent": CANARY.encode() not in status.path_for(day).read_bytes(),
@@ -201,6 +202,7 @@ def question_records(base: Path) -> dict[str, Any]:
     questions.add("/careerbrew", "manual close")
     at("2026-11-02T09:00:00+00:00")
     batch = questions.recheck(date(2026, 11, 2))
+    signal_receipt = gate.run_verify("sh -c 'kill -TERM $$'")
     old_records = questions.records(date(2026, 11, 1))
     current_records = questions.records(date(2026, 11, 2))
     return {
@@ -213,6 +215,7 @@ def question_records(base: Path) -> dict[str, Any]:
         "plugin_public": plugin_public,
         "close": [stale_close, actual_close],
         "batch": batch,
+        "signal_receipt": list(signal_receipt),
         "old_records": [questions.public(row) for row in old_records],
         "current_records": [questions.public(row) for row in current_records],
         "ages": [questions.age("bad"), questions.age("2026-11-01T08:45:00+00:00"), questions.age("2026-10-30T08:00:00+00:00")],
@@ -289,6 +292,8 @@ def stage_readiness(base: Path) -> dict[str, Any]:
     Workspace(base, "stage-readiness")
     declared = [
         steps.entry("/careerbrew", "settings"),
+        steps.entry({"step": "/z-operator", "operatorTurn": True, "uses": "browser:z"}, "settings"),
+        steps.entry({"step": "/a-operator", "operatorTurn": True, "uses": "browser:a"}, "settings"),
         steps.entry({"step": "/dispatch", "operatorTurn": True, "uses": "browser:sso"}, "settings"),
         steps.entry({"step": "/feed", "longRunning": True, "uses": "browser:feed"}, "settings"),
         steps.entry({"step": "/check", "uses": "browser:feed"}, "settings"),
@@ -331,6 +336,7 @@ def work_session(base: Path) -> dict[str, Any]:
     handoff = invoke(["work", "session", "handoff", "sess-a", CANARY])
     handoff_b = invoke(["work", "session", "handoff", "sess-b", "ledger complete"])
     ended = invoke(["work", "session", "end", "--all", "--json"], json_output=True)
+    reopened = invoke(["work", "session", "open", "billing", "--id", "sess-a", "--json"], json_output=True)
     raw = (ws.root / "work/sessions.json").read_bytes()
     return {
         "opened": opened,
@@ -348,6 +354,7 @@ def work_session(base: Path) -> dict[str, Any]:
         "handoff": handoff,
         "handoff_b": handoff_b,
         "ended": ended,
+        "reopened": reopened,
         "claims_after_end": sessions.claims(),
         "sealed": raw.startswith(b"CBV1\n"),
         "plain_absent": CANARY.encode() not in raw,

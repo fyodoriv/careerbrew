@@ -79,6 +79,7 @@ def test_workday_records_questions_stages_and_sessions_match_python(candidate, t
         assert status["timed"]["next"] == "run /standup again: attempt 2 of 2, after a timeout"
         assert status["blocked"]["needs_you"] == "Owner picks"
         assert status["handled"]["checkout:~/synthetic"] == "/standup"
+        assert status["row_order"][:2] == ["/careerbrew", "/standup"]
         assert status["start_kept"]["preflight"][0]["check"] == "synthetic"
         assert status["sealed"] is True and status["plain_absent"] is True
 
@@ -91,6 +92,7 @@ def test_workday_records_questions_stages_and_sessions_match_python(candidate, t
         assert question["close"] == [False, True]
         assert len(question["batch"]["dropped"]) == 1
         assert question["batch"]["dropped"][0]["why"] == "recheck: closed (exit 1)"
+        assert question["signal_receipt"] == [False, "exit -15"]
         assert sorted(row["state"] for row in question["batch"]["ask"]) == ["agent", "open", "open"]
         assert question["ages"] == ["unknown", "24 h", "3 d"]
         assert question["sealed"] is True and question["plain_absent"] is True
@@ -117,6 +119,7 @@ def test_workday_records_questions_stages_and_sessions_match_python(candidate, t
             "failed": ["/other"],
             "blocked": ["/feed", "/report", "/other"],
         }
+        assert [row["step"] for row in stage["found"] if row.get("operator_turn")] == ["/z-operator", "/a-operator", "/dispatch"]
         dispatch = next(row for row in stage["found"] if row["step"] == "/dispatch")
         assert dispatch["ready_when"]["signin_required"] is True
         feed = next(row for row in stage["found"] if row["step"] == "/feed")
@@ -136,6 +139,7 @@ def test_workday_records_questions_stages_and_sessions_match_python(candidate, t
         assert "projects and handoffs hidden" in work["listed_text"]["stdout"]
         assert work["missing"]["exit"] == {"int": "1"} and set(work["missing"]["value"]["missing"]) == {"sess-a", "sess-b"}
         assert work["ended"]["exit"] == {"int": "0"} and set(work["ended"]["value"]["ended"]) == {"sess-a", "sess-b"}
+        assert work["reopened"]["value"]["brief"] == "SYNTHCANARY-rust15-private"
         assert work["claims_after_end"] == []
         assert work["sealed"] is True and work["plain_absent"] is True
 

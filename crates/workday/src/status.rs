@@ -5,6 +5,7 @@ use crate::{
     Result,
 };
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, Utc};
+use indexmap::IndexMap;
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -75,9 +76,9 @@ fn normalized_row(row: &Value) -> Option<Value> {
     Some(out)
 }
 
-pub fn stored(root: &Path, day: NaiveDate) -> Result<BTreeMap<String, Value>> {
+pub fn stored(root: &Path, day: NaiveDate) -> Result<IndexMap<String, Value>> {
     let data = data(root, day)?;
-    let mut out = BTreeMap::new();
+    let mut out = IndexMap::new();
     for row in data
         .get("rows")
         .and_then(Value::as_array)

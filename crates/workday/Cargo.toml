@@ -16,6 +16,7 @@ regex = "=1.13.2"
 glob = "=0.3.4"
 sha2 = "=0.10.9"
 wait-timeout = "=0.2.1"
+indexmap = { version = "=2.14.2", features = ["serde"] }
 
 [dev-dependencies]
 tempfile = "=3.23.0"

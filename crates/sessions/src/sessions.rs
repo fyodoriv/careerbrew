@@ -391,7 +391,7 @@ pub fn open_session(root: &Path, project: &str, ident: &str) -> Result<Value> {
                 .find(|session| {
                     text(field(session, "project")) == project
                         && text(field(session, "project_incarnation")) == incarnation
-                        && text(field(session, "id")) != current_id
+                        && text(field(session, "record_id")) != current_record
                 })
                 .cloned();
             let legacy_history =
@@ -401,7 +401,7 @@ pub fn open_session(root: &Path, project: &str, ident: &str) -> Result<Value> {
                     .flatten()
                     .any(|session| {
                         text(field(session, "project")) == project
-                            && text(field(session, "id")) != current_id
+                            && text(field(session, "record_id")) != current_record
                             && text(field(session, "project_incarnation")).is_empty()
                     });
             let generation = match field(&record, "quiet_generation") {

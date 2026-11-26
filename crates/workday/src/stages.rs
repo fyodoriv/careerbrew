@@ -166,8 +166,8 @@ fn dependencies(declared: &[Value], late: &BTreeSet<String>) -> Result<Dependenc
             )
         })
         .collect::<BTreeMap<_, _>>();
-    let operators = by
-        .values()
+    let operators = declared
+        .iter()
         .filter(|step| {
             field(step, "operator_turn")
                 .and_then(Value::as_bool)
