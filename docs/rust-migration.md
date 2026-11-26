@@ -2710,28 +2710,29 @@ the crate until the rust-05 and rust-07 closure is native, so
   and malformed-JSONL blind spots, generated-card ID collisions, fractional
   elapsed-day drift, process-versus-configured timezone drift, and malformed
   persisted-state acceptance. Follow-up controls also retain exact file modes,
-  refuse missing or malformed step state, and keep the review instant's UTC
-  offset at local day end across a daylight-saving transition. Focused controls
+  refuse missing or malformed step state, keep the review instant's UTC offset
+  at local day end across a daylight-saving transition, and normalize pinned
+  clocks to UTC without a wall-clock fallback. Focused controls
   now cover and reject each defect. The earlier resource record is superseded
   by the clean record below.
 - **Measured evidence (2026-11-26):** clean source
-  `9babf2f4075849117c59dcdcf3525e645d537324` on macOS/aarch64 with Rust
+  `cd9f01998ceac6498c4269bacccca9ea0e881a4a` on macOS/aarch64 with Rust
   1.100.0 and Python 3.12.16. Baseline/verify/measure share evidence-source
-  hash `3af54897f6fcfe5c470ed044dfa276b587f961171cf5142d087f30d362affe71`
+  hash `0ad5a1486172751c1ccd1efc8a0246c94f45803813ba65daa0998f536a9d36a3`
   and fixture hash `e8957893448fb8c1396ab6deee329851658ebbeb2bddbc99195ffcb7f411a0ce`.
   Release-candidate SHA-256 is
-  `a3c3ea4dd60b3e65d2226d7df41b20e1e05f80aba06d9e09f7b276bc276e8c1b`.
-  Thirty baseline runs gave CPU p50/p95 378,899/404,918 microseconds and
-  tree-RSS p50/p95 45,203,456/45,563,904 bytes. Verify passed 8/8 domain
+  `878f0eca86820c2c2646d85185a7811b1d8e948526b69fe9017a6668c93d176e`.
+  Thirty baseline runs gave CPU p50/p95 371,768/398,279 microseconds and
+  tree-RSS p50/p95 45,121,536/45,531,136 bytes. Verify passed 8/8 domain
   cases, including all 18 FSRS vectors and exactly 14 full-precision float
   leaves, with exact due times and zero observed violations. Each regime has
-  30 unique, uncached pairs. Cold CPU/RSS p95 ratios are 0.4374/0.3165; warm
-  ratios are 0.4465/0.3172, all below 1.10. The decide paired-maximum RSS
-  ratios are 0.3225/0.3161. `decide` returned component-only `activate`; extra,
+  30 unique, uncached pairs. Cold CPU/RSS p95 ratios are 0.4540/0.3165; warm
+  ratios are 0.4459/0.3168, all below 1.10. The decide paired-maximum RSS
+  ratios are 0.3161/0.3165. `decide` returned component-only `activate`; extra,
   missing, duplicate and event-duplicate controls each returned `keep-python`.
-  Local records: `.metrics/baseline-rust-20-9babf2f4.json`,
-  `.metrics/verify-rust-20-9babf2f4.json`, `.metrics/measure-rust-20-9babf2f4.json`,
-  and `.metrics/decide-rust-20-9babf2f4.json`.
+  Local records: `.metrics/baseline-rust-20-cd9.json`,
+  `.metrics/verify-rust-20-cd9.json`, `.metrics/measure-rust-20-cd9.json`,
+  and `.metrics/decide-rust-20-cd9.json`.
 - **Evidence limits:** HTTP, DATA and generic role contracts are explicitly
   scoped out of this component record; the domain's corporate-role refusal is
   covered. Python denial is environment-based. Cold differs only by missing
