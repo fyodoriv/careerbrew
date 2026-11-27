@@ -264,6 +264,7 @@ A trap that cost time gets a dated row here, or becomes a check.
 
 | Date | Symptom | Fix |
 |---|---|---|
+| 2026-11-27 | the hosted Linux US-75 run failed 3 to 19 pictures (Today, day log, PM update 125 px taller) on some runs only, always after US-59's "restored PM line" test | that test leaves its PM box focused; the box saves on blur, and a blur while the page closed sometimes posted the edit to the shared seeded server, so every later picture showed a saved edit. The visual fixture (`web/visual/helpers.ts`) now stops every write a test does not answer with `answer()`, with a context route that outlives `page.unrouteAll`. A failed gate part prints its failed pictures and page text in the log: `scripts/visual-pictures.sh failures` |
 | 2026-11-26 | a planted duplicate-write phase could not read an earlier phase's sealed tutor records | scope `CAREERBREW_HOME` and `CAREERBREW_KEY_FILE` to that phase's own synthetic workspace; an outer data root makes the sibling key invalid (`xtask/tests/rust20.rs`) |
 | 2026-11-25 | a migration plant used the previous step's environment key, and UUID normalization rejected digits | bind each plant to its step's exact environment key and normalize with ASCII hex, not lowercase-only checks (`xtask/tests/rust14.rs`) |
 | 2026-11-21 | a valid `+ Other:` Markdown bullet left a false cut warning | strip `+` with the other list markers in both backend and browser scanners; retain backend/browser controls (`test_issue_373.py`, `pm-cut.spec.ts`) |

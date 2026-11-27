@@ -33,8 +33,22 @@ export const TIME_SAVED = {
   ],
 };
 
+// The sign-in posts every page makes; they write no data that a view reads.
+const SIGN_IN = /\/api\/session(\/open)?$/;
+
 export const test = base.extend<{ visual: void }>({
-  visual: [async ({ page }, use) => {
+  visual: [async ({ page, context }, use) => {
+    // All visual tests share one seeded server, side by side. A write that reaches it changes what every later
+    // test sees: US-59's PM box saved its text on blur when its page closed, and every later Today and day log
+    // picture showed the saved edit (2026-11-27, 3 to 19 failed pictures per hosted run). So no write reaches the
+    // server: a test answers the POST it needs with answer() (a page route, which runs first); any other write is
+    // stopped here. A context route, so it outlives page.unrouteAll below and still stops a write sent while the
+    // page closes (a blur, a timer).
+    await context.route("**/api/**", (route) => {
+      const req = route.request();
+      if (req.method() === "GET" || SIGN_IN.test(new URL(req.url()).pathname)) return route.fallback();
+      return route.abort("blockedbyclient");
+    });
     const errors: string[] = [];
     page.on("console", (m) => m.type() === "error" && !/Failed to load resource/.test(m.text()) && !TRACE_IN_SANDBOX.test(m.text()) && errors.push(m.text()));
     page.on("pageerror", (e) => errors.push(e.message));
