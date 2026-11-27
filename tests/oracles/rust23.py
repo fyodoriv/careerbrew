@@ -243,7 +243,7 @@ SYNTH_ROUTES = """routes:
     private_data: true
   - name: lan
     provider: ollama
-    base_url: http://10.0.0.5:11434/v1
+    base_url: http://192.0.2.5:11434/v1
     model: synth-lan
     private_data: true
   - name: loop6
