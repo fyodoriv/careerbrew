@@ -1003,6 +1003,56 @@ pub const STEPS: &[Step] = &[
         ],
     },
     Step {
+        // rust-25: the native web front. Its Python oracle sends the fixed
+        // synthetic requests to `server.make_server` in one process; the
+        // native `web-component --all` sends the same ones to the Rust front
+        // in the same synthetic data root. Forwarded routes stay Python.
+        id: "rust-25",
+        oracle: &["-I", "-B", "tests/oracles/rust25.py", "--all"],
+        cases: &[],
+        candidate: Some("target/release/web-component"),
+        http_contract: true,
+        data_contract: false,
+        role_contract: false,
+        registry_projection: false,
+        no_python: true,
+        env: &[],
+        sources: &[
+            "tests/oracles/rust25.py",
+            "src/careerbrew/server.py",
+            "src/careerbrew/config.py",
+            "src/careerbrew/config_io.py",
+            "src/careerbrew/machine.py",
+            "src/careerbrew/store.py",
+            "src/careerbrew/vault.py",
+            "src/careerbrew/calendar.py",
+            "src/careerbrew/events.py",
+            "src/careerbrew/paths.py",
+            "Cargo.toml",
+            "Cargo.lock",
+            "crates/web/Cargo.toml",
+            "crates/web/src/lib.rs",
+            "crates/web/src/cases.rs",
+            "crates/web/src/http.rs",
+            "crates/web/src/json.rs",
+            "crates/web/src/mime.rs",
+            "crates/web/src/server.rs",
+            "crates/web/src/token.rs",
+            "crates/web/src/version.rs",
+            "crates/web/src/bin/web-component.rs",
+            "crates/vault/src/lib.rs",
+            "crates/vault/src/canon.rs",
+            "crates/vault/src/events.rs",
+            "crates/vault/src/json_yaml.rs",
+            "crates/vault/src/settings.rs",
+            "crates/vault/src/store.rs",
+            "crates/vault/src/sync.rs",
+            "crates/vault/src/transfer.rs",
+            "xtask/src/rust25.rs",
+        ],
+        fixtures: &["tests/fixtures/web/rust25-cases.json"],
+    },
+    Step {
         // rust-04 is a vector step (privacy, policy and approval decisions).
         // Its Python oracle `--all` runs every set over the generator's
         // vectors in one isolated process. `verify` routes the step to the

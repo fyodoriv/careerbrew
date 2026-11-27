@@ -133,6 +133,12 @@ pub const CANDIDATES: &[Candidate] = &[
         args: &["--all"],
         vectors: None,
     },
+    Candidate {
+        step: "rust-25",
+        program: "target/release/web-component",
+        args: &["--all"],
+        vectors: None,
+    },
 ];
 
 /// The cargo profile a registered candidate was built with, read from its

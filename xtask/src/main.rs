@@ -27,6 +27,7 @@ mod rust11;
 mod rust12;
 mod rust13;
 mod rust14;
+mod rust25;
 mod sites;
 mod toolchain_identity;
 mod trial_plan;

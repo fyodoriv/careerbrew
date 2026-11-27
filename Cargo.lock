@@ -375,6 +375,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "careerbrew-web"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "careerbrew-vault",
+ "chrono",
+ "chrono-tz",
+ "libc",
+ "num-bigint",
+ "serde_json",
+ "sha2",
+ "tempfile",
+]
+
+[[package]]
 name = "careerbrew-xtask"
 version = "0.1.0"
 dependencies = [

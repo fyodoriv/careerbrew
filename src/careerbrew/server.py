@@ -1485,7 +1485,7 @@ def listening_pids(port: int) -> list[int]:
     return sorted({int(x) for x in out.split() if x.isdigit()})
 
 
-_SERVE_CMD = re.compile(r"(?:^|[\s/])careerbrew\s+serve(?:\s|$)")
+_SERVE_CMD = re.compile(r"(?:^|[\s/])(?:careerbrew|web-component)\s+serve(?:\s|$)")  # web-component: the rust-25 native front
 
 
 def is_careerbrew_server(pid: int) -> bool:
@@ -1534,6 +1534,35 @@ def stop_untracked(port: int, only: set[int] | None = None) -> int:
 START_WAIT_SECONDS = 20
 
 
+def native_binary() -> Path | None:
+    """The rust-25 native front (`web_server` native): the build `CAREERBREW_WEB_BIN` names.
+
+    Setup does not rebuild it after a pull (it is not on scripts/rust-shipped-crates.txt), so the
+    opt-in names its own build instead of a path in the checkout.
+    """
+    value = os.environ.get("CAREERBREW_WEB_BIN", "")
+    return Path(value) if value else None
+
+
+def serve_command(port: int) -> tuple[list[str], dict[str, str]]:
+    """The command line and extra environment that serve the web app on `port`.
+
+    `web_server` python (the default) runs `careerbrew serve`. native (opt-in, rust-25) runs the native
+    front: it answers the sign-in, the host and token checks, /api/changes, /api/tab-key and the static
+    files itself, and passes every other route to a `careerbrew serve` it starts on a private free port.
+    """
+    import sys
+
+    from . import __version__
+
+    if config.get("web_server") != "native":
+        return [sys.executable, "-m", "careerbrew", "serve", "--port", str(port)], {}
+    binary = native_binary()
+    if binary is None or not (binary.is_file() and os.access(binary, os.X_OK)):
+        raise RuntimeError("web_server is native, but CAREERBREW_WEB_BIN does not name a built native web server (fix: docs/web.md, Native front; or careerbrew config set web_server python)")
+    return [str(binary), "serve", "--port", str(port), "--python", sys.executable, "--dist", str(DIST)], {"CAREERBREW_HOME": str(paths.data_root()), "CAREERBREW_VERSION": __version__}
+
+
 def start_background(port: int) -> str:
     """Start the web app as a detached process (once) and return its URL with the token.
 
@@ -1544,8 +1573,6 @@ def start_background(port: int) -> str:
     that nothing tracks (a crash, a test run, another data folder) instead of failing, and writes
     the state before it waits, so no server it starts is left untracked.
     """
-    import sys
-
     with _web_lock():
         token = _token()
         st = store.read_json(web_state_path(), {}) or {}
@@ -1557,11 +1584,12 @@ def start_background(port: int) -> str:
         if st.get("pid") and st.get("port") and int(st["port"]) != port:  # the port setting changed: stop the old one too
             stop_untracked(int(st["port"]), only={int(st["pid"])})
         stop_untracked(port)
+        command, extra = serve_command(port)
         log = paths.sub("logs", "web.log").open("a")
         # The server reads the token from the encrypted day/web-token.json, never from its environment (`ps` shows that);
         # a test run's pinned token never reaches it. Its stdout (the plain URL) goes nowhere.
-        env = {k: v for k, v in os.environ.items() if k != "CAREERBREW_SERVE_TOKEN"}
-        proc = subprocess.Popen([sys.executable, "-m", "careerbrew", "serve", "--port", str(port)], stdout=subprocess.DEVNULL, stderr=log, stdin=subprocess.DEVNULL, start_new_session=True, env=env)  # noqa: S603
+        env = {k: v for k, v in os.environ.items() if k != "CAREERBREW_SERVE_TOKEN"} | extra
+        proc = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=log, stdin=subprocess.DEVNULL, start_new_session=True, env=env)  # noqa: S603
         store.write_json(web_state_path(), {"pid": proc.pid, "port": port})
         deadline = time.monotonic() + START_WAIT_SECONDS
         while time.monotonic() < deadline:
