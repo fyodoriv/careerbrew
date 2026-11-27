@@ -1,0 +1,3 @@
+crates/cbcli/tests/step_rust20.rs,keep-native,rust-00,native CLI parity tests for step rust20 handlers
+crates/cbcli/tests/step_rust21.rs,keep-native,rust-00,native CLI parity tests for step rust21 handlers
+crates/cbcli/tests/step_rust22.rs,keep-native,rust-00,native CLI parity tests for step rust22 handlers
