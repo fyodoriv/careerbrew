@@ -103,12 +103,18 @@ pub struct Usage {
     pub tree_method: &'static str,
 }
 
+/// How far above the parent's peak a child's peak may be and still be the
+/// parent's inherited floor: the parent's peak is read before the spawn, and
+/// the child adds a few pages of its own (hosted runs saw 128 KiB).
+pub const PARENT_RSS_SLACK_BYTES: u64 = 8 * 1024 * 1024;
+
 impl Usage {
     /// On Linux, exec can fold the spawning process's high-water RSS into the
-    /// child's `ru_maxrss`. A child peak at or below the parent's own peak may
-    /// be that floor, not the child's memory.
+    /// child's `ru_maxrss`. A child peak at or below the parent's own peak,
+    /// plus `PARENT_RSS_SLACK_BYTES`, may be that floor, not the child's memory.
     pub fn rss_may_include_parent(&self) -> bool {
-        self.os == "linux" && self.max_rss_bytes <= self.parent_max_rss_bytes
+        self.os == "linux"
+            && self.max_rss_bytes <= self.parent_max_rss_bytes + PARENT_RSS_SLACK_BYTES
     }
 
     pub fn passed(&self) -> bool {

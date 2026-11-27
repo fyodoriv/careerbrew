@@ -182,6 +182,28 @@ fn malformed_rusage_fields_are_refused() {
     }
 }
 
+fn usage_with(os: &'static str, child: u64, parent: u64) -> resources::Usage {
+    let mut usage = run(&["alloc", "0"]);
+    usage.os = os;
+    usage.max_rss_bytes = child;
+    usage.parent_max_rss_bytes = parent;
+    usage
+}
+
+/// Hosted run 46073139848 (`ubuntu-24.04`): a child that held its 128 MiB
+/// parent's pages reported 128 KiB above the parent's peak, read before the
+/// spawn, and was not flagged. A child's own few pages stay within the slack.
+#[test]
+fn a_child_a_few_pages_above_the_parent_peak_may_include_the_parent() {
+    let (parent, child) = (137_555_968, 137_687_040);
+    assert!(usage_with("linux", child, parent).rss_may_include_parent());
+    assert!(usage_with("linux", parent, parent).rss_may_include_parent());
+    let slack = resources::PARENT_RSS_SLACK_BYTES;
+    assert!(usage_with("linux", parent + slack, parent).rss_may_include_parent());
+    assert!(!usage_with("linux", parent + slack + 1, parent).rss_may_include_parent());
+    assert!(!usage_with("macos", child, parent).rss_may_include_parent());
+}
+
 #[test]
 fn idle_baseline_from_the_cli_does_not_inherit_a_large_parent() {
     // Hold about 128 MiB of touched memory in this process.

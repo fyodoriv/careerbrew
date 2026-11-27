@@ -264,6 +264,7 @@ A trap that cost time gets a dated row here, or becomes a check.
 
 | Date | Symptom | Fix |
 |---|---|---|
+| 2026-11-27 | hosted `ubuntu-24.04` failed `idle_baseline_from_the_cli_does_not_inherit_a_large_parent` on a PR that never touched `xtask`: the direct child reported 128 KiB above its 128 MiB parent's peak and was not flagged | the parent's peak is read before the spawn and the child adds a few pages, so `rss_may_include_parent` allows `PARENT_RSS_SLACK_BYTES` (8 MiB) above it (`a_child_a_few_pages_above_the_parent_peak_may_include_the_parent`) |
 | 2026-11-26 | a planted duplicate-write phase could not read an earlier phase's sealed tutor records | scope `CAREERBREW_HOME` and `CAREERBREW_KEY_FILE` to that phase's own synthetic workspace; an outer data root makes the sibling key invalid (`xtask/tests/rust20.rs`) |
 | 2026-11-25 | a migration plant used the previous step's environment key, and UUID normalization rejected digits | bind each plant to its step's exact environment key and normalize with ASCII hex, not lowercase-only checks (`xtask/tests/rust14.rs`) |
 | 2026-11-21 | a valid `+ Other:` Markdown bullet left a false cut warning | strip `+` with the other list markers in both backend and browser scanners; retain backend/browser controls (`test_issue_373.py`, `pm-cut.spec.ts`) |
