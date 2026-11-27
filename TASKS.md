@@ -660,6 +660,51 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if a name check gives more than 2 false matches on the current public deck, replace it with an explicit `public: false` field on cards and check that field.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Saltzer & Schroeder 1975 (fail-safe defaults).
 
+- [ ] Rust migration follow-up: confirm or revert the rust-26 activation of six read-only commands
+  - **ID**: rust-followup-26
+  - **Details**: Batch PR 248 routes `data.status`, `backup.verify`, `plugin.list`, `plugin.verify`, `connectors.list` and `machine.show` to native code (`config/native-routes.txt`). Its evidence is the byte-for-byte parity test `crates/cbcli/tests/parity.rs`. The speed records that the activation rule needs (baseline, measure, decide) are still missing. The PR 241 review asked to block on this, and the lead kept the activation to finish the migration on 2026-11-27. (1) Run the batched measurement job for these commands and run `decide`. (2) If `decide` says `keep-python`, revert the six lines and restore the old guard in `tests/unit/test_native_route.py`. (3) Record the outcome in `docs/rust-migration.md`.
+  - **Hypothesis**: the six native commands use at most 1.10 times the Python CPU-time p95 and peak RSS, so `decide` says `activate`.
+  - **Measurement**: `gh workflow run migration-measure.yml`, then `cargo xtask migration decide` on the fetched records (`scripts/migration-records.sh fetch <run-id>`).
+  - **Success**: `decide` returns `activate` for the routed commands.
+  - **Pivot**: any `keep-python` verdict: revert that command's route in the same day.
+  - **Anchor**: Kohavi, Tang and Xu 2020 (trustworthy online controlled experiments).
+
+- [ ] Rust migration follow-up: hold the rust-25 native web front opt-in until its decide record
+  - **ID**: rust-followup-25
+  - **Details**: The PR 240 review found: (1) the `web_server` setting (`src/careerbrew/config.py`, `crates/purevec/src/settings.rs`) lets an owner switch to the unmeasured native front before `decide` runs; the default stays `python`, and `native` also needs `CAREERBREW_WEB_BIN`. (2) `docs/web.md` tells owners how to turn it on before the activation decision. (3) `_SERVE_CMD` in `server.py` now also matches `web-component serve`, so `stop_untracked` can stop a native front another checkout started. (4) The planted controls in `xtask/src/rust25.rs` edit the candidate's output after it runs, so they prove the comparator, not a fault in the binary.
+  - **Hypothesis**: a measured rust-25 `decide` record exists before any owner turns the switch on.
+  - **Measurement**: `cargo xtask migration decide --step rust-25 ...` on the batched records.
+  - **Success**: a `decide` record for rust-25, and `docs/web.md` points to it.
+  - **Pivot**: if `decide` says `keep-python`, remove the `native` choice from the setting.
+  - **Anchor**: Basili, Caldiera and Rombach 1994 (GQM).
+
+- [ ] Rust migration follow-up: minor review gaps in rust-15 to rust-19
+  - **ID**: rust-followup-15-19
+  - **Details**: Fresh reviews on 2026-11-27 found these gaps. None blocks the component, and each must be closed before that step activates. rust-15: (1) no differential case for the show-business branches of `work_session.rs`; (2) a `crates/sessions` test calls `set_var` and never restores it; (3) the recorded verify, CPU and RSS evidence is pinned to 3c9199f3, so rerun it on the merged head; (4) the TASKS.md progress line is stale. rust-16: (5) the duplicate-dispatch, lost-wrap and false-success plants (`crates/workexec/src/synthetic.rs`) change the harness output after the ported function runs, so they do not inject faults into the ported logic; (6) `sessions::changing` became public with no test or doc note. rust-17: (7) sent-Tomorrow promise writes are never compared (the synthetic `PromiseRecorder` refuses them); (8) the `plant()` helper in `tests/oracles/rust17.py` is dead code. rust-18: (9) the duplicate-write plant is seen only through the extra `writes.log` entry, so it depends on the storage layer writing a receipt for every write. rust-19: (10) verify runs with events off, so `jobs.rate` event content is not compared; (11) `role_contract` is false though a corporate-guard case exists; (12) the duplicate-write control row hard-codes `semantic_match: true` (`xtask/src/rust19.rs`); (13) `tests/oracles/rust19.py` uses a real company name in a synthetic posting.
+  - **Hypothesis**: one added differential case or fix per item makes each gap observable; after the fixes, every step's verify still passes.
+  - **Measurement**: `heavy-run cargo test --locked -p careerbrew-xtask --test rust15 --test rust16 --test rust17 --test rust18 --test rust19`.
+  - **Success**: every new case fails before its fix and passes after it.
+  - **Pivot**: if a gap cannot be made observable, record it as an evidence limit in `docs/rust-migration.md`.
+  - **Anchor**: Basili, Caldiera and Rombach 1994 (GQM).
+
+- [ ] Rust migration follow-up: minor review gaps in rust-21 to rust-27 and the measurement job
+  - **ID**: rust-followup-21-27
+  - **Details**: Fresh reviews on 2026-11-27 found these gaps. rust-21: (1) the UTC-day plant is an environment branch inside `crates/teacher/src/teacher.rs`; strip or gate it before activation; (2) rust-21 changed rust-20 behavior (`crates/tutor/src/mistakes.rs`, a null complexity is falsy), so rerun the rust-20 verify record; (3) the runner, interview-loop and re-plan seams use shared fixtures on both sides, so they prove fixture agreement only. rust-22: (4) xtask verify compares stdout only and never checks that the oracle's results are free of error stubs; (5) every Rust case error becomes `RuntimeError`, so error classes are not compared; (6) the native side still gets `CAREERBREW_RUST22_PYTHON` and `CAREERBREW_RUST22_REPO`. rust-24: (7) the extra and missing plants live in shipped crate code behind `CAREERBREW_RUST24_PLANT`; (8) the allowlist plant makes `string_ok` pass unknown keys when set, a fail-open path to remove before activation. rust-27: (9) the input-key row in `docs/rust-migration.md` still says the wrapper runs the script; (10) the staleness check in `scripts/input-key.sh` compares the binary only with Rust inputs, so a later edit to the shell body is bypassed while a current binary exists; (11) `CAREERBREW_XTASK_BIN` runs any named binary with no staleness check. Measurement job: (12) `scripts/migration-records.sh` lets a baseline that fails but still writes a record pass the job. Shared: (13) rust-15, rust-18 and rust-24 reuse the `CAREERBREW_RUST13_WRITE_TRACE` name; give each step its own.
+  - **Hypothesis**: one added case or fix per item makes each gap observable; after the fixes, every step's verify still passes.
+  - **Measurement**: `heavy-run cargo test --locked -p careerbrew-xtask --test rust21 --test rust22 --test rust24` and `uv run pytest tests/unit/test_migration_records.py` on hosted CI.
+  - **Success**: every new case fails before its fix and passes after it.
+  - **Pivot**: if a gap cannot be made observable, record it as an evidence limit in `docs/rust-migration.md`.
+  - **Anchor**: Basili, Caldiera and Rombach 1994 (GQM).
+
+- [ ] Rust migration follow-up: one registry file per step, so parallel step PRs stop conflicting
+  - **ID**: rust-followup-registry
+  - **Details**: Every step adds entries to the same lists: `Cargo.toml` members, `xtask/src/{baseline,verify,measure,noise_floor,main}.rs`, the crates table in `docs/rust-migration.md` and `SCAN_SKIP` in `tests/unit/test_rust_shipped_crates.py`. On 2026-11-27 each merge to `main` made every other open step PR conflict, and hand-resolving the conflicts added rust-15 to three registries twice. Move each step's entries into its own file (for example `xtask/src/steps/rust-NN.rs` collected by a build script, and a `docs/plans/rust-crates.d/` fragment per crate, like the inventory fragments).
+  - **Hypothesis**: two step PRs made from the same base merge with no conflict in either order.
+  - **Measurement**: a unit test that merges two synthetic step branches in a scratch repo and expects zero conflicts.
+  - **Success**: 0 conflicts in both orders.
+  - **Pivot**: if a build script makes the registry harder to read than the list, keep the list and add a merge driver check instead.
+  - **Anchor**: Forsgren, Humble and Kim 2018 (DORA: lead time for changes).
+
 ## P3
 
 - [ ] Indie: a red-first signal from GitHub for each bet
