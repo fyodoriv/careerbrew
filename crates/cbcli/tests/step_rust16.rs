@@ -121,6 +121,30 @@ const ODD_RECORD: Setup = Setup {
     ],
 };
 
+/// A wrap length Python's `timedelta` or `datetime` overflows on.
+const HUGE_WRAP: Setup = Setup {
+    id: "huge-wrap",
+    cli: &[],
+    files: &[
+        (".plaintext", ""),
+        ("settings.yaml", "work_wrap_minutes: 99999999999\n"),
+    ],
+};
+
+/// A record field holding an object with unsorted keys: `json.loads`
+/// keeps their order.
+const OBJECT_FIELD: Setup = Setup {
+    id: "object-field",
+    cli: &[],
+    files: &[
+        (".plaintext", ""),
+        (
+            "day/work-2026-11-20.json",
+            "{\"day\": \"2026-11-20\", \"questions\": [{\"id\": \"q-dddd4444\", \"step\": \"x\", \"steps\": {\"b\": 1, \"a\": 2}}]}",
+        ),
+    ],
+};
+
 fn refuses(home: &Home, args: &[&str], label: &str) {
     assert!(
         !assert_same(home, args, false, label),
@@ -161,6 +185,7 @@ fn day_wrap_refuses_what_it_cannot_match() {
     let float = prepare_setup(&FLOAT_DAY);
     refuses(&float, &["day", "wrap", "--hold"], label);
     assert_same(&float, &["day", "wrap"], true, label);
+    refuses(&prepare_setup(&HUGE_WRAP), &["day", "wrap"], label);
 }
 
 #[test]
@@ -197,6 +222,9 @@ fn day_question_list_refuses_what_it_cannot_match() {
         &["day", "question", "list"],
         label,
     );
+    let object = prepare_setup(&OBJECT_FIELD);
+    refuses(&object, &["day", "question", "list", "--json"], label);
+    assert_same(&object, &["day", "question", "list"], true, label);
 }
 
 #[test]

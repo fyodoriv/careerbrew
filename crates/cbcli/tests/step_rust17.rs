@@ -176,6 +176,8 @@ fn day_results_refuses_what_it_cannot_match() {
     let empty = prepare_setup(&EMPTY);
     // `date.fromisoformat` reads this basic form; only the plain form is served.
     refuses(&empty, &["day", "results", "--date", "20261119"], label);
+    // Year 0: chrono reads it, `date.fromisoformat` raises.
+    refuses(&empty, &["day", "results", "--date", "0000-01-01"], label);
     refuses(&prepare_setup(&ODD_BREAK), &["day", "results"], label);
     refuses(&prepare_setup(&REDACTION), &["day", "results"], label);
 }

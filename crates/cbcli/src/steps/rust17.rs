@@ -106,9 +106,10 @@ fn results(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
     pin_clock(root)?;
     let day = match args.text("date") {
         // `date.fromisoformat` takes other forms too (`20261120`, a week
-        // date); only the plain form is served.
+        // date); only the plain form is served. Year 0 too: chrono reads
+        // it, `date.fromisoformat` raises.
         Some(text) => {
-            if !day_form(text) {
+            if !day_form(text) || text.starts_with("0000") {
                 return None;
             }
             careerbrew_projects::date(text).ok()?.to_string()

@@ -232,8 +232,8 @@ pub(crate) fn pin_clock(root: &Path) -> Option<Value> {
 }
 
 /// Python's `json.dumps` (default separators, `ensure_ascii`) of a value
-/// read from a JSON file Python wrote with sorted keys. None for a value
-/// whose spelling could differ (a float).
+/// read from a JSON file. None for a value whose spelling could differ (a
+/// float, or an object with more than one key).
 pub(crate) fn py_json(value: &Value, out: &mut String) -> Option<()> {
     if value.is_null() {
         out.push_str("null");
@@ -255,6 +255,11 @@ pub(crate) fn py_json(value: &Value, out: &mut String) -> Option<()> {
     } else {
         // Anything else but an object is a float.
         let map = value.as_object()?;
+        // This map's keys come back sorted; `json.loads` keeps the file's
+        // order, so only an object with one key is spelled the same.
+        if map.len() > 1 {
+            return None;
+        }
         out.push('{');
         for (i, (key, item)) in map.iter().enumerate() {
             if i > 0 {
@@ -293,8 +298,12 @@ fn wrap(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
     // `int(config.get("work_wrap_minutes"))` and
     // `time.fromisoformat(str(config.get("work_end")))`: only the forms the
     // component reads the same way.
+    // A value far from a day's length overflows Python's `timedelta` or
+    // `datetime` (a traceback) where chrono still computes a stamp.
     if let Some(minutes) = settings.get("work_wrap_minutes") {
-        minutes.as_i64()?;
+        if minutes.as_i64()?.abs() > 1_000_000 {
+            return None;
+        }
     }
     if let Some(end) = settings.get("work_end") {
         if !clock_form(end.as_str()?) {
