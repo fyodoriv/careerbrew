@@ -356,6 +356,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "careerbrew-reports"
+version = "0.1.0"
+dependencies = [
+ "careerbrew-policy",
+ "careerbrew-setup",
+ "careerbrew-vault",
+ "chrono",
+ "chrono-tz",
+ "regex",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "careerbrew-sessions"
 version = "0.1.0"
 dependencies = [
