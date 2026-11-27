@@ -126,7 +126,10 @@ Keep every rule when you change a workflow.
 - Use no repository secret.
 - Never use the `pull_request_target` trigger. A fork pull request must get a read-only token.
 - Keep `permissions: contents: read`.
-- Upload no artifact. A log or a trace would be a public download.
+- Upload no artifact. A log or a trace would be a public download. One
+  exception: `migration-measure.yml` uploads the four content-free migration
+  records of each step, and nothing else (see "Batched migration measurement";
+  `tests/unit/test_migration_records.py` fails when another workflow uploads one).
 - Never copy `private/`, a real `.env`, or the owner's private-pattern file to a runner.
 - Pin every action to a full 40-character commit SHA, with the version in a trailing comment.
 - Install a tool from a release only with a pinned version and a checked SHA-256. Never `curl | sh`.
@@ -180,6 +183,40 @@ runner machines drew the same pixels for all 196 visual tests (runs
 black on purpose failed a compare-only run (43606807817: `1 failed`, `105
 pixels ... are different`). A drawing
 run takes about 3 to 5 minutes.
+
+## Batched migration measurement
+
+The owner decided on 2026-11-27 that the 30-run `baseline` and the paired
+`measure` of a Rust migration step no longer block its merge
+([`docs/rust-migration.md`](rust-migration.md), "Measurement protocol for
+every step"). The manual workflow
+[`migration-measure.yml`](../.github/workflows/migration-measure.yml) runs
+them for many steps at once.
+
+- **Start a run**: `gh workflow run migration-measure.yml --ref <branch> -f steps="rust-14 rust-15"`.
+  Inputs: `steps` (empty means every step with a registered candidate in
+  `xtask/src/measure.rs`), `pairs` (default 30; fewer adds the test-only
+  `--test-allow-few-pairs` flag) and `macos` (default off; on adds a
+  `macos-15` job per step).
+- **What a job does**: one job per step and OS. It builds xtask and the step's
+  candidate with the profile its registry path names, then runs
+  `scripts/migration-records.sh run`: `baseline`, `verify`, `measure --pairs N`
+  and `decide`, each into a new file under the runner's temp folder, in fresh
+  synthetic homes. A failed verify or a missing record fails the job; a
+  `keep-python` verdict does not.
+- **The records**: each job uploads `baseline.json`, `verify.json`,
+  `measure.json` and `decide.json` as the artifact `migration-<step>` (on macOS
+  `migration-<step>-macos-15`), kept 30 days. They are content-free.
+- **Fetch them**: `scripts/migration-records.sh fetch <run-id>` checks that the
+  run is a `workflow_dispatch` run of this workflow in this repository,
+  downloads each artifact into `.metrics/migration/<step>/` (macOS:
+  `.metrics/migration/<step>/macos-15/`), refuses any other file or a record of
+  another step, and prints one line per step:
+  `rust-14 verify=pass decide=keep-python reasons=...`.
+- **The step list** comes from the registry at run time
+  (`scripts/migration-records.sh steps`), so a new step joins with no workflow
+  edit. `tests/unit/test_migration_records.py` checks that the list equals the
+  steps with a candidate in `xtask/src/baseline.rs`.
 
 ## Read a failed run
 
