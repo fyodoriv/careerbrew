@@ -139,7 +139,8 @@ def test_workday_records_questions_stages_and_sessions_match_python(candidate, t
         assert "projects and handoffs hidden" in work["listed_text"]["stdout"]
         assert work["missing"]["exit"] == {"int": "1"} and set(work["missing"]["value"]["missing"]) == {"sess-a", "sess-b"}
         assert work["ended"]["exit"] == {"int": "0"} and set(work["ended"]["value"]["ended"]) == {"sess-a", "sess-b"}
-        assert work["reopened"]["value"].get("brief", "")
+        assert work["reopened"]["exit"] == {"int": "0"} and work["reopened"]["value"]["reused"] is False
+        assert "brief" not in work["reopened"]["value"]  # restricted output withholds the prior handoff
         assert work["event_names"] == ["work.session", "cli.run"]
         assert work["error_event_statuses"] == ["refused", "fail"]
         assert work["conflict_error"] == "WatchError" and work["conflict_unchanged"] is True
