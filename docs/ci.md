@@ -355,6 +355,54 @@ Rules for a later try:
 - `unit`, `exercises`, the Rust steps and `e2e` are 95% of the job. A faster
   hosted run must come from one of them.
 
+## Remote build cache
+
+Question (2026-11-27): can the hosted gate use a shared build cache, like the
+Nx remote cache, for $0? Answer: yes, it can, but it would not make the gate
+faster. Nothing was added.
+
+The critical path is the `native (macos-15)` part. In four green pull-request
+runs (45896537107, 45836895295, 45570876782, 45562329058) it took 1394 to
+1995 s. Every other macOS part ended under 830 s. Its gate step, from the log
+timestamps and cargo's `Finished` lines:
+
+| OS | Gate step | Rust compile (clippy, test build, inventory) | Rust test binaries |
+|---|---|---|---|
+| macos-15 | 1324 to 1924 s | 111 to 180 s (6% to 10% of the same run) | 1048 to 1556 s (79% to 85%) |
+| ubuntu-24.04 | 980 to 1289 s | 92 to 129 s (9% to 11% of the same run) | 744 to 1014 s (75% to 79%) |
+
+- A perfect cache (every crate a hit, a restore that takes no time) saves at
+  most the compile share: 6% to 10% of the macOS gate step in each run (180 s
+  of 1924 s at most). On macOS, the critical path, that is at or under the 10%
+  rule in "Dependency caches" before any restore time, and a real restore of
+  `target/` costs part of it back. Linux reaches 11%, but Linux parts end first.
+  The Swatinem/rust-cache trial on 2026-11-16 also showed no gain.
+- A cached test pass is not allowed: `rust-test` always runs (see "No gate
+  cache between hosted runs").
+- The time goes to `cargo test --all` running its test binaries one after
+  another. The fix is to run them in parallel: task `ci-rust-test-parallel`
+  in `TASKS.md`.
+
+The free options, scored:
+
+| Option | Cost | Limits | Needs from the owner | Data leaves GitHub | Verdict |
+|---|---|---|---|---|---|
+| `actions/cache` (or Swatinem/rust-cache on it) | $0 for a public repo | 10 GB per repository; old entries go first | nothing | no | works; no gain (trial 2026-11-16, and the table above) |
+| sccache with its GitHub Actions backend | $0 | the same 10 GB; one entry per compiled crate | nothing | no | the best free choice if compile time grows past 10% of the part; not today |
+| sccache or an S3 cache on Cloudflare R2 | $0 in the free tier (10 GB-month, no egress fee) | R2 free-tier operation limits per month | a Cloudflare account, a bucket and an API token saved as a repository secret | yes, build outputs go to Cloudflare | not worth an account: same gain as the GitHub backend, and fork pull requests get no secrets, so they would build cold |
+| Bazel or Turborepo remote cache on a free host | $0 at best | the host's free tier | an account, a server or a token, and a move of the gate to Bazel or Turborepo | yes | no: a rewrite of the gate for a cache that saves under 10% |
+| Nx Cloud free plan | $0 | the free plan's credits | an Nx Cloud account and an Nx workspace | yes | no: careerbrew is not an Nx workspace |
+
+What a shared cache gives the owner's Mac: almost nothing. The Mac's own
+`target/` folder is already warm between builds, and tests run only on the
+hosted checks. Sending local build outputs to a cloud cache is a new data exit,
+and the gate's rules forbid caching anything from `private/`.
+
+Re-check when the compile share passes 10% of the `native (macos-15)` gate
+step. Measure it with the same log read: sum cargo's `Finished` times, and
+compare with the time from the first `Running` line to the last
+`test result:` line (`gh run view --job <job-id> --log`).
+
 ## Branch rule on `main`
 
 `main` requires the three checks. The owner approved this rule on 2026-11-13.
