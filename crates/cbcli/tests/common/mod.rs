@@ -95,7 +95,7 @@ pub fn pinned_now() -> Option<String> {
 /// (whose IV makes every encryption differ).
 pub fn file_line(rel: &str, bytes: &[u8]) -> String {
     let content = std::env::var("CAREERBREW_TEST_CONTENT").as_deref() == Ok("1");
-    if !content || bytes.starts_with(b"gAAAAA") {
+    if !content || bytes.starts_with(b"gAAAAA") || bytes.starts_with(b"CBV1\n") {
         return format!("{rel} {}", bytes.len());
     }
     // FNV-1a 64: a change detector, not a security hash.

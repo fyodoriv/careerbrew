@@ -138,6 +138,15 @@ pub fn emit(caps: &Caps, ms: u64) {
     emit_command(caps, "actions", true, ms);
 }
 
+/// The name `cli.main` logs: `cmd.sub` with at most two words, so
+/// `work.live.stop` is logged as `work.live`.
+pub fn python_name(command: &str) -> &str {
+    match command.match_indices('.').nth(1) {
+        Some((at, _)) => &command[..at],
+        None => command,
+    }
+}
+
 /// `emit` for a routed command (`crate::routed`).
 pub fn emit_command(caps: &Caps, command: &str, ok: bool, ms: u64) {
     if !caps.events_on {
@@ -153,12 +162,32 @@ pub fn emit_command(caps: &Caps, command: &str, ok: bool, ms: u64) {
     let secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_secs());
-    let line = command_row(command, ok, &stamp(secs), ms, version(), caps.via);
+    let line = command_row(
+        python_name(command),
+        ok,
+        &stamp(secs),
+        ms,
+        version(),
+        caps.via,
+    );
     if let Ok(mut file) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(logs.join("events.jsonl"))
     {
         let _ = file.write_all(line.as_bytes());
+    }
+}
+
+#[cfg(test)]
+mod name_tests {
+    use super::python_name;
+
+    #[test]
+    fn a_three_word_command_is_logged_with_its_first_two_words() {
+        assert_eq!(python_name("work.live.stop"), "work.live");
+        assert_eq!(python_name("day.question.close"), "day.question");
+        assert_eq!(python_name("config.unset"), "config.unset");
+        assert_eq!(python_name("init"), "init");
     }
 }
