@@ -18,7 +18,7 @@
 //!
 //! Every sample is a real execution: `cached` is always 0.
 use crate::trial_plan::{self, Arm, CacheRegime};
-use crate::{baseline, baseline_verdict, capture_actions, resources, rust20};
+use crate::{baseline, baseline_verdict, capture_actions, resources, rust20, rust23};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::ffi::OsString;
@@ -136,6 +136,12 @@ pub const CANDIDATES: &[Candidate] = &[
     Candidate {
         step: "rust-20",
         program: "target/release/tutor-component",
+        args: &["--all"],
+        vectors: None,
+    },
+    Candidate {
+        step: "rust-23",
+        program: "target/release/voice-component",
         args: &["--all"],
         vectors: None,
     },
@@ -467,6 +473,9 @@ pub fn record(
     ];
     if id == "rust-20" {
         rust20::validate_measure(root, python, &program)?;
+    }
+    if id == "rust-23" {
+        rust23::validate_measure(root, python, &program)?;
     }
     let mut method = "unknown";
     let regimes = [CacheRegime::Cold, CacheRegime::Warm]

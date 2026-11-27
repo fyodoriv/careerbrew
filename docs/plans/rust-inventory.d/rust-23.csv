@@ -1,0 +1,13 @@
+tests/oracles/rust23.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-23 differential gate
+tests/unit/test_rust23_component.py,keep-native,rust-00,rust-23 native component and exact report differential assertions
+crates/voice/Cargo.toml,keep-native,rust-00,Component-only voice models and judge crate manifest
+crates/voice/src/lib.rs,port,rust-23,Component-only error mapping typed report and path helpers
+crates/voice/src/shlex.rs,port,rust-23,POSIX shlex split and quote for the speech-to-text command
+crates/voice/src/http.rs,port,rust-23,Plain HTTP POST transport and local fixture server for synthetic routes
+crates/voice/src/models.rs,port,rust-23,Model routes from config/models.yaml route policy and local-first completion
+crates/voice/src/judge.rs,port,rust-23,Eval judge prompts finish-reason check cache labels and agreement
+crates/voice/src/voice.rs,port,rust-23,Speech-to-text adapter temporary audio cues grading and drill speak
+crates/voice/src/synthetic.rs,port,rust-23,Synthetic routes judge labels and voice workload with fake engines
+crates/voice/src/bin/voice-component.rs,port,rust-23,Synthetic-only native voice candidate entry point
+xtask/src/rust23.rs,port,rust-23,Shared differential registration with exact reports semantic writes and write controls
+xtask/tests/rust23.rs,keep-native,rust-00,rust-23 registration evidence identity and planted write controls

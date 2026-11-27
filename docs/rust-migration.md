@@ -2823,6 +2823,49 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Gate:** 100% of synthetic process and request contracts agree; 0 retained
   audio or transcripts; 0 route or policy bypasses. The owner-label agreement
   bar stays as it is.
+- **Component pre-registration (2026-11-27):** base `feat/rust-20-component`
+  (PR 232). The new crate `crates/voice` builds the bin `voice-component`.
+  The Python oracle `tests/oracles/rust23.py` runs the real `models.py`,
+  `judge.py`, `tutor/voice.py` and `cmd_drill_speak` code in 10 cases:
+  `routes-config`, `allowed-routes`, `complete-routing`, `judge-text`,
+  `judge-cache`, `http-transports`, `labels`, `agreement-run`,
+  `voice-transcribe` and `voice-answer`. Every engine is fake: scripted
+  transports, fake `whisper-cli`, `ffmpeg` and speech-to-text scripts, and a
+  local HTTP fixture server on a fresh OS port. Nothing calls a real model or
+  the network.
+  - **Hypothesis:** the native component prints the same typed report as the
+    oracle in all 10 cases, with the same semantic writes per phase.
+  - **Measurement:** `heavy-run cargo xtask migration verify --step rust-23
+    --python "$PWD/.venv/bin/python" --out <new-file>`, and
+    `xtask/tests/rust23.rs`.
+  - **Success:** 10/10 cases pass with exactly 12 float leaves compared
+    exactly and zero violations. The planted extra, missing and duplicate
+    write controls each fail verify.
+  - **Pivot:** if a case cannot match without a per-case exception, the case
+    stays on Python and becomes a `rust-followup` item.
+  - **Kept rules:** models are named only in `config/models.yaml`; the local
+    route answers first; a judge answer counts only with `finish_reason:
+    stop`; Ollama routes send `reasoning_effort: none` and `max_tokens`;
+    temporary audio folders are removed (`temp-dirs-left` is 0).
+  - **Comparison:** printed reports compare exactly, floats included.
+    Written files compare as typed values after these rules: the owned home
+    path (also inside text files), sealed records opened with their own
+    synthetic keys, generated keys, generated card ids, event times, the
+    `careerbrew-voice-<id>` temp folder name, and the judge cache file name
+    in `http-transports` (it hashes the fixture URL and its random port; the
+    content stays compared). Written FSRS floats use rust-20's tolerance,
+    because a voice answer saves card state through the rust-20 engine.
+  - **Seams:** the teacher interactions sit behind the `voice::Practice`
+    trait, backed by the rust-20 tutor engine, so rust-21 can plug in.
+- **State (2026-11-27):** component-only. Verify passes 10/10 locally on
+  macOS with 12 float leaves and zero violations; the 3 planted controls
+  fail as expected. Baseline and measure: pending the batched hosted run
+  (owner decision 2026-11-27). Production dispatch, `config/native-routes.txt`
+  and `scripts/rust-shipped-crates.txt` are unchanged. Known gaps are
+  `rust-followup` items in `TASKS.md`: HTTPS transport, chunked and redirect
+  replies, NaN JSON, non-UTF-8 engine output, `--aloud` (`say`), the exact
+  Python `repr` of float, list and dict evidence, the `evals/run.py`
+  orchestration (`rust-27d`), and the native `Practice` provider (rust-21).
 
 ### rust-24: Port reports, metrics, checkups and remaining domain helpers
 

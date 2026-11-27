@@ -396,6 +396,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "careerbrew-voice"
+version = "0.1.0"
+dependencies = [
+ "careerbrew-feed",
+ "careerbrew-policy",
+ "careerbrew-setup",
+ "careerbrew-tutor",
+ "careerbrew-vault",
+ "libc",
+ "regex",
+ "serde_json",
+ "sha2",
+ "tempfile",
+]
+
+[[package]]
 name = "careerbrew-xtask"
 version = "0.1.0"
 dependencies = [
