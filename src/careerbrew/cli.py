@@ -5138,7 +5138,12 @@ def _native_routes() -> dict[str, str]:
 
 
 def _native_action(rest: list[str], routes: dict[str, str]) -> str | None:
-    """The action an argv names, as a route-table key (`config.show`, `actions`), or None for no known action."""
+    """The action an argv names, as a route-table key (`work.priority.set`, `config.show`, `actions`), or None.
+
+    The longest key wins, as the native binary reads it (`crates/cbcli/src/steps/mod.rs`, `command_of`).
+    """
+    if len(rest) > 2 and f"{rest[0]}.{rest[1]}.{rest[2]}" in routes:
+        return f"{rest[0]}.{rest[1]}.{rest[2]}"
     if len(rest) > 1 and f"{rest[0]}.{rest[1]}" in routes:
         return f"{rest[0]}.{rest[1]}"
     return rest[0] if rest[0] in routes else None

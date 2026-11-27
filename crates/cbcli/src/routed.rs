@@ -118,7 +118,7 @@ pub fn run(args: &[String], env: &Env) -> Option<Outcome> {
 /// or the default `<repo>/private`) for a routed argv. Called once in
 /// `main`, before any thread starts.
 pub fn export_home(args: &[String], caps: &events::Caps) {
-    if command_of(args).is_none() {
+    if command_of(args).is_none() && crate::steps::command_of(args).is_none() {
         return;
     }
     if let Some(home) = &caps.home {

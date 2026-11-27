@@ -52,15 +52,22 @@ def route(home, tmp_path, monkeypatch):
 
 
 # rust-03 activated `actions`; rust-26 activated the read-only rust-06 and rust-07 commands whose end-to-end parity
-# test passes (crates/cbcli/tests/parity.rs). Every other action stays python.
+# test passes (crates/cbcli/tests/parity.rs). Later steps switch more commands on from their own modules in
+# crates/cbcli/src/steps/; `every_native_route_has_a_native_handler` there fails on a native route with no handler.
 NATIVE_BY_DEFAULT = {"actions", "machine.show", "plugin.list", "plugin.verify", "connectors.list", "data.status", "backup.verify"}
 
 
-def test_the_committed_route_file_routes_only_the_parity_tested_actions_native():
+def test_the_committed_route_file_keeps_the_pilot_native_and_names_only_two_routes():
     routes = cli._native_routes()
-    assert {k for k, v in routes.items() if v == "native"} == NATIVE_BY_DEFAULT
-    assert {v for k, v in routes.items() if k not in NATIVE_BY_DEFAULT} == {"python"}
+    assert NATIVE_BY_DEFAULT <= {k for k, v in routes.items() if v == "native"}
+    assert set(routes.values()) <= {"python", "native"}
     assert cli.NATIVE_ROUTES == ROOT / "config" / "native-routes.txt"
+
+
+def test_a_three_word_action_is_routed_by_its_dotted_name(route):
+    route.set("work.priority.set native\nwork.priority python\n")
+    assert cli._native_route(["work", "priority", "set", "acme", "--rank", "1"]) == 0
+    assert route.ran() == ["work", "priority", "set", "acme", "--rank", "1"]
 
 
 def test_the_child_gets_the_repo_for_the_default_data_root(route, tmp_path):
