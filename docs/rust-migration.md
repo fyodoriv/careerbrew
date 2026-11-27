@@ -175,6 +175,12 @@ Each port must keep these contracts byte for byte or meaning for meaning.
 alias. Until it lands they are **proposed** commands, and every dependent task
 stays blocked.
 
+Owner decision (2026-11-27): the 30-run `baseline` and the paired `measure`
+no longer block a step's merge. They run later, for many steps at once, in the
+manual hosted workflow `migration-measure.yml` ([`docs/ci.md`](ci.md),
+"Batched migration measurement"), which also runs `verify` and `decide`. The
+differential test stays the required proof in the step's pull request.
+
 1. **Pre-register.** Before any port code, commit the hypothesis, the exact
    suite and fixtures, the numeric keep and pivot thresholds, the normalization
    rules and the source revision.

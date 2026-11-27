@@ -23,6 +23,7 @@ NOT_SHIPPED = re.compile(r"^none(:|$)")
 SCAN_SKIP = {
     "scripts/check.sh",
     "scripts/doctor.sh",
+    "scripts/migration-records.sh",
     "scripts/rust-readiness.sh",
     "scripts/setup.sh",
     "scripts/browser-test-receipts.sh",
