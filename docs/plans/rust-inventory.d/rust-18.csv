@@ -1,0 +1,15 @@
+tests/oracles/rust18.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-18 differential gate
+tests/unit/test_rust18_component.py,keep-native,rust-00,rust-18 native evidence promotion ladder and LinkedIn assertions
+crates/career/Cargo.toml,keep-native,rust-00,Component-only career crate manifest
+crates/career/src/lib.rs,port,rust-18,Component-only storage settings clock and typed report boundary
+crates/career/src/py.rs,port,rust-18,Python text number and regular-expression spellings for the career modules
+crates/career/src/when.rs,port,rust-18,ISO parsing zone attachment and isoformat spellings for the career modules
+crates/career/src/evidence.rs,port,rust-18,Evidence auto-tags manual notes forget and stored rows
+crates/career/src/promo.rs,port,rust-18,Ladder validation evidence matching assessment gaps and the promotion document
+crates/career/src/ladder_grade.rs,port,rust-18,Ladder level dimensions line grading coverage hints and graded evidence
+crates/career/src/linkedin.rs,port,rust-18,LinkedIn Experience block ranking public scrub and leak refusal
+crates/career/src/synthetic.rs,port,rust-18,Synthetic evidence promotion ladder and LinkedIn workload
+crates/career/src/bin/career-component.rs,port,rust-18,Synthetic-only native career candidate entry point
+xtask/src/rust18.rs,port,rust-18,rust-18 semantic differential runner and planted write controls
+xtask/tests/rust18.rs,keep-native,rust-00,rust-18 registration evidence identity and planted write controls
+crates/career/tests/pure.rs,keep-native,rust-00,rust-18 pure tag keyword scrub and ranking controls

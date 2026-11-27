@@ -55,7 +55,7 @@
 //! candidate is refused, never passed.
 use crate::{
     baseline, capture_actions, capture_http, decide, depvec, normalize, rust05, rust06, rust07,
-    rust08, rust09, rust10, rust11, rust12, rust13, rust14, rust15, rust19, rust20, vecdriver, rust16, rust17,
+    rust08, rust09, rust10, rust11, rust12, rust13, rust14, rust15, rust19, rust20, vecdriver, rust16, rust17, rust18,
 };
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -1320,6 +1320,15 @@ pub fn record(
             );
         }
         return rust17::record(root, python, candidate, plant_write);
+    }
+    if id == "rust-18" {
+        if test_scope.is_some() || test_oracle.is_some() || wrong.is_some() {
+            return Err("rust-18 does not accept generic verify test overrides".into());
+        }
+        if plant_write.is_some_and(|plant| !matches!(plant, "extra" | "missing" | "duplicate")) {
+            return Err("rust-18 write control must be extra, missing or duplicate".into());
+        }
+        return rust18::record(root, python, candidate, plant_write);
     }
     // A vector-driver step (rust-04): one generated file feeds both drivers.
     if let Some(step) = vecdriver::step(id) {
