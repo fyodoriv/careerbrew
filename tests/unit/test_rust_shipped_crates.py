@@ -17,7 +17,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 NOT_SHIPPED = re.compile(r"^none(:|$)")
 # Developer tooling that builds or checks Rust on purpose; it ships nothing.
-SCAN_SKIP = {"scripts/check.sh", "scripts/doctor.sh", "scripts/rust-readiness.sh", "scripts/setup.sh"}
+SCAN_SKIP = {"scripts/check.sh", "scripts/doctor.sh", "scripts/migration-records.sh", "scripts/rust-readiness.sh", "scripts/setup.sh"}
 
 
 def members(root: Path = ROOT) -> list[str]:
