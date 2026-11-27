@@ -209,6 +209,7 @@ __pycache__/
 !/xtask/src/input_key.rs
 !/xtask/src/check_docs.rs
 !/xtask/src/browser_test_receipts.rs
+!/xtask/src/learnings_table.rs
 !/xtask/src/exec_map.rs
 !/xtask/tests/
 /xtask/tests/*
@@ -237,6 +238,8 @@ __pycache__/
 !/xtask/tests/input_key.rs
 !/xtask/tests/check_docs.rs
 !/xtask/tests/browser_test_receipts.rs
+!/xtask/tests/learnings_table.rs
+!/xtask/tests/native_dispatch.rs
 !/xtask/tests/fixtures/
 /xtask/tests/fixtures/*
 !/xtask/tests/fixtures/depvec/

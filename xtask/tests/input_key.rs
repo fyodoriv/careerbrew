@@ -58,7 +58,9 @@ fn env_clean(cmd: &mut Command) {
 
 fn script(root: &Path, specs: &[&str], extra: &[(&str, &Path)]) -> Output {
     let mut cmd = Command::new("bash");
-    cmd.arg(root.join("scripts/input-key.sh")).args(specs);
+    cmd.arg(root.join("scripts/input-key.sh"))
+        .args(specs)
+        .env("CAREERBREW_NATIVE_TOOLS", "0");
     env_clean(&mut cmd);
     for (k, v) in extra {
         cmd.env(k, v);

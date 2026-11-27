@@ -7,6 +7,19 @@
 #    Helpers and fixtures in tests/e2e/ without the us- prefix are ignored.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Native dispatch (rust-27b): run the built careerbrew-xtask when it is newer
+# than every file it is built from; otherwise the shell code below runs.
+# CAREERBREW_NATIVE_TOOLS=0 forces the shell code; CAREERBREW_XTASK_BIN names a
+# binary to use as is (parity tests). Parity: xtask/tests/native_dispatch.rs.
+xtask_bin="${CAREERBREW_XTASK_BIN:-}"
+if [ "${CAREERBREW_NATIVE_TOOLS:-1}" = 0 ]; then
+  xtask_bin=""
+elif [ -z "$xtask_bin" ] && [ -x target/debug/careerbrew-xtask ] && [ -f xtask/Cargo.toml ]; then
+  xtask_bin="$PWD/target/debug/careerbrew-xtask"
+  newer="$(find xtask/src xtask/Cargo.toml Cargo.toml Cargo.lock rust-toolchain.toml crates/vault crates/setup crates/policy -newer "$xtask_bin" 2>/dev/null | head -n 1)" || true
+  [ -z "$newer" ] || xtask_bin=""
+fi
+if [ -n "$xtask_bin" ] && [ $# -eq 0 ]; then exec "$xtask_bin" check-docs --repo "$PWD"; fi
 
 fail=0
 for f in docs/*.md; do

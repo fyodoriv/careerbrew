@@ -22,5 +22,5 @@ grep -q '"Week: date Due date"' "$CAREERBREW_E2E_OUT/controls-personal.json" || 
 # A separate expected-failure probe proves Playwright still reports route-handler errors.
 npx playwright test --config route-owner-probe/playwright.config.ts > "$SCRATCH/route-owner-report.json" || fail "route-owner probe runner"
 node route-owner-probe/assert-report.cjs "$SCRATCH/route-owner-report.json" || fail "route-owner error propagation"
-"$ROOT/.venv/bin/python" "$ROOT/scripts/browser-test-receipts.py" "$SCRATCH/discovery.json" "$SCRATCH/execution.json" || fail "each discovered browser test passed once"
+"$ROOT/scripts/browser-test-receipts.sh" "$SCRATCH/discovery.json" "$SCRATCH/execution.json" || fail "each discovered browser test passed once"
 echo "ok US-72 every control works ($total browser tests)"
