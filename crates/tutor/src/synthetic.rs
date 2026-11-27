@@ -363,6 +363,21 @@ fn public_deck(base: &Path) -> Result<Value> {
     )?;
     let private_sealed =
         std::fs::read(ws.root.join("tutor/private-explanations.yaml"))?.starts_with(b"CBV1\n");
+    let private_id = format!("me-{}", public::qhash(personal_question));
+    public::publish(
+        &ws.root,
+        &ws.public,
+        &repo_root(),
+        &[public_card(
+            personal_question,
+            json!({"source_id": public::qhash(personal_question), "private": true, "rewrite": private_id, "answer": "A rewritten synthetic answer."}),
+        )],
+        false,
+    )?;
+    let private_after_rewrite = public::private_cards(&ws.root)?
+        .iter()
+        .map(|card| json!([text(field(card, "id")), text(field(card, "answer"))]))
+        .collect::<Vec<_>>();
     let public_ids = public::load(&ws.public)?
         .iter()
         .map(|row| text(field(row, "id")))
@@ -461,6 +476,7 @@ fn public_deck(base: &Path) -> Result<Value> {
         "skipped": skipped,
         "private_item": private_item,
         "private_result": private_result,
+        "private_after_rewrite": private_after_rewrite,
         "private_sealed": private_sealed,
         "public_ids": public_ids,
         "flagged": flagged,
@@ -778,7 +794,7 @@ fn providers_and_mistakes(base: &Path) -> Result<Value> {
         &plugin_knowledge,
         &rubric_resources,
         "gap-python-1",
-        &criteria,
+        &criteria[..1],
         engine::Attempt {
             seconds: None,
             at: t0(),

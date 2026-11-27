@@ -263,6 +263,10 @@ def _public_deck(_base: Path) -> dict[str, Any]:
     private_item = next(row for row in public.explain_queue() if row["question"] == personal_question)
     private_result = public.publish([_public_card(personal_question, source_id=public.qhash(personal_question), private=True)])
     private_sealed = paths.sub("tutor", "private-explanations.yaml").read_bytes().startswith(b"CBV1\n")
+    private_id = f"me-{public.qhash(personal_question)}"
+    rewrite = _public_card(personal_question, private=True, rewrite=private_id, answer="A rewritten synthetic answer.")
+    public.publish([rewrite])
+    private_after_rewrite = [[card["id"], card["answer"]] for card in public.private_cards()]
     public_ids = [row["id"] for row in public.load()]
     [pub] = public.load()
     public.flag(pub["id"], "the example is wrong")
@@ -290,6 +294,7 @@ def _public_deck(_base: Path) -> dict[str, Any]:
         "skipped": skipped,
         "private_item": private_item,
         "private_result": private_result,
+        "private_after_rewrite": private_after_rewrite,
         "private_sealed": private_sealed,
         "public_ids": public_ids,
         "flagged": flagged,
@@ -465,7 +470,7 @@ def _providers_and_mistakes(_base: Path) -> dict[str, Any]:
     mastery = engine.mastery(T0).get("Rust")
     readiness = engine.readiness(["Rust"], T0)
     engine.add_gap_items(["Python"])
-    second_attempt = engine.record("gap-python-1", criteria, at=T0)
+    second_attempt = engine.record("gap-python-1", criteria[:1], at=T0)
     engine_ids = [row.card_id for row in engine.cards().values()]
 
     first = mistakes.record("ex-1", "arrays", "wrong-answer", "synthetic wrong answer")
