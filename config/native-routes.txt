@@ -246,9 +246,9 @@ indie.end python
 peer.status python
 peer.experiment python
 review python
-draft.fit python
+draft.fit native
 draft.replace python
 draft.show python
-draft.check python
+draft.check native
 draft.route python
 draft.judge python
