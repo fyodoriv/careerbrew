@@ -3154,6 +3154,49 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Gate:** 100% of synthetic process and request contracts agree; 0 retained
   audio or transcripts; 0 route or policy bypasses. The owner-label agreement
   bar stays as it is.
+- **Component pre-registration (2026-11-27):** base `feat/rust-20-component`
+  (PR 232). The new crate `crates/voice` builds the bin `voice-component`.
+  The Python oracle `tests/oracles/rust23.py` runs the real `models.py`,
+  `judge.py`, `tutor/voice.py` and `cmd_drill_speak` code in 10 cases:
+  `routes-config`, `allowed-routes`, `complete-routing`, `judge-text`,
+  `judge-cache`, `http-transports`, `labels`, `agreement-run`,
+  `voice-transcribe` and `voice-answer`. Every engine is fake: scripted
+  transports, fake `whisper-cli`, `ffmpeg` and speech-to-text scripts, and a
+  local HTTP fixture server on a fresh OS port. Nothing calls a real model or
+  the network.
+  - **Hypothesis:** the native component prints the same typed report as the
+    oracle in all 10 cases, with the same semantic writes per phase.
+  - **Measurement:** `heavy-run cargo xtask migration verify --step rust-23
+    --python "$PWD/.venv/bin/python" --out <new-file>`, and
+    `xtask/tests/rust23.rs`.
+  - **Success:** 10/10 cases pass with exactly 12 float leaves compared
+    exactly and zero violations. The planted extra, missing and duplicate
+    write controls each fail verify.
+  - **Pivot:** if a case cannot match without a per-case exception, the case
+    stays on Python and becomes a `rust-followup` item.
+  - **Kept rules:** models are named only in `config/models.yaml`; the local
+    route answers first; a judge answer counts only with `finish_reason:
+    stop`; Ollama routes send `reasoning_effort: none` and `max_tokens`;
+    temporary audio folders are removed (`temp-dirs-left` is 0).
+  - **Comparison:** printed reports compare exactly, floats included.
+    Written files compare as typed values after these rules: the owned home
+    path (also inside text files), sealed records opened with their own
+    synthetic keys, generated keys, generated card ids, event times, the
+    `careerbrew-voice-<id>` temp folder name, and the judge cache file name
+    in `http-transports` (it hashes the fixture URL and its random port; the
+    content stays compared). Written FSRS floats use rust-20's tolerance,
+    because a voice answer saves card state through the rust-20 engine.
+  - **Seams:** the teacher interactions sit behind the `voice::Practice`
+    trait, backed by the rust-20 tutor engine, so rust-21 can plug in.
+- **State (2026-11-27):** component-only. Verify passes 10/10 locally on
+  macOS with 12 float leaves and zero violations; the 3 planted controls
+  fail as expected. Baseline and measure: pending the batched hosted run
+  (owner decision 2026-11-27). Production dispatch, `config/native-routes.txt`
+  and `scripts/rust-shipped-crates.txt` are unchanged. Known gaps are
+  `rust-followup` items in `TASKS.md`: HTTPS transport, chunked and redirect
+  replies, NaN JSON, non-UTF-8 engine output, `--aloud` (`say`), the exact
+  Python `repr` of float, list and dict evidence, the `evals/run.py`
+  orchestration (`rust-27d`), and the native `Practice` provider (rust-21).
 
 ### rust-24: Port reports, metrics, checkups and remaining domain helpers
 
@@ -3531,13 +3574,13 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | `crates/tutor/` | `careerbrew-tutor` | the rust-20 FSRS, card, public-deck, Notion, shared-provider, mistake and installed-plugin resource component; synthetic `tutor-component` transport and shared migration registration only | none: component parity only |
 | `crates/jobs/` | `careerbrew-jobs` | the rust-19 ATS boards, criteria, want ratings and learned weights, LinkedIn alert postings and corporate-role guard component; synthetic `jobs-component` transport only | none: component parity only |
 | `crates/workday/` | `careerbrew-workday` | the rust-15 canonical status, question, step, stage and `work.session` component, with typed review and canonical Agentfile provider seams; synthetic `workday-component` transport only | none: component parity only |
-| `crates/workday/` | `careerbrew-workday` | the rust-15 canonical status, question, step, stage and `work.session` component, with typed review and canonical Agentfile provider seams; synthetic `workday-component` transport only | none: component parity only |
 | `crates/workexec/` | `careerbrew-workexec` | the rust-16 step proofs, timeouts and retries, step timing, loop records, pass lock, supplied watch pass, catch-up claim, wrap-up control and goal/cron warning; synthetic `workexec-component` transport only | none: component parity only |
 | `crates/day/` | `careerbrew-day` | the rust-17 first slice: results records, end-of-day handoff, sent-PM receipts and PM lessons, a CPython `SequenceMatcher` port, and a typed sent-Tomorrow `PromiseRecorder` seam; synthetic `day-component` transport only | none: component parity only |
 | `crates/career/` | `careerbrew-career` | the rust-18 slice 1 evidence tags and notes, promotion assessment and document, ladder grading and LinkedIn block component; synthetic `career-component` transport only | none: component parity only |
 | `crates/exercises/` | `careerbrew-exercises` | the rust-22 exercise runner core: sandboxed child lifecycle, limits, CPU-time scaling, complexity decision, comparison modes, grading and validation; synthetic `exercises-component` transport, `exercise-fixture-runner` and shared migration registration only | none: component parity only |
 | `crates/web/` | `careerbrew-web` | the rust-25 native web front, binary `web-component`: the host, token and cookie checks, `/api/session*`, security headers, `/api/changes`, `/api/tab-key` and static files, with every other route forwarded to a private `careerbrew serve` through the per-route owner table `server::ROUTES`; `--all` runs the synthetic differential cases | none: opt-in only (`careerbrew config set web_server native` with `CAREERBREW_WEB_BIN`); setup does not rebuild it |
 | `crates/teacher/` | `careerbrew-teacher` | the rust-21 goals, teacher next-step and completion, local-day, feedback, improvement and draft component behind typed runner, loops and re-plan seams; synthetic `teacher-component` transport only | none: component parity only |
+| `crates/voice/` | `careerbrew-voice` | the rust-23 model routes, route policy, eval judge, labels, agreement and speech-to-text component; synthetic `voice-component` transport and shared migration registration only | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |

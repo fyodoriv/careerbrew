@@ -236,7 +236,17 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Measurement**: After rust-00 creates the harness: `heavy-run --exclusive cargo xtask migration baseline --step rust-23`, `heavy-run cargo xtask migration verify --step rust-23`, `heavy-run --exclusive cargo xtask migration measure --step rust-23 --pairs 30`, then `cargo xtask migration decide --step rust-23`. Commit the baseline and prediction before implementation.
   - **Success**: 100% synthetic process/request contracts agree; 0 retained audio/transcripts or route/policy bypasses. Existing owner-label agreement bar remains unchanged. All applicable shared parity/resource gates pass; whole-repo fast/full checks remain green.
   - **Pivot**: any contract disagreement, privacy violation or missing/duplicate write, or CPU/RSS ratio >1.10 B, blocks rollout. Rework the adapter or dependency, register the new approach and remeasure; keep the last verified handler. Preparation fails on any accepted planted defect or unsupported required contract.
+  - **Progress**: 2026-11-27: component `crates/voice` (`voice-component`) and oracle `tests/oracles/rust23.py` added on base PR 232. Local verify on macOS passes 10/10 cases (routes, route policy, local-first completion, judge text, judge cache, HTTP transport with a local fixture server, labels, agreement, voice transcribe, voice answer) with 12 exact float leaves and zero violations; the planted extra, missing and duplicate write controls each fail verify. Baseline and measure: pending the batched hosted run (owner decision 2026-11-27). Teacher interactions sit behind the `voice::Practice` seam for rust-21. Production dispatch is unchanged. Gaps are in `rust-followup-23`.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Munafò et al. 2017 (pre-registration); Kalibera & Jones 2013 (rigorous benchmarking).
+
+- [ ] Rust migration follow-up: rust-23 parity gaps outside the component cases
+  - **ID**: rust-followup-23
+  - **Details**: The rust-23 component (2026-11-27) leaves these paths unported or unobserved. (1) HTTPS transport: the native HTTP client speaks plain HTTP only, so hosted routes need a maintained TLS client. (2) Chunked and redirect HTTP replies are not handled. (3) Python `repr` of float, list and dict evidence in judge text is only approximated. (4) NaN and Infinity in JSON replies are not handled like Python's `json`. (5) Non-UTF-8 speech-engine output: Python raises `UnicodeDecodeError`; Rust has no matching case. (6) `drill speak --aloud` (`say`) is not ported. (7) The `evals/run.py` orchestration belongs to `rust-27d`. (8) The native `voice::Practice` provider waits for rust-21; the component uses the rust-20 tutor engine. (9) `write_counts` counts at most one write per path in each phase, as in rust-20.
+  - **Hypothesis**: one added differential case per gap makes the rust-23 harness fail on today's Rust code; after the fixes, all of them pass.
+  - **Measurement**: `heavy-run cargo test --locked -p careerbrew-xtask --test rust23`, with one new case per item.
+  - **Success**: every new case fails before its fix and passes after it.
+  - **Pivot**: if a gap cannot be made observable in the differential harness, record it as an evidence limit in `docs/rust-migration.md` instead.
+  - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM).
 
 - [ ] Rust migration: Port reports, metrics, checkups and remaining domain helpers
   - **ID**: rust-24

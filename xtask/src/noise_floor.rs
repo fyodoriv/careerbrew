@@ -191,16 +191,6 @@ pub const REGISTRY: &[Entry] = &[
         floor: Floor::Unmeasured,
     },
     Entry {
-        step: "rust-15",
-        os: "macos",
-        floor: Floor::Unmeasured,
-    },
-    Entry {
-        step: "rust-15",
-        os: "linux",
-        floor: Floor::Unmeasured,
-    },
-    Entry {
         step: "rust-16",
         os: "macos",
         floor: Floor::Unmeasured,
@@ -267,6 +257,16 @@ pub const REGISTRY: &[Entry] = &[
     },
     Entry {
         step: "rust-21",
+        os: "linux",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-23",
+        os: "macos",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-23",
         os: "linux",
         floor: Floor::Unmeasured,
     },

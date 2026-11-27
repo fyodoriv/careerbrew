@@ -56,7 +56,7 @@
 use crate::{
     baseline, capture_actions, capture_http, decide, depvec, normalize, rust05, rust06, rust07,
     rust08, rust09, rust10, rust11, rust12, rust13, rust14, rust15, rust16, rust17, rust18, rust19,
-    rust20, rust21, rust22, rust24, rust25, vecdriver,
+    rust20, rust21, rust22, rust23, rust24, rust25, vecdriver,
 };
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -1271,23 +1271,6 @@ pub fn record(
         }
         return rust15::record(root, python, candidate, plant_write);
     }
-    if id == "rust-15" {
-        if test_scope.is_some() || test_oracle.is_some() || wrong.is_some() {
-            return Err("rust-15 does not accept generic verify test overrides".into());
-        }
-        if plant_write.is_some_and(|plant| {
-            !matches!(
-                plant,
-                "extra" | "missing" | "duplicate" | "operation-duplicate" | "event-duplicate"
-            )
-        }) {
-            return Err(
-                "rust-15 write control must be extra, missing, duplicate, operation-duplicate or event-duplicate"
-                    .into(),
-            );
-        }
-        return rust15::record(root, python, candidate, plant_write);
-    }
     if id == "rust-16" {
         if test_scope.is_some() || test_oracle.is_some() || wrong.is_some() {
             return Err("rust-16 does not accept generic verify test overrides".into());
@@ -1366,6 +1349,15 @@ pub fn record(
             return Err("rust-21 control must be extra, missing or utc-day".into());
         }
         return rust21::record(root, python, candidate, plant_write);
+    }
+    if id == "rust-23" {
+        if test_scope.is_some() || test_oracle.is_some() || wrong.is_some() {
+            return Err("rust-23 does not accept generic verify test overrides".into());
+        }
+        if plant_write.is_some_and(|plant| !matches!(plant, "extra" | "missing" | "duplicate")) {
+            return Err("rust-23 write control must be extra, missing or duplicate".into());
+        }
+        return rust23::record(root, python, candidate, plant_write);
     }
     // A vector-driver step (rust-04): one generated file feeds both drivers.
     if let Some(step) = vecdriver::step(id) {
