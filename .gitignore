@@ -71,6 +71,7 @@ __pycache__/
 !/crates/sessions/
 !/crates/memory/
 !/crates/learn/
+!/crates/web/
 !/crates/vault/
 /crates/vault/*
 !/crates/vault/Cargo.toml
@@ -189,6 +190,7 @@ __pycache__/
 !/xtask/src/rust10.rs
 !/xtask/src/rust11.rs
 !/xtask/src/rust12.rs
+!/xtask/src/rust25.rs
 !/xtask/src/sites.rs
 !/xtask/src/sites_tests.rs
 !/xtask/src/baseline.rs
@@ -229,6 +231,7 @@ __pycache__/
 !/xtask/tests/rust10.rs
 !/xtask/tests/rust11.rs
 !/xtask/tests/rust12.rs
+!/xtask/tests/rust25.rs
 !/xtask/tests/depvec.rs
 !/xtask/tests/vecdriver.rs
 !/xtask/tests/rust04_verify.rs

@@ -1,0 +1,15 @@
+tests/oracles/rust25.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-25 HTTP differential gate
+tests/unit/test_rust25_component.py,keep-native,rust-00,rust-25 native web front forwarding and opt-in assertions
+tests/fixtures/web/rust25-cases.json,keep-native,rust-00,Synthetic rust-25 HTTP request cases and seed
+crates/web/Cargo.toml,keep-native,rust-00,Native web front crate manifest
+crates/web/src/lib.rs,port,rust-25,Native web front module root
+crates/web/src/server.rs,port,rust-25,Guard sign-in cookie security headers per-route owner table and forwarding
+crates/web/src/token.rs,port,rust-25,Web token source expiry settings and clock
+crates/web/src/version.rs,port,rust-25,Change version feed with skip rules
+crates/web/src/http.rs,port,rust-25,HTTP/1.0 request reading and response writing
+crates/web/src/json.rs,port,rust-25,Python-default JSON text for web answers
+crates/web/src/mime.rs,port,rust-25,Static file content types in Python mimetypes order
+crates/web/src/cases.rs,port,rust-25,Synthetic-only differential case runner
+crates/web/src/bin/web-component.rs,port,rust-25,Native web front entry point and Python handler supervisor
+xtask/src/rust25.rs,keep-native,rust-00,Custom rust-25 HTTP differential runner with planted controls
+xtask/tests/rust25.rs,keep-native,rust-00,rust-25 registration evidence identity and planted controls
