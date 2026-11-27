@@ -2822,6 +2822,35 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native day records and PM learning.
 - **Gate:** 100% of day and PM vectors agree; 0 wrong-recipient lessons,
   duplicate promises or history, or idle writes.
+- **Component pre-registration (2026-11-27):** source base
+  `fc24028fede8899426aa1c6e26ef3ed9354d1f46` (PR 233, rust-15); domain source
+  `23a39146` for `src/careerbrew/day/`. This first slice registers
+  `target/release/day-component` (crate `crates/day/`) for a five-case real
+  Python differential workload: a CPython `SequenceMatcher` port, results
+  records, the end-of-day handoff, sent-PM receipts and `pm_sent_text`, and PM
+  lessons (`record`, `rules`, `apply`, `left_out`, `cut_projection`, `reset`,
+  `KEEP`). Sent-Tomorrow promise writes go through a typed `PromiseRecorder`
+  seam, called while the sent-day lock is held; the synthetic provider takes
+  only the project-file lock and refuses any text with Tomorrow bullets. The
+  slice does not depend on `rust-16`. Inbox, planner, log builder, watch
+  cycles, done-elsewhere, the full `pm_promises` port, `handoff.with_promises`
+  and the CLI handlers are later slices.
+- **Prediction:** every differential case agrees byte for byte, semantic write
+  maps and write operations agree, every planted extra, missing, duplicate and
+  operation-duplicate control is rejected, and native process-tree CPU-time
+  p95 and peak RSS stay at or below 1.10 times Python baseline B. Any
+  disagreement, accepted plant, privacy leak or ratio above 1.10 B keeps
+  Python and requires a newly registered adapter approach.
+- **Measurement:** `heavy-run --exclusive cargo xtask migration baseline --step rust-17 --python "$PWD/.venv/bin/python" --out <new-absolute-baseline>`;
+  `heavy-run cargo xtask migration verify --step rust-17 --python "$PWD/.venv/bin/python" --out <new-absolute-verify>`;
+  `heavy-run --exclusive cargo xtask migration measure --step rust-17 --python "$PWD/.venv/bin/python" --pairs 30 --out <new-absolute-measure>`;
+  `cargo xtask migration decide --step rust-17` over the same-revision records;
+  `CAREERBREW_ALLOW_LOCAL_TESTS=1 heavy-run cargo test --locked --offline -p careerbrew-xtask --test rust17`.
+- **State (2026-11-27):** the component smoke test passes locally: verify 5/5
+  with zero violations, and all four planted write controls are rejected.
+  Baseline and measure: pending the batched hosted run (owner decision
+  2026-11-27). Production routes, native routes, shipped crates and activation
+  are unchanged.
 
 ### rust-18: Port evidence, promotion, standup and work profiles
 
@@ -3270,6 +3299,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | `crates/workday/` | `careerbrew-workday` | the rust-15 canonical status, question, step, stage and `work.session` component, with typed review and canonical Agentfile provider seams; synthetic `workday-component` transport only | none: component parity only |
 | `crates/workday/` | `careerbrew-workday` | the rust-15 canonical status, question, step, stage and `work.session` component, with typed review and canonical Agentfile provider seams; synthetic `workday-component` transport only | none: component parity only |
 | `crates/workexec/` | `careerbrew-workexec` | the rust-16 step proofs, timeouts and retries, step timing, loop records, pass lock, supplied watch pass, catch-up claim, wrap-up control and goal/cron warning; synthetic `workexec-component` transport only | none: component parity only |
+| `crates/day/` | `careerbrew-day` | the rust-17 first slice: results records, end-of-day handoff, sent-PM receipts and PM lessons, a CPython `SequenceMatcher` port, and a typed sent-Tomorrow `PromiseRecorder` seam; synthetic `day-component` transport only | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |

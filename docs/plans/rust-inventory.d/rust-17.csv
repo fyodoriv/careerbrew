@@ -1,0 +1,14 @@
+tests/oracles/rust17.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-17 differential gate
+tests/unit/test_rust17_component.py,keep-native,rust-00,rust-17 native day results handoff sent-PM and lesson assertions
+crates/day/Cargo.toml,keep-native,rust-00,Component-only day crate manifest
+crates/day/src/lib.rs,port,rust-17,Component-only day storage clock text and identity helpers
+crates/day/src/difflib.rs,port,rust-17,CPython SequenceMatcher port for PM edit lessons
+crates/day/src/results.rs,port,rust-17,Sealed results-of-the-day records idempotent upsert evidence rows and summary
+crates/day/src/handoff.rs,port,rust-17,End-of-day handoff items owner replace done and latest-before reads
+crates/day/src/promises.rs,port,rust-17,Sent-Tomorrow bullet reader and typed promise recorder seam
+crates/day/src/pm_learn.rs,port,rust-17,Sent-PM receipts sent-day lock order PM lessons apply cut projection and reset
+crates/day/src/synthetic.rs,port,rust-17,Synthetic day results handoff sent-PM and lesson workload
+crates/day/src/bin/day-component.rs,port,rust-17,Synthetic-only native day candidate entry point
+crates/day/tests/component.rs,keep-native,rust-00,rust-17 direct difflib idempotence sent-day lock and promise seam controls
+xtask/src/rust17.rs,port,rust-17,rust-17 semantic differential runner and planted write controls
+xtask/tests/rust17.rs,keep-native,rust-00,rust-17 registration evidence identity and planted write controls
