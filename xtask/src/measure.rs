@@ -152,12 +152,6 @@ pub const CANDIDATES: &[Candidate] = &[
         vectors: None,
     },
     Candidate {
-        step: "rust-15",
-        program: "target/release/workday-component",
-        args: &["--all"],
-        vectors: None,
-    },
-    Candidate {
         step: "rust-16",
         program: "target/release/workexec-component",
         args: &["--all"],
