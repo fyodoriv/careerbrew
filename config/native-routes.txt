@@ -116,7 +116,7 @@ work.feed.open python
 work.live.start python
 work.live.cycle python
 work.live.status python
-work.live.stop python
+work.live.stop native
 work.promise.list python
 work.promise.scan python
 work.promise.add python
@@ -131,7 +131,7 @@ work.agent.show python
 work.session.open python
 work.session.list python
 work.session.ask python
-work.session.handoff python
+work.session.handoff native
 work.session.end python
 work.claim.take python
 work.claim.release python
@@ -230,7 +230,7 @@ day.question.close python
 day.loop python
 notify.status python
 notify.check python
-notify.list python
+notify.list native
 notify.act python
 notify.open python
 indie.goal python
