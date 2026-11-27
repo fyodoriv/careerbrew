@@ -1106,6 +1106,42 @@ pub const STEPS: &[Step] = &[
         ],
     },
     Step {
+        // rust-22 drives the real Python exercise runner and the native runner
+        // core over one synthetic language runner (`exercise-fixture-runner`).
+        id: "rust-22",
+        oracle: &["-I", "-B", "tests/oracles/rust22.py", "--all"],
+        cases: &[],
+        candidate: Some("target/release/exercises-component"),
+        http_contract: false,
+        data_contract: false,
+        role_contract: false,
+        registry_projection: false,
+        no_python: true,
+        env: &[],
+        sources: &[
+            "tests/oracles/rust22.py",
+            "src/careerbrew/tutor/exercises.py",
+            "src/careerbrew/calendar.py",
+            "src/careerbrew/events.py",
+            "src/careerbrew/paths.py",
+            "src/careerbrew/store.py",
+            "Cargo.toml",
+            "Cargo.lock",
+            "crates/exercises/Cargo.toml",
+            "crates/exercises/src/lib.rs",
+            "crates/exercises/src/py.rs",
+            "crates/exercises/src/decide.rs",
+            "crates/exercises/src/compare.rs",
+            "crates/exercises/src/runner.rs",
+            "crates/exercises/src/plant.rs",
+            "crates/exercises/src/synthetic.rs",
+            "crates/exercises/src/bin/exercises-component.rs",
+            "crates/exercises/src/bin/exercise-fixture-runner.rs",
+            "xtask/src/rust22.rs",
+        ],
+        fixtures: &["tests/fixtures/rust22/cases.json"],
+    },
+    Step {
         // rust-04 is a vector step (privacy, policy and approval decisions).
         // Its Python oracle `--all` runs every set over the generator's
         // vectors in one isolated process. `verify` routes the step to the

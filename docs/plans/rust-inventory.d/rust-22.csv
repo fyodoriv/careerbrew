@@ -1,0 +1,15 @@
+tests/oracles/rust22.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-22 runner-core differential gate
+tests/unit/test_rust22_component.py,keep-native,rust-00,rust-22 native runner core decision-level parity and planted wrong-class control
+tests/fixtures/rust22/cases.json,port,rust-22,Synthetic runner decision comparison grading lifecycle run and validation cases
+crates/exercises/Cargo.toml,keep-native,rust-00,Component-only exercise runner crate manifest
+crates/exercises/src/lib.rs,port,rust-22,Component-only exercise runner core module map
+crates/exercises/src/py.rs,port,rust-22,Python equality ordering float repr rounding JSON dumps and compensated sum semantics
+crates/exercises/src/decide.rs,port,rust-22,Runner limits scaling sizes growth slope complexity decision grade and structure checks
+crates/exercises/src/compare.rs,port,rust-22,Harness exact sorted set and float comparison modes
+crates/exercises/src/runner.rs,port,rust-22,Sandboxed child lifecycle CPU memory and wall limits tests-then-scaling run and validation
+crates/exercises/src/plant.rs,keep-native,rust-00,Test-only planted wrong-class acceptance for the differential gate
+crates/exercises/src/synthetic.rs,port,rust-22,Synthetic rust-22 component cases mirroring the Python oracle
+crates/exercises/src/bin/exercises-component.rs,port,rust-22,Synthetic-only native exercise runner candidate entry point
+crates/exercises/src/bin/exercise-fixture-runner.rs,keep-native,rust-00,Synthetic language runner with calibrated CPU-time costs shared by both sides
+xtask/src/rust22.rs,port,rust-22,Shared differential registration with decision-level timing semantic writes and planted controls
+xtask/tests/rust22.rs,keep-native,rust-00,rust-22 registration evidence identity and planted write and wrong-class controls

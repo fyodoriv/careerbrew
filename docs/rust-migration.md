@@ -2794,6 +2794,35 @@ the crate until the rust-05 and rust-07 closure is native, so
   wrong-class negative controls rejected; 0 sandbox escapes or leaked private
   paths. The native exercise and card checks keep all original functional and
   invalid-code controls with Python denied.
+- **Component pre-registration (2026-11-27):** the first rust-22 PR ports
+  only the runner core: the sandboxed child lifecycle (fresh empty `cb-run-*`
+  folder, cleared environment with `PATH` and `PYTHONHASHSEED=0`, CPU and
+  address-space limits set before `exec`, a wall deadline that kills and reaps
+  the child, last-stderr-line-only errors), the tests-then-scaling run, the
+  CPU-time scaling protocol, the slope fit (CPython 3.12 compensated `sum`),
+  the complexity decision, the four comparison modes, grading and reference
+  validation. Crate `crates/exercises/`, candidate `exercises-component`.
+  Both sides start one synthetic language runner, `exercise-fixture-runner`,
+  whose solutions spend calibrated process CPU time (linear, quadratic or
+  cubic in `n`), so the decision is the same in debug, release and under load.
+  The oracle `tests/oracles/rust22.py` drives the real `exercises._child`,
+  `run`, `validate`, `grade` and the harness `same` over
+  `tests/fixtures/rust22/cases.json`. Live timings compare at decision level
+  only (`<timed>`); pure decision vectors compare exact float reprs.
+  Hypothesis: 6/6 cases byte-identical, including the cubic wrong-class
+  negative control (rejected as `complexity_rejected`), the CPU-limit control
+  (`signal_exit`, signal 24), the wall-limit control (`wall_timeout`) and a
+  private stderr canary that never leaves. Success: 6/6 agree and both
+  planted controls (`extra` write, `accept-wrong-class`) make verify fail.
+  Pivot: any disagreement or an accepted planted control keeps Python.
+  Readability (ruff), the CLI handlers, `check_all`, the learner Python
+  harness itself and every reference solution and generator stay in Python
+  for later rust-22 PRs.
+- **State (2026-11-27):** component-only. Verify passes 6/6 cases locally
+  (macOS) with zero violations; `extra` and `accept-wrong-class` controls
+  each fail verify and `decide` returns `keep-python`. Baseline and measure:
+  pending the batched hosted run (owner decision 2026-11-27). Production
+  dispatch, native routes and shipped crates are unchanged.
 
 ### rust-23: Port local voice, model routes and judge adapters
 
