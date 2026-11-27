@@ -1,0 +1,123 @@
+name: migration measure
+
+# Batched migration measurement (docs/ci.md, "Batched migration measurement";
+# owner decision 2026-11-27 in docs/rust-migration.md). The 30-run `baseline`
+# and the paired `measure` of a migration step no longer block its merge. This
+# manual workflow runs baseline, verify, measure and decide for each chosen
+# step on a clean hosted runner, then uploads the four content-free JSON
+# records as one artifact per step. Fetch them with
+# `scripts/migration-records.sh fetch <run-id>`.
+#
+# Same safety rules as ci.yml (docs/ci.md), with one exception that docs/ci.md
+# names: this workflow uploads an artifact, and it holds only the four
+# content-free records (tests/unit/test_migration_records.py pins that). No
+# secret, a read-only token, the standard runners, fresh synthetic homes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      steps:
+        description: "Space-separated step ids (rust-14 rust-15). Empty: every step with a registered candidate."
+        type: string
+        default: ""
+      pairs:
+        description: "Paired runs per regime for measure (30 is the protocol minimum)."
+        type: string
+        default: "30"
+      macos:
+        description: "Also measure on macos-15."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migration-measure-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Never send usage data from a runner: an empty key means nothing is sent.
+  CAREERBREW_POSTHOG_KEY: ""
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Steps to measure (the registry in xtask/src/measure.rs)
+        id: matrix
+        env:
+          STEPS: ${{ inputs.steps }}
+          MACOS: ${{ inputs.macos }}
+        run: |
+          matrix="$(scripts/migration-records.sh matrix "$STEPS" "$MACOS")"
+          echo "$matrix"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  measure:
+    name: measure (${{ matrix.step }}, ${{ matrix.os }})
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          # No uv cache: it cost more than it saved (docs/ci.md, "Dependency caches").
+          enable-cache: false
+          python-version: "3.12.16"
+
+      - name: Python packages (the oracle)
+        run: uv sync --locked
+
+      - name: Rust toolchain (the pin in rust-toolchain.toml)
+        run: |
+          pin="$(sed -nE 's/^channel = "([0-9.]+)"$/\1/p' rust-toolchain.toml)"
+          [ -n "$pin" ] || { echo "no Rust pin found in rust-toolchain.toml" >&2; exit 1; }
+          rustup toolchain install "$pin" --profile minimal --no-self-update
+          # Put the real tools first on PATH, not the rustup proxies (gate-part.yml).
+          dirname "$(rustup which --toolchain "$pin" rustc)" >> "$GITHUB_PATH"
+
+      - name: Baseline, verify, measure and decide
+        env:
+          STEP: ${{ matrix.step }}
+          PAIRS: ${{ inputs.pairs }}
+          OS: ${{ matrix.os }}
+        run: |
+          out="$RUNNER_TEMP/migration/$STEP"
+          status=0
+          scripts/migration-records.sh run "$STEP" "$PAIRS" "$out" | tee "$RUNNER_TEMP/summary.txt" || status=$?
+          {
+            echo "### migration measure: $STEP on $OS (run $GITHUB_RUN_ID, $GITHUB_SHA)"
+            echo '```'
+            tail -1 "$RUNNER_TEMP/summary.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+
+      # Only the four content-free records travel; nothing else of the runner.
+      - name: Upload the records
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ runner.temp }}/migration/${{ matrix.step }}/baseline.json
+            ${{ runner.temp }}/migration/${{ matrix.step }}/verify.json
+            ${{ runner.temp }}/migration/${{ matrix.step }}/measure.json
+            ${{ runner.temp }}/migration/${{ matrix.step }}/decide.json
+          if-no-files-found: warn
+          retention-days: 30

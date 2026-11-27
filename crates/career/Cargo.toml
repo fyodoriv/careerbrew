@@ -1,0 +1,19 @@
+[package]
+name = "careerbrew-career"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+careerbrew-vault = { path = "../vault" }
+careerbrew-setup = { path = "../setup" }
+careerbrew-policy = { path = "../policy" }
+careerbrew-projects = { path = "../projects" }
+serde_json = { version = "=1.0.154", features = ["arbitrary_precision"] }
+chrono = { version = "=0.4.45", default-features = false, features = ["std", "clock"] }
+chrono-tz = "=0.10.4"
+
+[[bin]]
+name = "career-component"
+path = "src/bin/career-component.rs"

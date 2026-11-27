@@ -107,7 +107,7 @@ fn clear_personal_dirs() -> Result<()> {
                 || std::fs::read_to_string(example).ok().as_ref() != current.as_ref()
             {
                 return Err(SetupError::role(format!(
-                    "job-hunt data found in {name}/; move it to your personal machine, then retry"
+                    "job-hunt data found in {name}/; move it to your personal machine, then retry (a backup holds the whole data folder: move one only when this install holds no employer data)"
                 )));
             }
         }

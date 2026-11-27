@@ -1,0 +1,2 @@
+crates/cbcli/src/routed.rs,keep-native,rust-00,rust-26 native routes for parity-tested read-only commands of merged domain crates with exit 64 refusals
+crates/cbcli/tests/parity.rs,keep-native,rust-00,rust-26 end-to-end parity of every native route against the Python console script in synthetic homes

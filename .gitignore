@@ -71,6 +71,7 @@ __pycache__/
 !/crates/sessions/
 !/crates/memory/
 !/crates/learn/
+!/crates/web/
 !/crates/vault/
 /crates/vault/*
 !/crates/vault/Cargo.toml
@@ -161,9 +162,11 @@ __pycache__/
 !/crates/cbcli/src/render.rs
 !/crates/cbcli/src/help.rs
 !/crates/cbcli/src/events.rs
+!/crates/cbcli/src/routed.rs
 !/crates/cbcli/tests/
 /crates/cbcli/tests/*
 !/crates/cbcli/tests/cli.rs
+!/crates/cbcli/tests/parity.rs
 !/crates/cbcli/registry/
 /crates/cbcli/registry/*
 !/crates/cbcli/registry/registry.json
@@ -189,6 +192,7 @@ __pycache__/
 !/xtask/src/rust10.rs
 !/xtask/src/rust11.rs
 !/xtask/src/rust12.rs
+!/xtask/src/rust25.rs
 !/xtask/src/sites.rs
 !/xtask/src/sites_tests.rs
 !/xtask/src/baseline.rs
@@ -209,6 +213,7 @@ __pycache__/
 !/xtask/src/input_key.rs
 !/xtask/src/check_docs.rs
 !/xtask/src/browser_test_receipts.rs
+!/xtask/src/learnings_table.rs
 !/xtask/src/exec_map.rs
 !/xtask/tests/
 /xtask/tests/*
@@ -228,6 +233,7 @@ __pycache__/
 !/xtask/tests/rust10.rs
 !/xtask/tests/rust11.rs
 !/xtask/tests/rust12.rs
+!/xtask/tests/rust25.rs
 !/xtask/tests/depvec.rs
 !/xtask/tests/vecdriver.rs
 !/xtask/tests/rust04_verify.rs
@@ -237,6 +243,8 @@ __pycache__/
 !/xtask/tests/input_key.rs
 !/xtask/tests/check_docs.rs
 !/xtask/tests/browser_test_receipts.rs
+!/xtask/tests/learnings_table.rs
+!/xtask/tests/native_dispatch.rs
 !/xtask/tests/fixtures/
 /xtask/tests/fixtures/*
 !/xtask/tests/fixtures/depvec/

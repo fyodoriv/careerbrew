@@ -12,6 +12,7 @@ mod exec_map;
 mod input_key;
 mod inventory;
 mod leak_check;
+mod learnings_table;
 mod measure;
 mod noise_floor;
 mod normalize;
@@ -28,6 +29,16 @@ mod rust12;
 mod rust13;
 mod rust14;
 mod rust15;
+mod rust16;
+mod rust17;
+mod rust18;
+mod rust19;
+mod rust20;
+mod rust21;
+mod rust22;
+mod rust23;
+mod rust24;
+mod rust25;
 mod sites;
 mod toolchain_identity;
 mod trial_plan;
@@ -90,6 +101,9 @@ fn main() -> ExitCode {
     }
     if args.first().is_some_and(|a| a == "input-key") {
         return input_key_command(&args[1..]);
+    }
+    if args.first().is_some_and(|a| a == "learnings-table") {
+        return learnings_table_command(&args[1..]);
     }
     if args.first().is_some_and(|a| a == "leak-check") {
         return leak_check_command(&args[1..]);
@@ -365,6 +379,7 @@ fn main() -> ExitCode {
     eprintln!("       cargo xtask check-docs [--repo <dir>]");
     eprintln!("       cargo xtask input-key [--repo <dir>] [--] [pathspec...]");
     eprintln!("       cargo xtask leak-check [--staged] [--repo <dir>] --terms-file <file>");
+    eprintln!("       cargo xtask learnings-table [--repo <dir>] [--check]");
     eprintln!("       cargo xtask migration inventory --check");
     eprintln!("       cargo xtask migration inventory --embedded-check");
     eprintln!("       cargo xtask migration inventory --sites-check");
@@ -414,6 +429,39 @@ fn check_docs_command(rest: &[std::ffi::OsString]) -> ExitCode {
     } else {
         ExitCode::FAILURE
     }
+}
+
+/// `learnings-table [--repo <dir>] [--check]`: the table or the format
+/// check of `scripts/learnings-table.py` (no `--split`); exit 0, 1 on a
+/// problem, 2 on usage.
+fn learnings_table_command(rest: &[std::ffi::OsString]) -> ExitCode {
+    let mut repo = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .to_path_buf();
+    let mut check = false;
+    let mut args = rest.iter();
+    while let Some(arg) = args.next() {
+        match arg.to_str() {
+            Some("--check") if !check => check = true,
+            Some("--repo") => match args.next() {
+                Some(dir) => repo = dir.into(),
+                None => {
+                    eprintln!("usage: cargo xtask learnings-table [--repo <dir>] [--check]");
+                    return ExitCode::from(2);
+                }
+            },
+            _ => {
+                eprintln!("usage: cargo xtask learnings-table [--repo <dir>] [--check]");
+                return ExitCode::from(2);
+            }
+        }
+    }
+    let run = learnings_table::run(&repo, check);
+    use std::io::Write;
+    let _ = std::io::stdout().write_all(run.stdout.as_bytes());
+    let _ = std::io::stderr().write_all(run.stderr.as_bytes());
+    ExitCode::from(run.code)
 }
 
 /// `input-key [--repo <dir>] [--] [pathspec...]`: the 16-hex gate cache key

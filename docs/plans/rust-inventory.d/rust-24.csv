@@ -1,0 +1,16 @@
+tests/oracles/rust24.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-24 differential gate
+tests/unit/test_rust24_component.py,keep-native,rust-00,rust-24 native reports metrics and export assertions
+tests/fixtures/rust24/cases.json,keep-native,rust-00,Shared synthetic rust-24 inputs for both engines
+crates/reports/Cargo.toml,keep-native,rust-00,Component-only reports crate manifest
+crates/reports/src/lib.rs,port,rust-24,Component-only clock settings number formatting and typed output helpers
+crates/reports/src/allowlists.rs,port,rust-24,Generated telemetry value allowlists matching the Python lists
+crates/reports/src/telemetry.rs,port,rust-24,Telemetry event allowlist string checks and machine fields without sending
+crates/reports/src/time_saved.rs,port,rust-24,Time saved baselines command actions web timing and weekly totals
+crates/reports/src/field.rs,port,rust-24,Field totals behind a typed machine label seam
+crates/reports/src/charts.rs,port,rust-24,Self-contained chart and KPI page markup
+crates/reports/src/repo_health.rs,port,rust-24,Repo health export collect validate allowlist and public writer plus run summary readers
+crates/reports/src/checklist.rs,port,rust-24,Setup checklist over a typed facts seam
+crates/reports/src/synthetic.rs,port,rust-24,Synthetic events telemetry repo health time saved charts and checklist workload
+crates/reports/src/bin/reports-component.rs,port,rust-24,Synthetic-only native reports candidate entry point
+xtask/src/rust24.rs,port,rust-24,rust-24 semantic differential runner and planted write and allowlist controls
+xtask/tests/rust24.rs,keep-native,rust-00,rust-24 registration evidence identity and planted controls

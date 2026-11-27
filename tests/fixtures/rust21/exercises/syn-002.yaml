@@ -1,0 +1,21 @@
+id: syn-002
+order: 2
+pattern: arrays and hashing
+difficulty: medium
+title: Synthetic group sizes
+statement: Group synthetic values and return the sizes.
+function: group_sizes
+signature: "def group_sizes(values):"
+starter: "def group_sizes(values):\n    sizes = {}\n"
+lesson: Use a hash map to remember what you have seen.
+solution: "def group_sizes(values):\n    return []\n"
+hints:
+  - Group by key.
+pitfalls:
+  timeout: Avoid the nested loop over values.
+tests:
+  - args: [[1, 1, 2]]
+    expected: [2, 1]
+  - args: [[]]
+    expected: []
+    note: empty input

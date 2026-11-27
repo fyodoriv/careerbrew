@@ -1,0 +1,13 @@
+tests/oracles/rust19.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-19 differential gate with deferred vectors
+tests/unit/test_rust19_component.py,keep-native,rust-00,rust-19 native job search component and typed float differential assertions
+crates/jobs/Cargo.toml,keep-native,rust-00,Component-only job search crate manifest
+crates/jobs/src/lib.rs,port,rust-19,Component-only job search error and value boundary over the rust-20 store helpers
+crates/jobs/src/sources.rs,port,rust-19,Posting shape HTML salary seniority skill region helpers and ATS board scan
+crates/jobs/src/criteria.rs,port,rust-19,Hard filter criteria custom region labels and reject reasons
+crates/jobs/src/want.rs,port,rust-19,Want features scores rating tags Spearman agreement and weight refit
+crates/jobs/src/linkedin.rs,port,rust-19,LinkedIn job-alert subject postings
+crates/jobs/src/prep.rs,port,rust-19,Interview prep story bank subset for the corporate guard case
+crates/jobs/src/synthetic.rs,port,rust-19,Synthetic job search workload mirroring the Python oracle
+crates/jobs/src/bin/jobs-component.rs,port,rust-19,Synthetic-only native job search candidate entry point
+xtask/src/rust19.rs,port,rust-19,Shared differential registration with typed float tolerance semantic writes and write controls
+xtask/tests/rust19.rs,keep-native,rust-00,rust-19 registration evidence identity and planted write controls

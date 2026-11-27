@@ -161,12 +161,112 @@ pub const REGISTRY: &[Entry] = &[
         floor: Floor::Unmeasured,
     },
     Entry {
+        step: "rust-19",
+        os: "macos",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-19",
+        os: "linux",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-20",
+        os: "macos",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-20",
+        os: "linux",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
         step: "rust-15",
         os: "macos",
         floor: Floor::Unmeasured,
     },
     Entry {
         step: "rust-15",
+        os: "linux",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-16",
+        os: "macos",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-16",
+        os: "linux",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-17",
+        os: "macos",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-17",
+        os: "linux",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-18",
+        os: "macos",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-18",
+        os: "linux",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-24",
+        os: "macos",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-24",
+        os: "linux",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-22",
+        os: "macos",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-22",
+        os: "linux",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-25",
+        os: "macos",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-25",
+        os: "linux",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-21",
+        os: "macos",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-21",
+        os: "linux",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-23",
+        os: "macos",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-23",
         os: "linux",
         floor: Floor::Unmeasured,
     },

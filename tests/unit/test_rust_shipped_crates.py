@@ -17,7 +17,19 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 NOT_SHIPPED = re.compile(r"^none(:|$)")
 # Developer tooling that builds or checks Rust on purpose; it ships nothing.
-SCAN_SKIP = {"scripts/check.sh", "scripts/doctor.sh", "scripts/rust-readiness.sh", "scripts/setup.sh"}
+# The three gate wrappers run the dev-only careerbrew-xtask binary only when it is
+# newer than every file it is built from, and their old code otherwise, so a
+# stale binary never runs (xtask/tests/native_dispatch.rs).
+SCAN_SKIP = {
+    "scripts/check.sh",
+    "scripts/doctor.sh",
+    "scripts/migration-records.sh",
+    "scripts/rust-readiness.sh",
+    "scripts/setup.sh",
+    "scripts/browser-test-receipts.sh",
+    "scripts/check-docs.sh",
+    "scripts/input-key.sh",
+}
 
 
 def members(root: Path = ROOT) -> list[str]:

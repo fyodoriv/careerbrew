@@ -175,6 +175,12 @@ Each port must keep these contracts byte for byte or meaning for meaning.
 alias. Until it lands they are **proposed** commands, and every dependent task
 stays blocked.
 
+Owner decision (2026-11-27): the 30-run `baseline` and the paired `measure`
+no longer block a step's merge. They run later, for many steps at once, in the
+manual hosted workflow `migration-measure.yml` ([`docs/ci.md`](ci.md),
+"Batched migration measurement"), which also runs `verify` and `decide`. The
+differential test stays the required proof in the step's pull request.
+
 1. **Pre-register.** Before any port code, commit the hypothesis, the exact
    suite and fixtures, the numeric keep and pivot thresholds, the normalization
    rules and the source revision.
@@ -2768,6 +2774,43 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Gate:** 100% of execution and state-transition cases agree; 0 duplicate
   dispatches, false success claims or lost wrap-up requests in 1,000 interleavings.
   Activation needs the `rust-16` + `rust-17` + `rust-24` closure.
+- **Component pre-registration (2026-11-27):** source base
+  `94d34d2f257d25530c789978fd8ce85dcef2f1b1` (stacked on the rust-15 branch,
+  draft PR 233). The new `careerbrew-workexec` crate reuses the rust-15
+  `careerbrew-workday` status records and registers
+  `target/release/workexec-component` for a six-case real Python differential
+  workload: `gate-check` (proofs, next actions, overdue, retry and fail),
+  `timing-history` (durations, medians, slow flags, summary), `loop-records`
+  (records, interval, fingerprints, goal and cron warning, loop end, invalid
+  stores), `loop-pass` (one watch pass with its lock, a held lock, an ended
+  loop), `catch-up` (the claim, a busy or crashed claim, due probes) and
+  `wrap-control` (move, hold, phase, view, the non-writing clock tick). The
+  plan, the live-feed result, the pass clock and the cycle runner are supplied
+  synthetic facts; no real watcher, cycle or verify command runs. Four planted
+  controls must fail: `extra` (a stray file), `duplicate-dispatch` (a cycle
+  runs twice), `lost-wrap` (a hold request is dropped) and `false-success` (a
+  timed-out step is not failed). A native race test runs 1,000 two-pass
+  interleavings over one pass lock.
+- **Prediction:** every differential case agrees byte for byte, semantic write
+  maps and operation receipts agree, every planted control is rejected, the
+  race test finds 0 duplicate dispatches, and native process-tree CPU-time p95
+  and peak RSS stay at or below 1.10 times Python baseline B. Any disagreement,
+  accepted plant, privacy leak or ratio above 1.10 B keeps Python.
+- **Measurement:** `heavy-run --exclusive cargo xtask migration baseline --step rust-16 --python "$PWD/.venv/bin/python" --out <new-absolute-baseline>`;
+  `heavy-run cargo xtask migration verify --step rust-16 --python "$PWD/.venv/bin/python" --out <new-absolute-verify>`;
+  `heavy-run --exclusive cargo xtask migration measure --step rust-16 --python "$PWD/.venv/bin/python" --pairs 30 --out <new-absolute-measure>`;
+  `cargo xtask migration decide --step rust-16` over the same-revision records;
+  `CAREERBREW_ALLOW_LOCAL_TESTS=1 heavy-run cargo test --locked --offline -p careerbrew-xtask --test rust16`.
+- **Component state (2026-11-27):** verify passes 6/6 locally (macOS) with
+  zero violations, and each of the four planted controls fails its own case.
+  The race test finds 0 duplicate dispatches in 1,000 interleavings. Baseline
+  and measure: pending the batched hosted run (owner decision 2026-11-27).
+  Not ported yet: `start.py` (refresh before plan, sign-in probe), `plan.build`,
+  the wrap-up start and clock end (they write rust-17 handoff and day-log
+  records, so the component refuses them with `NotPorted`), the review-ask
+  cycle, stopping live-feed and day-watcher loops, the `cmd_day_*` CLI
+  handlers and the real verify and cycle subprocess runners. Production
+  routes, shipped crates and activation are unchanged.
 
 ### rust-17: Port daily planning, results and PM learning
 
@@ -2785,6 +2828,35 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native day records and PM learning.
 - **Gate:** 100% of day and PM vectors agree; 0 wrong-recipient lessons,
   duplicate promises or history, or idle writes.
+- **Component pre-registration (2026-11-27):** source base
+  `fc24028fede8899426aa1c6e26ef3ed9354d1f46` (PR 233, rust-15); domain source
+  `23a39146` for `src/careerbrew/day/`. This first slice registers
+  `target/release/day-component` (crate `crates/day/`) for a five-case real
+  Python differential workload: a CPython `SequenceMatcher` port, results
+  records, the end-of-day handoff, sent-PM receipts and `pm_sent_text`, and PM
+  lessons (`record`, `rules`, `apply`, `left_out`, `cut_projection`, `reset`,
+  `KEEP`). Sent-Tomorrow promise writes go through a typed `PromiseRecorder`
+  seam, called while the sent-day lock is held; the synthetic provider takes
+  only the project-file lock and refuses any text with Tomorrow bullets. The
+  slice does not depend on `rust-16`. Inbox, planner, log builder, watch
+  cycles, done-elsewhere, the full `pm_promises` port, `handoff.with_promises`
+  and the CLI handlers are later slices.
+- **Prediction:** every differential case agrees byte for byte, semantic write
+  maps and write operations agree, every planted extra, missing, duplicate and
+  operation-duplicate control is rejected, and native process-tree CPU-time
+  p95 and peak RSS stay at or below 1.10 times Python baseline B. Any
+  disagreement, accepted plant, privacy leak or ratio above 1.10 B keeps
+  Python and requires a newly registered adapter approach.
+- **Measurement:** `heavy-run --exclusive cargo xtask migration baseline --step rust-17 --python "$PWD/.venv/bin/python" --out <new-absolute-baseline>`;
+  `heavy-run cargo xtask migration verify --step rust-17 --python "$PWD/.venv/bin/python" --out <new-absolute-verify>`;
+  `heavy-run --exclusive cargo xtask migration measure --step rust-17 --python "$PWD/.venv/bin/python" --pairs 30 --out <new-absolute-measure>`;
+  `cargo xtask migration decide --step rust-17` over the same-revision records;
+  `CAREERBREW_ALLOW_LOCAL_TESTS=1 heavy-run cargo test --locked --offline -p careerbrew-xtask --test rust17`.
+- **State (2026-11-27):** the component smoke test passes locally: verify 5/5
+  with zero violations, and all four planted write controls are rejected.
+  Baseline and measure: pending the batched hosted run (owner decision
+  2026-11-27). Production routes, native routes, shipped crates and activation
+  are unchanged.
 
 ### rust-18: Port evidence, promotion, standup and work profiles
 
@@ -2800,6 +2872,32 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native evidence and report builders.
 - **Gate:** 100% of evidence, standup and report contracts agree; 0 unsupported
   claims, missing proof or unsafe HTML.
+- **Component pre-registration (2026-11-27):** source base
+  `fc24028fede8899426aa1c6e26ef3ed9354d1f46` (the rust-15 branch, PR 233). The
+  first slice registers `target/release/career-component` for a four-case real
+  Python differential workload (`tests/oracles/rust18.py`): evidence auto-tags,
+  notes and forget; the promotion assessment, gaps, ladder validation errors
+  and the promotion document; ladder grading and graded evidence; and the
+  LinkedIn block with its public scrub. Models are off (the fallback text) and
+  no plugin is installed. Production routes, native routes and shipped crates
+  stay unchanged.
+- **Prediction:** every case agrees byte for byte; semantic write maps,
+  per-phase write counts and write-operation receipts agree; the planted extra,
+  missing and duplicate write controls are rejected; native process-tree
+  CPU-time p95 and peak RSS stay at or below 1.10 times Python baseline B. Any
+  disagreement, accepted plant, privacy leak or ratio above 1.10 B keeps
+  Python.
+- **Measurement:** `heavy-run --exclusive cargo xtask migration baseline --step rust-18 --python "$PWD/.venv/bin/python" --out <new-absolute-baseline>`;
+  `heavy-run cargo xtask migration verify --step rust-18 --python "$PWD/.venv/bin/python" --out <new-absolute-verify>`;
+  `heavy-run --exclusive cargo xtask migration measure --step rust-18 --python "$PWD/.venv/bin/python" --pairs 30 --out <new-absolute-measure>`;
+  `cargo xtask migration decide --step rust-18` over the same-revision records;
+  `CAREERBREW_ALLOW_LOCAL_TESTS=1 heavy-run cargo test --locked --offline -p careerbrew-xtask --test rust18`.
+- **State (2026-11-27):** component slice 1 only. A local verify passes 4/4 with
+  zero violations, and the three planted write controls produce `keep-python`.
+  Baseline and measure: pending the batched hosted run (owner decision
+  2026-11-27). The standup report (`standup.py`, its proof gates, talking
+  points, page and `tests/fixtures/standup/`), the evidence collectors, ladder
+  import, the CLI handlers and their test-file assertions are later slices.
 
 ### rust-19: Port job search, interview prep and public research
 
@@ -2816,6 +2914,31 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native job search and prep.
 - **Gate:** 100% of scoring, strategy and prep vectors agree; 0 corporate
   job-hunt access; 0 unapproved application or send actions.
+- **Component pre-registration (2026-11-27):** slice 1, the job search core.
+  Python oracle `tests/oracles/rust19.py`; candidate `jobs-component` in
+  `crates/jobs`, which reuses the rust-20 `careerbrew-tutor` store, clock,
+  digest and event helpers. Six fixed synthetic cases: posting helpers (HTML,
+  salary, seniority, skills, built-in and custom regions, region validation);
+  the Greenhouse, Lever and Ashby boards from `tests/fixtures/ats/`; criteria
+  defaults and every reject reason; Want features, scores, rating tags,
+  Spearman agreement and the weight refit with its keep rule; LinkedIn alert
+  postings; and the corporate-role refusal for every personal-only group.
+  Exact typed results, semantic write maps, phase write counts and event rows
+  are compared. Only the 140 float leaves get absolute `0.00001` and relative
+  `0.000001` tolerance. Planted extra, missing, duplicate and event-duplicate
+  writes must fail. The rule is the same as rust-14: CPU-time p95 and
+  process-tree peak RSS at most 1.10 x the paired oracle in each regime. This
+  is component parity only: production dispatch, native routes, shipped crates
+  and activation do not change.
+- **State (2026-11-27):** slice 1 verify passes 6/6 locally with zero
+  violations, and all four planted controls fail. Baseline and measure:
+  pending the batched hosted run (owner decision 2026-11-27). The oracle keeps
+  the platforms, strategy, interview, prep and research vectors as deferred
+  cases (`--case` only) for the next slices. Still to port: the six job
+  platforms, `store.cached` fetches, plugin job sources, strategy, interview
+  loops, the prep checklist and runs, research, the LinkedIn export import (it
+  needs a zip reader in the lockfile), the full HTML entity table, and the CLI
+  handlers.
 
 ### rust-20: Port flashcards, FSRS and Notion import
 
@@ -2834,6 +2957,82 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native cards, FSRS and the shared providers.
 - **Gate:** 100% of fixed-clock FSRS decisions agree within pre-registered
   numeric tolerances; 0 private card leaks or duplicate imports.
+- **Integration seam:** the shared harness registers the release
+  `tutor-component`, its effective Python/Rust sources and fixtures, and
+  unmeasured macOS/Linux noise-floor entries. The differential compares all
+  eight domain cases and 18 dependency vectors. It preserves every due-time
+  string exactly and allows only actual float leaves absolute `0.00001` and
+  relative `0.000001` tolerance. Typed `Resources` discovery reads base and
+  installed-plugin knowledge/rubrics through the existing plugin provider.
+  Semantic phase writes, exact file modes, event rows, and
+  extra/missing/duplicate/event-duplicate controls are observed. Sealed records are opened with their own synthetic
+  workspace keys and compared as typed values with the same float tolerance;
+  malformed JSONL is refused. The measured `--all` path must return the same
+  complete eight-case report before timing starts. Production dispatch,
+  shipped crates and activation remain unchanged.
+- **Review correction (2026-11-26):** independent Kimi review at `5aa0aa2d`
+  rejected the earlier component-only `activate` evidence. It found unbound
+  vault/profile-example inputs, an unvalidated measured `--all` path, sealed
+  and malformed-JSONL blind spots, generated-card ID collisions, fractional
+  elapsed-day drift, process-versus-configured timezone drift, and malformed
+  persisted-state acceptance. Follow-up controls also retain exact file modes,
+  refuse missing or malformed step state, keep the review instant's UTC offset
+  at local day end across a daylight-saving transition, and normalize pinned
+  clocks to UTC without a wall-clock fallback. The DST control injects its zone
+  instead of inheriting the host zone. Focused controls
+  now cover and reject each defect. The earlier resource record is superseded
+  by the clean record below.
+- **Measured evidence (2026-11-26):** clean source
+  `cd9f01998ceac6498c4269bacccca9ea0e881a4a` on macOS/aarch64 with Rust
+  1.100.0 and Python 3.12.16. Baseline/verify/measure share evidence-source
+  hash `0ad5a1486172751c1ccd1efc8a0246c94f45803813ba65daa0998f536a9d36a3`
+  and fixture hash `e8957893448fb8c1396ab6deee329851658ebbeb2bddbc99195ffcb7f411a0ce`.
+  Release-candidate SHA-256 is
+  `878f0eca86820c2c2646d85185a7811b1d8e948526b69fe9017a6668c93d176e`.
+  Thirty baseline runs gave CPU p50/p95 371,768/398,279 microseconds and
+  tree-RSS p50/p95 45,121,536/45,531,136 bytes. Verify passed 8/8 domain
+  cases, including all 18 FSRS vectors and exactly 14 full-precision float
+  leaves, with exact due times and zero observed violations. Each regime has
+  30 unique, uncached pairs. Cold CPU/RSS p95 ratios are 0.4540/0.3165; warm
+  ratios are 0.4459/0.3168, all below 1.10. The decide paired-maximum RSS
+  ratios are 0.3161/0.3165. `decide` returned component-only `activate`; extra,
+  missing, duplicate and event-duplicate controls each returned `keep-python`.
+  Local records: `.metrics/baseline-rust-20-cd9.json`,
+  `.metrics/verify-rust-20-cd9.json`, `.metrics/measure-rust-20-cd9.json`,
+  and `.metrics/decide-rust-20-cd9.json`.
+- **Review fixes (2026-11-27):** the final review found two defects that the
+  eight cases could not see. A private-card rewrite kept the old card, and
+  `missed` kept rubric order instead of sorted order. Both are fixed. The
+  oracle now grades one attempt partially and rewrites one private card, so
+  both cases are compared. The source changed after the recorded baseline and
+  measure, so those records are stale. They rerun in the batched hosted
+  measurement job (owner decision 2026-11-27).
+- **FSRS fuzz limit (2026-11-27):** the oracle turns off py-fsrs interval
+  fuzzing (`Scheduler(enable_fuzzing=False)`), and the Rust port has no fuzz.
+  Production Python fuzzes review intervals of 3 days or more. So the exact due
+  times hold only against the unfuzzed scheduler. Task `rust-followup-20`
+  ports the fuzz and compares fuzzed due times by range.
+- **Evidence limits:** HTTP, DATA and generic role contracts are explicitly
+  scoped out of this component record; the domain's corporate-role refusal is
+  covered. Python denial is environment-based. Cold differs only by missing
+  warm-up on the Rust side, not by a cold OS page cache. Noise floors are
+  unmeasured, so the 1.10 ratio applies. These are macOS component-parity
+  results, not production activation; both hosted OS gates and public
+  readiness remain required.
+- **DST-isolated acceptance (2026-11-26, macOS):** clean source
+  `563bf7b83a95b1de81142fdb83031fade47fece9`; evidence-source hash
+  `e7e4f5745cf1af805d54cef97fe89ae4af4cf32181225dafb3334053b53b3a14`;
+  fixture hash `e8957893448fb8c1396ab6deee329851658ebbeb2bddbc99195ffcb7f411a0ce`;
+  release-candidate SHA-256
+  `e5a244994a63075892670be67e432a64571474409ccdb4cadda5593dc5e38361`.
+  Baseline: 30 runs; CPU p50/p95 533,702/593,652 microseconds and tree-RSS
+  p50/p95 45,727,744/45,989,888 bytes. Verify passes 8/8 with zero violations.
+  Cold CPU p95 was 403,880 to 202,733 microseconds; warm was 571,405 to
+  255,998. Cold tree-RSS p95 was 45,711,360 to 14,516,224 bytes; warm was
+  46,104,576 to 15,204,352. Each regime has 30 unique uncached pairs and every
+  ratio is below 1.10. `decide` returned component-only `activate`; all four
+  same-head planted controls returned `keep-python`. Production routes, shipped
+  crates and activation remain unchanged.
 
 ### rust-21: Port teacher, goals, practice and mistake tracking
 
@@ -2848,6 +3047,42 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Gate:** 100% of practice, goal and mistake vectors agree; 0 lost grades;
   0 UTC versus local-day count errors. Activation needs the `rust-19` +
   `rust-20` + `rust-21` + `rust-22` closure.
+- **Component pre-registration (2026-11-27):** source base
+  `96a01171ad8f0a6402c42f94b01a15c481300efe` (PR 232, rust-20); Python oracle
+  `tests/oracles/rust21.py`. Seven fixed synthetic cases drive the real
+  `goals`, `teacher`, `tutor.mistakes` and `tutor.cards` code:
+  - goal queue validation, the current goal, history, long-term goals, the
+    corporate job-hunt guard and `days_left`;
+  - `focus` for every goal kind, and `study_blocks` sizes, solved patterns and
+    the corporate block;
+  - local-day counting: steps stamped in UTC count by the settings zone's day,
+    with a process zone that differs from both;
+  - the whole `next_step` order with `complete` for every step kind:
+    approval, repeated mistake, lesson (not yet, confirmed), exercise (fail,
+    hints, worked example, solution after three, retry after three days),
+    card, validate (keep, fix, drop), resume (sent, skipped) and done;
+  - improvement signals, low-rated kinds, the "watch out" tips and drafts.
+  Steps that are not merged sit behind typed seams with synthetic providers
+  that both sides share: the exercise runner and grade (rust-22, PR 236),
+  interview loops (rust-19, PR 238) and the day re-plan. The exercise catalog
+  is the real loader over `tests/fixtures/rust21/exercises/`. Exact stdout
+  bytes, semantic write maps and per-phase write counts are compared. Only
+  owned paths, sealed-record bytes and the generated key are normalized; the
+  wall-clock step start is dropped from reports, and completed steps use a
+  future start so their timed seconds are 0. Planted controls: an extra write,
+  a missing write, and a UTC-day counting defect must each fail verify and
+  keep Python. Gate thresholds are the shared ones: 7/7 cases, zero
+  violations, and CPU-time p95 and process-tree peak RSS at most 1.10 x the
+  paired oracle in each regime. This is component parity only: production
+  dispatch, native routes, shipped crates and activation do not change.
+- **State (2026-11-27):** `crates/teacher` (`teacher-component`) passes verify
+  7/7 with zero violations on macOS, and its stdout is byte-identical to the
+  oracle. All three planted controls fail verify and `decide` keeps Python.
+  The port found one rust-20 defect: `mistakes.from_exercise` logged a
+  complexity mistake when a grade's `complexity` was null; it now follows
+  Python's falsy check. Baseline and measure: pending the batched hosted run
+  (owner decision 2026-11-27). Left as follow-ups: reconcile the seams with
+  rust-19 and rust-22, the CLI handlers, and the rust-20 card order.
 
 ### rust-22: Port exercise execution and complexity checks
 
@@ -2873,6 +3108,35 @@ the crate until the rust-05 and rust-07 closure is native, so
   wrong-class negative controls rejected; 0 sandbox escapes or leaked private
   paths. The native exercise and card checks keep all original functional and
   invalid-code controls with Python denied.
+- **Component pre-registration (2026-11-27):** the first rust-22 PR ports
+  only the runner core: the sandboxed child lifecycle (fresh empty `cb-run-*`
+  folder, cleared environment with `PATH` and `PYTHONHASHSEED=0`, CPU and
+  address-space limits set before `exec`, a wall deadline that kills and reaps
+  the child, last-stderr-line-only errors), the tests-then-scaling run, the
+  CPU-time scaling protocol, the slope fit (CPython 3.12 compensated `sum`),
+  the complexity decision, the four comparison modes, grading and reference
+  validation. Crate `crates/exercises/`, candidate `exercises-component`.
+  Both sides start one synthetic language runner, `exercise-fixture-runner`,
+  whose solutions spend calibrated process CPU time (linear, quadratic or
+  cubic in `n`), so the decision is the same in debug, release and under load.
+  The oracle `tests/oracles/rust22.py` drives the real `exercises._child`,
+  `run`, `validate`, `grade` and the harness `same` over
+  `tests/fixtures/rust22/cases.json`. Live timings compare at decision level
+  only (`<timed>`); pure decision vectors compare exact float reprs.
+  Hypothesis: 6/6 cases byte-identical, including the cubic wrong-class
+  negative control (rejected as `complexity_rejected`), the CPU-limit control
+  (`signal_exit`, signal 24), the wall-limit control (`wall_timeout`) and a
+  private stderr canary that never leaves. Success: 6/6 agree and both
+  planted controls (`extra` write, `accept-wrong-class`) make verify fail.
+  Pivot: any disagreement or an accepted planted control keeps Python.
+  Readability (ruff), the CLI handlers, `check_all`, the learner Python
+  harness itself and every reference solution and generator stay in Python
+  for later rust-22 PRs.
+- **State (2026-11-27):** component-only. Verify passes 6/6 cases locally
+  (macOS) with zero violations; `extra` and `accept-wrong-class` controls
+  each fail verify and `decide` returns `keep-python`. Baseline and measure:
+  pending the batched hosted run (owner decision 2026-11-27). Production
+  dispatch, native routes and shipped crates are unchanged.
 
 ### rust-23: Port local voice, model routes and judge adapters
 
@@ -2890,6 +3154,49 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Gate:** 100% of synthetic process and request contracts agree; 0 retained
   audio or transcripts; 0 route or policy bypasses. The owner-label agreement
   bar stays as it is.
+- **Component pre-registration (2026-11-27):** base `feat/rust-20-component`
+  (PR 232). The new crate `crates/voice` builds the bin `voice-component`.
+  The Python oracle `tests/oracles/rust23.py` runs the real `models.py`,
+  `judge.py`, `tutor/voice.py` and `cmd_drill_speak` code in 10 cases:
+  `routes-config`, `allowed-routes`, `complete-routing`, `judge-text`,
+  `judge-cache`, `http-transports`, `labels`, `agreement-run`,
+  `voice-transcribe` and `voice-answer`. Every engine is fake: scripted
+  transports, fake `whisper-cli`, `ffmpeg` and speech-to-text scripts, and a
+  local HTTP fixture server on a fresh OS port. Nothing calls a real model or
+  the network.
+  - **Hypothesis:** the native component prints the same typed report as the
+    oracle in all 10 cases, with the same semantic writes per phase.
+  - **Measurement:** `heavy-run cargo xtask migration verify --step rust-23
+    --python "$PWD/.venv/bin/python" --out <new-file>`, and
+    `xtask/tests/rust23.rs`.
+  - **Success:** 10/10 cases pass with exactly 12 float leaves compared
+    exactly and zero violations. The planted extra, missing and duplicate
+    write controls each fail verify.
+  - **Pivot:** if a case cannot match without a per-case exception, the case
+    stays on Python and becomes a `rust-followup` item.
+  - **Kept rules:** models are named only in `config/models.yaml`; the local
+    route answers first; a judge answer counts only with `finish_reason:
+    stop`; Ollama routes send `reasoning_effort: none` and `max_tokens`;
+    temporary audio folders are removed (`temp-dirs-left` is 0).
+  - **Comparison:** printed reports compare exactly, floats included.
+    Written files compare as typed values after these rules: the owned home
+    path (also inside text files), sealed records opened with their own
+    synthetic keys, generated keys, generated card ids, event times, the
+    `careerbrew-voice-<id>` temp folder name, and the judge cache file name
+    in `http-transports` (it hashes the fixture URL and its random port; the
+    content stays compared). Written FSRS floats use rust-20's tolerance,
+    because a voice answer saves card state through the rust-20 engine.
+  - **Seams:** the teacher interactions sit behind the `voice::Practice`
+    trait, backed by the rust-20 tutor engine, so rust-21 can plug in.
+- **State (2026-11-27):** component-only. Verify passes 10/10 locally on
+  macOS with 12 float leaves and zero violations; the 3 planted controls
+  fail as expected. Baseline and measure: pending the batched hosted run
+  (owner decision 2026-11-27). Production dispatch, `config/native-routes.txt`
+  and `scripts/rust-shipped-crates.txt` are unchanged. Known gaps are
+  `rust-followup` items in `TASKS.md`: HTTPS transport, chunked and redirect
+  replies, NaN JSON, non-UTF-8 engine output, `--aloud` (`say`), the exact
+  Python `repr` of float, list and dict evidence, the `evals/run.py`
+  orchestration (`rust-27d`), and the native `Practice` provider (rust-21).
 
 ### rust-24: Port reports, metrics, checkups and remaining domain helpers
 
@@ -2907,6 +3214,32 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native report and metric builders; the full `changes.check`.
 - **Gate:** 100% of report, metric and export contracts agree; 0 new public
   fields, content-bearing telemetry or missing long-run pages.
+- **Component pre-registration (2026-11-27):** source base
+  `fc24028fede8899426aa1c6e26ef3ed9354d1f46` (the rust-15 branch, PR 233).
+  The component registers `target/release/reports-component` (crate
+  `careerbrew-reports`) for a seven-case real Python differential workload:
+  `events.clean`, the telemetry allowlist and `to_event`, the public repo-health
+  export (`collect`, `validate`, `write_rows`) with the run summary readers of
+  `report.py`, time saved, field totals, chart markup and the checklist. It
+  reuses the native vault events, settings and canonical value code and the
+  policy leak scan; it never writes them twice. Typed seams take the machine
+  label (`field.MachineLabel`) and the checklist facts (`checklist::Facts`), so
+  the parallel rust-17, rust-18, rust-19 and rust-23 work stays unmerged here.
+  No route starts it, and production dispatch is unchanged.
+- **Prediction:** every differential case agrees byte for byte and semantic
+  write maps agree; the planted `extra`, `missing` and `allowlist` controls are
+  rejected; and native process-tree CPU-time p95 and peak RSS stay at or below
+  1.10 times Python baseline B. Any disagreement, accepted plant, privacy leak
+  or ratio above 1.10 B keeps Python.
+- **Measurement:** `heavy-run cargo xtask migration verify --step rust-24 --python "$PWD/.venv/bin/python" --out <new-absolute-verify>`;
+  `CAREERBREW_ALLOW_LOCAL_TESTS=1 heavy-run cargo test --locked -p careerbrew-xtask --test rust24`;
+  then baseline, measure (30 pairs) and decide as in rust-15.
+- **State (2026-11-27):** local verify passes 7/7 with zero violations; the
+  three planted controls fail as predicted. Baseline and measure: pending the
+  batched hosted run (owner decision 2026-11-27). Not yet ported: `runs.py`
+  builders and `report.finish`, `checkup`, `checkup_runs`, `wizard`, `review`,
+  `signals`, `metrics_share`, `changes.check` and pivot orchestration, the
+  telemetry send and consent, and the 29 CLI handlers.
 
 ### rust-25: Replace the HTTP server behind the unchanged UI
 
@@ -2928,6 +3261,41 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Gate:** 100% of HTTP and action contracts and all existing browser stories
   pass; 0 auth or origin bypasses, burst resets or idle refetch churn; 0
   intended visual changes.
+- **Component pre-registration (2026-11-27):** source revision
+  `c2136a6633d1ea5a5d0b4d9e1d8edd9bd4c9b38b`; Python oracle
+  `tests/oracles/rust25.py`. The design is incremental: a native front
+  (`crates/web`, `web-component serve`) binds the public port with a listen
+  backlog of 128 and owns the host check, the token header, token expiry
+  (`web_token_max_days`), the sign-in cookie (`/api/session`, `Sec-Fetch-Site`
+  rules, cookie only on `127.0.0.1`), `/api/session/open`, the corporate
+  job-path block, the security headers (CSP, nosniff, no-referrer, CORP,
+  no-store), `/api/changes` with `CHANGE_SKIP` and `CHANGE_SKIP_PREFIXES`,
+  `/api/tab-key`, the unknown-GET 404 and the static files. Every other route
+  is forwarded to a `careerbrew serve` it starts on a private free port,
+  through the explicit per-route table `server::ROUTES`, which names the step
+  that will port each route's domain. The response cache, its warmer, the
+  POST cache clearing and `web.act` events stay in that Python handler until
+  the first cached view goes native. Fixture
+  `tests/fixtures/web/rust25-cases.json` holds 35 native and 10 forwarded
+  synthetic requests. `cargo xtask migration verify --step rust-25` sends the
+  native cases to `server.make_server` and to the native front in one
+  synthetic data root on free OS ports, and compares status, reason, every
+  header but `Server` and `Date` in order, and the body. Only the cookie's port
+  and the random tab key are normalized. Planted controls (`csp`, `cookie`,
+  `body`, `missing`) must each fail. `tests/unit/test_rust25_component.py`
+  also runs both servers as processes and compares every case, forwarded ones
+  included. Verify requires all native cases with zero contract or privacy
+  violations; measure and the CPU-time and tree-RSS ratios follow the rust-14
+  rule (at most 1.10 x the paired oracle per regime). Opt-in only:
+  `careerbrew config set web_server native` (default `python`); production
+  dispatch, `config/native-routes.txt`, shipped crates and activation do not
+  change.
+- **State (2026-11-27):** component parity for the native front: 35/35 native
+  cases and 45/45 cases over both processes match the Python server; four
+  planted controls fail as required; baseline and measure: pending the batched
+  hosted run (owner decision 2026-11-27). Not yet done: native views (each
+  waits for its domain step's merge into this front), the browser stories
+  against `web_server native`, and the follow-ups listed in the `rust-25` task.
 
 ### rust-26: Complete native CLI coverage and default entry point
 
@@ -2954,6 +3322,64 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Gate:** 100% of CLI actions have native handlers and the required story
   coverage; 0 commands still routed to Python; 0 Python subprocesses outside an
   explicitly selected Python exercise.
+- **Incremental routing (2026-11-27, lead decision).** `careerbrew-native`
+  gained `crates/cbcli/src/routed.rs`: registry commands whose domain crate is
+  on `main` call that crate's own handler. The per-command rollback is the
+  rust-03 one (`CAREERBREW_ROUTE_<ACTION>=python`, `CAREERBREW_NATIVE=off`).
+  - Routed native now (6, all read-only): `machine.show`, `plugin.list`,
+    `plugin.verify`, `connectors.list` (rust-07), `data.status`,
+    `backup.verify` (rust-06). With `actions` (rust-03): 7 of 252 actions.
+  - A routed run exits 64, and Python runs the command, when: the argv is not
+    the bare two-word form; the data root does not resolve as Python resolves
+    it; a `privacy.redact` input exists (`sensitive-terms.txt`,
+    `profile.yaml`, `plugins.lock.json`); the domain handler returns an error;
+    or (`data.status`, `backup.verify`) `HOME` or `CAREERBREW_KEY_FILE` is in a
+    form `pathlib` would fold when it prints it (`//`, `/./`, a trailing `/`).
+    The console script logs `cli.native_unsupported` for each refusal.
+  - Like the pilot, a routed run writes the `cli.run` row and never calls
+    `telemetry.maybe_send` (decision 0010).
+  - Proof: `crates/cbcli/tests/parity.rs` checks every registry action has one
+    route line, every `native` route has a native handler, and each routed
+    command in 10 synthetic homes (empty, labelled, corporate, plaintext and
+    encrypted connectors, a backup, a plugin, a redaction input, a malformed
+    `machine.yaml`, a doubled-slash key path): 60 cases. Each case compares
+    stdout, exit code, data-root files and event rows of the console script
+    (committed routes) and of the binary (when it serves) with
+    `CAREERBREW_NATIVE=off`. Negative controls: a planted corporate/personal
+    difference, an extra flag and the folded key path are refused or caught.
+  - Measurement: baseline and measure: pending the batched hosted run (owner
+    decision 2026-11-27). This is ahead of the activation rule above, which
+    asks for a measured activation closure before a switch: the rollback
+    stays the guard until then.
+  - Remaining commands by the step that owns their handler (count of actions;
+    the domain crate is on `main` for rust-02 to rust-14):
+
+    | Step | Actions | Native | Still Python, and why |
+    | --- | --- | --- | --- |
+    | rust-02 | 3 | 0 | `config.*`: no native handler yet (purevec has only value vectors) |
+    | rust-03 | 1 | 1 | none |
+    | rust-04 | 8 | 0 | `approvals.*`, `privacy.scan`, `draft.route`, `draft.judge`: the policy crate has decisions, not handlers |
+    | rust-05 | 2 | 0 | `data.edit`, `secret.set`: handlers exist; they need a terminal and an editor, so the parity harness does not cover them yet |
+    | rust-06 | 7 | 2 | `backup.create`, `backup.restore`, `pair.join`, `sync.export`, `sync.import`: writers; handlers exist, parity cases not written |
+    | rust-07 | 11 | 4 | `init`, `plugin.add`, `plugin.remove`, `plugin.refresh`, `machine.set`, `machine.split-plugin-evidence`, `pair.init`: writers; handlers exist, parity cases not written |
+    | rust-08 | 1 | 0 | `connect`: network and secrets |
+    | rust-09 | 6 | 0 | `work.priority.*`, `work.task-set`, `work.impact`, `work.done`: component only, no CLI adapter |
+    | rust-10 | 9 | 0 | `work.agent.*`, `work.claim.*`, `draft.fit`, `draft.replace`, `draft.show`, `draft.check`: component only |
+    | rust-12 | 14 | 0 | `learn.*`: component only |
+    | rust-13 | 15 | 0 | `work.feed.*`, `work.team.*`: component only |
+    | rust-14 | 10 | 0 | `work.live.*`, `work.review-ask`, `notify.*`: component only |
+    | rust-15 | 5 | 0 | `work.session.*`: domain not merged |
+    | rust-16 | 10 | 0 | `day.check`, `day.start`, `day.history`, `day.end`, `day.wrap`, `day.question.*`, `day.loop`: not merged |
+    | rust-17 | 26 | 0 | `work.promise.*`, `work.task`, most `day.*`: not merged |
+    | rust-18 | 9 | 0 | `work.standup`, `work.note`, `work.gaps`, `work.plan`, `work.linkedin`, `ladder.*`, `day.pm-grade`: not merged |
+    | rust-19 | 18 | 0 | `jobs.*`, `interview`, `research.*`, `interview-patterns`, `prep.*`, `mail.scan`: not merged |
+    | rust-20 | 11 | 0 | `cards.*` (but `cards.publish`), `import.notion`, `library.*`: not merged |
+    | rust-21 | 10 | 0 | `goals.*`, `teach.*`, `drill.*` (but `drill.speak`, `drill.progress`): not merged |
+    | rust-22 | 4 | 0 | `exercises.*`: not merged |
+    | rust-23 | 1 | 0 | `drill.speak`: not merged |
+    | rust-24 | 55 | 0 | `metrics.*`, `time.baseline`, `telemetry.*`, `checklist`, `signals`, `checkup`, `cards.publish`, `drill.progress`, `work.collect`, `work.project.*`, `work.focus`, `work.promo`, `data.encrypt`, `data.decrypt`, `data.set`, `data.show`, `plugin.new`, `report.*`, `changes`, `machine.new-user`, `machine.ready`, `day.send`, `day.plan`, `day.update`, `day.render`, `review`: not merged |
+    | rust-25 | 4 | 0 | `start`, `open`, `serve`, `web.rotate-token`: not merged |
+    | no owner | 12 | 0 | `indie.*`, `peer.*`: their handlers (`cmd_indie`, `cmd_peer`) are in no step's handler list; a plan change must assign them |
 
 ### rust-27: Port developer tools, test harnesses, installers and release checks
 
@@ -2980,6 +3406,23 @@ the crate until the rust-05 and rust-07 closure is native, so
   | `rust-27d` evals | 39 | `rust-23` (judge adapters) | Port `evals/run.py` and `run.sh` orchestration. Keep the cases, the rubric and the owner labels as data. | eval agreement and owner-label checks match the Python run |
   | `rust-27e` CI workflows | 3 | `rust-27a` to `rust-27d` | Switch the hosted jobs to the native commands. Keep the required check names `gate (ubuntu-24.04)`, `gate (macos-15)` and `public-readiness`. | the three hosted checks are green without Python |
 
+- **Component pre-registration (2026-11-27):** the native tools that
+  already landed run behind their scripts, and one more tool is ported.
+  Hypothesis: every wrapper gives the same stdout, stderr and exit code
+  through the native path and the old path, and the native
+  `learnings-table` matches the Python script on every differential case.
+  Measurement: `cargo test -p careerbrew-xtask --test native_dispatch
+  --test learnings_table`. Success: 100% of cases agree and the planted
+  script change fails. Pivot: any disagreement keeps that script on its old
+  code. Baseline and measure: pending the batched hosted run (owner
+  decision 2026-11-27).
+- **State (2026-11-27):** `scripts/input-key.sh`, `scripts/check-docs.sh`
+  and US-72 (`scripts/browser-test-receipts.sh`) run the native tool when
+  `target/debug/careerbrew-xtask` is current, and the old code otherwise.
+  `scripts/leak-check.sh` stays on Python: the native scan reads a
+  plaintext terms file, and the terms live in encrypted data (rust-04,
+  rust-05, rust-07). `cargo xtask learnings-table` is ported but not yet
+  behind the `learnings` gate step.
 - **Inputs:** `scripts/`, `hooks/`, `evals/run.py`, `evals/run.sh`,
   `tests/unit/`, `tests/e2e/`, `lefthook.yml`, `INSTALL.md`, the hosted CI
   workflows.
@@ -3122,12 +3565,22 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | `crates/setup/` | `careerbrew-setup` | the rust-07 plugin, machine, OAuth reference, MCP repair, self-update and workflow component, with all eleven owned handler adapters; synthetic `setup-component` transport only | none: component parity only |
 | `crates/sources/` | `careerbrew-sources` | the rust-08 bounded recorded HTTP, source cursor, calendar recurrence, mail metadata and `connect` component; synthetic `sources-component` transport only | none: component parity only |
 | `crates/projects/` | `careerbrew-projects` | the rust-09 project lifecycle, readiness, priority, promise, focus, team and four-handler CLI component; synthetic `projects-component` transport only | none: component parity only |
+| `crates/reports/` | `careerbrew-reports` | the rust-24 report, chart, checklist, field telemetry, repo health and time-saved component; synthetic `reports-component` transport only | none: component parity only |
 | `crates/sessions/` | `careerbrew-sessions` | the rust-10 session, claim, agent activity, prior-selection, reply-draft and six-handler CLI component; synthetic `sessions-component` transport only | none: component parity only |
 | `crates/memory/` | `careerbrew-memory` | the rust-11 source identity, project import, memory sync and component CLI adapters; synthetic `memory-component` transport only | none: component parity only |
 | `crates/learn/` | `careerbrew-learn` | the rust-12 learning, project-scoped FSRS, replay, tour, explainer, PRD and CLI component; synthetic `learn-component` transport only | none: component parity only |
 | `crates/feed/` | `careerbrew-feed` | the rust-13 recorded feed readers, original/analysis transactions, raw replies, Claude/Codex transcript normalization, open asks, cycle and CLI component; synthetic `feed-component` transport only | none: component parity only |
 | `crates/live/` | `careerbrew-live` | the rust-14 live-cycle, acquisition/direct health, listening, reviewer and notification component; synthetic `live-component` transport only | none: component parity only |
+| `crates/tutor/` | `careerbrew-tutor` | the rust-20 FSRS, card, public-deck, Notion, shared-provider, mistake and installed-plugin resource component; synthetic `tutor-component` transport and shared migration registration only | none: component parity only |
+| `crates/jobs/` | `careerbrew-jobs` | the rust-19 ATS boards, criteria, want ratings and learned weights, LinkedIn alert postings and corporate-role guard component; synthetic `jobs-component` transport only | none: component parity only |
 | `crates/workday/` | `careerbrew-workday` | the rust-15 canonical status, question, step, stage and `work.session` component, with typed review and canonical Agentfile provider seams; synthetic `workday-component` transport only | none: component parity only |
+| `crates/workexec/` | `careerbrew-workexec` | the rust-16 step proofs, timeouts and retries, step timing, loop records, pass lock, supplied watch pass, catch-up claim, wrap-up control and goal/cron warning; synthetic `workexec-component` transport only | none: component parity only |
+| `crates/day/` | `careerbrew-day` | the rust-17 first slice: results records, end-of-day handoff, sent-PM receipts and PM lessons, a CPython `SequenceMatcher` port, and a typed sent-Tomorrow `PromiseRecorder` seam; synthetic `day-component` transport only | none: component parity only |
+| `crates/career/` | `careerbrew-career` | the rust-18 slice 1 evidence tags and notes, promotion assessment and document, ladder grading and LinkedIn block component; synthetic `career-component` transport only | none: component parity only |
+| `crates/exercises/` | `careerbrew-exercises` | the rust-22 exercise runner core: sandboxed child lifecycle, limits, CPU-time scaling, complexity decision, comparison modes, grading and validation; synthetic `exercises-component` transport, `exercise-fixture-runner` and shared migration registration only | none: component parity only |
+| `crates/web/` | `careerbrew-web` | the rust-25 native web front, binary `web-component`: the host, token and cookie checks, `/api/session*`, security headers, `/api/changes`, `/api/tab-key` and static files, with every other route forwarded to a private `careerbrew serve` through the per-route owner table `server::ROUTES`; `--all` runs the synthetic differential cases | none: opt-in only (`careerbrew config set web_server native` with `CAREERBREW_WEB_BIN`); setup does not rebuild it |
+| `crates/teacher/` | `careerbrew-teacher` | the rust-21 goals, teacher next-step and completion, local-day, feedback, improvement and draft component behind typed runner, loops and re-plan seams; synthetic `teacher-component` transport only | none: component parity only |
+| `crates/voice/` | `careerbrew-voice` | the rust-23 model routes, route policy, eval judge, labels, agreement and speech-to-text component; synthetic `voice-component` transport and shared migration registration only | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
@@ -3153,9 +3606,10 @@ The tool has no `--help`. A wrong argument prints the usage and exits 2.
 | Command | What it does |
 | --- | --- |
 | `cargo xtask leak-check [--staged] [--repo <dir>] --terms-file <file>` | rust-27b slice 1 (`xtask/src/leak_check.rs`): the native port of the repo scan behind `scripts/leak-check.sh` (`privacy.scan_repo` and the `cmd_privacy_scan` output). Same inputs (staged blobs from the cached raw diff, then tracked working files unless `--staged`), the same `private/` path rule, term matching (NFKC, zero-width removal, separators and leetspeak for terms of 5+ characters), the same `LEAK` and summary lines with term ids only, and exit 0 clean or 1 on a finding; 2 is a usage or terms-file error. Differences, so the wrapper still runs Python: terms come from a plaintext file, not the encrypted data root, profile and plugins (rust-04, rust-05, rust-07); a staged visual snapshot PNG is `scan-incomplete` (its validated pixel scan is a later slice); no `--file` or `--show`. Tests: `xtask/tests/leak_check.rs`. |
-| `cargo xtask input-key [--repo <dir>] [--] [pathspec...]` | rust-27 slice 2 (`xtask/src/input_key.rs`): the native port of `scripts/input-key.sh`, the gate step cache key. The same steps: refuse a folder outside a checkout, drop the variables `git rev-parse --local-env-vars` names, copy the index with its mtime, record modified and untracked non-ignored files with `update-index --info-only`, then print the first 16 hex characters of a SHA-1 over `git ls-files -s` (with pathspecs: the pathspecs one per line first, then the matching files). Exit 0 with the key, 1 with no output on any git error, 2 on usage. `--repo` replaces the script's own checkout. Gaps, so the wrapper still runs the script: the script's last pipeline can print a key and exit nonzero when the final `ls-files` fails, while the native command prints nothing; a pathspec starting with `--repo` or `--` must follow a `--`; a leading `--` is a separator natively, while the script hashes it as a pathspec line and passes it to git (`scripts/check.sh` never passes one; pinned by `a_leading_double_dash_is_a_separator_only_natively`). The default repo is the build checkout (`CARGO_MANIFEST_DIR/..`), so a copied binary needs `--repo`. Tests: `xtask/tests/input_key.rs`. |
-| `cargo xtask check-docs [--repo <dir>]` | rust-27b slice 3 (`xtask/src/check_docs.rs`): the native port of `scripts/check-docs.sh`, the docs drift check. The same three checks and the same lines: each `docs/*.md` but `README.md` has a `(<name>)` link in `docs/README.md`; each `tests/e2e/us-*` path that `docs/user-stories.md` names exists; each regular file `tests/e2e/us-*` is named there and names its own story id. Exit 0 with `check-docs: docs match the code`, 1 on drift, 2 on usage. It reads files only. The script's `grep` patterns use the platform's POSIX basic regular expression engine, including `[`, `*`, `^`, `$` and backslash; names sort bytewise, like the script under `LC_ALL=C`. Missing-index and malformed-BRE grep diagnostics go to stderr. Tests compare exact stdout, stderr and exit status in synthetic repos, including unclosed `[` and a trailing backslash. The script stays the gate entry point in this slice; no production activation changes. The default repo is the build checkout, so a copied binary needs `--repo`. Tests: `xtask/tests/check_docs.rs`. |
-| `cargo xtask browser-test-receipts <discovery.json> <execution.json>` | rust-27b slice 4 (`xtask/src/browser_test_receipts.rs`): the native component port of `scripts/browser-test-receipts.py`. It requires identical nonempty unique `(spec id, projectId)` sets (10,000 identities and 256 Python code points maximum), expected passed execution with exactly one passed result at retry 0, and the Python script's exact stdout, stderr and exit 0/1 behavior. A linear lexical adapter leaves valid surrogate pairs and literal non-BMP text to maintained serde_json, reversibly tags lone surrogates and sentinel literals, and rejects container nesting above 900 before parsing. Serde's `unbounded_depth` parser and recursive `Value` drop run on a 64 MiB worker stack; only flat identities cross the join. Identities compare and sort as Python code-point sequences. `CAREERBREW_BROWSER_RECEIPT` writes sorted version-1 identities with CPython `ensure_ascii` escaping (including lone surrogates and surrogate pairs) through a mode-0600 temporary file and atomic no-clobber hard link; existing files and symlinks stay untouched and temporary files are removed. Differential and filesystem controls include accepted depths 128/200/800 on both engines, native fail-closed refusal at 2,000 with hosted CPython acceptance, native-only hostile-input refusal at 20,000, native total-depth 900 acceptance and 901 refusal with CPython accepting both boundary inputs, lone and paired surrogates, literal non-BMP, sentinel/collision near-misses, sorting and exact receipt bytes: `xtask/tests/browser_test_receipts.rs`. The Python script remains the US-72 entry point; no activation changes. |
+| `cargo xtask input-key [--repo <dir>] [--] [pathspec...]` | rust-27 slice 2 (`xtask/src/input_key.rs`): the native port of `scripts/input-key.sh`, the gate step cache key. The same steps: refuse a folder outside a checkout, drop the variables `git rev-parse --local-env-vars` names, copy the index with its mtime, record modified and untracked non-ignored files with `update-index --info-only`, then print the first 16 hex characters of a SHA-1 over `git ls-files -s` (with pathspecs: the pathspecs one per line first, then the matching files). Exit 0 with the key, 1 with no output on any git error, 2 on usage. `--repo` replaces the script's own checkout. Gaps, so the wrapper still runs the script: the script's last pipeline can print a key and exit nonzero when the final `ls-files` fails, while the native command prints nothing; a pathspec starting with `--repo` or `--` must follow a `--`; a leading `--` is a separator natively, while the script hashes it as a pathspec line and passes it to git (`scripts/check.sh` never passes one; pinned by `a_leading_double_dash_is_a_separator_only_natively`). The default repo is the build checkout (`CARGO_MANIFEST_DIR/..`), so a copied binary needs `--repo`. Tests: `xtask/tests/input_key.rs`. Since 2026-11-27 `scripts/input-key.sh` runs it with `--repo` when `target/debug/careerbrew-xtask` is current (newer than `xtask/src`, `xtask/Cargo.toml`, `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml` and `crates/{vault,setup,policy}`), except for a leading `--`; `CAREERBREW_NATIVE_TOOLS=0` forces the script, `CAREERBREW_XTASK_BIN` names a binary to use as is. Parity and selection: `xtask/tests/native_dispatch.rs`. |
+| `cargo xtask check-docs [--repo <dir>]` | rust-27b slice 3 (`xtask/src/check_docs.rs`): the native port of `scripts/check-docs.sh`, the docs drift check. The same three checks and the same lines: each `docs/*.md` but `README.md` has a `(<name>)` link in `docs/README.md`; each `tests/e2e/us-*` path that `docs/user-stories.md` names exists; each regular file `tests/e2e/us-*` is named there and names its own story id. Exit 0 with `check-docs: docs match the code`, 1 on drift, 2 on usage. It reads files only. The script's `grep` patterns use the platform's POSIX basic regular expression engine, including `[`, `*`, `^`, `$` and backslash; names sort bytewise, like the script under `LC_ALL=C`. Missing-index and malformed-BRE grep diagnostics go to stderr. Tests compare exact stdout, stderr and exit status in synthetic repos, including unclosed `[` and a trailing backslash. The script stays the gate entry point; since 2026-11-27 it runs the native command with `--repo` when the built binary is current (the same rule as `input-key`). No production activation changes. The default repo is the build checkout, so a copied binary needs `--repo`. Tests: `xtask/tests/check_docs.rs`, `xtask/tests/native_dispatch.rs`. |
+| `cargo xtask browser-test-receipts <discovery.json> <execution.json>` | rust-27b slice 4 (`xtask/src/browser_test_receipts.rs`): the native component port of `scripts/browser-test-receipts.py`. It requires identical nonempty unique `(spec id, projectId)` sets (10,000 identities and 256 Python code points maximum), expected passed execution with exactly one passed result at retry 0, and the Python script's exact stdout, stderr and exit 0/1 behavior. A linear lexical adapter leaves valid surrogate pairs and literal non-BMP text to maintained serde_json, reversibly tags lone surrogates and sentinel literals, and rejects container nesting above 900 before parsing. Serde's `unbounded_depth` parser and recursive `Value` drop run on a 64 MiB worker stack; only flat identities cross the join. Identities compare and sort as Python code-point sequences. `CAREERBREW_BROWSER_RECEIPT` writes sorted version-1 identities with CPython `ensure_ascii` escaping (including lone surrogates and surrogate pairs) through a mode-0600 temporary file and atomic no-clobber hard link; existing files and symlinks stay untouched and temporary files are removed. Differential and filesystem controls include accepted depths 128/200/800 on both engines, native fail-closed refusal at 2,000 with hosted CPython acceptance, native-only hostile-input refusal at 20,000, native total-depth 900 acceptance and 901 refusal with CPython accepting both boundary inputs, lone and paired surrogates, literal non-BMP, sentinel/collision near-misses, sorting and exact receipt bytes: `xtask/tests/browser_test_receipts.rs`. US-72 calls `scripts/browser-test-receipts.sh` since 2026-11-27: it runs the native command when the built binary is current (the same rule as `input-key`) and the Python script otherwise; no product activation changes. |
+| `cargo xtask learnings-table [--repo <dir>] [--check]` | rust-27b slice 5 (`xtask/src/learnings_table.rs`): the native port of `scripts/learnings-table.py` without `--split`. The table mode prints every `docs/learnings/<date>-<slug>.md` file as one Markdown table, newest first, with skipped files on stderr; `--check` prints each format problem, the stray `docs/learnings.md` rows and a summary line, and exits 1 on a problem. It keeps Python's `splitlines` breaks, `strip` whitespace (U+001C to U+001F too), the name pattern's `$` before one final newline, the bare-pipe escape, `[:60]` in code points and the date-then-name sort. Known gaps, so the gate step still runs Python: non-ASCII decimal digits in a name's date give a name problem natively and a date problem in Python; a file that is not UTF-8, a non-UTF-8 name, or a folder with a learning's name prints one short stderr line natively where Python prints a traceback (stdout and exit code agree, pinned by a test). Differential controls over synthetic repos, with a planted script change that must fail: `xtask/tests/learnings_table.rs`. |
 | `cargo xtask migration self-test` | runs the 8 paired-verdict controls, the 6 trial-planner controls, the 3 planted slow-path decide controls and the 7 vector-step controls (5 compare, a planted home write, the step registry), all on synthetic data |
 | `cargo xtask migration inventory --check` | checks that every tracked direct code path in the staged Git index has exactly one row in the [code inventory](plans/2026-11-01-rust-code-inventory.csv) plus every staged fragment in [`plans/rust-inventory.d/`](plans/rust-inventory.d/README.md) (sorted by name, no header; a path in two files is refused), then runs the `--sites-check` below |
 | `cargo xtask migration inventory --sites-check` | discovers embedded code and generated entry points in the staged Git index and checks each against the [embedded sites](plans/2026-11-17-rust-embedded-sites.csv); an unassigned site, a row whose site is gone, a repeated row or a bad task is refused |
@@ -3962,6 +4416,8 @@ row stays, but it means the **dispatcher**, not the handlers:
 - `tests/fixtures/standup/` (2): `extra.json`, `proof.json`
 - CLI handlers it ports out of `cli.py` (9): `cmd_day_pm_grade`, `cmd_ladder_import`, `cmd_ladder_levels`, `cmd_ladder_list`, `cmd_work_gaps`, `cmd_work_linkedin`, `cmd_work_note`, `cmd_work_plan`, `cmd_work_standup`
 - Assertions it ports (24 test files, the files themselves are listed under `rust-27`): `us-10-plan.sh`, `us-23-day-watch.sh`, `us-28-ladder-import.sh`, `us-30-hot-reload.sh`, `us-95-standup-proofs.sh`, `test_connectors_machines.py`, `test_focus.py`, `test_hot_reload.py`, `test_issue_200.py`, `test_issue_214.py`, `test_issue_214_why.py`, `test_issue_216.py`, `test_issue_307.py`, `test_issue_315.py`, `test_issue_331.py`, `test_issue_336.py`, `test_issue_338.py`, `test_issue_52.py`, `test_issue_72.py`, `test_issue_73.py`, `test_linkedin.py`, `test_pm_sent_reconciliation.py`, `test_promo_matching.py`, `test_split_plugin_evidence.py`
+
+- Native crate it adds (`port` in the inventory): `crates/career/` (`lib.rs`, `py.rs`, `when.rs`, `evidence.rs`, `promo.rs`, `ladder_grade.rs`, `linkedin.rs`, `synthetic.rs` and `bin/career-component.rs`), plus `tests/oracles/rust18.py`, `tests/unit/test_rust18_component.py`, `xtask/src/rust18.rs` and `xtask/tests/rust18.rs`. `standup.py` and `tests/fixtures/standup/` are not ported yet.
 
 #### rust-19: Port job search, interview prep and public research (13 files)
 

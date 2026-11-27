@@ -9,11 +9,11 @@ node	calendar.now	rust-02	src/careerbrew/calendar.py	48
 node	calendar.now_utc	rust-02	src/careerbrew/calendar.py	57
 node	cli.main	rust-26	src/careerbrew/cli.py	5076
 node	cli.may_show_business	rust-26	src/careerbrew/cli.py	56
-node	config._file	rust-05	src/careerbrew/config.py	268
-node	config.effective	rust-05	src/careerbrew/config.py	278
-node	config.get	rust-05	src/careerbrew/config.py	272
-node	config.set_value	rust-05	src/careerbrew/config.py	285
-node	config.unset	rust-05	src/careerbrew/config.py	300
+node	config._file	rust-05	src/careerbrew/config.py	269
+node	config.effective	rust-05	src/careerbrew/config.py	279
+node	config.get	rust-05	src/careerbrew/config.py	273
+node	config.set_value	rust-05	src/careerbrew/config.py	286
+node	config.unset	rust-05	src/careerbrew/config.py	301
 node	config_io.read_settings	rust-05	src/careerbrew/config_io.py	20
 node	config_io.write_settings	rust-05	src/careerbrew/config_io.py	25
 node	events.emit	rust-05	src/careerbrew/events.py	46
@@ -39,10 +39,10 @@ node	vault.decode	rust-05	src/careerbrew/vault.py	111
 node	vault.encode	rust-05	src/careerbrew/vault.py	106
 node	vault.open_bytes	rust-05	src/careerbrew/vault.py	89
 node	vault.seal_bytes	rust-05	src/careerbrew/vault.py	85
-cross	config._file	config_io.read_settings	269	config_io.read_settings(
-cross	config.set_value	config_io.write_settings	295	config_io.write_settings(
-cross	config.set_value	events.emit	296	events.emit("config.set"
-cross	config.unset	config_io.write_settings	304	config_io.write_settings(
+cross	config._file	config_io.read_settings	270	config_io.read_settings(
+cross	config.set_value	config_io.write_settings	296	config_io.write_settings(
+cross	config.set_value	events.emit	297	events.emit("config.set"
+cross	config.unset	config_io.write_settings	305	config_io.write_settings(
 cross	vault._fernet	backup.load_key	44	backup.load_key(create=True)
 cross	vault._key	backup.key_path	50	backup.key_path()
 cross	vault.open_bytes	backup.key_path	103	backup.key_path()
@@ -67,10 +67,10 @@ cross	config_io.read_settings	store.read_yaml	22	store.read_yaml(
 cross	config_io.write_settings	store.write_yaml	26	store.write_yaml(
 cross	backup.key_path	keyfile.key_path	33	keyfile.key_path(
 cross	backup.load_key	keyfile.load_key	37	keyfile.load_key(
-local	config.get	config._file	275	_file()
-local	config.effective	config._file	279	_file()
-local	config.set_value	config._file	293	_file()
-local	config.unset	config._file	302	_file()
+local	config.get	config._file	276	_file()
+local	config.effective	config._file	280	_file()
+local	config.set_value	config._file	294	_file()
+local	config.unset	config._file	303	_file()
 local	vault._key	vault._fernet	55	_fernet(str(path))
 local	vault.encode	vault.seal_bytes	108	seal_bytes(raw)
 local	vault.decode	vault.open_bytes	112	open_bytes(raw, create_key=create_key)
@@ -90,7 +90,7 @@ local	store.write_json	store.write_text	104	write_text(path,
 local	calendar.now_utc	calendar.now	59	now()
 local	calendar.now	calendar.local_tz	54	local_tz()
 local	keyfile.load_key	keyfile.key_path	27	key_path()
-unresolved	config.set_value	289	DEFAULTS[key][1](raw)	setting registry selects a validator
+unresolved	config.set_value	290	DEFAULTS[key][1](raw)	setting registry selects a validator
 unresolved	cli.main	5090	args.fn(args)	parser selects the command implementation
 unresolved	vault._fernet	40	@lru_cache(maxsize=4)	module cache controls whether key loading executes
 unresolved	cli.may_show_business	57	sys.stdout.isatty() or _owner_ui()	terminal and request context control whether plugin policy runs

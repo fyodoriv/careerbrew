@@ -1,0 +1,2 @@
+scripts/migration-records.sh,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here
+tests/unit/test_migration_records.py,port,rust-27,Port each assertion/helper with its domain slice; retire remaining harness here

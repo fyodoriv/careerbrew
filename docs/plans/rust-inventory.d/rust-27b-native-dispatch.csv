@@ -1,0 +1,4 @@
+xtask/src/learnings_table.rs,keep-native,rust-00,rust-27b slice 5: native table and format check of scripts/learnings-table.py (no --split); not yet behind the learnings gate step
+xtask/tests/learnings_table.rs,keep-native,rust-00,Python and Rust differential controls for the learnings table and check in synthetic repos
+xtask/tests/native_dispatch.rs,keep-native,rust-00,Parity and selection controls for the wrapper scripts that run the current native xtask tools
+scripts/browser-test-receipts.sh,port,rust-27,US-72 wrapper: runs the current native receipts check or scripts/browser-test-receipts.py

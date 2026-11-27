@@ -1,0 +1,7 @@
+{
+  "loops": {
+    "SynCo": ["technical-phone-screen", "system-design", "behavioral"],
+    "QuietCo": ["recruiter-screen"],
+    "DesignCo": ["system-design", "bar-raiser"]
+  }
+}

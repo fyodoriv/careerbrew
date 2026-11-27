@@ -195,6 +195,7 @@ DEFAULTS: dict[str, tuple[Any, Any, str]] = {
     "web_cache_seconds": (300, _int(0, 3600), "web views answer a repeat from memory until a data file, a setting, or the clock changes, at most this long (calendar feeds); 0: off"),
     "web_token_max_days": (30, _int(1, 365), "the web app's sign-in token lasts this many days across restarts, then the next `careerbrew open` makes a new one (`careerbrew web rotate-token` does it now)"),
     "web_tab_cache": (True, _bool, "each browser tab keeps the last data of every view it showed, encrypted with a key only the running app holds, so a reload shows it at once (off: memory only, a reload loads again)"),
+    "web_server": ("python", _choice("python", "native"), "which program serves the web app: python (the default) or native (the opt-in rust-25 front, which passes views it has not ported to Python)"),
     "start_watch": (True, _bool, "`careerbrew` with no arguments turns the day watcher on"),
     "start_web": (True, _bool, "`careerbrew` with no arguments starts the web app in the background"),
     "questions_per_day": (5, _int(0, 50), "most open questions careerbrew asks at once"),

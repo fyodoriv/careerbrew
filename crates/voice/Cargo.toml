@@ -1,0 +1,22 @@
+[package]
+name = "careerbrew-voice"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+careerbrew-vault = { path = "../vault" }
+careerbrew-setup = { path = "../setup" }
+careerbrew-policy = { path = "../policy" }
+careerbrew-feed = { path = "../feed" }
+careerbrew-tutor = { path = "../tutor" }
+serde_json = { version = "=1.0.154", features = ["arbitrary_precision"] }
+regex = "=1.13.2"
+sha2 = "=0.10.9"
+tempfile = "=3.23.0"
+libc = "=0.2.191"
+
+[[bin]]
+name = "voice-component"
+path = "src/bin/voice-component.rs"

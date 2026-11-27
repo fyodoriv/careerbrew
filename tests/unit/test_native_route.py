@@ -51,11 +51,15 @@ def route(home, tmp_path, monkeypatch):
     return Route()
 
 
-def test_the_committed_route_file_routes_only_actions_native():
-    """rust-03 activated: `actions` is native by default; every other action stays python."""
+# rust-03 activated `actions`; rust-26 activated the read-only rust-06 and rust-07 commands whose end-to-end parity
+# test passes (crates/cbcli/tests/parity.rs). Every other action stays python.
+NATIVE_BY_DEFAULT = {"actions", "machine.show", "plugin.list", "plugin.verify", "connectors.list", "data.status", "backup.verify"}
+
+
+def test_the_committed_route_file_routes_only_the_parity_tested_actions_native():
     routes = cli._native_routes()
-    assert routes["actions"] == "native"
-    assert {v for k, v in routes.items() if k != "actions"} == {"python"}
+    assert {k for k, v in routes.items() if v == "native"} == NATIVE_BY_DEFAULT
+    assert {v for k, v in routes.items() if k not in NATIVE_BY_DEFAULT} == {"python"}
     assert cli.NATIVE_ROUTES == ROOT / "config" / "native-routes.txt"
 
 

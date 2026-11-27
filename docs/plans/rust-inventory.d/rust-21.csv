@@ -1,0 +1,17 @@
+tests/oracles/rust21.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-21 differential gate
+tests/unit/test_rust21_component.py,keep-native,rust-00,rust-21 native component byte parity local-day and planted UTC-day assertions
+tests/fixtures/rust21/runner.json,port,rust-21,Synthetic exercise runner outcomes and grades for the rust-22 seam
+tests/fixtures/rust21/loops.json,port,rust-21,Synthetic interview loop steps for the rust-19 seam
+tests/fixtures/rust21/exercises/syn-001.yaml,port,rust-21,Synthetic arrays and hashing exercise with pitfalls hints and tests
+tests/fixtures/rust21/exercises/syn-002.yaml,port,rust-21,Synthetic second arrays and hashing exercise for worked examples
+tests/fixtures/rust21/exercises/syn-003.yaml,port,rust-21,Synthetic two pointers exercise with an operations test
+tests/fixtures/rust21/exercises/syn-004.yaml,port,rust-21,Synthetic trees exercise for lesson ordering
+crates/teacher/Cargo.toml,keep-native,rust-00,Component-only teacher crate manifest
+crates/teacher/src/lib.rs,port,rust-21,Component-only context pinned clock and parent-creating reads
+crates/teacher/src/goals.rs,port,rust-21,Goal queue validation focus study blocks and corporate job-hunt guard
+crates/teacher/src/seams.rs,port,rust-21,Typed runner loops and planner seams with exercise catalog attempts and submit bookkeeping
+crates/teacher/src/teacher.rs,port,rust-21,Teacher next step completion local-day summary feedback improvements and drafts
+crates/teacher/src/synthetic.rs,port,rust-21,Synthetic teacher goals practice and mistake workload with planted controls
+crates/teacher/src/bin/teacher-component.rs,port,rust-21,Synthetic-only native teacher candidate entry point
+xtask/src/rust21.rs,port,rust-21,Differential registration with exact output semantic writes write counts and planted controls
+xtask/tests/rust21.rs,keep-native,rust-00,rust-21 registration evidence identity and planted write and UTC-day controls
