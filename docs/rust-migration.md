@@ -2811,6 +2811,64 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Gate:** 100% of CLI actions have native handlers and the required story
   coverage; 0 commands still routed to Python; 0 Python subprocesses outside an
   explicitly selected Python exercise.
+- **Incremental routing (2026-11-27, lead decision).** `careerbrew-native`
+  gained `crates/cbcli/src/routed.rs`: registry commands whose domain crate is
+  on `main` call that crate's own handler. The per-command rollback is the
+  rust-03 one (`CAREERBREW_ROUTE_<ACTION>=python`, `CAREERBREW_NATIVE=off`).
+  - Routed native now (6, all read-only): `machine.show`, `plugin.list`,
+    `plugin.verify`, `connectors.list` (rust-07), `data.status`,
+    `backup.verify` (rust-06). With `actions` (rust-03): 7 of 252 actions.
+  - A routed run exits 64, and Python runs the command, when: the argv is not
+    the bare two-word form; the data root does not resolve as Python resolves
+    it; a `privacy.redact` input exists (`sensitive-terms.txt`,
+    `profile.yaml`, `plugins.lock.json`); the domain handler returns an error;
+    or (`data.status`, `backup.verify`) `HOME` or `CAREERBREW_KEY_FILE` is in a
+    form `pathlib` would fold when it prints it (`//`, `/./`, a trailing `/`).
+    The console script logs `cli.native_unsupported` for each refusal.
+  - Like the pilot, a routed run writes the `cli.run` row and never calls
+    `telemetry.maybe_send` (decision 0010).
+  - Proof: `crates/cbcli/tests/parity.rs` checks every registry action has one
+    route line, every `native` route has a native handler, and each routed
+    command in 10 synthetic homes (empty, labelled, corporate, plaintext and
+    encrypted connectors, a backup, a plugin, a redaction input, a malformed
+    `machine.yaml`, a doubled-slash key path): 60 cases. Each case compares
+    stdout, exit code, data-root files and event rows of the console script
+    (committed routes) and of the binary (when it serves) with
+    `CAREERBREW_NATIVE=off`. Negative controls: a planted corporate/personal
+    difference, an extra flag and the folded key path are refused or caught.
+  - Measurement: baseline and measure: pending the batched hosted run (owner
+    decision 2026-11-27). This is ahead of the activation rule above, which
+    asks for a measured activation closure before a switch: the rollback
+    stays the guard until then.
+  - Remaining commands by the step that owns their handler (count of actions;
+    the domain crate is on `main` for rust-02 to rust-14):
+
+    | Step | Actions | Native | Still Python, and why |
+    | --- | --- | --- | --- |
+    | rust-02 | 3 | 0 | `config.*`: no native handler yet (purevec has only value vectors) |
+    | rust-03 | 1 | 1 | none |
+    | rust-04 | 8 | 0 | `approvals.*`, `privacy.scan`, `draft.route`, `draft.judge`: the policy crate has decisions, not handlers |
+    | rust-05 | 2 | 0 | `data.edit`, `secret.set`: handlers exist; they need a terminal and an editor, so the parity harness does not cover them yet |
+    | rust-06 | 7 | 2 | `backup.create`, `backup.restore`, `pair.join`, `sync.export`, `sync.import`: writers; handlers exist, parity cases not written |
+    | rust-07 | 11 | 4 | `init`, `plugin.add`, `plugin.remove`, `plugin.refresh`, `machine.set`, `machine.split-plugin-evidence`, `pair.init`: writers; handlers exist, parity cases not written |
+    | rust-08 | 1 | 0 | `connect`: network and secrets |
+    | rust-09 | 6 | 0 | `work.priority.*`, `work.task-set`, `work.impact`, `work.done`: component only, no CLI adapter |
+    | rust-10 | 9 | 0 | `work.agent.*`, `work.claim.*`, `draft.fit`, `draft.replace`, `draft.show`, `draft.check`: component only |
+    | rust-12 | 14 | 0 | `learn.*`: component only |
+    | rust-13 | 15 | 0 | `work.feed.*`, `work.team.*`: component only |
+    | rust-14 | 10 | 0 | `work.live.*`, `work.review-ask`, `notify.*`: component only |
+    | rust-15 | 5 | 0 | `work.session.*`: domain not merged |
+    | rust-16 | 10 | 0 | `day.check`, `day.start`, `day.history`, `day.end`, `day.wrap`, `day.question.*`, `day.loop`: not merged |
+    | rust-17 | 26 | 0 | `work.promise.*`, `work.task`, most `day.*`: not merged |
+    | rust-18 | 9 | 0 | `work.standup`, `work.note`, `work.gaps`, `work.plan`, `work.linkedin`, `ladder.*`, `day.pm-grade`: not merged |
+    | rust-19 | 18 | 0 | `jobs.*`, `interview`, `research.*`, `interview-patterns`, `prep.*`, `mail.scan`: not merged |
+    | rust-20 | 11 | 0 | `cards.*` (but `cards.publish`), `import.notion`, `library.*`: not merged |
+    | rust-21 | 10 | 0 | `goals.*`, `teach.*`, `drill.*` (but `drill.speak`, `drill.progress`): not merged |
+    | rust-22 | 4 | 0 | `exercises.*`: not merged |
+    | rust-23 | 1 | 0 | `drill.speak`: not merged |
+    | rust-24 | 55 | 0 | `metrics.*`, `time.baseline`, `telemetry.*`, `checklist`, `signals`, `checkup`, `cards.publish`, `drill.progress`, `work.collect`, `work.project.*`, `work.focus`, `work.promo`, `data.encrypt`, `data.decrypt`, `data.set`, `data.show`, `plugin.new`, `report.*`, `changes`, `machine.new-user`, `machine.ready`, `day.send`, `day.plan`, `day.update`, `day.render`, `review`: not merged |
+    | rust-25 | 4 | 0 | `start`, `open`, `serve`, `web.rotate-token`: not merged |
+    | no owner | 12 | 0 | `indie.*`, `peer.*`: their handlers (`cmd_indie`, `cmd_peer`) are in no step's handler list; a plan change must assign them |
 
 ### rust-27: Port developer tools, test harnesses, installers and release checks
 

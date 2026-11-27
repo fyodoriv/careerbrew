@@ -21,6 +21,7 @@ fn main() {
         stdout_is_terminal: std::io::stdout().is_terminal(),
         caps: events::Caps::from_env(get),
     };
+    careerbrew_cli::routed::export_home(&args, &env.caps);
     let outcome = run(&args, &env);
     let mut stdout = std::io::stdout().lock();
     if stdout
@@ -33,7 +34,11 @@ fn main() {
     drop(stdout);
     let _ = std::io::stderr().write_all(outcome.stderr.as_bytes());
     if outcome.emit_event {
-        events::emit(&env.caps, started.elapsed().as_millis() as u64);
+        let ms = started.elapsed().as_millis() as u64;
+        match careerbrew_cli::routed::command_of(&args) {
+            Some(command) => events::emit_command(&env.caps, command, outcome.code == 0, ms),
+            None => events::emit(&env.caps, ms),
+        }
     }
     std::process::exit(outcome.code);
 }
