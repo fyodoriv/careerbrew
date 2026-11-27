@@ -2734,6 +2734,18 @@ the crate until the rust-05 and rust-07 closure is native, so
   Local records: `.metrics/baseline-rust-20-cd9.json`,
   `.metrics/verify-rust-20-cd9.json`, `.metrics/measure-rust-20-cd9.json`,
   and `.metrics/decide-rust-20-cd9.json`.
+- **Review fixes (2026-11-27):** the final review found two defects that the
+  eight cases could not see. A private-card rewrite kept the old card, and
+  `missed` kept rubric order instead of sorted order. Both are fixed. The
+  oracle now grades one attempt partially and rewrites one private card, so
+  both cases are compared. The source changed after the recorded baseline and
+  measure, so those records are stale. They rerun in the batched hosted
+  measurement job (owner decision 2026-11-27).
+- **FSRS fuzz limit (2026-11-27):** the oracle turns off py-fsrs interval
+  fuzzing (`Scheduler(enable_fuzzing=False)`), and the Rust port has no fuzz.
+  Production Python fuzzes review intervals of 3 days or more. So the exact due
+  times hold only against the unfuzzed scheduler. Task `rust-followup-20`
+  ports the fuzz and compares fuzzed due times by range.
 - **Evidence limits:** HTTP, DATA and generic role contracts are explicitly
   scoped out of this component record; the domain's corporate-role refusal is
   covered. Python denial is environment-based. Cold differs only by missing

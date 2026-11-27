@@ -351,7 +351,13 @@ pub fn record(
         "topic": text(field(item, "topic")),
         "round": text(field(item, "round")),
         "met": met_set.iter().cloned().collect::<Vec<_>>(),
-        "missed": ids.iter().filter(|id| !met_set.contains(*id)).cloned().collect::<Vec<_>>(),
+        "missed": ids
+            .iter()
+            .filter(|id| !met_set.contains(*id))
+            .cloned()
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>(),
         "score": score,
         "rating": fsrs::rating_name(rating),
         "seconds": seconds,

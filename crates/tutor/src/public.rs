@@ -656,11 +656,13 @@ pub fn publish(
         )?;
     }
     if !new_private.is_empty() {
-        let mut cards = mine
-            .values()
-            .chain(new_private.values())
-            .cloned()
-            .collect::<Vec<_>>();
+        let mut by_id = mine.clone();
+        by_id.extend(
+            new_private
+                .iter()
+                .map(|(id, card)| (id.clone(), card.clone())),
+        );
+        let mut cards = by_id.into_values().collect::<Vec<_>>();
         cards.sort_by_key(|card| casefold(&text(field(card, "question"))));
         write_yaml(
             root,
