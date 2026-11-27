@@ -1,0 +1,2 @@
+crates/cbcli/tests/step_rust14.rs,keep-native,rust-00,native CLI parity cases for the rust14 step handlers (work live stop and notify list)
+crates/cbcli/tests/step_rust15.rs,keep-native,rust-00,native CLI parity cases for the rust15 step handler (work session handoff)
