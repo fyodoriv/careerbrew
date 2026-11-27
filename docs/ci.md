@@ -38,7 +38,7 @@ Each part runs `scripts/setup.sh`, then `scripts/check.sh` with
 - `RUST_TEST_SHARD=i/n` makes `rust-test` run one share of the Rust
   integration-test targets ([`scripts/rust-test-shard.py`](../scripts/rust-test-shard.py)).
   `cargo test --all` runs its test binaries one after another, and they were
-  79 to 87% of the old `native` part (see "Remote build cache"). The script
+  79 to 85% of the old `native` part's gate step on macOS (see "Remote build cache"). The script
   reads each target's usual seconds from `config/rust-test-weights.txt` and
   gives the heaviest target first to the share with the least weight so far.
   `@share-1-extra` counts the other steps of the `native` part. A target with
