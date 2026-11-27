@@ -45,7 +45,8 @@ fn run(mut cmd: Command) -> Output {
 
 fn same(root: &Path) -> Output {
     let mut s = Command::new("bash");
-    s.arg(root.join("scripts/check-docs.sh"));
+    s.arg(root.join("scripts/check-docs.sh"))
+        .env("CAREERBREW_NATIVE_TOOLS", "0");
     let script = run(s);
     let mut n = Command::new(XTASK);
     n.arg("check-docs").arg("--repo").arg(root);

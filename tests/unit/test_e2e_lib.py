@@ -108,7 +108,7 @@ def receipt_story_valid(lines: list[str]) -> bool:
     active = [line.strip() for line in lines if line.strip() and not line.lstrip().startswith("#")]
     direct = [line for line in active if "playwright test" in line and "--list" in line]
     count = 'total="$(unset CAREERBREW_HOME CAREERBREW_PUBLIC_CARDS; pw_total e2e)"'
-    compare = '"$ROOT/.venv/bin/python" "$ROOT/scripts/browser-test-receipts.py" "$SCRATCH/discovery.json" "$SCRATCH/execution.json" || fail "each discovered browser test passed once"'
+    compare = '"$ROOT/scripts/browser-test-receipts.sh" "$SCRATCH/discovery.json" "$SCRATCH/execution.json" || fail "each discovered browser test passed once"'
     return direct == [RECEIPT_DISCOVERY] and active.count(count) == 1 and active.count(compare) == 1
 
 
@@ -116,7 +116,7 @@ def test_receipt_discovery_exception_is_narrow():
     lines = [
         RECEIPT_DISCOVERY,
         'total="$(unset CAREERBREW_HOME CAREERBREW_PUBLIC_CARDS; pw_total e2e)"',
-        '"$ROOT/.venv/bin/python" "$ROOT/scripts/browser-test-receipts.py" "$SCRATCH/discovery.json" "$SCRATCH/execution.json" || fail "each discovered browser test passed once"',
+        '"$ROOT/scripts/browser-test-receipts.sh" "$SCRATCH/discovery.json" "$SCRATCH/execution.json" || fail "each discovered browser test passed once"',
     ]
     assert receipt_story_valid(lines)
     assert not receipt_story_valid(lines + [RECEIPT_DISCOVERY])
