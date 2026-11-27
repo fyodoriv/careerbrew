@@ -15,7 +15,7 @@ start python
 checklist python
 config.show python
 config.set python
-config.unset python
+config.unset native
 signals python
 checkup python
 jobs.scan python
@@ -56,10 +56,10 @@ goals.show python
 goals.set python
 goals.add-long-term python
 approvals.request python
-approvals.list python
-approvals.guidance python
-approvals.show python
-approvals.decide python
+approvals.list native
+approvals.guidance native
+approvals.show native
+approvals.decide native
 teach.next python
 teach.improvements python
 teach.feedback python
