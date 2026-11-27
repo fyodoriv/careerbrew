@@ -1,0 +1,27 @@
+id: syn-001
+order: 1
+pattern: arrays and hashing
+difficulty: easy
+title: Synthetic pair count
+statement: Count pairs in a synthetic list.
+function: pair_count
+signature: "def pair_count(nums):"
+lesson: Use a hash map to remember what you have seen.
+solution: "def pair_count(nums):\n    return len(nums) // 2\n"
+hints:
+  - Think about what you have already seen.
+  - A dictionary gives constant-time lookups.
+  - Count each value once.
+pitfalls:
+  edge-case: Check the empty list before the loop.
+  wrong-answer: Count pairs, not values.
+tests:
+  - args: [[1, 2, 3]]
+    expected: 1
+    note: basic
+  - args: [[]]
+    expected: 0
+    note: empty input
+  - args: [[5, 5, 5, 5]]
+    expected: 2
+    note: large values

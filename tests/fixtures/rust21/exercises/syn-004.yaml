@@ -1,0 +1,15 @@
+id: syn-004
+order: 4
+pattern: trees
+difficulty: hard
+title: Synthetic depth
+statement: Return the depth of a synthetic tree.
+function: depth
+signature: "def depth(root):"
+lesson: Recurse on both children.
+solution: "def depth(root):\n    return 0\n"
+hints: []
+tests:
+  - args: [null]
+    expected: 0
+    note: empty tree

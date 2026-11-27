@@ -1,0 +1,21 @@
+id: syn-003
+order: 3
+pattern: two pointers
+difficulty: easy
+title: Synthetic mirror check
+statement: Check whether a synthetic word reads the same both ways.
+function: mirror
+signature: "def mirror(word):"
+lesson: Move one pointer from each end toward the middle.
+solution: "def mirror(word):\n    return word == word[::-1]\n"
+hints:
+  - Compare the ends first.
+  - Move both pointers.
+pitfalls:
+  exception: Stop when the pointers meet.
+tests:
+  - ops: [["push", 1], ["check"]]
+    expected: [null, true]
+    note: one element
+  - args: ["ab"]
+    expected: false

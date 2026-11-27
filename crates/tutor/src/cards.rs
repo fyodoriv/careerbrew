@@ -166,7 +166,7 @@ pub fn all_cards(root: &Path, public_dir: &Path) -> Result<BTreeMap<String, Valu
     Ok(out)
 }
 
-fn with_explanation(root: &Path, public_dir: &Path, mut card: Value) -> Result<Value> {
+pub fn with_explanation(root: &Path, public_dir: &Path, mut card: Value) -> Result<Value> {
     let explanation =
         crate::public::explanation_for(root, public_dir, &text(field(&card, "question")))?;
     card["explanation"] = json!(explanation

@@ -2781,6 +2781,42 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Gate:** 100% of practice, goal and mistake vectors agree; 0 lost grades;
   0 UTC versus local-day count errors. Activation needs the `rust-19` +
   `rust-20` + `rust-21` + `rust-22` closure.
+- **Component pre-registration (2026-11-27):** source base
+  `96a01171ad8f0a6402c42f94b01a15c481300efe` (PR 232, rust-20); Python oracle
+  `tests/oracles/rust21.py`. Seven fixed synthetic cases drive the real
+  `goals`, `teacher`, `tutor.mistakes` and `tutor.cards` code:
+  - goal queue validation, the current goal, history, long-term goals, the
+    corporate job-hunt guard and `days_left`;
+  - `focus` for every goal kind, and `study_blocks` sizes, solved patterns and
+    the corporate block;
+  - local-day counting: steps stamped in UTC count by the settings zone's day,
+    with a process zone that differs from both;
+  - the whole `next_step` order with `complete` for every step kind:
+    approval, repeated mistake, lesson (not yet, confirmed), exercise (fail,
+    hints, worked example, solution after three, retry after three days),
+    card, validate (keep, fix, drop), resume (sent, skipped) and done;
+  - improvement signals, low-rated kinds, the "watch out" tips and drafts.
+  Steps that are not merged sit behind typed seams with synthetic providers
+  that both sides share: the exercise runner and grade (rust-22, PR 236),
+  interview loops (rust-19, PR 238) and the day re-plan. The exercise catalog
+  is the real loader over `tests/fixtures/rust21/exercises/`. Exact stdout
+  bytes, semantic write maps and per-phase write counts are compared. Only
+  owned paths, sealed-record bytes and the generated key are normalized; the
+  wall-clock step start is dropped from reports, and completed steps use a
+  future start so their timed seconds are 0. Planted controls: an extra write,
+  a missing write, and a UTC-day counting defect must each fail verify and
+  keep Python. Gate thresholds are the shared ones: 7/7 cases, zero
+  violations, and CPU-time p95 and process-tree peak RSS at most 1.10 x the
+  paired oracle in each regime. This is component parity only: production
+  dispatch, native routes, shipped crates and activation do not change.
+- **State (2026-11-27):** `crates/teacher` (`teacher-component`) passes verify
+  7/7 with zero violations on macOS, and its stdout is byte-identical to the
+  oracle. All three planted controls fail verify and `decide` keeps Python.
+  The port found one rust-20 defect: `mistakes.from_exercise` logged a
+  complexity mistake when a grade's `complexity` was null; it now follows
+  Python's falsy check. Baseline and measure: pending the batched hosted run
+  (owner decision 2026-11-27). Left as follow-ups: reconcile the seams with
+  rust-19 and rust-22, the CLI handlers, and the rust-20 card order.
 
 ### rust-22: Port exercise execution and complexity checks
 
