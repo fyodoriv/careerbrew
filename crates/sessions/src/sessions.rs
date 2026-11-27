@@ -149,7 +149,7 @@ fn prune(root: &Path, state: &mut Value) -> Result<()> {
     Ok(())
 }
 
-fn changing<T>(root: &Path, f: impl FnOnce(&mut Value) -> Result<T>) -> Result<T> {
+pub fn changing<T>(root: &Path, f: impl FnOnce(&mut Value) -> Result<T>) -> Result<T> {
     with_lock(root, || {
         let mut state = load(root)?;
         let before = state.clone();

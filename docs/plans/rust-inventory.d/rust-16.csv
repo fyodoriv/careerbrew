@@ -1,0 +1,14 @@
+tests/oracles/rust16.py,keep-native,rust-00,Synthetic Python oracle retained for the rust-16 differential gate
+tests/unit/test_rust16_component.py,keep-native,rust-00,rust-16 native work-day execution assertions and planted faults
+crates/workexec/Cargo.toml,keep-native,rust-00,Component-only work-day execution crate manifest
+crates/workexec/src/lib.rs,port,rust-16,Component-only clock settings day-file lock and Python time helpers
+crates/workexec/src/gate.rs,port,rust-16,Step proofs next actions overdue timeouts retries and plugin exec gate
+crates/workexec/src/timing.rs,port,rust-16,Step durations medians slow flags shown durations and history summary
+crates/workexec/src/watch.rs,port,rust-16,Loop records interval fingerprint pass lock supplied watch pass catch-up claim and loop end
+crates/workexec/src/end.rs,port,rust-16,Wrap-up window move hold phase view and non-writing clock tick
+crates/workexec/src/cron_check.rs,port,rust-16,Content-free host goal and session cron warning
+crates/workexec/src/synthetic.rs,port,rust-16,Synthetic gate timing loop pass catch-up and wrap-control workload
+crates/workexec/src/bin/workexec-component.rs,port,rust-16,Synthetic-only native work-day execution candidate entry point
+crates/workexec/tests/interleave.rs,keep-native,rust-00,rust-16 pass-lock race over 1000 interleavings
+xtask/src/rust16.rs,port,rust-16,rust-16 semantic differential runner and planted controls
+xtask/tests/rust16.rs,keep-native,rust-00,rust-16 registration evidence identity and planted controls
