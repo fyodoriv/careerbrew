@@ -2907,6 +2907,32 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native report and metric builders; the full `changes.check`.
 - **Gate:** 100% of report, metric and export contracts agree; 0 new public
   fields, content-bearing telemetry or missing long-run pages.
+- **Component pre-registration (2026-11-27):** source base
+  `fc24028fede8899426aa1c6e26ef3ed9354d1f46` (the rust-15 branch, PR 233).
+  The component registers `target/release/reports-component` (crate
+  `careerbrew-reports`) for a seven-case real Python differential workload:
+  `events.clean`, the telemetry allowlist and `to_event`, the public repo-health
+  export (`collect`, `validate`, `write_rows`) with the run summary readers of
+  `report.py`, time saved, field totals, chart markup and the checklist. It
+  reuses the native vault events, settings and canonical value code and the
+  policy leak scan; it never writes them twice. Typed seams take the machine
+  label (`field.MachineLabel`) and the checklist facts (`checklist::Facts`), so
+  the parallel rust-17, rust-18, rust-19 and rust-23 work stays unmerged here.
+  No route starts it, and production dispatch is unchanged.
+- **Prediction:** every differential case agrees byte for byte and semantic
+  write maps agree; the planted `extra`, `missing` and `allowlist` controls are
+  rejected; and native process-tree CPU-time p95 and peak RSS stay at or below
+  1.10 times Python baseline B. Any disagreement, accepted plant, privacy leak
+  or ratio above 1.10 B keeps Python.
+- **Measurement:** `heavy-run cargo xtask migration verify --step rust-24 --python "$PWD/.venv/bin/python" --out <new-absolute-verify>`;
+  `CAREERBREW_ALLOW_LOCAL_TESTS=1 heavy-run cargo test --locked -p careerbrew-xtask --test rust24`;
+  then baseline, measure (30 pairs) and decide as in rust-15.
+- **State (2026-11-27):** local verify passes 7/7 with zero violations; the
+  three planted controls fail as predicted. Baseline and measure: pending the
+  batched hosted run (owner decision 2026-11-27). Not yet ported: `runs.py`
+  builders and `report.finish`, `checkup`, `checkup_runs`, `wizard`, `review`,
+  `signals`, `metrics_share`, `changes.check` and pivot orchestration, the
+  telemetry send and consent, and the 29 CLI handlers.
 
 ### rust-25: Replace the HTTP server behind the unchanged UI
 

@@ -1,0 +1,23 @@
+[package]
+name = "careerbrew-reports"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+careerbrew-policy = { path = "../policy" }
+careerbrew-setup = { path = "../setup" }
+careerbrew-vault = { path = "../vault" }
+serde = "=1.0.229"
+serde_json = { version = "=1.0.154", features = ["arbitrary_precision"] }
+chrono = { version = "=0.4.45", default-features = false, features = ["std", "clock"] }
+chrono-tz = "=0.10.4"
+regex = "=1.13.2"
+
+[dev-dependencies]
+tempfile = "=3.23.0"
+
+[[bin]]
+name = "reports-component"
+path = "src/bin/reports-component.rs"

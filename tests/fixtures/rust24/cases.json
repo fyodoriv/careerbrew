@@ -1,0 +1,143 @@
+{
+  "settings": "timezone: America/New_York\ntime_baseline_standup: 7\n",
+  "events": [
+    {"event": "cli.run", "command": "day.log", "status": "ok", "ms": 1200},
+    {"event": "cli.error", "command": "day.plan", "error": "ValueError", "note": "SYNTHCANARY-rust24-private free text"},
+    {"event": "web.api", "route": "Today", "status": "ok", "count": 3, "ratio": 0.5, "flag": true},
+    {"event": "web.view", "route": "today", "title": "a title", "items": [1, 2], "meta": {"a": 1}},
+    {"event": "day.plan", "step": "a-very-long-step-name-that-goes-past-forty-eight-chars", "tier": "dream"},
+    {"event": "work.task", "source": "agent", "via": "cli", "action": "add", "story": "us-12"},
+    {"event": "work.task", "status": "ok\n", "status_text": "ok", "error": "", "big": 12345678901234}
+  ],
+  "telemetry": {
+    "distinct_id": "synthetic-install",
+    "since": "2026-11-01T00:00:00Z",
+    "records": [
+      {"event": "cli.run", "ts": "2026-11-02T08:00:00Z", "v": "0.0.9", "command": "day.log", "status": "ok", "ms": 1500, "saves": "day_log", "via": "agent"},
+      {"event": "cli.error", "ts": "2026-11-02T08:01:00Z", "v": "0.1.0", "command": "not-a-command", "error": "ValueError", "story": "us-12"},
+      {"event": "cli.error", "ts": "2026-11-02T08:02:00Z", "command": "work", "error": "ZebraError", "story": "us-1234"},
+      {"event": "web.view", "ts": "2026-11-02T08:03:00Z", "route": "today", "title": "SYNTHCANARY-rust24-private", "count": 4, "ratio": 0.25, "flag": false},
+      {"event": "web.act", "ts": "2026-11-02T08:04:00Z", "route": "inbox.accept", "action": "accept", "huge": 2000000000000, "Bad": 3, "neg": -12.5, "arch": 7},
+      {"event": "web.act", "ts": "2026-11-02T08:05:00Z", "route": "inbox.unknown", "action": "zap", "source_kind": "slack", "tier": "corporate"},
+      {"event": "workday.update", "ts": "2026-11-02T08:06:00Z", "error_class": "auth", "step_kind": "builtin", "signin": "no-probe", "source": "row", "recheck": "url", "from_version": "0.0.1", "v": "dev"},
+      {"event": "workday.update", "ts": "2026-11-02T08:07:00Z", "error_class": "disk", "step_kind": "plugin", "signin": "maybe", "source": "boss", "recheck": "always", "from_version": "v1"},
+      {"event": "cli.run", "ts": "2026-10-31T23:59:59Z", "command": "day.log", "status": "ok"},
+      {"event": "cli.run", "ts": "2026-11-02 08:00:00", "command": "day.log"},
+      {"event": "zebra.unknown", "ts": "2026-11-02T08:00:00Z"},
+      {"event": "cli.run", "command": "day.log"},
+      {"ts": "2026-11-02T08:00:00Z", "command": "day.log"},
+      {"event": "cli.run", "ts": "2026-11-02T08:09:00Z", "command": "day", "status": "nope", "a_very_long_numeric_key_name_over_32": 1, "ok_key": 2.5}
+    ]
+  },
+  "repo_health": {
+    "check_sh": "#!/usr/bin/env bash\nstep docs scripts/check-docs.sh\nstep lint uv run ruff check .\nif true; then step unit uv run pytest\ntrue && step e2e scripts/e2e.sh\n  step quokka echo hi\n# step hidden comment\nstep Upper bad\n",
+    "metrics_events": [
+      "{\"event\": \"check.step\", \"name\": \"docs\", \"seconds\": 12.5, \"ok\": true, \"ts\": \"2026-10-18T03:30:00Z\"}",
+      "{\"event\": \"check.step\", \"name\": \"lint\", \"seconds\": 3, \"ok\": true, \"ts\": \"2026-10-18T15:00:00Z\"}",
+      "{\"event\": \"check.step\", \"name\": \"unit\", \"seconds\": 100.25, \"ok\": false, \"ts\": \"2026-10-18T15:01:00Z\"}",
+      "{\"event\": \"check.step\", \"name\": \"unit\", \"seconds\": 0, \"ok\": true, \"cached\": true, \"ts\": \"2026-10-18T15:02:00Z\"}",
+      "{\"event\": \"check.step\", \"name\": \"hidden\", \"seconds\": 4, \"ok\": true, \"ts\": \"2026-10-18T15:03:00Z\"}",
+      "{\"event\": \"check.step\", \"name\": \"docs\", \"seconds\": 10, \"ok\": true, \"ts\": \"2026-10-18T16:00:00+00:00\"}",
+      "{\"event\": \"check.step\", \"name\": \"e2e\", \"seconds\": true, \"ok\": true, \"ts\": \"2026-10-18T16:01:00Z\"}",
+      "{\"event\": \"check.step\", \"name\": \"quokka\", \"seconds\": 1, \"ok\": true, \"ts\": \"2026-08-01T00:00:00Z\"}",
+      "{\"event\": \"check.step\", \"name\": \"unit\", \"seconds\": 50, \"ok\": false, \"ts\": \"2026-10-18T16:05:00\"}",
+      "{\"event\": \"check.step\", \"name\": \"lint\", \"seconds\": \"3\", \"ok\": true, \"ts\": \"2026-10-18T16:06:00Z\"}",
+      "{\"event\": \"check.step\"",
+      "[1, 2]",
+      "{\"event\": \"check.step\", \"name\": \"docs\", \"seconds\": 9, \"ok\": true, \"ts\": \"bad\"}",
+      "{\"event\": \"check.step\", \"name\": \"e2e\", \"seconds\": 200, \"ok\": true, \"ts\": \"2026-10-19\"}",
+      "{\"event\": \"check.step\", \"name\": \"lint\", \"seconds\": 2.25, \"ok\": true, \"ts\": \"2026-10-19T01:15\"}",
+      "{\"event\": \"check.other\", \"name\": \"docs\", \"seconds\": 1, \"ok\": true, \"ts\": \"2026-10-18T16:00:00Z\"}"
+    ],
+    "e2e_results": "{\"results\": {\"us-01\": \"ok\", \"us-02\": \"fail\", \"us-03\": \"ok\"}}",
+    "summaries": [
+      ["repo-checkup-20261018-090000.json", "{\"run\": \"repo-checkup\", \"seq\": 2, \"at\": \"2026-10-18T09:00:00-04:00\", \"status\": \"blocked\", \"title\": \"SYNTHCANARY-rust24-private\", \"blockers\": [{\"id\": \"b1\"}], \"next\": [{\"id\": \"pr-12\"}, {\"id\": \"pr-x\"}, \"str\", {\"id\": \"task-1\"}, {\"id\": \"pr-7\"}]}"],
+      ["repo-checkup-20261017-090000.json", "{\"run\": \"repo-checkup\", \"seq\": 1, \"at\": \"2026-10-17T09:00:00-04:00\", \"status\": \"ok\", \"blockers\": [], \"next\": []}"],
+      ["start-20261019-080000.json", "{\"run\": \"start\", \"seq\": 5, \"at\": \"2026-10-19T08:00:00-04:00\", \"status\": \"ok\"}"],
+      ["not-an-id.json", "{\"run\": \"repo-checkup\", \"seq\": 9, \"status\": \"ok\"}"],
+      ["repo-checkup-20261016-090000.json", "{\"run\": \"repo-checkup\""]
+    ],
+    "terms": "# synthetic terms\nquokka\nab\n",
+    "days": 28,
+    "bad_days": [0, 367],
+    "mutations": [
+      [["extra"], "set", 1],
+      [["summary"], "del", null],
+      [["summary", "checkup_status"], "set", "busy"],
+      [["summary", "gate_runs"], "set", true],
+      [["summary", "failure_rate"], "set", -1],
+      [["summary", "checkup_at"], "set", "2026-10-18 09:00:00"],
+      [["summary", "checkup_at"], "set", "2026-02-30T09:00:00Z"],
+      [["summary", "open_prs"], "set", 1.5],
+      [["summary", "surprise"], "set", 0],
+      [["generated_at"], "set", "2026-10-19T13:00:00.5Z"],
+      [["version"], "set", "0.0.0"],
+      [["schema"], "set", 2],
+      [["window_days"], "set", 400],
+      [["steps"], "set", "x"],
+      [["steps", 0, "step"], "set", "not-a-step"],
+      [["steps", 0, "step"], "set", "quokka"],
+      [["steps", 0, "runs"], "set", -1],
+      [["steps", 0, "seconds_avg"], "del", null],
+      [["daily", 0, "day"], "set", "2026-02-30"],
+      [["daily", 0, "day"], "set", "2026-1-5"],
+      [["daily", 0], "set", "row"],
+      [["daily"], "set", {"a": 1}]
+    ]
+  },
+  "time_saved": {
+    "log": [
+      "{\"event\": \"cli.run\", \"status\": \"ok\", \"saves\": \"standup\", \"ms\": 120000, \"ts\": \"2026-10-12T03:00:00Z\"}",
+      "{\"event\": \"cli.run\", \"status\": \"ok\", \"saves\": \"pm_update\", \"ms\": 30000, \"ts\": \"2026-10-13T14:00:00Z\"}",
+      "{\"event\": \"cli.run\", \"status\": \"ok\", \"saves\": \"pm_update\", \"ms\": true, \"ts\": \"2026-10-13T15:00:00Z\"}",
+      "{\"event\": \"cli.run\", \"status\": \"error\", \"saves\": \"standup\", \"ms\": 5, \"ts\": \"2026-10-13T16:00:00Z\"}",
+      "{\"event\": \"cli.run\", \"status\": \"ok\", \"saves\": \"unknown\", \"ms\": 5, \"ts\": \"2026-10-13T17:00:00Z\"}",
+      "{\"event\": \"web.timing\", \"saves\": \"inbox\", \"step\": \"open\", \"seconds\": 5, \"ts\": \"2026-10-14T10:00:00Z\"}",
+      "{\"event\": \"web.timing\", \"saves\": \"inbox\", \"step\": \"accept\", \"seconds\": 40, \"ts\": \"2026-10-14T10:01:00Z\"}",
+      "{\"event\": \"web.timing\", \"saves\": \"standup\", \"step\": \"copy\", \"seconds\": 90.5, \"ts\": \"2026-10-14T11:00:00Z\"}",
+      "{\"event\": \"web.timing\", \"saves\": \"standup\", \"step\": \"bogus\", \"seconds\": 9, \"ts\": \"2026-10-14T12:00:00Z\"}",
+      "{\"event\": \"web.timing\", \"saves\": \"day_log\", \"step\": \"copy\", \"seconds\": 9, \"ts\": \"2026-10-14T12:30:00Z\"}",
+      "{\"event\": \"cli.run\", \"status\": \"ok\", \"saves\": \"standup\", \"ms\": 60000, \"ts\": \"2026-10-19T12:00:00Z\"}",
+      "{\"event\": \"cli.run\", \"status\": \"ok\", \"command\": \"init\", \"ts\": \"2026-10-01T10:00:00Z\"}",
+      "{\"event\": \"cli.run\", \"status\": \"ok\", \"command\": \"day.log\", \"ms\": 2500, \"ts\": \"2026-10-02T10:00:00Z\"}",
+      "{\"event\": \"cli.error\", \"command\": \"day.log\", \"error\": \"valueerror\", \"ts\": \"2026-10-15T10:00:00Z\"}",
+      "{\"event\": \"cli.error\", \"command\": \"day.log\", \"note\": \"cli.run\", \"ts\": \"2026-10-15T11:00:00Z\"}",
+      "{\"event\": \"cli.run\" broken",
+      "{\"event\": \"web.api\", \"route\": \"today\", \"ts\": \"2026-10-15T12:00:00Z\"}"
+    ],
+    "web": [
+      ["inbox", "open", 5],
+      ["inbox", "copy", 86400.0],
+      ["standup", "send", 12.34],
+      ["zebra", "open", 1],
+      ["inbox", "close", 1],
+      ["inbox", "copy", -1],
+      ["inbox", "copy", true],
+      ["inbox", "copy", "5"],
+      ["inbox", "copy", 86401]
+    ]
+  },
+  "charts": {
+    "title": "Synthetic <report> & \"quotes\" 'single'",
+    "subtitle": "A subtitle & more",
+    "kpis": [["Runs", "12"], ["Rate <%>", "50%"]],
+    "text": ["first line", "second <b>line</b>"],
+    "bars": [
+      {"title": "Mastery & topics", "rows": [["alpha", 0.125], ["beta", 0.5], ["gamma", 1.4], ["delta", -0.2], ["eps", 0.0049], ["zeta", 0.335]], "max_value": 1.0, "fmt": "{:.0%}"},
+      {"title": "Counts", "rows": [["a", 3], ["b", 2.5], ["c", 0]], "max_value": 4, "fmt": "{:.0f}"},
+      {"title": "Zero max", "rows": [["a", 1]], "max_value": 0, "fmt": "{:.0f}"},
+      {"title": "Empty bars", "rows": [], "max_value": 1.0, "fmt": "{:.0%}"}
+    ],
+    "lines": [
+      {"title": "Readiness", "points": [["2026-10-01 09:00", 0.2], ["2026-10-02 09:00", 0.65], ["2026-10-03 09:00", 1.2]], "y_max": 1.0, "fmt": "{:.0%}"},
+      {"title": "Single", "points": [["2026-10-01", 0.5]], "y_max": 1.0, "fmt": "{:.0%}"},
+      {"title": "Empty line", "points": [], "y_max": 1.0, "fmt": "{:.0%}"}
+    ]
+  },
+  "checklist": [
+    {"settings": "timezone: America/New_York\n", "sources": [], "watch": {}, "tasks": [], "goals": {"queue": [], "long_term": []}, "inbox": []},
+    {"settings": "timezone: America/New_York\npm_slack: '#synthetic'\n", "sources": [{"id": "a"}], "watch": {"state": "paused"}, "tasks": [{"id": 1}], "goals": {"queue": [], "long_term": [{"id": "x"}]}, "inbox": [{"status": "open"}, {"status": "accepted"}]},
+    {"settings": "timezone: America/New_York\nfirst_run_checklist: false\npm_email: a@example.com\n", "sources": [], "watch": {"state": "off"}, "tasks": [], "goals": {"queue": [{"id": "q"}], "long_term": []}, "inbox": [{"status": "dismissed"}]},
+    {"settings": "", "sources": [], "watch": {"state": "on"}, "tasks": [], "goals": {"queue": [], "long_term": []}, "inbox": [{"status": "answered"}]}
+  ]
+}
