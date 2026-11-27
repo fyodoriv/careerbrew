@@ -55,7 +55,8 @@
 //! candidate is refused, never passed.
 use crate::{
     baseline, capture_actions, capture_http, decide, depvec, normalize, rust05, rust06, rust07,
-    rust08, rust09, rust10, rust11, rust12, rust13, rust14, rust15, rust19, rust20, vecdriver, rust16, rust17, rust18, rust24, rust22, rust25,
+    rust08, rust09, rust10, rust11, rust12, rust13, rust14, rust15, rust16, rust17, rust18, rust19,
+    rust20, rust22, rust24, rust25, vecdriver,
 };
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
