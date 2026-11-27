@@ -13,7 +13,7 @@ A target with no weight line weighs DEFAULT_WEIGHT, so a new test file always
 runs in exactly one share. Share 1 also runs every lib and bin unit test and
 the doc tests, so together the shares run what `cargo test --all` runs.
 Every share first builds the workspace's executables: `cargo test --all` left
-them in `target/debug/` as a side effect, and some tests run them from there
+them in cargo's debug output folder as a side effect, and some tests run them from there
 (`xtask/tests/rust04_verify.rs`, `xtask/src/measure.rs`). A target kind the
 split does not handle (an example, a bench, `test = false`) fails the share.
 """
