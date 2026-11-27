@@ -38,9 +38,9 @@ cards.unsuspend python
 cards.explain-queue python
 cards.publish python
 cards.public-check python
-learn.list python
+learn.list native
 learn.start python
-learn.note python
+learn.note native
 learn.concepts python
 learn.next python
 learn.answer python
