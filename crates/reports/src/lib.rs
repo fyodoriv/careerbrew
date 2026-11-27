@@ -219,7 +219,7 @@ fn system_tz() -> String {
     }
 }
 
-/// `calendar.local_tz`: the `timezone` setting, else the machine's zone.
+/// `calendar.local_tz()`: the `timezone` setting, else the machine's zone.
 pub fn local_tz() -> Result<Tz> {
     let settings = settings()?;
     let name = match settings.get("timezone") {
