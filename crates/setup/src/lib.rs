@@ -10,6 +10,7 @@ pub mod plugins;
 pub mod preflight;
 pub mod synthetic;
 pub mod value;
+pub mod workflow;
 
 use std::path::{Path, PathBuf};
 

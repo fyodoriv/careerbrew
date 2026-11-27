@@ -2609,6 +2609,149 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native work-day record types used by `rust-16` and `rust-17`.
 - **Gate:** 100% of schema, legacy and question cases agree; 0 silent legacy
   overwrites, exposed business fields or dropped resource claims.
+- **Component pre-registration (2026-11-26):** source base
+  `bbab16d06ea75ca8a39cc48e40fc9f3c509bfff9`; domain source
+  `18a4642021dcab39a8fad12a7cdd35a79b28fcf0`. The component registers
+  `target/release/workday-component` for the six-case real Python differential
+  workload and 30 paired cold and warm measurements. Typed provider seams cover
+  the canonical Agentfile inventory and the later rust-14 review recheck;
+  neither starts Python or changes production dispatch. The shared session
+  provider retains one write per logical state transition, including legacy
+  loop ownership and quiet-handoff restoration.
+- **Prediction:** every differential case agrees byte for byte, semantic write
+  maps and operation receipts agree, every planted extra, missing, duplicate,
+  operation-duplicate and event-duplicate control is rejected, and native
+  process-tree CPU-time p95 and peak RSS stay at or below 1.10 times Python
+  baseline B. Any disagreement, accepted plant, privacy leak or ratio above
+  1.10 B keeps Python and requires a newly registered adapter approach.
+- **Measurement:** `heavy-run --exclusive cargo xtask migration baseline --step rust-15 --python "$PWD/.venv/bin/python" --out <new-absolute-baseline>`;
+  `heavy-run cargo xtask migration verify --step rust-15 --python "$PWD/.venv/bin/python" --out <new-absolute-verify>`;
+  `heavy-run --exclusive cargo xtask migration measure --step rust-15 --python "$PWD/.venv/bin/python" --pairs 30 --out <new-absolute-measure>`;
+  `cargo xtask migration decide --step rust-15` over the same-revision records;
+  `CAREERBREW_ALLOW_LOCAL_TESTS=1 heavy-run cargo test --locked --offline -p careerbrew-xtask --test rust15`.
+- **Measured component result (2026-11-26):** source
+  `3c9199f335d8a2d67f0147ec1e061eb8b79f3778`; evidence-source hash
+  `15f413a42ade0cf552c2460f7ceecf634c7d0ea2f436af77ea1f968dc849d56f`;
+  fixture hash `6cbe4e4a9a4a9e2c3763230f10101341dc588f3c4c64eb8acdb02b475536cb3b`;
+  release-candidate SHA-256
+  `65d867e19c953dacb42e9ae88e820d18e206b904544c19fcf5c3beb521ce70c8`.
+  All three records are clean and bind this revision and candidate.
+- **Baseline and parity:** 30 baseline runs; CPU p50/p95 602,843/648,411
+  microseconds and process-tree RSS p50/p95 60,964,864/61,390,848 bytes.
+  The unregistered macOS noise-floor proposal is 598,240/658,064 microseconds
+  and 6,553,600/7,208,960 bytes. Verify passes 6/6 with zero violations and
+  traces every storage operation in every component phase.
+- **Resources and decision:** cold CPU p95 was 642,163 to 109,352 microseconds;
+  warm was 645,529 to 112,023. Ratios: 0.170287 and 0.173537. Cold tree-RSS
+  p95 was 61,276,160 to 10,780,672 bytes; warm was 61,194,240 to the same.
+  Ratios: 0.175936 and 0.176171. Each regime has 30 unique uncached pairs.
+  `decide` returned component-only `activate`. All 12 resource controls pass;
+  all five planted write controls produce `keep-python` verdicts.
+- **Limits:** synthetic macOS evidence only. Candidate cold runs still have a
+  warm OS page cache. HTTP, DATA and role contracts are out of scope for this
+  component. Production routes, shipped crates and activation remain unchanged.
+  Independent review and both hosted OS gates remain separate acceptance gates.
+- **Review-correction pre-registration (2026-11-26):** preserve insertion order
+  for existing status rows and operator dispatchers, prior-session history by
+  record identity, and negative signal exit receipts. Direct controls cover
+  `/standup` before `/careerbrew`, `/z-operator` before `/a-operator`, ending and
+  reopening `sess-a`, and `SIGTERM` returning `exit -15`. Session state is saved
+  before the loop record, matching Python's write order. The `indexmap` crate
+  preserves row order; no generated sorting replaces declaration order. New
+  sessions emit `workday.loop` and `cli.run` in Python order, while elapsed `ms`
+  values are normalized as generated measurements. Current records are selected
+  by `record_id` across days; refusal paths emit `cli.run` with `status=fail`.
+  The `ready_when.after` control retains operator declaration order before `/check`.
+  Loop conflicts are validated before session state changes; the refused-open
+  control proves both session and loop files remain unchanged. One loop lock
+  covers validation, session persistence and insertion, with an interleaved
+  conflict regression.
+  The Python oracle traces
+  direct event-log appends explicitly, so every native and Python storage write
+  is compared. Success
+  keeps all six differential cases and five planted controls passing, with fresh
+  30-run/30-pair resource records and no activation change. Any mismatch keeps
+  Python.
+- **Review-correction acceptance (2026-11-26, macOS):** clean measured source
+  `af1e6014914f1ada9406104a35bbf7483d3d123b`; evidence-source hash
+  `1b1d66b94d27bc83eb2aab898f0cef93c7eeebc7404413fa887a5bde58bf6a19`;
+  fixture hash `6cbe4e4a9a4a9e2c3763230f10101341dc588f3c4c64eb8acdb02b475536cb3b`;
+  release-candidate SHA-256
+  `77077d5ac7ad6d81086f10df1bb016fbe4ed48f9abfbebc58f350ee5fcadb887`.
+  Baseline: 30 runs; CPU p50/p95 621,715/665,839 microseconds and tree-RSS
+  p50/p95 61,079,552/61,341,696 bytes. Verify passes 6/6 with zero contract,
+  privacy, side-effect, missing-write or duplicate-write violations, including
+  insertion order, same-record session history and `exit -15`. Measurement:
+  30 unique, uncached pairs in each regime. Cold CPU p95 was 683,928 to 122,530
+  microseconds; warm was 671,028 to 129,629. Cold tree-RSS p95 was 61,423,616
+  to 10,944,512 bytes; warm was 61,636,608 to 10,928,128. Each ratio is below
+  1.10. `decide` returned component-only `activate`; all five same-head planted
+  controls returned `keep-python` with `verify-check-failed` and
+  `verify-violation`. Production routes, shipped crates and activation remain
+  unchanged.
+- **Lifecycle-event acceptance (2026-11-26, macOS):** clean measured source
+  `d126b8858e053091e218658262c6313002428351`; evidence-source hash
+  `446821be3a803e6f546c0f0be02bf42f08fb56d061e0fe62a249533f2f161d2d`;
+  fixture hash `e2339644f48e45fcbc133178f32c3f79e4fc7a2db047bf0d0bd92532663555d7`;
+  release-candidate SHA-256
+  `c4e387734589997fa7e62a218ebc854f8463db7742314b3e6e6478e65ddf60e4`.
+  Baseline: 30 runs; CPU p50/p95 656,073/722,958 microseconds and tree-RSS
+  p50/p95 61,243,392/61,669,376 bytes. Verify passes 6/6 with zero violations,
+  including the events-enabled `workday.loop`, `work.session` and `cli.run`
+  sequence and every direct event append. Cold CPU p95 was 721,514 to 136,739
+  microseconds; warm was 709,117 to 124,964. Cold tree-RSS p95 was 61,620,224
+  to 10,862,592 bytes; warm was 61,423,616 to 10,895,360. Each regime has 30
+  unique uncached pairs and every ratio is below 1.10. `decide` returned
+  component-only `activate`; all five same-head planted controls returned
+  `keep-python`. Production routes, shipped crates and activation remain
+  unchanged.
+- **Record-identity and failure-event acceptance (2026-11-26, macOS):** clean
+  measured source `165e41277110c48c02480b2fb2ba25a1ab6cf367`; evidence-source
+  hash `c5eaf94e4de463b65252fc9a43cf06136d7005f371f214f6b55a67d1c07e72ad`;
+  fixture hash `e2339644f48e45fcbc133178f32c3f79e4fc7a2db047bf0d0bd92532663555d7`;
+  release-candidate SHA-256
+  `2f749267e9b98e047ffb620ae11c67323f31005a225fb73cf014362550a3469a`.
+  Baseline: 30 runs; CPU p50/p95 676,652/744,253 microseconds and tree-RSS
+  p50/p95 61,259,776/61,587,456 bytes. Verify passes 6/6 with zero violations,
+  including cross-day same-id handoff restoration, `workday.loop`, `work.session`
+  and `cli.run` success events, and refusal/fail receipts. Cold CPU p95 was
+  812,807 to 152,064 microseconds; warm was 735,304 to 155,158. Cold tree-RSS
+  p95 was 61,849,600 to 10,977,280 bytes; warm was 61,734,912 to 10,993,664.
+  Each regime has 30 unique uncached pairs and every ratio is below 1.10.
+  `decide` returned component-only `activate`; all five same-head planted
+  controls returned `keep-python`. Production routes, shipped crates and
+  activation remain unchanged.
+- **Loop-conflict acceptance (2026-11-26, macOS):** clean measured source
+  `c2209edbfb8109776204b530eec0a65daeec8ead`; evidence-source hash
+  `151ae9f753a1f230b100189f13475bd37411319fb3a48009058e9b47265da3c6`;
+  fixture hash `e2339644f48e45fcbc133178f32c3f79e4fc7a2db047bf0d0bd92532663555d7`;
+  release-candidate SHA-256
+  `3d8b58ed766ec43305cc615201ec2bf5ef23650be2c520c4781c211af8d12a6b`.
+  Baseline: 30 runs; CPU p50/p95 710,583/751,886 microseconds and tree-RSS
+  p50/p95 61,538,304/61,947,904 bytes. Verify passes 6/6 with zero violations,
+  including the refused-open control that leaves session and loop files
+  unchanged. Cold CPU p95 was 767,877 to 142,945 microseconds; warm was
+  765,030 to 133,069. Cold tree-RSS p95 was 62,029,824 to 11,059,200 bytes;
+  warm was 61,915,136 to 11,042,816. Each regime has 30 unique uncached pairs
+  and every ratio is below 1.10. `decide` returned component-only `activate`;
+  all five same-head planted controls returned `keep-python`. Production routes,
+  shipped crates and activation remain unchanged.
+- **Lock-held conflict acceptance (2026-11-26, macOS):** clean measured source
+  `d2f35e8fae744abfc8939319fdc3a2468665ed3a`; evidence-source hash
+  `41894329cc5bc5fa9a885be7adf80d5dd3381e3b3ab24cfb736bc6e76e82f6ab`;
+  fixture hash `e2339644f48e45fcbc133178f32c3f79e4fc7a2db047bf0d0bd92532663555d7`;
+  release-candidate SHA-256
+  `d98f1597b2a464c021cd56105f0f9118e3b402d6de80725ffd70ab1183a28752`.
+  Baseline: 30 runs; CPU p50/p95 724,328/761,070 microseconds and tree-RSS
+  p50/p95 61,587,456/61,947,904 bytes. Verify passes 6/6 with zero violations;
+  the interleaved conflict regression proves that one loop lock excludes the
+  competing insertion through session persistence and loop insertion. Cold CPU
+  p95 was 734,963 to 133,419 microseconds; warm was 742,853 to 133,903. Cold
+  tree-RSS p95 was 61,915,136 to 10,977,280 bytes; warm was 62,013,440 to
+  10,993,664. Each regime has 30 unique uncached pairs and every ratio is below
+  1.10. `decide` returned component-only `activate`; all five same-head planted
+  controls returned `keep-python`. Production routes, shipped crates and
+  activation remain unchanged.
 
 ### rust-16: Port work-day execution, scheduling and watch loops
 
@@ -2984,6 +3127,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | `crates/learn/` | `careerbrew-learn` | the rust-12 learning, project-scoped FSRS, replay, tour, explainer, PRD and CLI component; synthetic `learn-component` transport only | none: component parity only |
 | `crates/feed/` | `careerbrew-feed` | the rust-13 recorded feed readers, original/analysis transactions, raw replies, Claude/Codex transcript normalization, open asks, cycle and CLI component; synthetic `feed-component` transport only | none: component parity only |
 | `crates/live/` | `careerbrew-live` | the rust-14 live-cycle, acquisition/direct health, listening, reviewer and notification component; synthetic `live-component` transport only | none: component parity only |
+| `crates/workday/` | `careerbrew-workday` | the rust-15 canonical status, question, step, stage and `work.session` component, with typed review and canonical Agentfile provider seams; synthetic `workday-component` transport only | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
@@ -3047,7 +3191,7 @@ step has a registered Rust candidate yet, so no real record exists.
 - Integration tests in `xtask/tests/`: `activation_manifest`, `capture_actions`,
   `baseline`, `capture_data`, `capture_data_cli`, `capture_http`, `decide`, `i01_fixture`,
   `observer_deadline`, `observer_owner`, `observer_parser`,
-  `observer_transport`, `resources`, `store_supervisor`, `verify`,
+  `observer_transport`, `resources`, `store_supervisor`, `verify`, `rust15`,
   `leak_check`, `input_key`, `check_docs`.
 - Python cross-checks in `tests/unit/`: `test_rust_vault_interop.py`,
   `test_rust_vault_base64_parity.py`, `test_rust_hash_experiment.py`,
@@ -3796,6 +3940,8 @@ row stays, but it means the **dispatcher**, not the handlers:
 - `src/careerbrew/workday/` (5): `__init__.py`, `questions.py`, `stages.py`, `status.py`, `steps.py`
 - CLI handlers it ports out of `cli.py` (1): `cmd_work_session`
 - Assertions it ports (2 test files, the files themselves are listed under `rust-27`): `test_issue_311.py`, `test_issue_355_owner_steps.py`
+
+- Native crate it adds (`port` in the inventory): `crates/workday/` (`lib.rs`, `status.rs`, `questions.rs`, `steps.rs`, `stages.rs`, `work_session.rs`, `synthetic.rs` and `bin/workday-component.rs`), plus `crates/workday/tests/component.rs`, `tests/oracles/rust15.py`, `tests/unit/test_rust15_component.py`, `xtask/src/rust15.rs` and `xtask/tests/rust15.rs`. The canonical Agentfile adapter is `crates/setup/src/workflow.rs`.
 
 #### rust-16: Port work-day execution, scheduling and watch loops (7 files)
 

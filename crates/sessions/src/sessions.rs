@@ -231,38 +231,59 @@ fn load_loops(root: &Path) -> Result<Value> {
     )
 }
 
-fn ensure_loop(root: &Path, id: &str, record: &str) -> Result<bool> {
+fn validate_loop_state(state: &Value, id: &str, record: &str) -> Result<()> {
+    let running = state["loops"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|row| text(field(row, "stopped")).is_empty() && text(field(row, "id")) == id)
+        .cloned()
+        .collect::<Vec<_>>();
+    if running.iter().any(|row| {
+        text(field(row, "kind")) != "session" || text(field(row, "session_record")) != record
+    }) {
+        return Err(error("WatchError", "session loop id conflicts with another running loop; resolve that loop before continuing"));
+    }
+    Ok(())
+}
+
+fn commit_session_loop(
+    root: &Path,
+    id: &str,
+    record: &str,
+    before: &Value,
+    state: &Value,
+) -> Result<bool> {
     let path = root.join("day/loops.json");
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
     careerbrew_vault::lock::with_lock(&path, || -> Result<bool> {
-        let mut state = load_loops(root)?;
-        let running = state["loops"]
+        let mut loops = load_loops(root)?;
+        validate_loop_state(&loops, id, record)?;
+        if state != before {
+            write_json(root, PATH, state)?;
+        }
+        let running = loops["loops"]
             .as_array()
             .into_iter()
             .flatten()
             .filter(|row| text(field(row, "stopped")).is_empty() && text(field(row, "id")) == id)
             .cloned()
             .collect::<Vec<_>>();
-        if running.iter().any(|row| {
-            text(field(row, "kind")) != "session" || text(field(row, "session_record")) != record
-        }) {
-            return Err(error("WatchError", "session loop id conflicts with another running loop; resolve that loop before continuing"));
-        }
         if !running.is_empty() {
             return Ok(false);
         }
-        state["loops"].as_array_mut().expect("loops").push(json!({
+        loops["loops"].as_array_mut().expect("loops").push(json!({
             "kind": "session", "id": id, "step": "", "day": today().format("%Y-%m-%d").to_string(),
             "started": now().format("%Y-%m-%dT%H:%M%:z").to_string(), "stopped": "", "session_record": record,
         }));
-        write_json(root, "day/loops.json", &state)?;
+        write_json(root, "day/loops.json", &loops)?;
         Ok(true)
     })?
 }
 
-pub fn open_session(root: &Path, project: &str, ident: &str) -> Result<Value> {
+pub fn open_session_with_loop(root: &Path, project: &str, ident: &str) -> Result<(Value, bool)> {
     let project = project.trim();
     let every = projects::load(root)?;
     if every.get(project).is_none() {
@@ -298,12 +319,12 @@ pub fn open_session(root: &Path, project: &str, ident: &str) -> Result<Value> {
                 ));
             }
             let mut state = load(root)?;
+            let before = state.clone();
             state
                 .as_object_mut()
                 .expect("session state")
                 .entry("quiet_receipts")
                 .or_insert_with(|| json!({}));
-            let before = state.clone();
             let day = today();
             if let Some(ambiguous) =
                 state["sessions"]
@@ -391,35 +412,119 @@ pub fn open_session(root: &Path, project: &str, ident: &str) -> Result<Value> {
                 .find(|session| {
                     text(field(session, "project")) == project
                         && text(field(session, "project_incarnation")) == incarnation
-                        && text(field(session, "id")) != current_id
+                        && text(field(session, "record_id")) != current_record
                 })
                 .cloned();
+            let legacy_history =
+                state["sessions"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .any(|session| {
+                        text(field(session, "project")) == project
+                            && text(field(session, "record_id")) != current_record
+                            && text(field(session, "project_incarnation")).is_empty()
+                    });
+            let generation = match field(&record, "quiet_generation") {
+                Some(value) => {
+                    let generation = text(Some(value));
+                    if !Regex::new(r"^[0-9a-f]{32}$")
+                        .expect("quiet identity")
+                        .is_match(&generation)
+                    {
+                        return Err(error(
+                            "SessionError",
+                            "saved quiet identity is invalid; set the quiet period again",
+                        ));
+                    }
+                    generation
+                }
+                None => String::new(),
+            };
+            let generations = every
+                .as_object()
+                .into_iter()
+                .flatten()
+                .map(|(_, row)| text(field(row, "quiet_generation")))
+                .filter(|generation| !generation.is_empty())
+                .collect::<Vec<_>>();
+            if generations
+                .iter()
+                .collect::<std::collections::BTreeSet<_>>()
+                .len()
+                != generations.len()
+            {
+                return Err(error(
+                    "SessionError",
+                    "saved quiet identities are ambiguous; set the affected quiet periods again",
+                ));
+            }
+            let mut receipts = state["quiet_receipts"]
+                .as_object()
+                .cloned()
+                .ok_or_else(|| {
+                    error(
+                        "SessionError",
+                        "saved quiet receipts are invalid; repair the session record",
+                    )
+                })?;
+            receipts.retain(|key, _| generations.contains(key));
+            let quiet_first = !generation.is_empty() && !receipts.contains_key(&generation);
             let current = state["sessions"]
                 .as_array_mut()
                 .expect("sessions")
                 .iter_mut()
-                .find(|session| text(field(session, "id")) == current_id)
+                .find(|session| text(field(session, "record_id")) == current_record)
                 .expect("current session");
             if current.get("opening_brief").is_none() {
-                let yesterday = day - Duration::days(1);
-                let brief = latest
-                    .as_ref()
-                    .filter(|row| {
-                        text(field(row, "day")) == yesterday.format("%Y-%m-%d").to_string()
-                    })
-                    .map(|row| text(field(row, "handoff")))
-                    .unwrap_or_default();
+                let brief = if quiet_first {
+                    latest
+                        .as_ref()
+                        .map(|row| text(field(row, "handoff")))
+                        .unwrap_or_default()
+                } else {
+                    let yesterday = day - Duration::days(1);
+                    latest
+                        .as_ref()
+                        .filter(|row| {
+                            text(field(row, "day")) == yesterday.format("%Y-%m-%d").to_string()
+                        })
+                        .map(|row| text(field(row, "handoff")))
+                        .unwrap_or_default()
+                };
                 current["opening_brief"] = json!(brief);
+                if (legacy_history && latest.is_none())
+                    || (generation.is_empty()
+                        && (!text(field(&record, "quiet_until")).is_empty()
+                            || !text(field(&record, "quiet_resumed")).is_empty()))
+                {
+                    current["opening_brief"] = json!("");
+                    current["brief_status"] = json!("legacy-unverified");
+                }
+            } else if quiet_first {
+                current["opening_brief"] = json!(latest
+                    .as_ref()
+                    .map(|row| text(field(row, "handoff")))
+                    .unwrap_or_default());
+            }
+            if quiet_first {
+                receipts.insert(generation, json!(current_record));
             }
             got["brief"] = current["opening_brief"].clone();
-            ensure_loop(root, &current_id, &current_record)?;
-            prune(root, &mut state)?;
-            if state != before {
-                write_json(root, PATH, &state)?;
+            if let Some(status) = current.get("brief_status") {
+                got["brief_status"] = status.clone();
             }
-            Ok(got)
+            state["quiet_receipts"] = Value::Object(receipts);
+            prune(root, &mut state)?;
+            let loop_added =
+                commit_session_loop(root, &current_id, &current_record, &before, &state)?;
+            Ok((got, loop_added))
         })
     })
+}
+
+pub fn open_session(root: &Path, project: &str, ident: &str) -> Result<Value> {
+    open_session_with_loop(root, project, ident).map(|(session, _)| session)
 }
 
 pub fn resource(value: &str) -> Result<String> {
@@ -711,11 +816,13 @@ pub fn end(root: &Path, target: &str, every: bool) -> Result<Value> {
                 missing.push(session);
                 continue;
             }
-            stop_loop(
-                root,
-                &text(field(&session, "id")),
-                &text(field(&session, "record_id")),
-            )?;
+            if !text(field(&session, "record_id")).is_empty() {
+                stop_loop(
+                    root,
+                    &text(field(&session, "id")),
+                    &text(field(&session, "record_id")),
+                )?;
+            }
             let current = {
                 let current = state["sessions"]
                     .as_array_mut()
@@ -748,4 +855,55 @@ pub fn session_states(root: &Path, include_ended: bool) -> Result<Vec<Value>> {
     Ok(state["sessions"].as_array().into_iter().flatten().rev().filter(|row| include_ended || text(field(row, "ended")).is_empty()).map(|row| {
         json!({"id": text(field(row, "id")), "state": session_state(row, day), "handoff": text(field(row, "handoff"))})
     }).collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_conflicting_loop_cannot_interleave_the_session_transaction() {
+        let scratch = tempfile::tempdir().unwrap();
+        let root = scratch.path();
+        // The store reads its root from the environment; a clean runner has none.
+        std::env::set_var("CAREERBREW_HOME", root);
+        std::env::set_var("HOME", root.join("home"));
+        std::env::set_var("CAREERBREW_ENCRYPT", "off");
+        std::env::set_var("CAREERBREW_EVENTS", "off");
+        std::env::set_var("CAREERBREW_NOW", "2026-11-03T09:00:00+00:00");
+        std::fs::create_dir_all(root.join("day")).unwrap();
+        let loop_path = root.join("day/loops.json");
+        std::fs::write(
+            &loop_path,
+            r#"{"passes":[],"inputs":{},"loops":[{"kind":"work","id":"conflict","stopped":""}]}"#,
+        )
+        .unwrap();
+        let session_path = root.join(PATH);
+        std::fs::create_dir_all(session_path.parent().unwrap()).unwrap();
+        let before = json!({"sessions": []});
+        std::fs::write(&session_path, serde_json::to_string(&before).unwrap()).unwrap();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut child = None;
+        careerbrew_vault::lock::with_lock(&loop_path, || {
+            let owned = root.to_path_buf();
+            let before = before.clone();
+            child = Some(std::thread::spawn(move || {
+                let result =
+                    commit_session_loop(&owned, "conflict", "new-record", &before, &before);
+                sender.send(result).unwrap();
+            }));
+            assert!(receiver
+                .recv_timeout(std::time::Duration::from_millis(100))
+                .is_err());
+            Ok::<(), crate::ProjectError>(())
+        })
+        .unwrap()
+        .unwrap();
+        let result = receiver
+            .recv()
+            .expect("child result")
+            .expect_err("conflicting loop");
+        child.expect("child").join().expect("child thread");
+        assert_eq!(result.class, "WatchError");
+    }
 }
