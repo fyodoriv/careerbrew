@@ -327,12 +327,13 @@ timestamps and cargo's `Finished` lines:
 
 | OS | Gate step | Rust compile (clippy, test build, inventory) | Rust test binaries |
 |---|---|---|---|
-| macos-15 | 1324 to 1924 s | 111 to 180 s (6% to 10%) | 1048 to 1556 s (79% to 87%) |
-| ubuntu-24.04 | 980 to 1289 s | 92 to 129 s (8% to 11%) | 744 to 1014 s (76% to 79%) |
+| macos-15 | 1324 to 1924 s | 111 to 180 s (6% to 10% of the same run) | 1048 to 1556 s (79% to 85%) |
+| ubuntu-24.04 | 980 to 1289 s | 92 to 129 s (9% to 11% of the same run) | 744 to 1014 s (75% to 79%) |
 
 - A perfect cache (every crate a hit, a restore that takes no time) saves at
-  most 180 s of a 1400 to 2000 s part. That is under the 10% rule in
-  "Dependency caches", and a real restore of `target/` costs part of it back.
+  most the compile share: 6% to 10% of the macOS gate step in each run (180 s
+  of 1924 s at most). That is at or under the 10% rule in "Dependency caches"
+  before any restore time, and a real restore of `target/` costs part of it back.
   The Swatinem/rust-cache trial on 2026-11-16 also showed no gain.
 - A cached test pass is not allowed: `rust-test` always runs (see "No gate
   cache between hosted runs").
