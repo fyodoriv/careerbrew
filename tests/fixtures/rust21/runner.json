@@ -1,0 +1,11 @@
+{
+  "outcomes": {
+    "pass": {"outcome": {"results": [{"i": 0, "ok": true}, {"i": 1, "ok": true}]}, "grade": {"correct": true, "score": 1.0, "passed": 2, "total": 2, "complexity": {"expected": "O(n)", "ok": true}, "style": []}},
+    "pass-slow": {"outcome": {"results": [{"i": 0, "ok": true}, {"i": 1, "ok": true}]}, "grade": {"correct": true, "score": 1.0, "passed": 2, "total": 2, "complexity": {"expected": "O(n)", "ok": false}, "style": ["unused variable x"]}},
+    "pass-plain": {"outcome": {"results": [{"i": 0, "ok": true}]}, "grade": {"correct": true, "score": 1.0, "passed": 1, "total": 1, "complexity": null, "style": ["long line", "short name"]}},
+    "fail-edge": {"outcome": {"results": [{"i": 0, "ok": true}, {"i": 1, "ok": false, "got": 1}]}, "grade": {"correct": false, "score": 0.333, "passed": 1, "total": 3, "complexity": null, "style": []}},
+    "fail-wrong": {"outcome": {"results": [{"i": 0, "ok": false, "got": 7}, {"i": 1, "ok": true}]}, "grade": {"correct": false, "score": 0.5, "passed": 1, "total": 2, "complexity": null, "style": []}},
+    "fail-error": {"outcome": {"error": "IndexError: list index out of range", "results": []}, "grade": {"correct": false, "score": 0.0, "passed": 0, "total": 3, "complexity": null, "style": []}},
+    "fail-timeout": {"outcome": {"timeout": true, "error": "time limit", "results": []}, "grade": {"correct": false, "score": 0.0, "passed": 0, "total": 3, "complexity": null, "style": []}}
+  }
+}

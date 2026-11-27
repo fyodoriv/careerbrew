@@ -133,6 +133,7 @@ pub fn from_exercise(
                 found.push(record(root, public_dir, &source, &pattern, "wrong-answer", &format!("test {}{}", index + 1, suffix), custom("wrong-answer"))?);
             }
         } else if field(grade, "complexity")
+            .filter(|complexity| crate::truthy(Some(complexity)))
             .is_some_and(|complexity| !crate::truthy(field(complexity, "ok")))
         {
             let complexity = &grade["complexity"];

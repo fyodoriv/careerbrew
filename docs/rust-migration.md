@@ -3047,6 +3047,42 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Gate:** 100% of practice, goal and mistake vectors agree; 0 lost grades;
   0 UTC versus local-day count errors. Activation needs the `rust-19` +
   `rust-20` + `rust-21` + `rust-22` closure.
+- **Component pre-registration (2026-11-27):** source base
+  `96a01171ad8f0a6402c42f94b01a15c481300efe` (PR 232, rust-20); Python oracle
+  `tests/oracles/rust21.py`. Seven fixed synthetic cases drive the real
+  `goals`, `teacher`, `tutor.mistakes` and `tutor.cards` code:
+  - goal queue validation, the current goal, history, long-term goals, the
+    corporate job-hunt guard and `days_left`;
+  - `focus` for every goal kind, and `study_blocks` sizes, solved patterns and
+    the corporate block;
+  - local-day counting: steps stamped in UTC count by the settings zone's day,
+    with a process zone that differs from both;
+  - the whole `next_step` order with `complete` for every step kind:
+    approval, repeated mistake, lesson (not yet, confirmed), exercise (fail,
+    hints, worked example, solution after three, retry after three days),
+    card, validate (keep, fix, drop), resume (sent, skipped) and done;
+  - improvement signals, low-rated kinds, the "watch out" tips and drafts.
+  Steps that are not merged sit behind typed seams with synthetic providers
+  that both sides share: the exercise runner and grade (rust-22, PR 236),
+  interview loops (rust-19, PR 238) and the day re-plan. The exercise catalog
+  is the real loader over `tests/fixtures/rust21/exercises/`. Exact stdout
+  bytes, semantic write maps and per-phase write counts are compared. Only
+  owned paths, sealed-record bytes and the generated key are normalized; the
+  wall-clock step start is dropped from reports, and completed steps use a
+  future start so their timed seconds are 0. Planted controls: an extra write,
+  a missing write, and a UTC-day counting defect must each fail verify and
+  keep Python. Gate thresholds are the shared ones: 7/7 cases, zero
+  violations, and CPU-time p95 and process-tree peak RSS at most 1.10 x the
+  paired oracle in each regime. This is component parity only: production
+  dispatch, native routes, shipped crates and activation do not change.
+- **State (2026-11-27):** `crates/teacher` (`teacher-component`) passes verify
+  7/7 with zero violations on macOS, and its stdout is byte-identical to the
+  oracle. All three planted controls fail verify and `decide` keeps Python.
+  The port found one rust-20 defect: `mistakes.from_exercise` logged a
+  complexity mistake when a grade's `complexity` was null; it now follows
+  Python's falsy check. Baseline and measure: pending the batched hosted run
+  (owner decision 2026-11-27). Left as follow-ups: reconcile the seams with
+  rust-19 and rust-22, the CLI handlers, and the rust-20 card order.
 
 ### rust-22: Port exercise execution and complexity checks
 
@@ -3501,6 +3537,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | `crates/career/` | `careerbrew-career` | the rust-18 slice 1 evidence tags and notes, promotion assessment and document, ladder grading and LinkedIn block component; synthetic `career-component` transport only | none: component parity only |
 | `crates/exercises/` | `careerbrew-exercises` | the rust-22 exercise runner core: sandboxed child lifecycle, limits, CPU-time scaling, complexity decision, comparison modes, grading and validation; synthetic `exercises-component` transport, `exercise-fixture-runner` and shared migration registration only | none: component parity only |
 | `crates/web/` | `careerbrew-web` | the rust-25 native web front, binary `web-component`: the host, token and cookie checks, `/api/session*`, security headers, `/api/changes`, `/api/tab-key` and static files, with every other route forwarded to a private `careerbrew serve` through the per-route owner table `server::ROUTES`; `--all` runs the synthetic differential cases | none: opt-in only (`careerbrew config set web_server native` with `CAREERBREW_WEB_BIN`); setup does not rebuild it |
+| `crates/teacher/` | `careerbrew-teacher` | the rust-21 goals, teacher next-step and completion, local-day, feedback, improvement and draft component behind typed runner, loops and re-plan seams; synthetic `teacher-component` transport only | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
