@@ -309,6 +309,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P1
 
+- [ ] Run the Rust test binaries in parallel on the hosted gate
+  - **ID**: ci-rust-test-parallel
+  - **Details**: The `native (macos-15)` part (job time) is the hosted gate's critical path (1394 to 1995 s in four green runs on 2026-11-25 and 2026-11-26; every other macOS part ended under 830 s). In its gate step, Rust compiling took 111 to 180 s and the test binaries took 1048 to 1556 s, because `cargo test --all` runs one binary after another (the longest took 285 s). A build cache cannot fix that (`docs/ci.md`, "Remote build cache"). Split `rust-test` into two gate steps on two native parts (for example by test target, with weights like the e2e shares), or try `cargo-nextest` on a branch first and keep it only if every process-group and supervisor test still passes on both OSes. Keep `rust-test` always-run (no cached pass), keep the required check names, and keep `tests/unit/test_gate_parts.py` green. Do not touch `crates/` or the migration registries.
+  - **Files**: .github/workflows/ci.yml; scripts/check.sh; tests/unit/test_gate_parts.py; docs/ci.md
+  - **Hypothesis**: running the Rust test binaries in two parallel shares cuts the `native (macos-15)` part, and so the whole hosted gate, by at least 30%, because 79 to 85% of that part's gate step is serial test execution.
+  - **Measurement**: `gh run view <run-id> --json jobs --jq '.jobs[] | select(.name=="native (macos-15) / part") | ((.completedAt|fromdate)-(.startedAt|fromdate))'` on 3 green pull-request runs after the change, against the baseline median of 1828 s (runs 45896537107, 45836895295, 45570876782, 45562329058); plus the run's wall time from the first part start to `gate (macos-15)`.
+  - **Success**: median `native (macos-15)` part at or under 1150 s, and the gate wall time drops by at least 20%, with 0 new flaky failures in the 3 runs.
+  - **Pivot**: under 15% drop in the part's median, or any supervisor or process-group test that fails only under the new runner: abandon the approach and keep one serial `rust-test`.
+  - **Anchor**: Amdahl 1967 (the serial share bounds the speedup); Forsgren, Humble and Kim 2018 (lead time for changes).
+
 - [ ] Pro data: a free sample of maintained data in the open tool
   - **ID**: pro-data-free-sample
   - **Details**: First task of the careerbrew income bet (a yearly licence for maintained data, tested by a priced waitlist). Ship a small free sample the open tool reads through the signed-plugin path: one public company ladder mapped to levels, and three sourced interview loops from `knowledge/research/`, each with a dated changelog line. The promotion and interview run pages show one static local link to the waitlist page (`pro_data_url` setting, empty by default, so nothing shows until the owner sets it). No hosted service, no network call, no buyer data.
