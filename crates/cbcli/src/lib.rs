@@ -1,12 +1,14 @@
 //! careerbrew-native: the rust-03 pilot of the native CLI. It serves
 //! `careerbrew actions [name] [--json]` and static `-h/--help` from the
 //! generated registry, byte-equal to Python's argparse at 80 columns.
-//! Anything else exits 64 (`UNSUPPORTED`): the route table never sends it
-//! here, so 64 is a bug, never a silent fallback.
+//! rust-26 adds the parity-tested read-only commands of merged domain crates
+//! (`routed`). Anything else exits 64 (`UNSUPPORTED`), and the console
+//! script runs it in Python and logs `cli.native_unsupported`.
 pub mod events;
 pub mod help;
 pub mod registry;
 pub mod render;
+pub mod routed;
 
 /// The exit code for argv outside the pilot.
 pub const UNSUPPORTED: i32 = 64;
@@ -92,7 +94,8 @@ fn token(arg: &str) -> Token<'_> {
 /// Text mode prints through Python's `privacy.redact`, which reads these
 /// files in the data root. With any of them present (or the root not
 /// resolvable) the listing goes to Python.
-const REDACT_INPUTS: &[&str] = &["sensitive-terms.txt", "profile.yaml", "plugins.lock.json"];
+pub(crate) const REDACT_INPUTS: &[&str] =
+    &["sensitive-terms.txt", "profile.yaml", "plugins.lock.json"];
 
 fn actions(args: &[String], reg: &registry::Registry, env: &Env) -> Outcome {
     let mut json = false;
@@ -177,6 +180,9 @@ pub fn run(args: &[String], env: &Env) -> Outcome {
                 return done(page.to_owned());
             }
         }
+    }
+    if let Some(outcome) = routed::run(args, env) {
+        return outcome;
     }
     unsupported(args, &reg)
 }

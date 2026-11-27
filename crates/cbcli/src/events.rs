@@ -107,9 +107,22 @@ pub fn stamp(secs: u64) -> String {
 
 /// The row, keys sorted as `json.dumps(sort_keys=True)` sorts them.
 pub fn row(ts: &str, ms: u64, version: &str, via: &str) -> String {
-    let mut out = String::from("{\"command\": \"actions\", \"event\": \"cli.run\", \"ms\": ");
+    command_row("actions", true, ts, ms, version, via)
+}
+
+/// The `cli.run` row for one command (`machine.show`), with `status` `ok`
+/// for exit 0 and `fail` otherwise, as `cli.main` writes it. `command` is
+/// a fixed registry id, so it needs no escaping.
+pub fn command_row(command: &str, ok: bool, ts: &str, ms: u64, version: &str, via: &str) -> String {
+    let mut out = String::from("{\"command\": ");
+    crate::render::py_string(command, &mut out);
+    out.push_str(", \"event\": \"cli.run\", \"ms\": ");
     out.push_str(&ms.to_string());
-    out.push_str(", \"status\": \"ok\", \"ts\": ");
+    out.push_str(if ok {
+        ", \"status\": \"ok\", \"ts\": "
+    } else {
+        ", \"status\": \"fail\", \"ts\": "
+    });
     crate::render::py_string(ts, &mut out);
     out.push_str(", \"v\": ");
     crate::render::py_string(version, &mut out);
@@ -122,6 +135,11 @@ pub fn row(ts: &str, ms: u64, version: &str, via: &str) -> String {
 /// Appends the row when events are on. Errors are ignored: the command's
 /// output is already written, as Python's would be.
 pub fn emit(caps: &Caps, ms: u64) {
+    emit_command(caps, "actions", true, ms);
+}
+
+/// `emit` for a routed command (`crate::routed`).
+pub fn emit_command(caps: &Caps, command: &str, ok: bool, ms: u64) {
     if !caps.events_on {
         return;
     }
@@ -135,7 +153,7 @@ pub fn emit(caps: &Caps, ms: u64) {
     let secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_secs());
-    let line = row(&stamp(secs), ms, version(), caps.via);
+    let line = command_row(command, ok, &stamp(secs), ms, version(), caps.via);
     if let Ok(mut file) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
