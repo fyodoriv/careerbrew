@@ -161,6 +161,16 @@ pub const REGISTRY: &[Entry] = &[
         floor: Floor::Unmeasured,
     },
     Entry {
+        step: "rust-19",
+        os: "macos",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
+        step: "rust-19",
+        os: "linux",
+        floor: Floor::Unmeasured,
+    },
+    Entry {
         step: "rust-20",
         os: "macos",
         floor: Floor::Unmeasured,

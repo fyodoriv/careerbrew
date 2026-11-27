@@ -2673,6 +2673,31 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native job search and prep.
 - **Gate:** 100% of scoring, strategy and prep vectors agree; 0 corporate
   job-hunt access; 0 unapproved application or send actions.
+- **Component pre-registration (2026-11-27):** slice 1, the job search core.
+  Python oracle `tests/oracles/rust19.py`; candidate `jobs-component` in
+  `crates/jobs`, which reuses the rust-20 `careerbrew-tutor` store, clock,
+  digest and event helpers. Six fixed synthetic cases: posting helpers (HTML,
+  salary, seniority, skills, built-in and custom regions, region validation);
+  the Greenhouse, Lever and Ashby boards from `tests/fixtures/ats/`; criteria
+  defaults and every reject reason; Want features, scores, rating tags,
+  Spearman agreement and the weight refit with its keep rule; LinkedIn alert
+  postings; and the corporate-role refusal for every personal-only group.
+  Exact typed results, semantic write maps, phase write counts and event rows
+  are compared. Only the 140 float leaves get absolute `0.00001` and relative
+  `0.000001` tolerance. Planted extra, missing, duplicate and event-duplicate
+  writes must fail. The rule is the same as rust-14: CPU-time p95 and
+  process-tree peak RSS at most 1.10 x the paired oracle in each regime. This
+  is component parity only: production dispatch, native routes, shipped crates
+  and activation do not change.
+- **State (2026-11-27):** slice 1 verify passes 6/6 locally with zero
+  violations, and all four planted controls fail. Baseline and measure:
+  pending the batched hosted run (owner decision 2026-11-27). The oracle keeps
+  the platforms, strategy, interview, prep and research vectors as deferred
+  cases (`--case` only) for the next slices. Still to port: the six job
+  platforms, `store.cached` fetches, plugin job sources, strategy, interview
+  loops, the prep checklist and runs, research, the LinkedIn export import (it
+  needs a zip reader in the lockfile), the full HTML entity table, and the CLI
+  handlers.
 
 ### rust-20: Port flashcards, FSRS and Notion import
 
