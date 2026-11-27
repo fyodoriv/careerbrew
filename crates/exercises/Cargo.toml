@@ -1,0 +1,20 @@
+[package]
+name = "careerbrew-exercises"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+serde_json = { version = "=1.0.154", features = ["arbitrary_precision"] }
+libc = "=0.2.191"
+tempfile = "=3.23.0"
+regex = "=1.13.2"
+
+[[bin]]
+name = "exercises-component"
+path = "src/bin/exercises-component.rs"
+
+[[bin]]
+name = "exercise-fixture-runner"
+path = "src/bin/exercise-fixture-runner.rs"

@@ -223,6 +223,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "careerbrew-exercises"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "regex",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "careerbrew-feed"
 version = "0.1.0"
 dependencies = [

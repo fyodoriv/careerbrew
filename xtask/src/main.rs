@@ -34,6 +34,7 @@ mod rust16;
 mod rust17;
 mod rust18;
 mod rust24;
+mod rust22;
 mod sites;
 mod toolchain_identity;
 mod trial_plan;
