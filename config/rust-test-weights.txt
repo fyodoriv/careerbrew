@@ -1,0 +1,50 @@
+# Usual seconds of each Rust integration-test target on a hosted macos-15 runner:
+# cargo test's "finished in" time, summed over the crates that share the name.
+# scripts/rust-test-shard.py splits the targets into the hosted rust-test shares
+# by these weights (docs/ci.md, "Parallel parts"). A target with no line weighs 60.
+# Taken from runs 45896537107 and 45836895295 (the larger of the two).
+# Refresh a line when a target becomes much slower or faster.
+
+# The other steps of share 1's part (exercises, rust-fmt, rust-clippy, rust-inventory, rust-policy-io).
+@share-1-extra 260
+
+capture_data 285
+rust20 282
+verify 167
+rust12 162
+rust14 103
+capture_http 91
+rust08 70
+rust11 69
+rust10 67
+rust13 57
+rust05 49
+rust07 45
+component 43
+rust09 40
+measure 36
+rust06 34
+controls 33
+depvec 32
+purevec 27
+capture_data_cli 26
+capture_actions 24
+observer_transport 16
+rust04_verify 6
+input_key 2
+baseline 2
+resources 2
+activation_manifest 1
+browser_test_receipts 1
+check_docs 1
+cli 1
+decide 1
+i01_fixture 1
+leak_check 1
+observer_deadline 1
+observer_owner 1
+observer_parser 1
+rust04_decide 1
+store_supervisor 1
+vecdriver 1
+wait4_accounting 1
