@@ -332,8 +332,9 @@ timestamps and cargo's `Finished` lines:
 
 - A perfect cache (every crate a hit, a restore that takes no time) saves at
   most the compile share: 6% to 10% of the macOS gate step in each run (180 s
-  of 1924 s at most). That is at or under the 10% rule in "Dependency caches"
-  before any restore time, and a real restore of `target/` costs part of it back.
+  of 1924 s at most). On macOS, the critical path, that is at or under the 10%
+  rule in "Dependency caches" before any restore time, and a real restore of
+  `target/` costs part of it back. Linux reaches 11%, but Linux parts end first.
   The Swatinem/rust-cache trial on 2026-11-16 also showed no gain.
 - A cached test pass is not allowed: `rust-test` always runs (see "No gate
   cache between hosted runs").
