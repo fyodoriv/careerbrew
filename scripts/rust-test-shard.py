@@ -12,6 +12,10 @@ in several crates (`component`, `cli`) are one entry and always run together.
 A target with no weight line weighs DEFAULT_WEIGHT, so a new test file always
 runs in exactly one share. Share 1 also runs every lib and bin unit test and
 the doc tests, so together the shares run what `cargo test --all` runs.
+Every share first builds the workspace's executables: `cargo test --all` left
+them in `target/debug/` as a side effect, and some tests run them from there
+(`xtask/tests/rust04_verify.rs`, `xtask/src/measure.rs`). A target kind the
+split does not handle (an example, a bench, `test = false`) fails the share.
 """
 
 from __future__ import annotations
@@ -56,7 +60,12 @@ def targets() -> list[str]:
     meta = subprocess.run(["cargo", "metadata", "--no-deps", "--format-version", "1"], cwd=ROOT, capture_output=True, text=True, check=True).stdout
     data = json.loads(meta)
     members = set(data["workspace_members"])
-    return sorted({t["name"] for p in data["packages"] if p["id"] in members for t in p["targets"] if "test" in t["kind"]})
+    ours = [t for p in data["packages"] if p["id"] in members for t in p["targets"]]
+    odd = sorted({t["name"] for t in ours if {"example", "bench"}.intersection(t["kind"]) or t.get("test") is False})
+    if odd:
+        print(f"rust-test-shard: target(s) the split does not handle (example, bench, or test = false): {' '.join(odd)}", file=sys.stderr)
+        sys.exit(1)
+    return sorted({t["name"] for t in ours if "test" in t["kind"]})
 
 
 def split(names: list[str], n: int, w: dict[str, int]) -> list[list[str]]:
@@ -70,12 +79,15 @@ def split(names: list[str], n: int, w: dict[str, int]) -> list[list[str]]:
     return [sorted(s) for s in shares]
 
 
+BUILD = ["cargo", "build", "--workspace", "--bins"]
+
+
 def commands(i: int, share: list[str]) -> list[list[str]]:
     tests = [f"--test={t}" for t in share]
     if i == 1:
         # cargo refuses --doc beside other target options, so the doc tests run on their own.
-        return [["cargo", "test", "--workspace", "--lib", "--bins", *tests], ["cargo", "test", "--workspace", "--doc"]]
-    return [["cargo", "test", "--workspace", *tests]] if share else []
+        return [BUILD, ["cargo", "test", "--workspace", "--lib", "--bins", *tests], ["cargo", "test", "--workspace", "--doc"]]
+    return [BUILD, ["cargo", "test", "--workspace", *tests]] if share else []
 
 
 def main() -> int:

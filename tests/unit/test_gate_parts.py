@@ -274,6 +274,9 @@ def test_the_rust_shares_run_every_test_target_exactly_once(tmp_path, n):
     assert sum("--lib --bins" in line for line in lines) == 1, "lib and bin unit tests run in share 1 only"
     assert sum(line.endswith("test --workspace --doc") for line in lines) == 1, "doc tests run in share 1 only"
     assert all(line.startswith("unset ") for line in lines), "cargo must not inherit the share"
+    # Tests run the workspace's executables from target/debug, which plain `cargo test --all` built as a side effect.
+    builds = [k for k, line in enumerate(lines) if line == "unset build --workspace --bins"]
+    assert len(builds) == n and all(lines[k + 1].startswith("unset test ") for k in builds), lines
 
 
 def test_the_heaviest_target_goes_first_and_a_new_target_still_runs(tmp_path):
@@ -284,6 +287,20 @@ def test_the_heaviest_target_goes_first_and_a_new_target_still_runs(tmp_path):
     # Share 1 starts at 50 (its part's other steps), so heavy (100) goes to share 2.
     # new_one has no weight line, weighs 60, and goes to share 1; component (40) then joins heavy.
     assert shares == [["a1", "b1", "new_one"], ["component", "heavy"]]
+
+
+@pytest.mark.parametrize(
+    "odd",
+    [{"name": "demo", "kind": ["example"]}, {"name": "speed", "kind": ["bench"]}, {"name": "skipped", "kind": ["test"], "test": False}],
+)
+def test_a_target_the_split_does_not_handle_fails_the_share(tmp_path, odd):
+    root = _shard_repo(tmp_path, WEIGHTS_TEXT)
+    meta = json.loads((root / "meta.json").read_text())
+    meta["packages"][0]["targets"].append(odd)
+    (root / "meta.json").write_text(json.dumps(meta))
+    r = _shard(root, "1/2")
+    assert r.returncode == 1 and odd["name"] in r.stderr
+    assert not (root / "ran").exists(), "nothing runs when the split could drop a target"
 
 
 def test_a_failed_cargo_fails_the_share(tmp_path):

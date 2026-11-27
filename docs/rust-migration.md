@@ -3815,7 +3815,8 @@ Observed (filled from hosted CI logs, `calibration` and `inheritance` lines):
   `inheritance` and `tree calibration` line to the file that
   `CAREERBREW_RESOURCES_RECORD` names. The hosted gate sets it, and its
   "Resource calibration lines" step prints the file to the job log and the job
-  summary: `gh run view --job <native-job-id> --log | rg calibration`.
+  summary: `gh run view --job <native-job-id> --log | rg calibration` (since the
+  Rust test shares, the `resources` test may run in the `native-2` part; read both).
 
 ### Process-tree resource accounting (pre-registered 2026-11-17)
 
