@@ -1,0 +1,26 @@
+[package]
+name = "careerbrew-workday"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+careerbrew-vault = { path = "../vault" }
+careerbrew-setup = { path = "../setup" }
+careerbrew-projects = { path = "../projects" }
+careerbrew-sessions = { path = "../sessions" }
+serde_json = { version = "=1.0.154", features = ["arbitrary_precision"] }
+chrono = { version = "=0.4.45", default-features = false, features = ["std", "clock"] }
+regex = "=1.13.2"
+glob = "=0.3.4"
+sha2 = "=0.10.9"
+wait-timeout = "=0.2.1"
+indexmap = { version = "=2.14.2", features = ["serde"] }
+
+[dev-dependencies]
+tempfile = "=3.23.0"
+
+[[bin]]
+name = "workday-component"
+path = "src/bin/workday-component.rs"
