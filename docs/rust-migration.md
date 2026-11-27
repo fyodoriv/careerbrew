@@ -2800,6 +2800,32 @@ the crate until the rust-05 and rust-07 closure is native, so
 - **Outputs:** native evidence and report builders.
 - **Gate:** 100% of evidence, standup and report contracts agree; 0 unsupported
   claims, missing proof or unsafe HTML.
+- **Component pre-registration (2026-11-27):** source base
+  `fc24028fede8899426aa1c6e26ef3ed9354d1f46` (the rust-15 branch, PR 233). The
+  first slice registers `target/release/career-component` for a four-case real
+  Python differential workload (`tests/oracles/rust18.py`): evidence auto-tags,
+  notes and forget; the promotion assessment, gaps, ladder validation errors
+  and the promotion document; ladder grading and graded evidence; and the
+  LinkedIn block with its public scrub. Models are off (the fallback text) and
+  no plugin is installed. Production routes, native routes and shipped crates
+  stay unchanged.
+- **Prediction:** every case agrees byte for byte; semantic write maps,
+  per-phase write counts and write-operation receipts agree; the planted extra,
+  missing and duplicate write controls are rejected; native process-tree
+  CPU-time p95 and peak RSS stay at or below 1.10 times Python baseline B. Any
+  disagreement, accepted plant, privacy leak or ratio above 1.10 B keeps
+  Python.
+- **Measurement:** `heavy-run --exclusive cargo xtask migration baseline --step rust-18 --python "$PWD/.venv/bin/python" --out <new-absolute-baseline>`;
+  `heavy-run cargo xtask migration verify --step rust-18 --python "$PWD/.venv/bin/python" --out <new-absolute-verify>`;
+  `heavy-run --exclusive cargo xtask migration measure --step rust-18 --python "$PWD/.venv/bin/python" --pairs 30 --out <new-absolute-measure>`;
+  `cargo xtask migration decide --step rust-18` over the same-revision records;
+  `CAREERBREW_ALLOW_LOCAL_TESTS=1 heavy-run cargo test --locked --offline -p careerbrew-xtask --test rust18`.
+- **State (2026-11-27):** component slice 1 only. A local verify passes 4/4 with
+  zero violations, and the three planted write controls produce `keep-python`.
+  Baseline and measure: pending the batched hosted run (owner decision
+  2026-11-27). The standup report (`standup.py`, its proof gates, talking
+  points, page and `tests/fixtures/standup/`), the evidence collectors, ladder
+  import, the CLI handlers and their test-file assertions are later slices.
 
 ### rust-19: Port job search, interview prep and public research
 
@@ -3128,6 +3154,7 @@ and each set's planted wrong vector fails. For `rust-02`, see
 | `crates/feed/` | `careerbrew-feed` | the rust-13 recorded feed readers, original/analysis transactions, raw replies, Claude/Codex transcript normalization, open asks, cycle and CLI component; synthetic `feed-component` transport only | none: component parity only |
 | `crates/live/` | `careerbrew-live` | the rust-14 live-cycle, acquisition/direct health, listening, reviewer and notification component; synthetic `live-component` transport only | none: component parity only |
 | `crates/workday/` | `careerbrew-workday` | the rust-15 canonical status, question, step, stage and `work.session` component, with typed review and canonical Agentfile provider seams; synthetic `workday-component` transport only | none: component parity only |
+| `crates/career/` | `careerbrew-career` | the rust-18 slice 1 evidence tags and notes, promotion assessment and document, ladder grading and LinkedIn block component; synthetic `career-component` transport only | none: component parity only |
 | `crates/purevec/` | `careerbrew-purevec` | the rust-02 pure value vector candidate: sets `clock` (`chrono` =0.4.45 without the `clock` feature, `chrono-tz` =0.10.4), `hash` (`changes._h` over `sha2 =0.10.9`), `paths` (std only) and `settings` (config validators, `DEFAULTS`, pure precedence); `--all` lists them, for `migration verify`, `baseline` and `measure --step rust-02` | none: component parity only (decide `activate`, 2026-11-18) |
 | `crates/policy/` | `careerbrew-policy` | the rust-04d policy core: the `privacy.py` canary engine (`term_id`, `normalize`, `term_pattern`, `find_leaks`, `leak_spans`, `_match_kind`), the `sensitive_terms` filter rules and the allowlists, on Python 3.12 Unicode 15.0.0 tables (`gen_tables.py`). No IO: gate step `rust-policy-io` (`scripts/policy-no-io.py`). Binary `policy-vectors` answers `unicode-version` and the sets `canary-core`, `canary-match`, `leak-spans`, `assert-redact`, `allowlists`, `private-path`, `assert-no-echo`; rust-04e adds `assert_clean`, `redact` and `_names_private_path` (`outputs.rs`), `scrub_public` on a `re`-compatible matcher (`scrub.rs`, `pyre.rs`), the approval decisions (`approvals.rs`) and the access decisions (`access.rs`), with the sets `public-scrub`, `approvals`, `receipt-validate` and `access`; `--all <file>` runs every set for `measure --step rust-04` (`rust-04f`) | none: component parity only |
 | `crates/cbcli/` | `careerbrew-cli` | the rust-03 native CLI pilot, binary `careerbrew-native`: `actions [name] [--json]` and static `-h/--help` from the compiled-in registry; exit 64 for anything else | active since 2026-11-19: `cli.main` routes `actions` native by default (`config/native-routes.txt`); every other action defaults to Python. Rollback: `CAREERBREW_ROUTE_ACTIONS=python` or `CAREERBREW_NATIVE=off`. `setup.sh` rebuilds it after each pull (`scripts/rust-shipped-crates.txt`) |
@@ -3962,6 +3989,8 @@ row stays, but it means the **dispatcher**, not the handlers:
 - `tests/fixtures/standup/` (2): `extra.json`, `proof.json`
 - CLI handlers it ports out of `cli.py` (9): `cmd_day_pm_grade`, `cmd_ladder_import`, `cmd_ladder_levels`, `cmd_ladder_list`, `cmd_work_gaps`, `cmd_work_linkedin`, `cmd_work_note`, `cmd_work_plan`, `cmd_work_standup`
 - Assertions it ports (24 test files, the files themselves are listed under `rust-27`): `us-10-plan.sh`, `us-23-day-watch.sh`, `us-28-ladder-import.sh`, `us-30-hot-reload.sh`, `us-95-standup-proofs.sh`, `test_connectors_machines.py`, `test_focus.py`, `test_hot_reload.py`, `test_issue_200.py`, `test_issue_214.py`, `test_issue_214_why.py`, `test_issue_216.py`, `test_issue_307.py`, `test_issue_315.py`, `test_issue_331.py`, `test_issue_336.py`, `test_issue_338.py`, `test_issue_52.py`, `test_issue_72.py`, `test_issue_73.py`, `test_linkedin.py`, `test_pm_sent_reconciliation.py`, `test_promo_matching.py`, `test_split_plugin_evidence.py`
+
+- Native crate it adds (`port` in the inventory): `crates/career/` (`lib.rs`, `py.rs`, `when.rs`, `evidence.rs`, `promo.rs`, `ladder_grade.rs`, `linkedin.rs`, `synthetic.rs` and `bin/career-component.rs`), plus `tests/oracles/rust18.py`, `tests/unit/test_rust18_component.py`, `xtask/src/rust18.rs` and `xtask/tests/rust18.rs`. `standup.py` and `tests/fixtures/standup/` are not ported yet.
 
 #### rust-19: Port job search, interview prep and public research (13 files)
 
