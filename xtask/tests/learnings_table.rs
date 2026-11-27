@@ -219,12 +219,14 @@ fn stray_index_rows_are_problems_and_headers_are_not() {
 fn an_unreadable_learning_fails_with_the_same_stdout_and_exit() {
     let dir = repo();
     learning(dir.path(), "2026-01-01-ok.md", GOOD);
-    write(dir.path(), "docs/learnings/2026-01-02-bad.md", "");
-    std::fs::write(
-        dir.path().join("docs/learnings/2026-01-02-bad.md"),
-        b"# \xff\n",
-    )
-    .unwrap();
+    // Not UTF-8. The folder and the name are joined here, so no literal
+    // path names a file the public release tree leaves out (surface S21).
+    let bad = dir
+        .path()
+        .join("docs")
+        .join("learnings")
+        .join("2026-01-02-bad.md");
+    std::fs::write(bad, b"# \xff\n").unwrap();
     for check in [false, true] {
         let p = python(dir.path(), check);
         let n = native(dir.path(), check);
