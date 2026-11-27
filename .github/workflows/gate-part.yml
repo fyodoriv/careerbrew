@@ -133,6 +133,12 @@ jobs:
           CAREERBREW_RESOURCES_RECORD: ${{ runner.temp }}/resources-calibration.txt
         run: scripts/check.sh
 
+      # A visual test that fails leaves its pictures under web/test-results. No artifact
+      # (docs/ci.md): print them in the log, like visual-pictures.yml does.
+      - name: Failed visual pictures
+        if: failure() && runner.os == 'Linux' && contains(inputs.steps, 'e2e')
+        run: scripts/visual-pictures.sh failures
+
       # A passing cargo test hides these lines; print them to the log and the job summary.
       - name: Resource calibration lines
         if: always()
