@@ -865,6 +865,12 @@ mod tests {
     fn a_conflicting_loop_cannot_interleave_the_session_transaction() {
         let scratch = tempfile::tempdir().unwrap();
         let root = scratch.path();
+        // The store reads its root from the environment; a clean runner has none.
+        std::env::set_var("CAREERBREW_HOME", root);
+        std::env::set_var("HOME", root.join("home"));
+        std::env::set_var("CAREERBREW_ENCRYPT", "off");
+        std::env::set_var("CAREERBREW_EVENTS", "off");
+        std::env::set_var("CAREERBREW_NOW", "2026-11-03T09:00:00+00:00");
         std::fs::create_dir_all(root.join("day")).unwrap();
         let loop_path = root.join("day/loops.json");
         std::fs::write(

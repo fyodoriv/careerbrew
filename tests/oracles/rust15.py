@@ -61,11 +61,11 @@ def error(fn) -> str:
     return "accepted"
 
 
-def invoke(args: list[str], *, json_output: bool = False, show: bool | None = None) -> dict[str, Any]:
+def invoke(args: list[str], *, json_output: bool = False, show: bool = False) -> dict[str, Any]:
+    # The Rust driver models the restricted (agent) output, so pin it here too.
     output = io.StringIO()
     original = cli.may_show_business
-    if show is not None:
-        cli.may_show_business = lambda: show
+    cli.may_show_business = lambda: show
     try:
         with contextlib.redirect_stdout(output):
             code = cli.main(args)
