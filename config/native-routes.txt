@@ -117,7 +117,7 @@ work.live.start python
 work.live.cycle python
 work.live.status python
 work.live.stop python
-work.promise.list python
+work.promise.list native
 work.promise.scan python
 work.promise.add python
 work.promise.outcomes python
@@ -211,7 +211,7 @@ day.answer python
 day.suggest python
 day.suggestions python
 day.watch python
-day.results python
+day.results native
 day.plan python
 day.next python
 day.handoff python
@@ -222,11 +222,11 @@ day.start python
 day.history python
 day.render python
 day.end python
-day.wrap python
+day.wrap native
 day.question.add python
-day.question.list python
+day.question.list native
 day.question.recheck python
-day.question.close python
+day.question.close native
 day.loop python
 notify.status python
 notify.check python
