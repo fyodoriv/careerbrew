@@ -198,7 +198,7 @@ pair.join native
 sync.export native
 sync.import native
 day.log python
-day.inbox python
+day.inbox native
 day.accept-all native
 day.dismiss-all native
 day.reopen native

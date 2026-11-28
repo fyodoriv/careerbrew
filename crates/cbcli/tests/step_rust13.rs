@@ -682,3 +682,117 @@ fn a_not_json_line_gives_a_different_add_error() {
     let want = observe(&home, &["work", "feed", "add", &files[1]], &Side::Python);
     assert_ne!(got, want);
 }
+
+// ---------- wave 8: day inbox ----------
+
+/// A stored inbox with decided items, one expired plugin ask, and an open
+/// question that no fresh candidate keeps.
+const INBOX_KEPT: &str = r#"{"items": [
+ {"id": "plugin-aaaa1111", "type": "proposal", "kind": "plugin", "status": "dismissed", "origin": "plugin:demo", "data": {"plugin": "demo", "ref": "r1"}, "created_at": "2026-11-18T09:00:00+00:00", "decided_at": "2026-11-18T10:00:00+00:00"},
+ {"id": "plugin-bbbb2222", "type": "proposal", "kind": "plugin", "status": "expired", "data": {"plugin": "demo", "ref": "r2"}, "expired": {"what": "PR merged", "url": "", "at": "2026-11-19T09:00:00+00:00"}, "created_at": "2026-11-18T09:00:00+00:00"},
+ {"id": "impact-cccc3333", "type": "question", "kind": "impact", "status": "open", "data": {"title": "Synthetic work", "source": "pr"}, "created_at": "2026-11-18T09:00:00+00:00"}
+]}
+"#;
+
+#[test]
+fn day_inbox_matches_python() {
+    strict(NOW);
+    let fresh = plain("inbox-fresh", &[]);
+    assert_same(&fresh, &["day", "inbox"], true, "day.inbox");
+    assert_same(
+        &fresh,
+        &["day", "inbox", "--group", "grp-0000000000"],
+        true,
+        "day.inbox group",
+    );
+    // A second run: the stored open goal gets the fresh words.
+    let again = plain("inbox-again", &[&["day", "inbox"]]);
+    assert_same(&again, &["day", "inbox"], true, "day.inbox again");
+    // The goal dismissed: nothing open, the decision kept.
+    let decided = plain(
+        "inbox-decided",
+        &[&["day", "inbox"], &["day", "dismiss", "goal-c0a5abd6"]],
+    );
+    assert_same(&decided, &["day", "inbox"], true, "day.inbox decided");
+    let kept = prepare_setup(&Setup {
+        id: "inbox-kept",
+        cli: &[],
+        files: &[PLAIN, ("day/inbox.json", INBOX_KEPT)],
+    });
+    assert_same(&kept, &["day", "inbox"], true, "day.inbox kept");
+    assert_same(
+        &kept,
+        &["day", "inbox", "--group", "grp-x"],
+        true,
+        "day.inbox kept group",
+    );
+    let staff = prepare_setup(&Setup {
+        id: "inbox-staff",
+        cli: &[],
+        files: &[PLAIN, ("settings.yaml", "target_level: staff\n")],
+    });
+    assert_same(&staff, &["day", "inbox"], true, "day.inbox staff");
+}
+
+#[test]
+fn day_inbox_refuses_what_it_cannot_repeat() {
+    strict(NOW);
+    let grouped = r#"{"items": [{"id": "goal-c0a5abd6", "type": "proposal", "kind": "goal", "status": "open", "group": "grp-1", "data": {}}]}"#;
+    let cases: [(&'static str, Vec<(&'static str, &'static str)>); 6] = [
+        // An encrypted data folder: the written file differs on every run.
+        ("inbox-sealed", vec![]),
+        // An open task: task and competency candidates stay Python.
+        (
+            "inbox-task",
+            vec![
+                PLAIN,
+                (
+                    "work/tasks.yaml",
+                    "tasks:\n  - {id: t1, title: Synthetic task}\n",
+                ),
+            ],
+        ),
+        // A saved goal: `goals.load` stays Python.
+        ("inbox-goals", vec![PLAIN, ("goals.yaml", "queue: []\n")]),
+        // A setting `config.get` reads.
+        (
+            "inbox-config",
+            vec![PLAIN, ("settings.yaml", "inbox_expire_done: false\n")],
+        ),
+        // An unknown level raises `LadderError` in Python.
+        (
+            "inbox-level",
+            vec![PLAIN, ("settings.yaml", "target_level: nobody\n")],
+        ),
+        // A stored open goal that carries a group.
+        ("inbox-grouped", vec![PLAIN, ("day/inbox.json", grouped)]),
+    ];
+    for (id, files) in cases {
+        let files: &'static [(&'static str, &'static str)] = Box::leak(files.into_boxed_slice());
+        let home = prepare_setup(&Setup {
+            id,
+            cli: &[],
+            files,
+        });
+        assert!(
+            !assert_same(&home, &["day", "inbox"], false, id),
+            "{id} served"
+        );
+    }
+}
+
+/// Negative control: a run on a stored inbox prints another listing than a
+/// run on a fresh one.
+#[test]
+fn a_kept_inbox_lists_differently() {
+    strict(NOW);
+    let fresh = plain("inbox-control-fresh", &[]);
+    let kept = prepare_setup(&Setup {
+        id: "inbox-control-kept",
+        cli: &[],
+        files: &[PLAIN, ("day/inbox.json", INBOX_KEPT)],
+    });
+    let a = observe(&fresh, &["day", "inbox"], &Side::Native);
+    let b = observe(&kept, &["day", "inbox"], &Side::Native);
+    assert_ne!(a.stdout, b.stdout);
+}
