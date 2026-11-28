@@ -127,7 +127,7 @@ work.promise.done python
 work.promise.dropped python
 work.promise.step python
 work.agent.event native
-work.agent.show python
+work.agent.show native
 work.session.open python
 work.session.list native
 work.session.ask python
@@ -135,7 +135,7 @@ work.session.handoff native
 work.session.end native
 work.claim.take native
 work.claim.release native
-work.claim.list python
+work.claim.list native
 work.team.add python
 work.team.remove python
 work.team.list native
@@ -148,10 +148,10 @@ work.promo python
 work.gaps native
 work.plan python
 work.linkedin python
-work.task-set python
+work.task-set native
 work.impact python
 work.task python
-work.done python
+work.done native
 ladder.list native
 ladder.import python
 ladder.levels native
@@ -247,8 +247,8 @@ peer.status python
 peer.experiment native
 review python
 draft.fit native
-draft.replace python
-draft.show python
+draft.replace native
+draft.show native
 draft.check native
 draft.route native
 draft.judge native
