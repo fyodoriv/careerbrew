@@ -11,6 +11,14 @@
 //! every value written is a plain YAML word (see `plain_word`), so the text
 //! equals PyYAML's `safe_dump`. The corporate role (which deletes folders)
 //! and anything else go to Python.
+//!
+//! `plugin refresh` and `machine split-plugin-evidence [--dry-run]` are
+//! served only with no plugin installed: no `plugins.lock.json` (which is
+//! also a redaction input) and no agent command fragment. Python then
+//! reinstalls nothing, runs no deployer and edits no plugin file; the
+//! split only counts the entries of `work/sources.yaml` and
+//! `work/connectors.yaml`. Any plugin, base evidence folder or entry shape
+//! Python could fail on goes to Python.
 use super::Ctx;
 use crate::args::Parsed;
 use crate::Outcome;
@@ -20,13 +28,20 @@ use std::path::{Path, PathBuf};
 /// The route keys this module serves. Each one must be routed `native` in
 /// `config/native-routes.txt` and have a parity case in
 /// `crates/cbcli/tests/step_rust07.rs`.
-pub const COMMANDS: &[&str] = &["init", "machine.set"];
+pub const COMMANDS: &[&str] = &[
+    "init",
+    "machine.set",
+    "plugin.refresh",
+    "machine.split-plugin-evidence",
+];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
 pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
     match name {
         "init" => init(ctx),
         "machine.set" => machine_set(args.text("role")?, args, ctx),
+        "plugin.refresh" => plugin_refresh(ctx),
+        "machine.split-plugin-evidence" => split_plugin_evidence(args.flag("dry_run"), ctx),
         _ => None,
     }
 }
@@ -386,6 +401,165 @@ fn machine_set(role: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
     store.write_text(&path, &text).ok()?;
     Some(Outcome {
         stdout: format!("role set: {role}\n"),
+        stderr: String::new(),
+        code: 0,
+        emit_event: true,
+    })
+}
+
+/// True when `path` is absent: no file, folder or link (even a broken one).
+fn absent(path: &Path) -> Option<bool> {
+    match std::fs::symlink_metadata(path) {
+        Ok(_) => Some(false),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Some(true),
+        Err(_) => None,
+    }
+}
+
+/// No plugin is installed and no agent command fragment exists, so
+/// Python's `plugins.installed()` is empty and `_sync_command_sources`
+/// writes nothing and runs no deployer. The lock is also a redaction input.
+fn no_plugins(ctx: &Ctx) -> Option<()> {
+    if ctx.redact_inputs_present() {
+        return None;
+    }
+    if !absent(&ctx.root.join("plugins.lock.json"))? || !absent(&ctx.root.join("agentbrew"))? {
+        return None;
+    }
+    let root_text = ctx.root.to_str()?;
+    root_text.starts_with('/').then_some(())
+}
+
+fn plugin_refresh(ctx: &Ctx) -> Option<Outcome> {
+    no_plugins(ctx)?;
+    Some(Outcome {
+        stdout: "refreshed 0 plugin(s): none installed\n".to_owned(),
+        stderr: String::new(),
+        code: 0,
+        emit_event: true,
+    })
+}
+
+/// The number of entries under `key` in one private evidence file, as
+/// both `split_plugin_evidence` (`.get(key) or []`) and
+/// `evidence.sources_list` (`.get(key, [])`, each entry unpacked as a
+/// mapping) read it; None where either could fail or read it otherwise.
+fn evidence_count(store: &careerbrew_vault::store::Store, path: &Path, key: &str) -> Option<usize> {
+    match std::fs::symlink_metadata(path) {
+        Ok(meta) if meta.file_type().is_file() => {}
+        Ok(_) => return None,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Some(0),
+        Err(_) => return None,
+    }
+    let value = store.read_yaml(path, Canon::Map(Vec::new()), false).ok()?;
+    let Canon::Map(items) = value else {
+        return None;
+    };
+    let mut found: Option<&Canon> = None;
+    let mut seen: Vec<&str> = Vec::new();
+    for (name, value) in &items {
+        let Canon::Str(name) = name else {
+            continue;
+        };
+        if seen.contains(&name.as_str()) {
+            return None;
+        }
+        seen.push(name);
+        if name == key {
+            found = Some(value);
+        }
+    }
+    match found {
+        None => Some(0),
+        Some(Canon::List(entries)) if entries.iter().all(|it| matches!(it, Canon::Map(_))) => {
+            Some(entries.len())
+        }
+        Some(_) => None,
+    }
+}
+
+/// The repo whose `knowledge/` Python reads (`paths.REPO_ROOT`).
+fn repo_root() -> Option<PathBuf> {
+    match std::env::var("CAREERBREW_NATIVE_REPO") {
+        Ok(repo) if repo.starts_with('/') => Some(PathBuf::from(repo)),
+        Ok(_) => None,
+        Err(_) => Some(PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))),
+    }
+}
+
+/// The `machine.split_evidence` row Python's `events.emit` appends, keys
+/// sorted.
+fn split_row(dry_run: bool) -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    let status = if dry_run { "dry_run" } else { "none" };
+    let mut out = format!(
+        "{{\"event\": \"machine.split_evidence\", \"left\": 0, \"moved\": 0, \"skipped\": 0, \"status\": \"{status}\", \"ts\": "
+    );
+    crate::render::py_string(&crate::events::stamp(secs), &mut out);
+    out.push_str(", \"v\": ");
+    crate::render::py_string(crate::events::version(), &mut out);
+    out.push_str("}\n");
+    out
+}
+
+/// `machine.split_plugin_evidence` with no plugin installed: nothing moves
+/// and nothing is written except the `work` folder `paths.sub` makes.
+fn split_plugin_evidence(dry_run: bool, ctx: &Ctx) -> Option<Outcome> {
+    no_plugins(ctx)?;
+    // Base evidence files would add to the count and the per-person check.
+    if !absent(&repo_root()?.join("knowledge/evidence_sources"))? {
+        return None;
+    }
+    let vault = careerbrew_vault::transfer::Context::from_env().ok()?;
+    if vault.root != ctx.root {
+        return None;
+    }
+    let store = vault.store();
+    let work = ctx.root.join("work");
+    match std::fs::symlink_metadata(&work) {
+        Ok(meta) if meta.is_dir() => {}
+        Ok(_) => return None,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(_) => return None,
+    }
+    let sources = evidence_count(&store, &work.join("sources.yaml"), "sources")?;
+    let connectors = evidence_count(&store, &work.join("connectors.yaml"), "connectors")?;
+    let total = sources + connectors;
+    std::fs::create_dir_all(&work).ok()?;
+    let mut stdout = String::from(
+        "nothing to move: no plugin folder here holds per-person sources or connectors\n",
+    );
+    stdout.push_str(&format!(
+        "your work/sources.yaml: {sources} -> {sources} source(s); work/connectors.yaml: {connectors} -> {connectors} connector(s)\n"
+    ));
+    stdout.push_str(&format!(
+        "evidence sources work collect reads: {total} -> {total}\n"
+    ));
+    if dry_run {
+        stdout.push_str("dry run: nothing written; rerun without --dry-run to move them\n");
+    } else {
+        stdout.push_str(&format!(
+            "ok    {}\n",
+            careerbrew_setup::machine::PER_USER_CHECK
+        ));
+    }
+    if std::env::var("CAREERBREW_EVENTS").as_deref() != Ok("off") {
+        let logs = ctx.root.join("logs");
+        if std::fs::create_dir_all(&logs).is_ok() {
+            if let Ok(mut log) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(logs.join("events.jsonl"))
+            {
+                use std::io::Write;
+                let _ = log.write_all(split_row(dry_run).as_bytes());
+            }
+        }
+    }
+    Some(Outcome {
+        stdout,
         stderr: String::new(),
         code: 0,
         emit_event: true,
