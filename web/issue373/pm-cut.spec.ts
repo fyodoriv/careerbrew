@@ -79,6 +79,12 @@ const test = base.extend<{ proof: Proof }>({
     try {
       await runTest(proof);
     } finally {
+      // A typed PM box saves on blur by design, and the blur while a page closes can reach the
+      // server past this route. Put the server's text back first, so that blur saves nothing.
+      for (const p of context.pages()) {
+        const box = p.getByLabel("PM update", { exact: true });
+        if (proof.ready && (await box.count()) === 1 && (await box.inputValue()) !== proof.ready.kept) await box.fill(proof.ready.kept);
+      }
       // The deny/record route stays installed through page shutdown. No blur,
       // Copy, Send or navigation is used to satisfy the display oracle.
       for (const p of context.pages()) await p.close({ runBeforeUnload: false });

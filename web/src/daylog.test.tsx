@@ -163,6 +163,25 @@ describe("daily log panel", () => {
     await s.release();
     expect(screen.getByLabelText("PM update")).toHaveValue(s.newer.pm.body);
   });
+
+  // Task pm-draft-autosave-race: a fresh answer that replaces the cached draft, then a blur or an unmount
+  // (the page closes), saves nothing when the owner typed nothing.
+  it("sends no draft save after a fresh answer, a blur and an unmount with no typing", async () => {
+    const s = await cachedThenNewDraft();
+    const posts: string[] = [];
+    const gated = globalThis.fetch;
+    vi.stubGlobal("fetch", vi.fn((url: string, init?: RequestInit) => {
+      if (init?.method === "POST") posts.push(String(url));
+      return gated(url, init);
+    }));
+    screen.getByLabelText("PM update").focus();
+    await s.release();
+    expect(screen.getByLabelText("PM update")).toHaveValue(s.newer.pm.body);
+    fireEvent.blur(screen.getByLabelText("PM update"));
+    cleanup();
+    await act(async () => { await Promise.resolve(); });
+    expect(posts.filter((url) => url.endsWith("/api/pm/draft"))).toEqual([]);
+  });
 });
 
 describe("Today's day-log blocks page their lists (issue #146)", () => {
