@@ -42,6 +42,14 @@ pub const COMMANDS: &[&str] = &[
     "work.promise.step",
     "work.promise.scan",
     "work.promise.add",
+    "day.accept",
+    "day.dismiss",
+    "day.answer",
+    "day.reopen",
+    "day.suggest",
+    "day.suggestions",
+    "day.accept-all",
+    "day.dismiss-all",
 ];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
@@ -68,6 +76,13 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "work.promise.step" => logged("work.promise", promise_step(args, ctx)?, ctx, started),
         "work.promise.scan" => logged("work.promise", promise_scan(ctx)?, ctx, started),
         "work.promise.add" => logged("work.promise", promise_add(args, ctx)?, ctx, started),
+        "day.accept" => inbox_accept(args, ctx),
+        "day.dismiss" => inbox_dismiss(args, ctx),
+        "day.answer" => inbox_answer(args, ctx),
+        "day.reopen" => inbox_reopen(args, ctx),
+        "day.suggest" => inbox_suggest(args, ctx),
+        "day.suggestions" => inbox_suggestions(args, ctx),
+        "day.accept-all" | "day.dismiss-all" => inbox_group(args, ctx),
         _ => None,
     }
 }
@@ -1813,4 +1828,523 @@ fn promise_add(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
     };
     projects_lock(&path)?;
     Some(fail(&problem, "US-99"))
+}
+
+// ---------- the day inbox (wave 7) ----------
+//
+// `day accept`, `dismiss`, `answer` and `reopen` decide one stored item
+// (`day/inbox.json`) under `day/inbox.lock`, as `inbox.py` does. Only the
+// decisions that change nothing but that file are served: every effect on
+// tasks, projects, goals, evidence or feed rules goes to Python, and so
+// does a write into an encrypted folder. `day suggest` is served only for
+// its "not installed" error (no plugin lock file exists here), `day
+// suggestions` only when no decision could lower a weight, and `day
+// accept-all` / `dismiss-all` only when no proposal is open (no group).
+
+/// `" ".join(str(text).split())`.
+fn fold(text: &str) -> String {
+    text.split(py_space)
+        .filter(|w| !w.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn cstr<'a>(value: &'a Canon, key: &str) -> Option<&'a str> {
+    match get(value, key) {
+        Some(Canon::Str(text)) => Some(text),
+        _ => None,
+    }
+}
+
+/// The vault context when the key path resolves as Python's
+/// `keyfile.key_path` does (copied from `rust24`).
+fn inbox_vault() -> Option<careerbrew_vault::transfer::Context> {
+    if std::env::var("HOME").map_or(true, |home| home.is_empty()) {
+        return None;
+    }
+    if let Ok(key) = std::env::var("CAREERBREW_KEY_FILE") {
+        if key.starts_with('~') && key != "~" && !key.starts_with("~/") {
+            return None;
+        }
+    }
+    careerbrew_vault::transfer::Context::from_env().ok()
+}
+
+/// One read of `day/inbox.json`: its text and `inbox.load()`'s items.
+struct InboxRead {
+    text: Option<String>,
+    items: Vec<Canon>,
+}
+
+/// `inbox.load()`, or None when Python could read it another way or fail:
+/// each item must be a map with a text `id` and `status`, and no value may
+/// be a float, a repeated key or an integer past i64.
+fn inbox_read(store: &careerbrew_vault::store::Store, path: &Path) -> Option<InboxRead> {
+    if std::fs::symlink_metadata(path).is_ok_and(|meta| !meta.is_file()) {
+        return None;
+    }
+    let text = store.read_text(path, None, true).ok()?;
+    let items = match &text {
+        None => Vec::new(),
+        Some(body) => {
+            let data = careerbrew_vault::json_yaml::json_read(body).ok()?;
+            if !plain_canon(&data) || has_float(&data) {
+                return None;
+            }
+            match &data {
+                Canon::Map(pairs) => match pget(pairs, "items").ok()? {
+                    None => Vec::new(),
+                    Some(Canon::List(items)) => items.clone(),
+                    Some(_) => return None,
+                },
+                other if ptruthy(Some(other)) == Some(false) => Vec::new(),
+                _ => return None,
+            }
+        }
+    };
+    for item in &items {
+        if !matches!(item, Canon::Map(_))
+            || cstr(item, "id").is_none()
+            || cstr(item, "status").is_none()
+        {
+            return None;
+        }
+    }
+    Some(InboxRead { text, items })
+}
+
+/// What one decision does, computed before the lock is taken.
+enum Decided {
+    /// An `InboxError` raised under the lock: nothing is written.
+    Fail(String),
+    /// The items to save, the line to print, and the event to append.
+    Save {
+        items: Vec<Canon>,
+        line: String,
+        event: Option<InboxEvent>,
+    },
+}
+
+type InboxEvent = (&'static str, Vec<(&'static str, Canon)>);
+
+/// `inbox._find(item_id)`: the index of the open item, or the error text.
+fn inbox_find(items: &[Canon], id: &str) -> Result<usize, String> {
+    for (at, item) in items.iter().enumerate() {
+        if cstr(item, "id") == Some(id) {
+            let status = cstr(item, "status").unwrap_or("");
+            if status != "open" {
+                return Err(format!("{id} is already {status}"));
+            }
+            return Ok(at);
+        }
+    }
+    Err(format!("unknown item {id} (see `careerbrew day inbox`)"))
+}
+
+/// `calendar.now().isoformat(timespec="seconds")` after `pin_clock`.
+fn local_stamp() -> String {
+    careerbrew_workday::now()
+        .format("%Y-%m-%dT%H:%M:%S%:z")
+        .to_string()
+}
+
+/// Sets the item's `status` and `decided_at` (the file is saved with
+/// sorted keys, so where a key goes does not matter).
+fn decided(items: &[Canon], at: usize, status: &str) -> Option<Vec<Canon>> {
+    let mut items = items.to_vec();
+    let Canon::Map(pairs) = &mut items[at] else {
+        return None;
+    };
+    pset(pairs, "status", ckey(status));
+    pset(pairs, "decided_at", Canon::Str(local_stamp()));
+    Some(items)
+}
+
+/// Runs one decision: reads the inbox, decides (None refuses), then holds
+/// `day/inbox.lock`, checks the file is unchanged, and saves. With `saves`
+/// it writes the `cli.run` row itself, with that field.
+fn inbox_decide(
+    ctx: &Ctx,
+    command: &str,
+    saves: Option<&str>,
+    decide: impl FnOnce(&[Canon]) -> Option<Decided>,
+) -> Option<Outcome> {
+    let started = std::time::Instant::now();
+    // Every line echoes the id the caller typed; `say` redacts it.
+    if ctx.redact_inputs_present() {
+        return None;
+    }
+    let root = ctx.root.as_path();
+    pin_clock(root)?;
+    let context = inbox_vault()?;
+    let store = context.store();
+    // `paths.sub("day", ...)` makes the folder first.
+    std::fs::create_dir_all(root.join("day")).ok()?;
+    let path = root.join("day/inbox.json");
+    let before = inbox_read(&store, &path)?;
+    let decision = decide(&before.items)?;
+    let text = match &decision {
+        Decided::Fail(_) => None,
+        Decided::Save { items, .. } => {
+            if store.encryption_enabled() {
+                return None;
+            }
+            let data = Canon::Map(vec![(ckey("items"), Canon::List(items.clone()))]);
+            Some(careerbrew_vault::json_yaml::json_write(&data).ok()?)
+        }
+    };
+    careerbrew_vault::lock::with_exact_lock(&root.join("day/inbox.lock"), || {
+        let again = store.read_text(&path, None, true).ok()?;
+        if again != before.text {
+            return None;
+        }
+        match &text {
+            Some(text) => store.write_text(&path, text).ok(),
+            None => Some(()),
+        }
+    })
+    .ok()??;
+    match decision {
+        Decided::Fail(message) => Some(super::rust14::cli_error(
+            ctx,
+            command,
+            "inboxerror",
+            &message,
+        )),
+        Decided::Save { line, event, .. } => {
+            if let Some((name, fields)) = event {
+                let _ = careerbrew_feed::emit(root, name, fields);
+            }
+            let outcome = out(format!("{line}\n"), 0);
+            let Some(saves) = saves else {
+                return Some(outcome);
+            };
+            let ms = started.elapsed().as_millis() as u64;
+            let _ = careerbrew_feed::emit(
+                root,
+                "cli.run",
+                vec![
+                    ("command", Canon::Str(command.into())),
+                    ("status", ckey("ok")),
+                    ("ms", Canon::Int(ms.into())),
+                    ("saves", ckey(saves)),
+                    ("via", Canon::Str(ctx.env.caps.via.into())),
+                ],
+            );
+            Some(Outcome {
+                emit_event: false,
+                ..outcome
+            })
+        }
+    }
+}
+
+/// `day accept <id>`: the errors, and a plugin suggestion that names no
+/// task (accepting it changes nothing but the inbox).
+fn inbox_accept(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let id = args.text("id")?.to_owned();
+    inbox_decide(ctx, "day.accept", Some("inbox"), |items| {
+        let at = match inbox_find(items, &id) {
+            Ok(at) => at,
+            Err(message) => return Some(Decided::Fail(message)),
+        };
+        let item = &items[at];
+        if cstr(item, "type")? != "proposal" {
+            return Some(Decided::Fail(format!(
+                "{id} is a question: answer it with `careerbrew day answer {id} \"...\"`"
+            )));
+        }
+        let data = get(item, "data")?;
+        match cstr(item, "kind")? {
+            "goal" => Some(Decided::Fail(
+                "goal suggestions are approved in the web app only (careerbrew, then the Today view)"
+                    .into(),
+            )),
+            "plugin" => {
+                let Canon::Map(pairs) = data else {
+                    return None;
+                };
+                match pget(pairs, "task").ok()? {
+                    None | Some(Canon::Null) => {}
+                    Some(Canon::Str(task)) if task.is_empty() => {}
+                    Some(_) => return None,
+                }
+                Some(Decided::Save {
+                    items: decided(items, at, "accepted")?,
+                    line: format!("{id} accepted"),
+                    event: Some(("day.inbox.accept", vec![("status", ckey("ok"))])),
+                })
+            }
+            _ => None,
+        }
+    })
+}
+
+/// `day dismiss <id>`: every item but an agent's task (whose task record
+/// Python sets to dismissed).
+fn inbox_dismiss(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let id = args.text("id")?.to_owned();
+    inbox_decide(ctx, "day.dismiss", None, |items| {
+        let at = match inbox_find(items, &id) {
+            Ok(at) => at,
+            Err(message) => return Some(Decided::Fail(message)),
+        };
+        if cstr(&items[at], "kind")? == "agent-task" {
+            return None;
+        }
+        Some(Decided::Save {
+            items: decided(items, at, "dismissed")?,
+            line: format!("{id} dismissed"),
+            event: None,
+        })
+    })
+}
+
+/// `day answer <id> <text>`: the errors, and a question of a kind whose
+/// answer Python applies nowhere else.
+fn inbox_answer(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let id = args.text("id")?.to_owned();
+    if fold(args.text("text")?).is_empty() {
+        // Raised before the lock: no lock file.
+        if ctx.redact_inputs_present() {
+            return None;
+        }
+        pin_clock(&ctx.root)?;
+        return Some(super::rust14::cli_error(
+            ctx,
+            "day.answer",
+            "inboxerror",
+            "give an answer",
+        ));
+    }
+    inbox_decide(ctx, "day.answer", None, |items| {
+        let at = match inbox_find(items, &id) {
+            Ok(at) => at,
+            Err(message) => return Some(Decided::Fail(message)),
+        };
+        let item = &items[at];
+        if cstr(item, "type")? != "question" {
+            return Some(Decided::Fail(format!(
+                "{id} is a proposal: accept or dismiss it"
+            )));
+        }
+        get(item, "data")?;
+        if ["impact", "project", "competency", "memory"].contains(&cstr(item, "kind")?) {
+            return None;
+        }
+        Some(Decided::Save {
+            items: decided(items, at, "answered")?,
+            line: format!("{id} answered"),
+            event: Some(("day.inbox.answer", vec![("status", ckey("ok"))])),
+        })
+    })
+}
+
+/// `day reopen <id>`: an item careerbrew hid as done elsewhere comes back.
+fn inbox_reopen(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let id = args.text("id")?.to_owned();
+    inbox_decide(ctx, "day.reopen", None, |items| {
+        let Some(at) = items.iter().position(|i| cstr(i, "id") == Some(&id)) else {
+            return Some(Decided::Fail(format!(
+                "unknown item {id} (see `careerbrew day inbox`)"
+            )));
+        };
+        let status = cstr(&items[at], "status")?;
+        if status != "expired" {
+            return Some(Decided::Fail(format!(
+                "{id} is {status}: only a suggestion careerbrew hid as done elsewhere comes back"
+            )));
+        }
+        let mut items = items.to_vec();
+        let Canon::Map(pairs) = &mut items[at] else {
+            return None;
+        };
+        pset(pairs, "status", ckey("open"));
+        pset(pairs, "keep", Canon::Bool(true));
+        pairs.retain(|(k, _)| !matches!(k, Canon::Str(k) if k == "expired" || k == "maybe_done"));
+        Some(Decided::Save {
+            items,
+            line: format!("{id} open"),
+            event: Some((
+                "day.inbox.reopen",
+                vec![("status", ckey("ok")), ("story", ckey("us-74"))],
+            )),
+        })
+    })
+}
+
+/// `day suggest` with no plugin installed (no `plugins.lock.json`, which
+/// `redact_inputs_present` also checks): Python raises before any write.
+fn inbox_suggest(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    if ctx.redact_inputs_present() {
+        return None;
+    }
+    let plugin = args.text("plugin")?;
+    pin_clock(&ctx.root)?;
+    Some(super::rust14::cli_error(
+        ctx,
+        "day.suggest",
+        "inboxerror",
+        &format!("plugin {plugin} is not installed (see `careerbrew plugin list`)"),
+    ))
+}
+
+/// The characters `str.splitlines()` breaks on besides `\n`.
+fn odd_line_break(text: &str) -> bool {
+    text.contains([
+        '\r', '\u{b}', '\u{c}', '\u{1c}', '\u{1d}', '\u{1e}', '\u{85}', '\u{2028}', '\u{2029}',
+    ])
+}
+
+/// `f"{text:<width}"`: padded with spaces to `width` characters.
+fn pad(text: &str, width: usize) -> String {
+    let n = text.chars().count();
+    format!("{text}{}", " ".repeat(width.saturating_sub(n)))
+}
+
+/// True when `signals.inbox_counts` could count a decision: a decided
+/// item, or a reset file (`signals._decided` reads it first).
+fn any_decision(root: &Path, items: &[Canon]) -> bool {
+    std::fs::symlink_metadata(root.join("day/signal-resets.json")).is_ok()
+        || items.iter().any(|i| {
+            matches!(
+                cstr(i, "status"),
+                Some("accepted" | "dismissed" | "answered")
+            )
+        })
+}
+
+/// `day suggestions [--plugin P]` when no stored decision (and no reset
+/// file) exists, so every plugin's weight is 1.0.
+fn inbox_suggestions(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    if ctx.redact_inputs_present() {
+        return None;
+    }
+    let root = ctx.root.as_path();
+    pin_clock(root)?;
+    let context = inbox_vault()?;
+    let store = context.store();
+    std::fs::create_dir_all(root.join("day")).ok()?;
+    let items = inbox_read(&store, &root.join("day/inbox.json"))?.items;
+    if any_decision(root, &items) {
+        return None;
+    }
+    let path = root.join("day/suggestions.jsonl");
+    if std::fs::symlink_metadata(&path).is_ok_and(|meta| !meta.is_file()) {
+        return None;
+    }
+    let text = store.read_text(&path, None, true).ok()?.unwrap_or_default();
+    if odd_line_break(&text) {
+        return None;
+    }
+    // `_suggestion_rows()`: one row per (origin, ref); the last write wins,
+    // at the first one's place.
+    let mut rows: Vec<((String, String), Canon)> = Vec::new();
+    for line in text.split('\n') {
+        if line.chars().all(py_space) {
+            continue;
+        }
+        let row = careerbrew_vault::json_yaml::json_read(line).ok()?;
+        if !plain_canon(&row) || has_float(&row) || !matches!(row, Canon::Map(_)) {
+            return None;
+        }
+        if get(&row, "plugin").is_none() {
+            continue;
+        }
+        for name in ["plugin", "origin", "ref", "what", "why"] {
+            cstr(&row, name)?;
+        }
+        let key = (
+            cstr(&row, "origin")?.to_owned(),
+            cstr(&row, "ref")?.to_owned(),
+        );
+        match rows.iter_mut().find(|(k, _)| *k == key) {
+            Some((_, slot)) => *slot = row,
+            None => rows.push((key, row)),
+        }
+    }
+    let only = args.text("plugin").unwrap_or("");
+    let mut stdout = String::new();
+    let mut plugins: Vec<String> = Vec::new();
+    let mut count = 0;
+    for (_, row) in &rows {
+        let plugin = cstr(row, "plugin")?;
+        if !only.is_empty() && plugin != only {
+            continue;
+        }
+        let reference = cstr(row, "ref")?;
+        let digest = careerbrew_vault::helpers::digest(&[
+            ckey("plugin"),
+            Canon::Str(format!("{plugin}:{reference}")),
+        ])
+        .ok()?;
+        let id = format!("plugin-{}", digest.get(..8)?);
+        // `{i["id"]: i["status"] for i in every}`: the last item wins.
+        let status = items
+            .iter()
+            .rev()
+            .find(|i| cstr(i, "id") == Some(&id))
+            .map_or(Some("open"), |i| cstr(i, "status"))?;
+        stdout.push_str(&format!(
+            "{} {} {} {reference}\n",
+            pad(&id, 20),
+            pad(plugin, 14),
+            pad(status, 10)
+        ));
+        count += 1;
+        if !plugins.iter().any(|p| p == plugin) {
+            plugins.push(plugin.to_owned());
+        }
+    }
+    if count > 0 {
+        stdout.push_str(&format!("{count} plugin suggestion(s)\n"));
+    } else {
+        stdout.push_str("no plugin suggestions\n");
+    }
+    plugins.sort_unstable();
+    for plugin in plugins {
+        stdout.push_str(&format!(
+            "{plugin}: next suggestions rank with weight 1.0 (1.0 = no dismissals; lower = you dismiss more than you accept)\n"
+        ));
+    }
+    Some(out(stdout, 0))
+}
+
+/// `day accept-all` / `dismiss-all <group>` when no proposal is open, so
+/// `inbox.view()` has no group: "no open group", exit 1, nothing written.
+fn inbox_group(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    if ctx.redact_inputs_present() {
+        return None;
+    }
+    let group = args.text("group")?;
+    let root = ctx.root.as_path();
+    pin_clock(root)?;
+    let context = inbox_vault()?;
+    std::fs::create_dir_all(root.join("day")).ok()?;
+    let items = inbox_read(&context.store(), &root.join("day/inbox.json"))?.items;
+    if any_decision(root, &items) {
+        return None;
+    }
+    for item in &items {
+        match cstr(item, "status")? {
+            "expired" => return None,
+            "open" => {
+                // `open_items` sorts by `signals.key(i)` (it reads `data`)
+                // and `groups` reads a stored `group`.
+                if cstr(item, "type")? == "proposal" || get(item, "group").is_some() {
+                    return None;
+                }
+                match get(item, "data") {
+                    None | Some(Canon::Map(_)) => {}
+                    other if ptruthy(other) == Some(false) => {}
+                    _ => return None,
+                }
+            }
+            _ => {}
+        }
+    }
+    Some(out(
+        format!("no open group {group} (see: careerbrew day inbox)\n"),
+        1,
+    ))
 }
