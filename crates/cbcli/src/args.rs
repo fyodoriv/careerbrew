@@ -163,16 +163,16 @@ pub fn parse(reg: &Registry, name: &str, rest: &[String]) -> Option<Parsed> {
         values.insert(spec.name.to_owned(), default_of(spec)?);
     }
     let positionals: Vec<&Spec> = specs.iter().filter(|s| s.flag.is_none()).collect();
-    // Only the last positional may be optional or take many words; any other
-    // shape depends on argparse's regex matching, which this reader skips.
-    if positionals
-        .iter()
-        .rev()
-        .skip(1)
-        .any(|s| !s.required || s.many)
-    {
+    // Only the last positional may take many words. An optional positional
+    // before the last one is read only when every positional word comes
+    // before the first flag: argparse then fills them left to right in one
+    // chunk. Any other shape depends on argparse's regex matching.
+    let inner = positionals.iter().rev().skip(1);
+    if inner.clone().any(|s| s.many) {
         return None;
     }
+    let inner_optional = inner.clone().any(|s| !s.required);
+    let mut seen_flag = false;
     let mut words: Vec<&str> = Vec::new();
     let mut given: Vec<&str> = Vec::new();
     let mut i = 0;
@@ -183,6 +183,7 @@ pub fn parse(reg: &Registry, name: &str, rest: &[String]) -> Option<Parsed> {
                 return None;
             }
             let spec = specs.iter().find(|s| s.flag == Some(arg))?;
+            seen_flag = true;
             given.push(spec.name);
             if spec.kind == "flag" {
                 values.insert(spec.name.to_owned(), Value::Flag(true));
@@ -203,6 +204,9 @@ pub fn parse(reg: &Registry, name: &str, rest: &[String]) -> Option<Parsed> {
             }
             i += 2;
         } else {
+            if inner_optional && seen_flag {
+                return None;
+            }
             words.push(arg);
             i += 1;
         }
@@ -283,6 +287,24 @@ mod tests {
             assert_eq!(parse(&r, "work.priority.set", &words(argv)), None, "{argv}");
         }
         assert_eq!(parse(&r, "no.such.command", &[]), None);
+    }
+
+    #[test]
+    fn inner_optional_positionals_fill_left_to_right_before_any_flag() {
+        let r = reg();
+        let got = parse(&r, "day.handoff", &words("add prs synthetic")).unwrap();
+        assert_eq!(got.text("action"), Some("add"));
+        assert_eq!(got.text("section"), Some("prs"));
+        assert_eq!(got.text("text"), Some("synthetic"));
+        let got = parse(&r, "day.handoff", &words("done h-1")).unwrap();
+        assert_eq!(got.text("section"), Some("h-1"));
+        assert_eq!(got.text("text"), None);
+        assert!(parse(&r, "day.handoff", &words("show --today")).is_some());
+        let got = parse(&r, "day.handoff", &words("add prs t --link u")).unwrap();
+        assert_eq!(got.text("link"), Some("u"));
+        // A positional word after a flag: argparse may split the chunk.
+        assert_eq!(parse(&r, "day.handoff", &words("add --link u prs t")), None);
+        assert_eq!(parse(&r, "day.handoff", &words("add prs --link u t")), None);
     }
 
     #[test]
