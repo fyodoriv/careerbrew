@@ -27,7 +27,16 @@
 //!   one's `ProjectError` lines too;
 //! - `work project explain`: the outline of a project with no source, the
 //!   unknown-project error, and `--check` of an ASCII file outside the data
-//!   root.
+//!   root;
+//! - wave 6: `metrics time-saved` (text and `--json`) when every event row
+//!   and baseline setting it reads has a shape Python reads the same way; it
+//!   writes `out/time-saved.json` (a plaintext-by-design folder) only when
+//!   the text changed, as `store.write_json_if_changed` does;
+//! - wave 6: `cards publish --dry-run`, and the `PublishError` lines of a
+//!   card that fails the bar (exit 1). Both write nothing but the `tutor/`
+//!   folder Python's `paths.sub` makes. A publish that would write the
+//!   public deck goes to Python: it dumps YAML at width 100, which
+//!   `pyyaml::safe_dump` does not port.
 //!
 //! Every other form refuses (exit 64, Python runs it) before any write: a
 //! redaction input, any read error, a write of project data, any text that
@@ -68,6 +77,8 @@ pub const COMMANDS: &[&str] = &[
     "work.project.memory",
     "work.project.set",
     "work.project.explain",
+    "metrics.time-saved",
+    "cards.publish",
 ];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
@@ -101,6 +112,8 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "work.project.memory" => project_memory(args, ctx),
         "work.project.set" => project_set(args, ctx),
         "work.project.explain" => project_explain(args, ctx),
+        "metrics.time-saved" => time_saved(args, ctx),
+        "cards.publish" => cards_publish(args, ctx),
         _ => None,
     }
 }
@@ -1618,4 +1631,722 @@ fn written_yaml(written: &Canon) -> Option<String> {
         })
         .collect::<Option<_>>()?;
     settings_yaml(&pairs)
+}
+
+// ---------- metrics time-saved ----------
+
+/// What each run's `minutes_spent` measured (`cli.TIME_SOURCE`).
+fn time_source(time: &str) -> Option<&'static str> {
+    Some(match time {
+        "web" => "your time to copy, send, or accept in the web app",
+        "cli" => "CLI run time, an upper bound of time saved",
+        "web+cli" => "web app time, and CLI run time for CLI runs",
+        _ => return None,
+    })
+}
+
+/// True when `pathlib.Path` prints `path` unchanged (no `//`, `/./`,
+/// `/../`, trailing `/` or `/.`), so `wrote <path>` reads the same.
+fn plain_path_text(path: &str) -> bool {
+    path.starts_with('/')
+        && !(path.contains("//")
+            || path.contains("/./")
+            || path.ends_with("/.")
+            || path.contains("/../")
+            || path.ends_with("/..")
+            || (path.len() > 1 && path.ends_with('/')))
+}
+
+/// An int that converts to a float exactly (|n| < 2^53).
+fn small_int(value: &Canon) -> Option<i64> {
+    let Canon::Int(n) = value else {
+        return None;
+    };
+    let n: i64 = n.to_string().parse().ok()?;
+    (n.abs() < (1_i64 << 53)).then_some(n)
+}
+
+/// A plain decimal (`-12`, `7.5`): Python's `float()` and Rust's parser
+/// read it the same way.
+fn plain_decimal(text: &str) -> bool {
+    let body = text.strip_prefix('-').unwrap_or(text);
+    let (whole, frac) = match body.split_once('.') {
+        Some((whole, frac)) => (whole, Some(frac)),
+        None => (body, None),
+    };
+    let digits = |part: &str| {
+        !part.is_empty() && part.len() <= 15 && part.bytes().all(|b| b.is_ascii_digit())
+    };
+    digits(whole) && frac.is_none_or(digits)
+}
+
+/// A `time_baseline_*` value `time_saved.baseline` reads the same way here
+/// (`float(value)` when truthy).
+fn baseline_ok(value: Option<&Canon>) -> bool {
+    let minutes = match value {
+        None | Some(Canon::Null | Canon::Bool(_)) => return true,
+        Some(int @ Canon::Int(_)) => match small_int(int) {
+            Some(n) => n as f64,
+            None => return false,
+        },
+        Some(Canon::Float(f)) if f.is_finite() => *f,
+        Some(Canon::Str(text)) if text.is_empty() => return true,
+        Some(Canon::Str(text)) if plain_decimal(text) => match text.parse::<f64>() {
+            Ok(f) => f,
+            Err(_) => return false,
+        },
+        Some(_) => return false,
+    };
+    // `{:>5.0f}` of an exact half: keep the rounding rule out of question.
+    (minutes - minutes.trunc()).abs() != 0.5
+}
+
+fn leap(year: u32) -> bool {
+    year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400))
+}
+
+/// `%Y-%m-%dT%H:%M:%SZ` with zero-padded fields and a real date and time:
+/// the only stamps `strptime` and the native reader both read the same way.
+fn utc_stamp(text: &str) -> bool {
+    let b = text.as_bytes();
+    if b.len() != 20
+        || b[4] != b'-'
+        || b[7] != b'-'
+        || b[10] != b'T'
+        || b[13] != b':'
+        || b[16] != b':'
+        || b[19] != b'Z'
+    {
+        return false;
+    }
+    let num = |range: std::ops::Range<usize>| -> Option<u32> {
+        let part = &text[range];
+        if part.bytes().all(|b| b.is_ascii_digit()) {
+            part.parse().ok()
+        } else {
+            None
+        }
+    };
+    let (Some(year), Some(month), Some(day), Some(hour), Some(minute), Some(second)) = (
+        num(0..4),
+        num(5..7),
+        num(8..10),
+        num(11..13),
+        num(14..16),
+        num(17..19),
+    ) else {
+        return false;
+    };
+    let days = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap(year) => 29,
+        2 => 28,
+        _ => return false,
+    };
+    (1971..=9000).contains(&year)
+        && (1..=days).contains(&day)
+        && hour < 24
+        && minute < 60
+        && second < 60
+}
+
+/// True when a value holds NaN or an infinity: serde skips such a row and
+/// Python counts it.
+fn nonfinite_inside(value: &Canon) -> bool {
+    match value {
+        Canon::Float(f) => !f.is_finite(),
+        Canon::List(items) => items.iter().any(nonfinite_inside),
+        Canon::Map(pairs) => pairs
+            .iter()
+            .any(|(k, v)| nonfinite_inside(k) || nonfinite_inside(v)),
+        _ => false,
+    }
+}
+
+/// One `cli.run` or `web.timing` line of the event log, in a shape
+/// `time_saved._runs` and the native reader read the same way.
+fn timed_row_ok(line: &str) -> bool {
+    let Ok(row) = careerbrew_vault::json_yaml::json_read(line) else {
+        return false;
+    };
+    let Some(pairs) = plain_map(&row) else {
+        return false;
+    };
+    if nonfinite_inside(&row) {
+        return false;
+    }
+    let event = match get(pairs, "event") {
+        Some(Canon::Str(event)) => event.as_str(),
+        _ => return true,
+    };
+    if event != "cli.run" && event != "web.timing" {
+        return true;
+    }
+    // `in ACTIONS` raises on a list or a map.
+    for key in ["saves", "step"] {
+        if matches!(get(pairs, key), Some(Canon::List(_) | Canon::Map(_))) {
+            return false;
+        }
+    }
+    for key in ["ms", "seconds"] {
+        if let Some(int @ Canon::Int(_)) = get(pairs, key) {
+            if small_int(int).is_none() {
+                return false;
+            }
+        }
+    }
+    matches!(get(pairs, "ts"), Some(Canon::Str(ts)) if utc_stamp(ts))
+}
+
+/// The event log, when Python's `read_text().splitlines()` and the native
+/// reader split it into the same lines and every timed row is safe.
+fn event_log_ok(log: &Path) -> Option<()> {
+    let meta = match std::fs::symlink_metadata(log) {
+        Ok(meta) => meta,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Some(()),
+        Err(_) => return None,
+    };
+    if !meta.is_file() {
+        return None;
+    }
+    let text = String::from_utf8(std::fs::read(log).ok()?).ok()?;
+    if text.contains([
+        '\r', '\u{b}', '\u{c}', '\u{1c}', '\u{1d}', '\u{1e}', '\u{85}', '\u{2028}', '\u{2029}',
+    ]) {
+        return None;
+    }
+    for line in text.split('\n') {
+        let timed = line.contains("\"cli.run\"") || line.contains("\"web.timing\"");
+        if timed && !timed_row_ok(line) {
+            return None;
+        }
+    }
+    Some(())
+}
+
+fn negative_zero_inside(value: &Canon) -> bool {
+    match value {
+        Canon::Float(f) => *f == 0.0 && f.is_sign_negative(),
+        Canon::List(items) => items.iter().any(negative_zero_inside),
+        Canon::Map(pairs) => pairs.iter().any(|(_, v)| negative_zero_inside(v)),
+        _ => false,
+    }
+}
+
+fn as_f64(value: &Canon) -> Option<f64> {
+    match value {
+        Canon::Float(f) => Some(*f),
+        int @ Canon::Int(_) => small_int(int).map(|n| n as f64),
+        _ => None,
+    }
+}
+
+fn int_of(value: Option<&Canon>) -> Option<i64> {
+    small_int(value?)
+}
+
+/// `str()` of an int or a float, as an f-string prints it.
+fn py_number(value: &Canon) -> Option<String> {
+    match value {
+        Canon::Float(f) => Some(careerbrew_reports::py_repr(*f)),
+        int @ Canon::Int(_) => small_int(int).map(|n| n.to_string()),
+        _ => None,
+    }
+}
+
+/// `json.dumps(indent=2)` text as `indent=1`: halve each line's indent
+/// (JSON strings never hold a raw newline).
+fn indent_one(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for (i, line) in text.split('\n').enumerate() {
+        if i > 0 {
+            out.push('\n');
+        }
+        let body = line.trim_start_matches(' ');
+        let pad = line.len() - body.len();
+        out.push_str(&" ".repeat(pad / 2));
+        out.push_str(body);
+    }
+    out
+}
+
+/// Printable ASCII lines only.
+fn printable_lines(text: &str) -> bool {
+    text.split('\n').all(printable)
+}
+
+/// The text lines `cmd_metrics_time_saved` prints, or None on any shape it
+/// does not expect.
+fn time_saved_text(data: &Pairs, path: &str) -> Option<String> {
+    let mut out = String::new();
+    let Some(Canon::List(weeks)) = get(data, "weeks") else {
+        return None;
+    };
+    for week in weeks {
+        let week = plain_map(week)?;
+        let Some(Canon::Str(name)) = get(week, "week") else {
+            return None;
+        };
+        let saved = as_f64(get(week, "minutes_saved")?)?;
+        let runs = int_of(get(week, "runs"))?;
+        out.push_str(&format!("{name}  {saved:>7.1} min saved  {runs} run(s)\n"));
+        for (action, cell) in plain_map(get(week, "actions")?)? {
+            let Canon::Str(action) = action else {
+                return None;
+            };
+            let cell = plain_map(cell)?;
+            let runs = int_of(get(cell, "runs"))?;
+            if runs == 0 {
+                continue;
+            }
+            let spent = as_f64(get(cell, "minutes_spent")?)?;
+            let Some(Canon::Str(time)) = get(cell, "time") else {
+                return None;
+            };
+            out.push_str(&format!(
+                "  {action:<10} {runs} run(s)  {spent:.1} min spent ({})\n",
+                time_source(time)?
+            ));
+        }
+    }
+    let baselines = plain_map(get(data, "baselines")?)?;
+    // Python's dict keeps `ACTIONS` order; the value here is sorted.
+    for (action, _, _) in careerbrew_reports::time_saved::ACTIONS {
+        let row = plain_map(get(baselines, action)?)?;
+        let minutes = as_f64(get(row, "minutes")?)?;
+        if (minutes - minutes.trunc()).abs() == 0.5 {
+            return None;
+        }
+        let Some(Canon::Str(kind)) = get(row, "kind") else {
+            return None;
+        };
+        out.push_str(&format!(
+            "baseline  {action:<10} {minutes:>5.0} min  ({kind})\n"
+        ));
+    }
+    out.push_str(&format!(
+        "time-saved: {} min over {} run(s); {}/{} baselines measured; wrote {path}\n",
+        py_number(get(data, "minutes_saved_total")?)?,
+        int_of(get(data, "runs_total"))?,
+        int_of(get(data, "measured_baselines"))?,
+        baselines.len(),
+    ));
+    printable_lines(&out).then_some(out)
+}
+
+fn time_saved(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let root = ctx.root.to_str()?;
+    if !plain_path_text(root) {
+        return None;
+    }
+    let vault = vault_context()?;
+    if vault.root != ctx.root {
+        return None;
+    }
+    let store = vault.store();
+    let settings = careerbrew_vault::settings::read_settings(&store).ok()?;
+    let settings = plain_map(&settings)?;
+    for (action, _, _) in careerbrew_reports::time_saved::ACTIONS {
+        if !baseline_ok(get(settings, &format!("time_baseline_{action}"))) {
+            return None;
+        }
+    }
+    let log = ctx.root.join("logs").join("events.jsonl");
+    event_log_ok(&log)?;
+    let value = careerbrew_reports::time_saved::compute(&log).ok()?;
+    let data = careerbrew_reports::canon(&value);
+    if negative_zero_inside(&data) || nonfinite_inside(&data) {
+        return None;
+    }
+    let pairs = plain_map(&data)?;
+    let file_text = careerbrew_vault::json_yaml::json_write(&data).ok()?;
+    let path = ctx.root.join("out").join("time-saved.json");
+    let stdout = if args.flag("json") {
+        let mut text = indent_one(&file_text);
+        text.push('\n');
+        text
+    } else {
+        time_saved_text(pairs, &format!("{root}/out/time-saved.json"))?
+    };
+    // `out/` is plaintext by design; an old sealed file would need the key.
+    match std::fs::symlink_metadata(&path) {
+        Ok(meta) if !meta.is_file() => return None,
+        Ok(_) => {
+            let raw = std::fs::read(&path).ok()?;
+            if raw.starts_with(careerbrew_vault::MAGIC) || raw.starts_with(b"gAAAAA") {
+                return None;
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(_) => return None,
+    }
+    make_dirs(&ctx.root, &["out"])?;
+    store.write_text_if_changed(&path, &file_text).ok()?;
+    said(stdout, 0)
+}
+
+// ---------- cards publish ----------
+
+/// `machine.guard("cards")`: a corporate role (or a machine file Python
+/// could read another way) refuses here, and Python prints its error.
+/// Copied from `rust20`'s `Files::personal`.
+fn personal_role(store: &Store, root: &Path) -> Option<()> {
+    let info = store
+        .read_yaml(&root.join("machine.yaml"), Canon::Null, false)
+        .ok()?;
+    let role = match &info {
+        Canon::Null => None,
+        Canon::List(items) if items.is_empty() => None,
+        data => get(plain_map(data)?, "role"),
+    };
+    match role {
+        Some(Canon::Str(role)) if role == "corporate" => None,
+        Some(Canon::Str(_)) | None => Some(()),
+        Some(_) => None,
+    }
+}
+
+/// The repository whose `knowledge/` and `prompts/` Python reads (copied
+/// from `rust20`).
+fn cards_repo() -> Option<PathBuf> {
+    match std::env::var("CAREERBREW_NATIVE_REPO") {
+        Ok(repo) if repo.starts_with('/') => Some(PathBuf::from(repo)),
+        Ok(_) => None,
+        Err(_) => Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .canonicalize()
+            .ok(),
+    }
+}
+
+/// `public.cards_dir()` (copied from `rust20`).
+fn cards_dir() -> Option<PathBuf> {
+    match std::env::var("CAREERBREW_PUBLIC_CARDS") {
+        Ok(dir) if !dir.is_empty() => Some(PathBuf::from(dir)),
+        Ok(_) | Err(std::env::VarError::NotPresent) => Some(cards_repo()?.join("knowledge/cards")),
+        Err(_) => None,
+    }
+}
+
+/// `sorted(folder.glob("*.yaml")) if folder.is_dir() else []`, or None for
+/// a hidden name, a non-file or a name that is not UTF-8 (from `rust20`).
+fn deck_files(folder: &Path) -> Option<Vec<PathBuf>> {
+    if !folder.is_dir() {
+        return Some(Vec::new());
+    }
+    let mut names = Vec::new();
+    for entry in std::fs::read_dir(folder).ok()? {
+        let entry = entry.ok()?;
+        let name = entry.file_name().into_string().ok()?;
+        if !name.to_ascii_lowercase().ends_with(".yaml") {
+            continue;
+        }
+        if !name.ends_with(".yaml") || name.starts_with('.') || !entry.path().is_file() {
+            return None;
+        }
+        names.push(name);
+    }
+    names.sort();
+    Some(names.into_iter().map(|name| folder.join(name)).collect())
+}
+
+/// A repo file Python reads with `Path.read_text` (universal newlines, so a
+/// `\r` goes to Python) and a safe YAML load.
+fn repo_yaml(path: &Path) -> Option<Canon> {
+    let raw = std::fs::read(path).ok()?;
+    if raw.starts_with(careerbrew_vault::MAGIC) {
+        return None;
+    }
+    let text = String::from_utf8(raw).ok()?;
+    if text.contains('\r') {
+        return None;
+    }
+    careerbrew_vault::json_yaml::yaml_read(&text).ok()
+}
+
+/// `(data or {}).get("cards", [])` where each card must be a map: None
+/// when Python would crash or read it differently.
+fn card_rows(data: &Canon) -> Option<Vec<Pairs>> {
+    if !truthy(data) {
+        return Some(Vec::new());
+    }
+    match get(plain_map(data)?, "cards") {
+        None => Some(Vec::new()),
+        Some(Canon::List(items)) => items.iter().map(|c| plain_map(c).cloned()).collect(),
+        Some(_) => None,
+    }
+}
+
+/// Absent, or a list of text.
+fn texts_or_absent(card: &Pairs, key: &str) -> bool {
+    match get(card, key) {
+        None => true,
+        Some(Canon::List(items)) => items.iter().all(|item| matches!(item, Canon::Str(_))),
+        _ => false,
+    }
+}
+
+/// Text that is printable ASCII or `\n`: `strip`, `split`, `len` and
+/// `casefold` read it the same way in both languages.
+fn card_text(text: &str) -> bool {
+    text.chars().all(|c| c == '\n' || (' '..='~').contains(&c))
+}
+
+/// `str(r.get(key) or "")` for a text, null or absent field; None for any
+/// other value (its `str()` is not ported).
+fn row_text(row: &Pairs, key: &str) -> Option<String> {
+    match get(row, key) {
+        None | Some(Canon::Null) => Some(String::new()),
+        Some(Canon::Str(text)) if card_text(text) => Some(text.clone()),
+        Some(_) => None,
+    }
+}
+
+/// `bool(r.get(key))` for a bool, null or absent field.
+fn row_flag(row: &Pairs, key: &str) -> Option<bool> {
+    match get(row, key) {
+        None | Some(Canon::Null) => Some(false),
+        Some(Canon::Bool(flag)) => Some(*flag),
+        Some(_) => None,
+    }
+}
+
+/// `public.lint` of a card with these fields (the domain crate's port).
+fn card_problems(fields: &[(&str, &str)]) -> Vec<String> {
+    let card = Canon::Map(
+        fields
+            .iter()
+            .map(|(key, value)| {
+                (
+                    Canon::Str((*key).to_owned()),
+                    Canon::Str((*value).to_owned()),
+                )
+            })
+            .collect(),
+    );
+    careerbrew_tutor::public::lint(&careerbrew_setup::value::from_canon(&card))
+}
+
+/// The input rows: `yaml.safe_load(text) or []`, a `cards` list when it is
+/// a map, every row a map. None for YAML the reader is not checked on
+/// (anchors, tags, merge keys, directives, complex keys, tabs).
+fn publish_rows(text: &str) -> Option<Vec<Pairs>> {
+    if text.contains(['&', '*', '!', '\r', '\t', '\u{feff}'])
+        || text.contains("<<")
+        || text.lines().any(|line| {
+            let line = line.trim_start();
+            line.starts_with('%') || line.starts_with('?')
+        })
+    {
+        return None;
+    }
+    let data = careerbrew_vault::json_yaml::yaml_read(text).ok()?;
+    let rows = match &data {
+        value if !truthy(value) => return Some(Vec::new()),
+        Canon::Map(_) => match get(plain_map(&data)?, "cards") {
+            None => return Some(Vec::new()),
+            Some(Canon::List(items)) => items,
+            Some(_) => return None,
+        },
+        Canon::List(items) => items,
+        _ => return None,
+    };
+    rows.iter().map(|row| plain_map(row).cloned()).collect()
+}
+
+/// `load()` then `by_q`: the public deck as `{id: card}` (first-seen order,
+/// the last card of an id), and each question hash's id (the last wins).
+fn deck_by_question() -> Option<Vec<(String, String)>> {
+    let mut public: Vec<(String, Pairs)> = Vec::new();
+    for path in deck_files(&cards_dir()?)? {
+        for card in card_rows(&repo_yaml(&path)?)? {
+            let Some(Canon::Str(id)) = get(&card, "id") else {
+                return None;
+            };
+            let question_ok = matches!(get(&card, "question"), Some(Canon::Str(_)));
+            if !question_ok || !texts_or_absent(&card, "match") {
+                return None;
+            }
+            let id = id.clone();
+            match public.iter_mut().find(|(known, _)| *known == id) {
+                Some(slot) => slot.1 = card,
+                None => public.push((id, card)),
+            }
+        }
+    }
+    let mut by_q: Vec<(String, String)> = Vec::new();
+    for (id, card) in &public {
+        let Some(Canon::Str(question)) = get(card, "question") else {
+            return None;
+        };
+        let hash = careerbrew_tutor::public::qhash(question);
+        match by_q.iter_mut().find(|(known, _)| *known == hash) {
+            Some(slot) => slot.1 = id.clone(),
+            None => by_q.push((hash, id.clone())),
+        }
+    }
+    Some(by_q)
+}
+
+/// What `publish` decides for the rows, before any write: the problem
+/// lines, or the counts of public cards, private explanations and skips.
+struct Verdict {
+    problems: Vec<String>,
+    public: usize,
+    private: usize,
+    skipped: usize,
+}
+
+fn publish_verdict(rows: &[Pairs], by_q: &[(String, String)]) -> Option<Verdict> {
+    let mut new: Vec<String> = Vec::new();
+    let mut new_private: Vec<String> = Vec::new();
+    let mut problems: Vec<String> = Vec::new();
+    let mut skipped = 0;
+    for (n, row) in rows.iter().enumerate() {
+        let src = row_text(row, "source_id")?;
+        if row_flag(row, "skip")? {
+            row_text(row, "reason")?;
+            if !src.is_empty() {
+                skipped += 1;
+            }
+            continue;
+        }
+        let question_raw = row_text(row, "question")?;
+        let rewrite = row_text(row, "rewrite")?;
+        let answer = row_text(row, "answer")?;
+        let topic = row_text(row, "topic")?;
+        let explanation = row_text(row, "explanation")?;
+        let private = row_flag(row, "private")?;
+        match get(row, "tags") {
+            None | Some(Canon::Null) => {}
+            Some(Canon::List(items)) if items.iter().all(|t| matches!(t, Canon::Str(_))) => {}
+            Some(_) => return None,
+        }
+        let hash = careerbrew_tutor::public::qhash(&question_raw);
+        let known = by_q
+            .iter()
+            .find(|(h, _)| *h == hash)
+            .map(|(_, id)| id.clone())
+            .filter(|id| !id.is_empty());
+        let question = question_raw.trim().to_owned();
+        let id = match (private, rewrite.is_empty()) {
+            (_, false) => rewrite,
+            (false, true) => known.unwrap_or_else(|| format!("kb-{hash}")),
+            (true, true) if !src.is_empty() => format!("me-{src}"),
+            (true, true) => format!("me-{}", careerbrew_tutor::public::qhash(&question)),
+        };
+        let topic = if topic.is_empty() {
+            "general".to_owned()
+        } else {
+            topic.to_ascii_lowercase()
+        };
+        let answer = answer.trim().to_owned();
+        let explanation = format!("{}\n", explanation.trim());
+        let bad = card_problems(&[
+            ("id", &id),
+            ("question", &question),
+            ("answer", &answer),
+            ("topic", &topic),
+            ("explanation", &explanation),
+        ]);
+        if !bad.is_empty() {
+            problems.push(format!("card {}: {}", n + 1, bad.join("; ")));
+            continue;
+        }
+        let into = if private { &mut new_private } else { &mut new };
+        if !into.contains(&id) {
+            into.push(id);
+        }
+    }
+    Some(Verdict {
+        problems,
+        public: new.len(),
+        private: new_private.len(),
+        skipped,
+    })
+}
+
+/// `cards publish` while it writes nothing: `--dry-run`, or a card that
+/// fails the bar (`PublishError`, exit 1). Every read and check comes
+/// before the one write, the `tutor/` folder `paths.sub` makes.
+fn cards_publish(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let file = args.text("file")?;
+    if file.is_empty() || !printable(file) {
+        return None;
+    }
+    let vault = vault_context()?;
+    if vault.root != ctx.root {
+        return None;
+    }
+    let store = vault.store();
+    personal_role(&store, &ctx.root)?;
+    // `store.read_text(src) or ""`: a missing file reads as no rows.
+    let text = match std::fs::symlink_metadata(file) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(_) => return None,
+        Ok(meta) if !meta.is_file() => return None,
+        Ok(_) => {
+            let raw = std::fs::read(file).ok()?;
+            if raw.starts_with(careerbrew_vault::MAGIC) || raw.starts_with(b"gAAAAA") {
+                return None;
+            }
+            String::from_utf8(raw).ok()?
+        }
+    };
+    let rows = publish_rows(&text)?;
+    // `prompt_version()` reads the prompt first; a missing one raises.
+    let prompt = std::fs::read(cards_repo()?.join("prompts/card-explainer.md")).ok()?;
+    if String::from_utf8(prompt).ok()?.contains('\r') {
+        return None;
+    }
+    let by_q = deck_by_question()?;
+    // `skipped()` and `private_cards()`, read through the vault without
+    // creating a key.
+    let tutor = ctx.root.join("tutor");
+    if std::fs::symlink_metadata(&tutor).is_ok_and(|meta| !meta.is_dir()) {
+        return None;
+    }
+    let skipped = store
+        .read_json(&tutor.join("public-skipped.json"), Canon::Null, false)
+        .ok()?;
+    if truthy(&skipped) {
+        plain_map(&skipped)?;
+    }
+    let private = store
+        .read_yaml(&tutor.join("private-explanations.yaml"), Canon::Null, false)
+        .ok()?;
+    for card in card_rows(&private)? {
+        if !matches!(get(&card, "id"), Some(Canon::Str(_))) {
+            return None;
+        }
+    }
+    let verdict = publish_verdict(&rows, &by_q)?;
+    let (stdout, code) = if !verdict.problems.is_empty() {
+        (
+            format!(
+                "{} card(s) not published; fix them and publish again:\n{}\n",
+                verdict.problems.len(),
+                verdict.problems.join("\n")
+            ),
+            1,
+        )
+    } else if args.flag("dry_run") {
+        (
+            format!(
+                "dry run: {} public card(s) and {} private explanation(s) pass the bar, {} marked personal; nothing written\n",
+                verdict.public, verdict.private, verdict.skipped
+            ),
+            0,
+        )
+    } else {
+        // A publish writes the deck (YAML at width 100), the skips and the
+        // private explanations: Python runs it.
+        return None;
+    };
+    if !printable_lines(&stdout) {
+        return None;
+    }
+    make_dirs(&ctx.root, &["tutor"])?;
+    said(stdout, code)
 }
