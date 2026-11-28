@@ -1,6 +1,7 @@
 //! rust-19 native handlers: parity with the Python CLI in synthetic homes
-//! for "jobs.choose", "jobs.unchoose", "jobs.log", "jobs.preset" and
-//! "prep.story".
+//! for "jobs.choose", "jobs.unchoose", "jobs.log", "jobs.preset",
+//! "prep.story", "interview", "interview-patterns", "research.stale" and
+//! "jobs.interview-gaps".
 mod common;
 
 use common::*;
@@ -262,4 +263,190 @@ fn the_comparison_detects_a_planted_difference() {
     assert_eq!(a.code, Some(0));
     assert_ne!(a, b);
     assert!(a.stdout.starts_with("chosen: p1 as dream"));
+}
+
+/// A plan whose tiers name a sourced company twice (in two cases) and two
+/// companies with no sourced loop.
+const PLAN: (&str, &str) = (
+    "jobs/strategy.json",
+    "{\"tiers\": {\"dream\": [{\"company\": \"Stripe\", \"want\": 80.5}], \"target\": [{\"company\": \"Synthetic Co\", \"want\": 72}, {\"company\": \"stripe\"}], \"practice\": [{\"company\": \"Example Org\", \"want\": 61.0}]}}",
+);
+
+/// A plan naming a company Python casefolds differently from ASCII.
+const ODD_PLAN: (&str, &str) = (
+    "jobs/strategy.json",
+    "{\"tiers\": {\"dream\": [{\"company\": \"Synth\\u00e9tique\", \"want\": 70}]}}",
+);
+
+#[test]
+fn interview_matches_python() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "interview",
+        cli: &[],
+        files: &[],
+    });
+    same(&home, &["interview", "Stripe"], "interview known");
+    same(
+        &home,
+        &["interview", "gitlab", "--show"],
+        "interview known show",
+    );
+    same(
+        &home,
+        &["interview", "Stripe", "--show", "--no-sources"],
+        "interview known no sources",
+    );
+    same(&home, &["interview", "Acme Co!"], "interview unknown");
+    same(
+        &home,
+        &["interview", "Synthetic Co", "--level", "2", "--show"],
+        "interview unknown junior",
+    );
+    let encrypted = prepare_setup(&Setup {
+        id: "interview-encrypted",
+        cli: &[&["machine", "set", "personal"], &["data", "encrypt"]],
+        files: &[],
+    });
+    same(&encrypted, &["interview", "Datadog"], "interview encrypted");
+    refused(&home, &["interview", ""], "interview empty name");
+    refused(
+        &home,
+        &["interview", "Caf\u{e9}"],
+        "interview non-ASCII name",
+    );
+    refused(
+        &corporate("interview-corporate"),
+        &["interview", "Stripe"],
+        "interview corporate",
+    );
+}
+
+#[test]
+fn interview_patterns_matches_python() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "patterns",
+        cli: &[],
+        files: &[],
+    });
+    same(&home, &["interview-patterns"], "interview-patterns text");
+    same(
+        &home,
+        &["interview-patterns", "--json"],
+        "interview-patterns json",
+    );
+    refused(
+        &corporate("patterns-corporate"),
+        &["interview-patterns"],
+        "interview-patterns corporate",
+    );
+}
+
+#[test]
+fn research_stale_matches_python() {
+    strict(NOW);
+    let empty = prepare_setup(&Setup {
+        id: "stale",
+        cli: &[],
+        files: &[],
+    });
+    same(&empty, &["research", "stale"], "research.stale none due");
+    same(
+        &empty,
+        &["research", "stale", "--days", "10", "--top", "3"],
+        "research.stale due",
+    );
+    same(
+        &empty,
+        &["research", "stale", "--days", "10", "--top", "0"],
+        "research.stale top 0",
+    );
+    let planned = prepare_setup(&Setup {
+        id: "stale-plan",
+        cli: &[&["machine", "set", "personal"], &["data", "encrypt"]],
+        files: &[PLAN],
+    });
+    same(
+        &planned,
+        &["research", "stale", "--days", "30"],
+        "research.stale pipeline first",
+    );
+    let odd = prepare_setup(&Setup {
+        id: "stale-odd",
+        cli: &[],
+        files: &[ODD_PLAN],
+    });
+    refused(
+        &odd,
+        &["research", "stale", "--days", "10"],
+        "research.stale non-ASCII pipeline",
+    );
+}
+
+#[test]
+fn jobs_interview_gaps_matches_python() {
+    strict(NOW);
+    let planned = prepare_setup(&Setup {
+        id: "gaps",
+        cli: &[],
+        files: &[PLAN],
+    });
+    same(
+        &planned,
+        &["jobs", "interview-gaps"],
+        "jobs.interview-gaps plan",
+    );
+    let encrypted = prepare_setup(&Setup {
+        id: "gaps-encrypted",
+        cli: &[&["machine", "set", "personal"], &["data", "encrypt"]],
+        files: &[PLAN],
+    });
+    same(
+        &encrypted,
+        &["jobs", "interview-gaps", "--top", "1"],
+        "jobs.interview-gaps encrypted",
+    );
+    let empty = prepare_setup(&Setup {
+        id: "gaps-empty",
+        cli: &[],
+        files: &[],
+    });
+    refused(
+        &empty,
+        &["jobs", "interview-gaps"],
+        "jobs.interview-gaps scored fallback",
+    );
+    let odd = prepare_setup(&Setup {
+        id: "gaps-odd",
+        cli: &[],
+        files: &[ODD_PLAN],
+    });
+    refused(
+        &odd,
+        &["jobs", "interview-gaps"],
+        "jobs.interview-gaps non-ASCII company",
+    );
+    refused(
+        &corporate("gaps-corporate"),
+        &["jobs", "interview-gaps"],
+        "jobs.interview-gaps corporate",
+    );
+}
+
+/// Negative control: two companies print different guides, so the
+/// comparison sees a planted difference.
+#[test]
+fn the_interview_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "interview-control",
+        cli: &[],
+        files: &[],
+    });
+    let a = observe(&home, &["interview", "Stripe", "--show"], &Side::Native);
+    let b = observe(&home, &["interview", "Google", "--show"], &Side::Python);
+    assert_eq!(a.code, Some(0));
+    assert_ne!(a, b);
+    assert!(a.stdout.starts_with("# Interview loop: Stripe\n"));
 }

@@ -1,5 +1,6 @@
-//! rust-12 native handlers: "learn.list" and "learn.note" match Python in
-//! synthetic homes (stdout, exit code, data-root files, event rows).
+//! rust-12 native handlers: "learn.list", "learn.note", "learn.status" and
+//! "learn.next" match Python in synthetic homes (stdout, exit code,
+//! data-root files, event rows).
 mod common;
 
 use common::*;
@@ -15,6 +16,12 @@ const START_ALPHA: &[&str] = &["learn", "start", "alpha", "--file", "readme:READ
 /// Runs more Python CLI setup in a prepared home (paths only known at run
 /// time), writes files under its HOME, then takes the snapshot again.
 fn extend(home: &Home, files: &[(&str, &str)], steps: &[Vec<String>]) {
+    extend_at(home, files, steps, None);
+}
+
+/// `extend` with the setup commands run at another pinned clock (`at`), so
+/// that a retest or a card review is due at `NOW`.
+fn extend_at(home: &Home, files: &[(&str, &str)], steps: &[Vec<String>], at: Option<&str>) {
     for (name, text) in files {
         let path = home.home.join(name);
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -22,10 +29,12 @@ fn extend(home: &Home, files: &[(&str, &str)], steps: &[Vec<String>]) {
     }
     for args in steps {
         let args: Vec<&str> = args.iter().map(String::as_str).collect();
-        let done = python(home, &args)
-            .env("CAREERBREW_NATIVE", "off")
-            .output()
-            .unwrap();
+        let mut cmd = python(home, &args);
+        cmd.env("CAREERBREW_NATIVE", "off");
+        if let Some(at) = at {
+            cmd.env("CAREERBREW_NOW", at);
+        }
+        let done = cmd.output().unwrap();
         assert!(done.status.success(), "setup {args:?}: {done:?}");
     }
     let _ = std::fs::remove_file(home.data.join("logs/events.jsonl"));
@@ -237,6 +246,178 @@ fn learn_note_refuses_what_it_cannot_repeat() {
             !assert_same(&home, &args, false, "learn.note refusal"),
             "{args:?} was served"
         );
+    }
+}
+
+/// Sections whose first appearance is not in sorted order, one with a
+/// non-ASCII name.
+const UNSORTED: &str = "concepts:\n  - {id: deploy, section: ops, title: Deploys, cites: [file:readme], questions: [{bloom: analyze, prompt: \"How to ship?\", answer: make ship.}]}\n  - {id: queue, section: core, title: The queue, cites: [file:readme], questions: [{bloom: apply, prompt: \"Why a queue?\", answer: Decoupling.}]}\n  - {id: cafe, section: \"Über\", title: \"Café rules\", cites: [file:readme], questions: [{bloom: apply, prompt: \"Où?\", answer: Ici.}]}\n";
+
+/// One `learn answer` row: concept, result, confidence, level, mode.
+type Answer = (
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static str,
+);
+
+/// A started project, then (when `concepts` is not empty) its concepts and
+/// the answers, recorded at `at` (or `NOW`).
+fn learn_home(id: &'static str, concepts: &str, answers: &[Answer], at: Option<&str>) -> Home {
+    let home = prepare_setup(&Setup {
+        id,
+        cli: &[START_ALPHA],
+        files: &[],
+    });
+    if concepts.is_empty() {
+        return home;
+    }
+    let file = in_home(&home, "in/concepts.yaml");
+    let mut steps = vec![words(&[
+        "learn",
+        "concepts",
+        "alpha",
+        file.to_str().unwrap(),
+    ])];
+    for (concept, result, confidence, level, mode) in answers {
+        steps.push(words(&[
+            "learn",
+            "answer",
+            "alpha",
+            concept,
+            "--result",
+            result,
+            "--confidence",
+            confidence,
+            "--level",
+            level,
+            "--mode",
+            mode,
+        ]));
+    }
+    extend_at(&home, &[("in/concepts.yaml", concepts)], &steps, at);
+    home
+}
+
+const EARLY: &str = "2026-11-18T09:00:00+00:00";
+
+const PRETESTS: &[Answer] = &[
+    ("queue", "dontknow", "low", "understand", "pretest"),
+    ("deploy", "dontknow", "low", "understand", "pretest"),
+];
+
+#[test]
+fn learn_status_and_next_match_python() {
+    strict(NOW);
+    let quiz: Vec<Answer> = PRETESTS
+        .iter()
+        .copied()
+        .chain([("queue", "wrong", "medium", "understand", "teach")])
+        .collect();
+    let mastered: &[Answer] = &[
+        ("queue", "correct", "high", "understand", "teach"),
+        ("queue", "correct", "medium", "apply", "quiz"),
+    ];
+    let mut all: Vec<Answer> = Vec::new();
+    for concept in ["queue", "worker", "deploy"] {
+        all.push((concept, "correct", "high", "apply", "quiz"));
+        all.push((concept, "correct", "medium", "apply", "quiz"));
+    }
+    let homes = [
+        ("fresh", learn_home("next-fresh", "", &[], None)),
+        ("imported", learn_home("next-imported", CONCEPTS, &[], None)),
+        ("studied", studied()),
+        ("teach", learn_home("next-teach", CONCEPTS, PRETESTS, None)),
+        ("quiz", learn_home("next-quiz", CONCEPTS, &quiz, None)),
+        (
+            "retest",
+            learn_home("next-retest", CONCEPTS, mastered, Some(EARLY)),
+        ),
+        (
+            "review",
+            learn_home(
+                "next-review",
+                CONCEPTS,
+                &[("worker", "wrong", "high", "apply", "teach")],
+                Some(EARLY),
+            ),
+        ),
+        ("done", learn_home("next-done", CONCEPTS, &all, None)),
+    ];
+    for (label, home) in &homes {
+        assert_same(
+            home,
+            &["learn", "status", "alpha"],
+            true,
+            &format!("learn.status {label}"),
+        );
+        assert_same(
+            home,
+            &["learn", "next", "alpha"],
+            true,
+            &format!("learn.next {label}"),
+        );
+    }
+    // The project name as typed, which Python prints, reads the same folder.
+    let (_, studied) = &homes[2];
+    assert_same(
+        studied,
+        &["learn", "status", "Alpha"],
+        true,
+        "learn.status typed name",
+    );
+    // Sections print in the order their first concept appears.
+    let unsorted = learn_home(
+        "status-unsorted",
+        UNSORTED,
+        &[("queue", "correct", "high", "apply", "quiz")],
+        None,
+    );
+    assert_same(
+        &unsorted,
+        &["learn", "status", "alpha"],
+        true,
+        "learn.status unsorted sections",
+    );
+}
+
+#[test]
+fn learn_status_and_next_refuse_what_they_cannot_repeat() {
+    strict(NOW);
+    let home = learn_home("status-refusals", CONCEPTS, PRETESTS, None);
+    let refused: [&[&str]; 6] = [
+        // `json.dumps(..., indent=2)` keeps insertion order; not ported.
+        &["learn", "status", "alpha", "--json"],
+        &["learn", "next", "alpha", "--json"],
+        // No manifest: Python's own error (status) or its own reading (next).
+        &["learn", "status", "nobody"],
+        &["learn", "next", "nobody"],
+        &["learn", "status", "alpha", "extra"],
+        &["learn", "next"],
+    ];
+    for args in refused {
+        assert!(
+            !assert_same(&home, args, false, "learn.status/next refusal"),
+            "{args:?} was served"
+        );
+    }
+    // The learn crate breaks ties between sections by name, Python by order.
+    let unsorted = learn_home("next-unsorted", UNSORTED, &[], None);
+    assert!(!assert_same(
+        &unsorted,
+        &["learn", "next", "alpha"],
+        false,
+        "learn.next unsorted sections"
+    ));
+    // Python prints through `privacy.redact`, which reads the profile.
+    let redact = prepare_setup(&Setup {
+        id: "status-redact",
+        cli: &[START_ALPHA],
+        files: &[("profile.yaml", "name: Synthetic Person\n")],
+    });
+    for args in [["learn", "status", "alpha"], ["learn", "next", "alpha"]] {
+        assert!(!assert_same(&redact, &args, false, "learn redact"));
     }
 }
 

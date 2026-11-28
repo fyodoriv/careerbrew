@@ -4,6 +4,13 @@
 //! `cli.cmd_init` does. Every check that could make Python fail, and every
 //! input that could make its `privacy.redact` change the output, is read
 //! before the first write; any doubt refuses (exit 64) and Python runs it.
+//!
+//! `machine set personal [--label <label>]` writes `machine.yaml`, as
+//! Python's `machine.set_role` does for the personal role. It is served only
+//! when the file is missing, empty, or holds just `role` and `label`, and
+//! every value written is a plain YAML word (see `plain_word`), so the text
+//! equals PyYAML's `safe_dump`. The corporate role (which deletes folders)
+//! and anything else go to Python.
 use super::Ctx;
 use crate::args::Parsed;
 use crate::Outcome;
@@ -13,12 +20,13 @@ use std::path::{Path, PathBuf};
 /// The route keys this module serves. Each one must be routed `native` in
 /// `config/native-routes.txt` and have a parity case in
 /// `crates/cbcli/tests/step_rust07.rs`.
-pub const COMMANDS: &[&str] = &["init"];
+pub const COMMANDS: &[&str] = &["init", "machine.set"];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
-pub fn run(name: &str, _args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
     match name {
         "init" => init(ctx),
+        "machine.set" => machine_set(args.text("role")?, args, ctx),
         _ => None,
     }
 }
@@ -286,6 +294,98 @@ fn init(ctx: &Ctx) -> Option<Outcome> {
             "data root: {root_text}\ncreated {} file(s): {list}\n{next}\n",
             created.len()
         ),
+        stderr: String::new(),
+        code: 0,
+        emit_event: true,
+    })
+}
+
+/// True when PyYAML's `safe_dump` writes `text` as a plain scalar that
+/// `safe_load` reads back as the same text: a letter, then letters,
+/// digits, `_`, `.`, `/` or `-`, at most 64 characters, and not one of the
+/// YAML 1.1 boolean or null words.
+fn plain_word(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 64
+        && bytes[0].is_ascii_alphabetic()
+        && bytes
+            .iter()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'.' | b'/' | b'-'))
+        && !["yes", "no", "on", "off", "true", "false", "null"]
+            .contains(&text.to_ascii_lowercase().as_str())
+}
+
+/// `machine.set_role("personal", label)`: `{**info(), "role": "personal",
+/// "label": label or info().get("label") or "personal"}` written with
+/// `store.write_yaml`. The output line goes through `privacy.redact`, which
+/// reads nothing here (`redact_inputs_present` refuses otherwise).
+fn machine_set(role: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    if role != "personal" || ctx.redact_inputs_present() || !env_is_plain() {
+        return None;
+    }
+    let label = args.text("label").unwrap_or("");
+    if !label.is_empty() && !plain_word(label) {
+        return None;
+    }
+    let vault = careerbrew_vault::transfer::Context::from_env().ok()?;
+    if vault.root != ctx.root {
+        return None;
+    }
+    let store = vault.store();
+    let path = ctx.root.join("machine.yaml");
+    match std::fs::symlink_metadata(&path) {
+        Ok(meta) if meta.file_type().is_file() => {}
+        Ok(_) => return None,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(_) => return None,
+    }
+    let info = store.read_yaml(&path, Canon::Map(Vec::new()), true).ok()?;
+    let Canon::Map(items) = info else {
+        return None;
+    };
+    // Only `role` and `label`, once each, as plain words: PyYAML then
+    // writes each as `key: value` in the mapping's order.
+    let mut pairs: Vec<(String, String)> = Vec::new();
+    for (key, value) in items {
+        let (Canon::Str(key), Canon::Str(value)) = (key, value) else {
+            return None;
+        };
+        if !matches!(key.as_str(), "role" | "label")
+            || pairs.iter().any(|(seen, _)| *seen == key)
+            || !plain_word(&value)
+        {
+            return None;
+        }
+        pairs.push((key, value));
+    }
+    let old_label = pairs
+        .iter()
+        .find(|(key, _)| key == "label")
+        .map(|(_, value)| value.clone());
+    let new_label = if label.is_empty() {
+        old_label.unwrap_or_else(|| "personal".to_owned())
+    } else {
+        label.to_owned()
+    };
+    for (key, value) in [("role", role.to_owned()), ("label", new_label)] {
+        match pairs.iter_mut().find(|(name, _)| name == key) {
+            Some(pair) => pair.1 = value,
+            None => pairs.push((key.to_owned(), value)),
+        }
+    }
+    let text: String = pairs
+        .iter()
+        .map(|(key, value)| format!("{key}: {value}\n"))
+        .collect();
+    // The first sealed write creates the key in Python; load (or create) it
+    // first so a key error refuses before the file is written.
+    if store.encryption_enabled() {
+        careerbrew_vault::synthetic::key_for_data(&vault.root, &vault.key_file, true).ok()?;
+    }
+    store.write_text(&path, &text).ok()?;
+    Some(Outcome {
+        stdout: format!("role set: {role}\n"),
         stderr: String::new(),
         code: 0,
         emit_event: true,

@@ -1,6 +1,10 @@
 //! Native CLI handlers owned by `rust-05` (see `steps/mod.rs`): the storage
 //! port's settings and approval-receipt commands.
 //!
+//! - `config show`: `config.effective` through the rust-02 settings rows.
+//! - `config set <key> <value>`: `config.set_value` (the rust-02
+//!   validators) under the settings lock, and its `KeyError` and
+//!   `ValueError` lines.
 //! - `config unset <key>`: `config.unset` under the settings lock.
 //! - `approvals list|guidance|show`: readers over `Receipts` (no lock).
 //! - `approvals decide`: `Receipts::decide` under the receipt lock.
@@ -28,7 +32,10 @@ use std::path::Path;
 /// `config/native-routes.txt` and have a parity case in
 /// `crates/cbcli/tests/step_rust05.rs`.
 pub const COMMANDS: &[&str] = &[
+    "config.show",
+    "config.set",
     "config.unset",
+    "telemetry.off",
     "approvals.list",
     "approvals.guidance",
     "approvals.show",
@@ -44,7 +51,10 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
     let vault = vault_context()?;
     let store = vault.store();
     match name {
+        "config.show" => config_show(ctx, &store),
+        "config.set" => config_set(args, ctx, &store),
         "config.unset" => config_unset(args, ctx, &store),
+        "telemetry.off" => telemetry_off(ctx, &store),
         "approvals.list" => approvals_list(&store),
         "approvals.guidance" => approvals_guidance(&store),
         "approvals.show" => approvals_show(args, ctx, &store),
@@ -195,8 +205,36 @@ fn int_text(value: &Canon) -> Option<String> {
     (!digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit())).then_some(text)
 }
 
+/// `HH:MM` in ASCII digits, the form the `_hhmm` validator accepts.
+fn hhmm(text: &str) -> bool {
+    let b = text.as_bytes();
+    b.len() == 5
+        && match b[0] {
+            b'0' | b'1' => b[1].is_ascii_digit(),
+            b'2' => (b'0'..=b'3').contains(&b[1]),
+            _ => false,
+        }
+        && b[2] == b':'
+        && (b'0'..=b'5').contains(&b[3])
+        && b[4].is_ascii_digit()
+}
+
+/// The exact spellings PyYAML's YAML 1.1 bool and null resolvers match.
+const RESOLVED_WORDS: &[&str] = &[
+    "yes", "Yes", "YES", "no", "No", "NO", "true", "True", "TRUE", "false", "False", "FALSE", "on",
+    "On", "ON", "off", "Off", "OFF", "null", "Null", "NULL",
+];
+
 fn scalar(value: &Canon) -> Option<String> {
     match value {
+        // PyYAML quotes a time YAML 1.1 reads as a base-60 integer
+        // (`[1-9][0-9_]*(:[0-5]?[0-9])+`): `'19:00'`, while `08:30` stays
+        // plain (checked for all 1440 times).
+        Canon::Str(s) if hhmm(s) && s.starts_with(['1', '2']) => Some(format!("'{s}'")),
+        Canon::Str(s) if hhmm(s) => Some(s.clone()),
+        // PyYAML single-quotes a string its bool or null resolver would read
+        // back as another type (`'no'`, `'Yes'`, `'NULL'`).
+        Canon::Str(s) if RESOLVED_WORDS.contains(&s.as_str()) => Some(format!("'{s}'")),
         Canon::Null => Some("null".into()),
         Canon::Bool(b) => Some(if *b { "true" } else { "false" }.into()),
         Canon::Int(_) => int_text(value),
@@ -263,6 +301,340 @@ fn config_unset(args: &Parsed, ctx: &Ctx, store: &Store) -> Option<Outcome> {
         stdout: format!("{key} back to its default\n"),
         stderr: String::new(),
         code: 0,
+        emit_event: false,
+    })
+}
+
+// ---------- config show and set (the rust-02 settings rows) ----------
+
+/// One answer of the rust-02 `settings` vector set (`careerbrew_purevec`)
+/// for `op` over the stored settings, in the typed `{t, v}` form. `extra`
+/// holds more input fields, already JSON text (`"key": ..., "raw": ...`).
+fn settings_op(op: &str, settings: &Canon, extra: &str) -> Option<Canon> {
+    let mut text = String::from("{\"vectors\": [{\"id\": \"native\", \"op\": ");
+    crate::render::py_string(op, &mut text);
+    text.push_str(", \"input\": {\"settings\": ");
+    text.push_str(&settings.to_json().to_string());
+    text.push_str(extra);
+    text.push_str("}}]}");
+    let fixture = text.parse().ok()?;
+    let answer = careerbrew_purevec::run("settings", &fixture).ok()?;
+    let output = &answer["results"][0]["output"]["ok"];
+    // The answer is plain JSON, not the typed form: wrap it as a typed
+    // value through its JSON text, a map of `{t, v}` leaves.
+    plain_to_canon(&output.to_string())
+}
+
+/// Reads the JSON text of a plain answer (objects whose leaves are typed
+/// `{t, v}` values) as a typed map, so callers use one value type.
+fn plain_to_canon(json: &str) -> Option<Canon> {
+    let parsed = crate::registry::parse(json).ok()?;
+    from_answer(&parsed)
+}
+
+fn from_answer(value: &crate::registry::Json) -> Option<Canon> {
+    use crate::registry::Json;
+    // A typed leaf: an object with a string `t`.
+    if let Some(Json::Str(kind)) = value.get("t") {
+        let text = value.get("v");
+        return Some(match (kind.as_str(), text) {
+            ("null", _) => Canon::Null,
+            ("bool", Some(Json::Bool(b))) => Canon::Bool(*b),
+            ("int", Some(Json::Str(n))) => Canon::Int(n.parse().ok()?),
+            ("str", Some(Json::Str(s))) => Canon::Str(s.clone()),
+            ("list", Some(Json::Array(items))) => {
+                Canon::List(items.iter().map(from_answer).collect::<Option<_>>()?)
+            }
+            ("map", Some(Json::Array(pairs))) => Canon::Map(
+                pairs
+                    .iter()
+                    .map(|pair| match pair.as_array()? {
+                        [k, v] => Some((from_answer(k)?, from_answer(v)?)),
+                        _ => None,
+                    })
+                    .collect::<Option<_>>()?,
+            ),
+            // Floats, dates and anything else are not served.
+            _ => return None,
+        });
+    }
+    match value {
+        Json::Array(items) => Some(Canon::List(
+            items.iter().map(from_answer).collect::<Option<_>>()?,
+        )),
+        Json::Object(pairs) => Some(Canon::Map(
+            pairs
+                .iter()
+                .map(|(k, v)| Some((Canon::Str(k.clone()), from_answer(v)?)))
+                .collect::<Option<_>>()?,
+        )),
+        Json::Str(s) => Some(Canon::Str(s.clone())),
+        Json::Bool(b) => Some(Canon::Bool(*b)),
+        Json::Null => Some(Canon::Null),
+        Json::Number(_) => None,
+    }
+}
+
+fn map_get<'a>(map: &'a Canon, key: &str) -> Option<&'a Canon> {
+    match map {
+        Canon::Map(items) => items
+            .iter()
+            .find(|(k, _)| matches!(k, Canon::Str(k) if k == key))
+            .map(|(_, v)| v),
+        _ => None,
+    }
+}
+
+fn map_text<'a>(map: &'a Canon, key: &str) -> Option<&'a str> {
+    match map_get(map, key)? {
+        Canon::Str(s) => Some(s),
+        _ => None,
+    }
+}
+
+/// Python's `repr()` of a string, for the plain ASCII strings it quotes
+/// with `'` and no escapes; anything else returns None.
+fn simple_repr(text: &str) -> Option<String> {
+    text.chars()
+        .all(|c| (' '..='~').contains(&c) && c != '\'' && c != '\\')
+        .then(|| format!("'{text}'"))
+}
+
+/// Python's `str()` of a settings value: None, booleans, integers, strings,
+/// and lists of those (whose strings print with `repr`). Floats, maps,
+/// dates and strings `repr` would escape return None.
+fn py_str(value: &Canon) -> Option<String> {
+    Some(match value {
+        Canon::Null => "None".into(),
+        Canon::Bool(b) => (if *b { "True" } else { "False" }).into(),
+        Canon::Int(n) => n.to_string(),
+        Canon::Str(s) => s.clone(),
+        Canon::List(items) => {
+            let parts = items
+                .iter()
+                .map(|item| match item {
+                    Canon::Str(s) => simple_repr(s),
+                    other => py_str(other),
+                })
+                .collect::<Option<Vec<_>>>()?;
+            format!("[{}]", parts.join(", "))
+        }
+        _ => return None,
+    })
+}
+
+/// The stored settings, when they are a map of distinct string keys (the
+/// only shape `config.effective` and `set_value` handle the same way here).
+fn stored_settings(store: &Store) -> Option<Canon> {
+    let data = careerbrew_vault::settings::read_settings(store).ok()?;
+    let Canon::Map(items) = &data else {
+        return None;
+    };
+    let mut names: Vec<&str> = Vec::new();
+    for (k, _) in items {
+        let Canon::Str(k) = k else {
+            return None;
+        };
+        if names.contains(&k.as_str()) {
+            return None;
+        }
+        names.push(k);
+    }
+    Some(data)
+}
+
+fn config_show(ctx: &Ctx, store: &Store) -> Option<Outcome> {
+    let started = std::time::Instant::now();
+    let settings = stored_settings(store)?;
+    let Canon::List(rows) = settings_op("effective", &settings, "")? else {
+        return None;
+    };
+    let mut out = String::new();
+    for row in &rows {
+        let key = map_text(row, "key")?;
+        let value = py_str(map_get(row, "value")?)?;
+        let source = map_text(row, "source")?;
+        let help = map_text(row, "help")?;
+        out.push_str(&format!("{key:<18} {value:<24} {source:<14} {help}\n"));
+    }
+    // Python's stdout encoding is the locale's; ASCII prints the same in all.
+    if !out.is_ascii() {
+        return None;
+    }
+    // `cli.main` names this run `config` (see `config_unset`).
+    let ms = started.elapsed().as_millis() as u64;
+    events::emit_command(&ctx.env.caps, "config", true, ms);
+    Some(Outcome {
+        stdout: out,
+        stderr: String::new(),
+        code: 0,
+        emit_event: false,
+    })
+}
+
+/// What `config.set_value` does, from the rust-02 `set` answer.
+enum SetPlan {
+    /// `KeyError` or `ValueError` with its message: no lock, no read.
+    Raised(&'static str, String),
+    /// The parsed value, and the settings map to write.
+    Write(Canon, Canon),
+}
+
+fn set_plan(settings: &Canon, key: &str, raw: &str) -> Option<SetPlan> {
+    let mut extra = String::from(", \"key\": ");
+    crate::render::py_string(key, &mut extra);
+    extra.push_str(", \"raw\": ");
+    crate::render::py_string(raw, &mut extra);
+    let answer = settings_op("set", settings, &extra)?;
+    if let Some(class) = map_text(&answer, "raised") {
+        let class = match class {
+            "KeyError" => "KeyError",
+            "ValueError" => "ValueError",
+            _ => return None,
+        };
+        return Some(SetPlan::Raised(
+            class,
+            map_text(&answer, "message")?.to_owned(),
+        ));
+    }
+    // `refused: delegated` (a validator that calls workday modules or
+    // tzdata) and any other shape go to Python.
+    let value = map_get(&answer, "value")?.clone();
+    let written = map_get(&answer, "written")?.clone();
+    Some(SetPlan::Write(value, written))
+}
+
+/// The settings.yaml text for a written map, in `settings_yaml`'s subset.
+fn written_yaml(written: &Canon) -> Option<String> {
+    let Canon::Map(items) = written else {
+        return None;
+    };
+    let pairs: Vec<(&str, &Canon)> = items
+        .iter()
+        .map(|(k, v)| match k {
+            Canon::Str(k) => Some((k.as_str(), v)),
+            _ => None,
+        })
+        .collect::<Option<_>>()?;
+    settings_yaml(&pairs)
+}
+
+fn config_set(args: &Parsed, ctx: &Ctx, store: &Store) -> Option<Outcome> {
+    let started = std::time::Instant::now();
+    let key = args.text("key")?;
+    let raw = args.text("value")?;
+    // A key whose `repr` is plain, and a value of printable ASCII, so every
+    // message and printed value reads the same in both languages.
+    if !simple_id(key) || !raw.chars().all(|c| (' '..='~').contains(&c)) {
+        return None;
+    }
+    // Python validates before it takes the lock or reads the file, so the
+    // first answer uses no stored settings: an error reads nothing.
+    let empty = Canon::Map(Vec::new());
+    match set_plan(&empty, key, raw)? {
+        SetPlan::Raised(class, message) => return config_set_error(ctx, class, &message),
+        SetPlan::Write(..) => {}
+    }
+    // A sealed write differs on every run; leave it to Python.
+    if store.encryption_enabled() {
+        return None;
+    }
+    // Plan the write once before the lock file exists, so a refusal
+    // writes nothing; then again under the lock.
+    let plan = |store: &Store| -> Option<(Canon, String)> {
+        let settings = stored_settings(store)?;
+        match set_plan(&settings, key, raw)? {
+            SetPlan::Write(value, written) => Some((value, written_yaml(&written)?)),
+            SetPlan::Raised(..) => None,
+        }
+    };
+    let (value, _) = plan(store)?;
+    let shown = py_str(&value)?;
+    let line = format!("{key} = {shown} (saved to settings.yaml)\n");
+    if !line.is_ascii() {
+        return None;
+    }
+    let lock = ctx.root.join(".settings.yaml.lock");
+    careerbrew_vault::lock::with_exact_lock(&lock, || -> Option<()> {
+        let (_, text) = plan(store)?;
+        store
+            .write_text(&ctx.root.join("settings.yaml"), &text)
+            .ok()
+    })
+    .ok()??;
+    append_row(ctx, &row(&[("event", "config.set"), ("status", "ok")], &[]));
+    let ms = started.elapsed().as_millis() as u64;
+    events::emit_command(&ctx.env.caps, "config", true, ms);
+    Some(Outcome {
+        stdout: line,
+        stderr: String::new(),
+        code: 0,
+        emit_event: false,
+    })
+}
+
+/// `telemetry off`: `telemetry.set_consent("no")`, which is
+/// `config.set_value("telemetry_consent", "no")` and nothing else, then the
+/// fixed line. Same refusals as `config.set`: a sealed store, a settings
+/// file outside the YAML subset, or a validator answer other than a write.
+fn telemetry_off(ctx: &Ctx, store: &Store) -> Option<Outcome> {
+    let started = std::time::Instant::now();
+    if store.encryption_enabled() {
+        return None;
+    }
+    let plan = |store: &Store| -> Option<String> {
+        let settings = stored_settings(store)?;
+        match set_plan(&settings, "telemetry_consent", "no")? {
+            SetPlan::Write(_, written) => written_yaml(&written),
+            SetPlan::Raised(..) => None,
+        }
+    };
+    plan(store)?;
+    let lock = ctx.root.join(".settings.yaml.lock");
+    careerbrew_vault::lock::with_exact_lock(&lock, || -> Option<()> {
+        let text = plan(store)?;
+        store
+            .write_text(&ctx.root.join("settings.yaml"), &text)
+            .ok()
+    })
+    .ok()??;
+    append_row(ctx, &row(&[("event", "config.set"), ("status", "ok")], &[]));
+    let ms = started.elapsed().as_millis() as u64;
+    events::emit_command(&ctx.env.caps, "telemetry.off", true, ms);
+    Some(Outcome {
+        stdout: "telemetry off: nothing is sent\n".to_owned(),
+        stderr: String::new(),
+        code: 0,
+        emit_event: false,
+    })
+}
+
+/// `cli.main` on a `KeyError` or `ValueError`: `error: <str(exc)>`, one
+/// `cli.error` row, exit 2, and no `cli.run` row.
+fn config_set_error(ctx: &Ctx, class: &str, message: &str) -> Option<Outcome> {
+    let (shown, id) = match class {
+        // `str(KeyError(m))` is `repr(m)`.
+        "KeyError" => (simple_repr(message)?, "keyerror"),
+        _ => (message.to_owned(), "valueerror"),
+    };
+    let stdout = format!("error: {shown}\n");
+    if !stdout
+        .chars()
+        .all(|c| c == '\n' || (' '..='~').contains(&c))
+    {
+        return None;
+    }
+    append_row(
+        ctx,
+        &row(
+            &[("command", "config"), ("error", id), ("event", "cli.error")],
+            &[("via", ctx.env.caps.via)],
+        ),
+    );
+    Some(Outcome {
+        stdout,
+        stderr: String::new(),
+        code: 2,
         emit_event: false,
     })
 }

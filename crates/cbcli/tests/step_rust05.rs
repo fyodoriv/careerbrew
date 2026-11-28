@@ -1,5 +1,6 @@
 //! rust-05 native handlers (`src/steps/rust05.rs`): parity with the Python
-//! CLI in fresh synthetic homes for "config.unset", "approvals.list",
+//! CLI in fresh synthetic homes for "config.show", "config.set",
+//! "config.unset", "approvals.list",
 //! "approvals.guidance", "approvals.show" and "approvals.decide", plus the
 //! cases the native binary must refuse and a negative control.
 mod common;
@@ -375,6 +376,286 @@ fn config_unset_refuses_writes_it_cannot_match() {
         true,
         "config.unset",
     );
+}
+
+/// Settings with a list of strings, an unknown key and both time forms
+/// PyYAML writes (`08:30` plain, `'19:15'` quoted).
+const MIXED: &str = "backup_targets:\n- syn-a\n- syn-b\nsynthetic_extra: 5\nwork_start: 08:30\nwork_end: '19:15'\nbackup_icloud: true\n";
+
+#[test]
+fn config_show_matches_python() {
+    strict(NOW);
+    let homes = [
+        prepare_setup(&Setup {
+            id: "empty",
+            cli: &[],
+            files: &[],
+        }),
+        prepare_setup(&Setup {
+            id: "plain-settings",
+            cli: &[],
+            files: files(vec![PLAIN, ("settings.yaml", SETTINGS)]),
+        }),
+        prepare_setup(&Setup {
+            id: "mixed-settings",
+            cli: &[],
+            files: files(vec![PLAIN, ("settings.yaml", MIXED)]),
+        }),
+        prepare_setup(&Setup {
+            id: "sealed-settings",
+            cli: &[
+                &["machine", "set", "personal"],
+                &["config", "set", "serve_port", "9001"],
+                &["data", "encrypt"],
+            ],
+            files: &[],
+        }),
+    ];
+    for home in &homes {
+        assert_same(home, &["config", "show"], true, "config.show");
+    }
+}
+
+#[test]
+fn config_show_refuses_what_it_cannot_match() {
+    strict(NOW);
+    let cases = [
+        ("redaction-input", "serve_port: 9000\n", true),
+        ("a-float", "synthetic_ratio: 1.5\n", false),
+        ("a-map", "synthetic_extra:\n  a: 1\n", false),
+        ("not-a-map", "- a\n- b\n", false),
+        ("malformed", "serve_port: [\n", false),
+        ("non-ascii", "pm_report_title: Synthetic caf\u{e9}\n", false),
+    ];
+    for (id, settings, profile) in cases {
+        let mut list = vec![PLAIN, ("settings.yaml", settings)];
+        if profile {
+            list.push(("profile.yaml", "name: Synthetic Person\n"));
+        }
+        let home = prepare_setup(&Setup {
+            id,
+            cli: &[],
+            files: files(list),
+        });
+        assert!(refused(&home, &["config", "show"], &[]), "{id} must refuse");
+        assert_same(&home, &["config", "show"], false, "config.show");
+    }
+    // `--help` is the compiled-in help page, served for a native command;
+    // an extra word is argparse's.
+    let empty = prepare_setup(&Setup {
+        id: "empty",
+        cli: &[],
+        files: &[],
+    });
+    assert_same(&empty, &["config", "show", "--help"], true, "config.show");
+    let extra = &["config", "show", "extra"][..];
+    assert!(refused(&empty, extra, &[]), "{extra:?} must refuse");
+    assert_same(&empty, extra, false, "config.show");
+}
+
+#[test]
+fn config_set_matches_python() {
+    strict(NOW);
+    let plain = prepare_setup(&Setup {
+        id: "plain-settings",
+        cli: &[],
+        files: files(vec![PLAIN, ("settings.yaml", SETTINGS)]),
+    });
+    let mixed = prepare_setup(&Setup {
+        id: "mixed-settings",
+        cli: &[],
+        files: files(vec![PLAIN, ("settings.yaml", MIXED)]),
+    });
+    let bare = prepare_setup(&Setup {
+        id: "plain-no-file",
+        cli: &[],
+        files: files(vec![PLAIN]),
+    });
+    let sets: &[&[&str]] = &[
+        &["work_start", "08:30"],
+        &["work_end", "19:15"],
+        &["work_end", "7:15"],
+        &["serve_port", "8800"],
+        &["serve_port", "70000"],
+        &["serve_port", "abc"],
+        &["serve_port", "88.5"],
+        &["work_days", "4,0,2,2"],
+        &["work_days", "9"],
+        &["backup_icloud", "yes"],
+        &["backup_icloud", "maybe"],
+        &["ladder", "staff-x"],
+        &["pm_slack", ""],
+        &["timezone", "UTC"],
+        &["web_server", "native"],
+        &["web_server", "other"],
+        &["time_baseline_standup", "12"],
+        &["backup_targets", "syn-c, syn-d"],
+        &["nosuch", "1"],
+    ];
+    for home in [&plain, &mixed, &bare] {
+        for kv in sets {
+            let args = ["config", "set", kv[0], kv[1]];
+            assert_same(home, &args, true, "config.set");
+        }
+    }
+    // Errors read nothing, so a sealed home serves them too.
+    let sealed = prepare_setup(&Setup {
+        id: "sealed-settings",
+        cli: &[
+            &["machine", "set", "personal"],
+            &["config", "set", "serve_port", "9001"],
+            &["data", "encrypt"],
+        ],
+        files: &[],
+    });
+    for kv in [["nosuch", "1"], ["serve_port", "70000"]] {
+        let args = ["config", "set", kv[0], kv[1]];
+        assert_same(&sealed, &args, true, "config.set");
+    }
+}
+
+#[test]
+fn config_set_refuses_before_any_write() {
+    strict(NOW);
+    let plain = prepare_setup(&Setup {
+        id: "plain-settings",
+        cli: &[],
+        files: files(vec![PLAIN, ("settings.yaml", SETTINGS)]),
+    });
+    let spaced = prepare_setup(&Setup {
+        id: "spaced-value",
+        cli: &[],
+        files: files(vec![
+            PLAIN,
+            ("settings.yaml", "pm_report_title: Synthetic update\n"),
+        ]),
+    });
+    let sealed = prepare_setup(&Setup {
+        id: "sealed-settings",
+        cli: &[
+            &["machine", "set", "personal"],
+            &["config", "set", "serve_port", "9001"],
+            &["data", "encrypt"],
+        ],
+        files: &[],
+    });
+    let cases: [(&Home, &[&str]); 7] = [
+        // Validators that call workday modules or tzdata stay in Python.
+        (&plain, &["config", "set", "work_steps", "synthetic"]),
+        (&plain, &["config", "set", "standup_tz", "UTC"]),
+        // A value outside the YAML subset written byte-equal to PyYAML.
+        (&plain, &["config", "set", "pm_report_title", "Two words"]),
+        (&plain, &["config", "set", "timezone", "Europe/Berlin"]),
+        // The file already holds such a value.
+        (&spaced, &["config", "set", "serve_port", "8800"]),
+        // A sealed write differs on every run.
+        (&sealed, &["config", "set", "serve_port", "8800"]),
+        // A missing value: argparse's usage error.
+        (&plain, &["config", "set", "work_start"]),
+    ];
+    for (home, args) in cases {
+        let before = observe_env(home, &["approvals", "list"], &Side::Python, &[]).files;
+        let direct = observe_env(home, args, &Side::Native, &[]);
+        assert_eq!(direct.code, Some(64), "{args:?} must refuse");
+        assert_eq!(direct.files, before, "{args:?} wrote before refusing");
+        assert!(direct.stdout.is_empty() && direct.events.is_empty());
+        // Python's own sealed write has a new IV each run.
+        if !std::ptr::eq(home, &sealed) {
+            assert_same(home, args, false, "config.set");
+        }
+    }
+}
+
+#[test]
+fn telemetry_off_matches_python() {
+    strict(NOW);
+    let plain = prepare_setup(&Setup {
+        id: "plain-settings",
+        cli: &[],
+        files: files(vec![PLAIN, ("settings.yaml", SETTINGS)]),
+    });
+    let consented = prepare_setup(&Setup {
+        id: "consent-yes",
+        cli: &[],
+        files: files(vec![PLAIN, ("settings.yaml", "telemetry_consent: 'yes'\n")]),
+    });
+    let bare = prepare_setup(&Setup {
+        id: "plain-no-file",
+        cli: &[],
+        files: files(vec![PLAIN]),
+    });
+    for home in [&plain, &consented, &bare] {
+        assert_same(home, &["telemetry", "off"], true, "telemetry.off");
+    }
+}
+
+#[test]
+fn telemetry_off_refuses_before_any_write() {
+    strict(NOW);
+    let spaced = prepare_setup(&Setup {
+        id: "spaced-value",
+        cli: &[],
+        files: files(vec![
+            PLAIN,
+            ("settings.yaml", "pm_report_title: Synthetic update\n"),
+        ]),
+    });
+    let sealed = prepare_setup(&Setup {
+        id: "sealed-settings",
+        cli: &[
+            &["machine", "set", "personal"],
+            &["config", "set", "serve_port", "9001"],
+            &["data", "encrypt"],
+        ],
+        files: &[],
+    });
+    for home in [&spaced, &sealed] {
+        let args = ["telemetry", "off"];
+        let before = observe_env(home, &["approvals", "list"], &Side::Python, &[]).files;
+        let direct = observe_env(home, &args, &Side::Native, &[]);
+        assert_eq!(direct.code, Some(64), "telemetry off must refuse");
+        assert_eq!(direct.files, before, "telemetry off wrote before refusing");
+        assert!(direct.stdout.is_empty() && direct.events.is_empty());
+    }
+    assert_same(&spaced, &["telemetry", "off"], false, "telemetry.off");
+}
+
+/// Negative control for the config commands: two different values give a
+/// different file and line, and an error writes no file.
+#[test]
+fn the_config_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let plain = prepare_setup(&Setup {
+        id: "plain-settings",
+        cli: &[],
+        files: files(vec![PLAIN, ("settings.yaml", SETTINGS)]),
+    });
+    let a = observe(
+        &plain,
+        &["config", "set", "serve_port", "8800"],
+        &Side::Native,
+    );
+    let b = observe(
+        &plain,
+        &["config", "set", "serve_port", "8801"],
+        &Side::Python,
+    );
+    assert_ne!(a.files, b.files);
+    assert_ne!(a.stdout, b.stdout);
+    let error = observe(&plain, &["config", "set", "serve_port", "1"], &Side::Native);
+    assert_eq!(error.code, Some(2));
+    assert!(!error
+        .files
+        .iter()
+        .any(|f| f.starts_with(".settings.yaml.lock")));
+    let shown = observe(&plain, &["config", "show"], &Side::Native);
+    let mixed = prepare_setup(&Setup {
+        id: "mixed-settings",
+        cli: &[],
+        files: files(vec![PLAIN, ("settings.yaml", MIXED)]),
+    });
+    let other = observe(&mixed, &["config", "show"], &Side::Python);
+    assert_ne!(shown.stdout, other.stdout);
 }
 
 /// Negative control: the comparison sees a real difference. A decision
