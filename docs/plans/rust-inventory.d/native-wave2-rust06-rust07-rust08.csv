@@ -1,0 +1,1 @@
+crates/cbcli/tests/step_rust08.rs,keep-native,rust-00,native CLI parity cases for pair init and pair join: personal and corporate homes; key overwrite and mode; refused redaction inputs and bad keys; negative controls

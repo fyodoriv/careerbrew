@@ -192,11 +192,11 @@ machine.show native
 machine.new-user python
 machine.split-plugin-evidence python
 machine.ready python
-machine.set python
-pair.init python
-pair.join python
+machine.set native
+pair.init native
+pair.join native
 sync.export native
-sync.import python
+sync.import native
 day.log python
 day.inbox python
 day.accept-all python

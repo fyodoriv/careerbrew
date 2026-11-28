@@ -5,6 +5,15 @@
 //! every case where Python prints `error:` (a corporate machine, a bundle
 //! inside the data folder, no pairing key) refuses before any write, and
 //! Python then prints its own error.
+//!
+//! `sync import <file>` reads such a bundle on a corporate machine and
+//! writes the accepted ladder and target level into `settings.yaml`, as
+//! Python's `sync.import_bundle` does. It is served only when every value
+//! `settings.yaml` holds, before and after, is a plain YAML word (see
+//! `plain_word`), so the text equals PyYAML's `safe_dump`; the ladders are
+//! the repo's own (no plugin, no `ladders/` folder in the data root). Every
+//! error case, and any input Python could read otherwise, refuses before
+//! the write.
 use super::Ctx;
 use crate::args::Parsed;
 use crate::Outcome;
@@ -16,12 +25,13 @@ use std::path::{Path, PathBuf};
 /// The route keys this module serves. Each one must be routed `native` in
 /// `config/native-routes.txt` and have a parity case in
 /// `crates/cbcli/tests/step_rust06.rs`.
-pub const COMMANDS: &[&str] = &["sync.export"];
+pub const COMMANDS: &[&str] = &["sync.export", "sync.import"];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
 pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
     match name {
         "sync.export" => export(args.text("file")?, ctx),
+        "sync.import" => import(args.text("file")?, ctx),
         _ => None,
     }
 }
@@ -286,6 +296,309 @@ fn export(file: &str, ctx: &Ctx) -> Option<Outcome> {
             "exported from personal machine: level=settings items={} -> {file}\n",
             picked.len()
         ),
+        stderr: String::new(),
+        code: 0,
+        emit_event: true,
+    })
+}
+
+/// True when PyYAML's `safe_dump` writes `text` as a plain scalar that
+/// `safe_load` reads back as the same text: a letter, then letters,
+/// digits, `_`, `.`, `/` or `-`, at most 64 characters, and not one of the
+/// YAML 1.1 boolean or null words.
+fn plain_word(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 64
+        && bytes[0].is_ascii_alphabetic()
+        && bytes
+            .iter()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'.' | b'/' | b'-'))
+        && !["yes", "no", "on", "off", "true", "false", "null"]
+            .contains(&text.to_ascii_lowercase().as_str())
+}
+
+/// The entries of a mapping whose keys are all text and appear once, or
+/// None.
+fn strict_map(value: &Canon) -> Option<Vec<(&str, &Canon)>> {
+    let Canon::Map(items) = value else {
+        return None;
+    };
+    let mut out: Vec<(&str, &Canon)> = Vec::new();
+    for (key, value) in items {
+        let Canon::Str(key) = key else {
+            return None;
+        };
+        if out.iter().any(|(seen, _)| *seen == key) {
+            return None;
+        }
+        out.push((key, value));
+    }
+    Some(out)
+}
+
+fn field<'a>(items: &[(&str, &'a Canon)], name: &str) -> Option<&'a Canon> {
+    items
+        .iter()
+        .find(|(key, _)| *key == name)
+        .map(|(_, value)| *value)
+}
+
+/// The repo whose `knowledge/ladders` Python reads (`paths.REPO_ROOT`): the
+/// console script passes it in `CAREERBREW_NATIVE_REPO`; a direct run uses
+/// the checkout the binary was built from.
+fn repo_root() -> Option<PathBuf> {
+    match std::env::var("CAREERBREW_NATIVE_REPO") {
+        Ok(repo) if repo.starts_with('/') => Some(PathBuf::from(repo)),
+        Ok(_) => None,
+        Err(_) => Some(PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))),
+    }
+}
+
+/// `promo.validate_ladder` for one ladder file: its id and levels, or None
+/// where Python raises (or could read the file otherwise).
+fn ladder_of(value: &Canon) -> Option<(String, Vec<String>)> {
+    let items = strict_map(value)?;
+    let Some(Canon::Str(id)) = field(&items, "id") else {
+        return None;
+    };
+    let Some(Canon::List(levels)) = field(&items, "levels") else {
+        return None;
+    };
+    let Some(Canon::List(competencies)) = field(&items, "competencies") else {
+        return None;
+    };
+    if id.is_empty() || levels.is_empty() || competencies.is_empty() {
+        return None;
+    }
+    let levels = levels
+        .iter()
+        .map(|level| match level {
+            Canon::Str(level) => Some(level.clone()),
+            _ => None,
+        })
+        .collect::<Option<Vec<String>>>()?;
+    for competency in competencies {
+        let comp = strict_map(competency)?;
+        for key in ["id", "name", "weight", "signals", "expect"] {
+            field(&comp, key)?;
+        }
+        let expect = strict_map(field(&comp, "expect")?)?;
+        if levels.iter().any(|level| field(&expect, level).is_none()) {
+            return None;
+        }
+        for key in ["descriptions", "examples"] {
+            if field(&comp, key).is_some_and(|value| !matches!(value, Canon::Map(_))) {
+                return None;
+            }
+        }
+    }
+    Some((id.clone(), levels))
+}
+
+/// `promo.ladders()` with no plugin and no user ladders: every file in the
+/// repo's `knowledge/ladders`, in name order, the later id winning.
+fn base_ladders(store: &careerbrew_vault::store::Store) -> Option<Vec<(String, Vec<String>)>> {
+    let dir = repo_root()?.join("knowledge/ladders");
+    let mut out: Vec<(String, Vec<String>)> = Vec::new();
+    if !dir.is_dir() {
+        return Some(out);
+    }
+    let mut files = Vec::new();
+    for entry in std::fs::read_dir(&dir).ok()? {
+        let path = entry.ok()?.path();
+        path.file_name()?.to_str()?;
+        if path.is_file() {
+            files.push(path);
+        }
+    }
+    files.sort();
+    for path in files {
+        let value = store.read_yaml(&path, Canon::Map(Vec::new()), true).ok()?;
+        let (id, levels) = ladder_of(&value)?;
+        match out.iter_mut().find(|(seen, _)| *seen == id) {
+            Some(entry) => entry.1 = levels,
+            None => out.push((id, levels)),
+        }
+    }
+    Some(out)
+}
+
+/// `machine.role() == "corporate"`, or None when Python could fail or read
+/// `machine.yaml` otherwise.
+fn corporate(store: &careerbrew_vault::store::Store, root: &Path) -> Option<bool> {
+    let info = store
+        .read_yaml(&root.join("machine.yaml"), Canon::Map(Vec::new()), true)
+        .ok()?;
+    let items = mapping(info)?;
+    Some(items.iter().any(|(key, value)| {
+        key == "role" && matches!(value, Canon::Str(role) if role == "corporate")
+    }))
+}
+
+/// The `sync.import` row Python's `events.emit` appends, keys sorted.
+fn import_row(items: usize) -> String {
+    let mut out =
+        format!("{{\"event\": \"sync.import\", \"items\": {items}, \"status\": \"ok\", \"ts\": ");
+    crate::render::py_string(&crate::events::stamp(now_secs()), &mut out);
+    out.push_str(", \"v\": ");
+    crate::render::py_string(crate::events::version(), &mut out);
+    out.push_str("}\n");
+    out
+}
+
+fn import(file: &str, ctx: &Ctx) -> Option<Outcome> {
+    // The output lines go through `privacy.redact`; with none of its inputs
+    // present it reads no term (and no plugin ladder exists).
+    if ctx.redact_inputs_present() || !env_is_plain() {
+        return None;
+    }
+    let root_text = ctx.root.to_str()?;
+    if !root_text.starts_with('/') {
+        return None;
+    }
+    let home = std::env::var("HOME").ok()?;
+    let vault = careerbrew_vault::transfer::Context::from_env().ok()?;
+    if vault.root != ctx.root {
+        return None;
+    }
+    let store = vault.store();
+    // `sync._fernet()`: the pairing key, outside the data folder, in the
+    // form `Fernet.generate_key` writes.
+    let pair = pair_key_path(&home)?;
+    careerbrew_vault::keyfile::require_outside_data_root(&pair, &ctx.root).ok()?;
+    let key = std::fs::read_to_string(&pair).ok()?;
+    let key = key.trim();
+    if key.len() != 44
+        || !key.ends_with('=')
+        || !key[..43]
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
+        return None;
+    }
+    let raw = std::fs::read(file).ok()?;
+    let mut sealed = careerbrew_vault::MAGIC.to_vec();
+    sealed.extend_from_slice(&raw);
+    let plain = careerbrew_vault::open(Some(key), &sealed).ok()?;
+    // `json.loads` reads bytes as UTF-8 only when the first two bytes are
+    // not zero and there is no byte-order mark: an object starts with `{`.
+    if plain.first() != Some(&b'{') || plain.get(1).is_none_or(|b| *b == 0) {
+        return None;
+    }
+    let text = String::from_utf8(plain).ok()?;
+    let bundle = careerbrew_vault::json_yaml::json_read(&text).ok()?;
+    let bundle = strict_map(&bundle)?;
+    let Some(Canon::Str(from)) = field(&bundle, "from") else {
+        return None;
+    };
+    let payload = strict_map(field(&bundle, "payload")?)?;
+    // Only the corporate side imports; a bundle from another corporate
+    // machine, or any payload besides settings, is a Python error.
+    if !corporate(&store, &ctx.root)? || from == "corporate" {
+        return None;
+    }
+    if payload.iter().any(|(key, _)| *key != "settings") {
+        return None;
+    }
+    let incoming = match field(&payload, "settings") {
+        None | Some(Canon::Null) => Vec::new(),
+        Some(value @ Canon::Map(_)) => strict_map(value)?,
+        Some(_) => return None,
+    };
+    let text_of = |name: &str| match field(&incoming, name) {
+        Some(Canon::Str(value)) if value.chars().count() <= 64 => Some(value.as_str()),
+        _ => None,
+    };
+    if ctx.root.join("ladders").exists() {
+        return None;
+    }
+    let ladders = base_ladders(&store)?;
+    let levels_of = |id: &str| {
+        ladders
+            .iter()
+            .find(|(seen, _)| seen == id)
+            .map(|(_, levels)| levels)
+    };
+    let path = ctx.root.join("settings.yaml");
+    match std::fs::symlink_metadata(&path) {
+        Ok(meta) if meta.file_type().is_file() => {}
+        Ok(_) => return None,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(_) => return None,
+    }
+    let settings = store.read_yaml(&path, Canon::Map(Vec::new()), true).ok()?;
+    let mut pairs: Vec<(String, String)> = Vec::new();
+    for (key, value) in strict_map(&settings)? {
+        let Canon::Str(value) = value else {
+            return None;
+        };
+        if !plain_word(key) || !plain_word(value) {
+            return None;
+        }
+        pairs.push((key.to_owned(), value.clone()));
+    }
+    let mut applied: Vec<(&str, String)> = Vec::new();
+    if let Some(ladder) = text_of("ladder").filter(|id| levels_of(id).is_some()) {
+        applied.push(("ladder", ladder.to_owned()));
+    }
+    let ladder_id = match applied.first() {
+        Some((_, id)) => id.clone(),
+        None => pairs
+            .iter()
+            .find(|(key, _)| key == "ladder")
+            .map_or_else(|| "generic-swe".to_owned(), |(_, value)| value.clone()),
+    };
+    if let (Some(levels), Some(level)) = (levels_of(&ladder_id), text_of("target_level")) {
+        if levels.iter().any(|known| known == level) {
+            applied.push(("target_level", level.to_owned()));
+        }
+    }
+    for (key, value) in &applied {
+        if !plain_word(value) {
+            return None;
+        }
+        match pairs.iter_mut().find(|(name, _)| name == key) {
+            Some(pair) => pair.1 = value.clone(),
+            None => pairs.push(((*key).to_owned(), value.clone())),
+        }
+    }
+    let yaml = if pairs.is_empty() {
+        "{}\n".to_owned()
+    } else {
+        pairs
+            .iter()
+            .map(|(key, value)| format!("{key}: {value}\n"))
+            .collect()
+    };
+    let added = applied.len();
+    let ignored = incoming.len() - added;
+    // The first sealed write creates the key in Python; load (or create) it
+    // first so a key error refuses before the file is written.
+    if store.encryption_enabled() {
+        careerbrew_vault::synthetic::key_for_data(&vault.root, &vault.key_file, true).ok()?;
+    }
+    store.write_text(&path, &yaml).ok()?;
+    if std::env::var("CAREERBREW_EVENTS").as_deref() != Ok("off") {
+        let logs = ctx.root.join("logs");
+        if std::fs::create_dir_all(&logs).is_ok() {
+            if let Ok(mut log) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(logs.join("events.jsonl"))
+            {
+                let _ = log.write_all(import_row(added).as_bytes());
+            }
+        }
+    }
+    let mut stdout = format!("imported bundle from {from} machine: {added} new record(s)\n");
+    if ignored > 0 {
+        stdout.push_str(&format!(
+            "ignored {ignored} setting(s): only a known ladder and one of its levels are accepted on a corporate machine\n"
+        ));
+    }
+    Some(Outcome {
+        stdout,
         stderr: String::new(),
         code: 0,
         emit_event: true,

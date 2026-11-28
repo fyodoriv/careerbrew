@@ -1,4 +1,5 @@
-//! Parity cases for the rust-07 native handlers: `"init"`.
+//! Parity cases for the rust-07 native handlers: `"init"` and
+//! `"machine.set"`.
 //!
 //! Each case builds a synthetic home with the Python CLI, then compares the
 //! native binary and the console script with Python (stdout, exit code,
@@ -136,4 +137,178 @@ fn init_negative_controls() {
     assert_ne!(personal.files, python.files);
     assert!(personal.stdout.contains("jobs/criteria.yaml"));
     assert!(!python.stdout.contains("jobs/criteria.yaml"));
+}
+
+fn machine_set(home: &Home, args: &[&str], must_serve: bool) -> bool {
+    assert_same(home, args, must_serve, "machine.set")
+}
+
+#[test]
+fn machine_set_personal_matches_python_in_an_empty_home() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "machine-set-empty",
+        cli: &[],
+        files: &[],
+    });
+    assert!(machine_set(
+        &home,
+        &["machine", "set", "personal", "--label", "desk-1"],
+        true
+    ));
+    assert!(machine_set(&home, &["machine", "set", "personal"], true));
+    // An empty label reads as no label, as `a.label or ""` does.
+    assert!(machine_set(
+        &home,
+        &["machine", "set", "personal", "--label", ""],
+        true
+    ));
+}
+
+#[test]
+fn machine_set_personal_keeps_the_label_and_key_order() {
+    strict(NOW);
+    // Plaintext, so the file's content digest is compared too.
+    let home = prepare_setup(&Setup {
+        id: "machine-set-relabel",
+        cli: &[],
+        files: &[
+            (".plaintext", ""),
+            ("machine.yaml", "label: lab_2.b/x\nrole: personal\n"),
+        ],
+    });
+    assert!(machine_set(&home, &["machine", "set", "personal"], true));
+    assert!(machine_set(
+        &home,
+        &["machine", "set", "personal", "--label", "Desk-9"],
+        true
+    ));
+    let only_role = prepare_setup(&Setup {
+        id: "machine-set-only-role",
+        cli: &[],
+        files: &[(".plaintext", ""), ("machine.yaml", "role: personal\n")],
+    });
+    assert!(machine_set(
+        &only_role,
+        &["machine", "set", "personal"],
+        true
+    ));
+    let blank = prepare_setup(&Setup {
+        id: "machine-set-blank",
+        cli: &[],
+        files: &[(".plaintext", ""), ("machine.yaml", "# synthetic\n")],
+    });
+    assert!(machine_set(
+        &blank,
+        &["machine", "set", "personal", "--label", "m1"],
+        true
+    ));
+}
+
+#[test]
+fn machine_set_personal_after_corporate_and_sealed() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "machine-set-from-corporate",
+        cli: &[&["machine", "set", "corporate"]],
+        files: &[],
+    });
+    assert!(machine_set(&home, &["machine", "set", "personal"], true));
+    let sealed = prepare_setup(&Setup {
+        id: "machine-set-sealed",
+        cli: &[
+            &["machine", "set", "personal", "--label", "desk-1"],
+            &["data", "encrypt"],
+        ],
+        files: &[],
+    });
+    assert!(machine_set(&sealed, &["machine", "set", "personal"], true));
+}
+
+/// The corporate role, labels PyYAML would quote, other machine keys,
+/// malformed files and redaction inputs all go to Python.
+#[test]
+fn machine_set_refuses_what_python_must_run() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "machine-set-refusals",
+        cli: &[],
+        files: &[],
+    });
+    for args in [
+        &["machine", "set", "corporate"][..],
+        &["machine", "set", "personal", "--label", "yes"],
+        &["machine", "set", "personal", "--label", "two words"],
+        &["machine", "set", "personal", "--label", "9lives"],
+    ] {
+        assert!(!machine_set(&home, args, false), "{args:?}");
+    }
+    const CASES: &[(&str, &[(&str, &str)])] = &[
+        (
+            "machine-set-extra-key",
+            &[
+                (".plaintext", ""),
+                ("machine.yaml", "role: personal\nnote: synthetic\n"),
+            ],
+        ),
+        (
+            "machine-set-quoted",
+            &[(".plaintext", ""), ("machine.yaml", "label: 'on'\n")],
+        ),
+        (
+            "machine-set-bad",
+            &[(".plaintext", ""), ("machine.yaml", "role: [unclosed\n")],
+        ),
+        (
+            "machine-set-list",
+            &[(".plaintext", ""), ("machine.yaml", "- personal\n")],
+        ),
+    ];
+    for &(id, files) in CASES {
+        let home = prepare_setup(&Setup {
+            id,
+            cli: &[],
+            files,
+        });
+        assert!(
+            !machine_set(&home, &["machine", "set", "personal"], false),
+            "{id}"
+        );
+    }
+    let terms = prepare_setup(&Setup {
+        id: "machine-set-profile",
+        cli: &[],
+        files: &[("profile.yaml", "name: Sam Example\n")],
+    });
+    assert!(!machine_set(&terms, &["machine", "set", "personal"], false));
+}
+
+/// Negative controls: two labels give different files, an invalid role is
+/// refused by the argument reader, and a refusal writes nothing.
+#[test]
+fn machine_set_negative_controls() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "machine-set-control",
+        cli: &[],
+        files: &[(".plaintext", "")],
+    });
+    let a = observe(
+        &home,
+        &["machine", "set", "personal", "--label", "desk-1"],
+        &Side::Native,
+    );
+    let b = observe(
+        &home,
+        &["machine", "set", "personal", "--label", "desk-2"],
+        &Side::Python,
+    );
+    assert_eq!(a.stdout, "role set: personal\n");
+    assert_ne!(a.files, b.files);
+    let wrong = observe(&home, &["machine", "set", "lab"], &Side::Native);
+    assert_eq!(wrong.code, Some(64));
+    let refused = observe(&home, &["machine", "set", "corporate"], &Side::Native);
+    assert_eq!(refused.code, Some(64));
+    assert_eq!(refused.files, vec![file_line(".plaintext", b"")]);
+    assert!(refused.events.is_empty());
 }
