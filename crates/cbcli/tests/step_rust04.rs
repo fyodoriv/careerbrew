@@ -1,6 +1,7 @@
 //! rust-04 native handlers (`src/steps/rust04.rs`): parity with the Python
-//! CLI in fresh synthetic homes for "draft.route" and "draft.judge", plus
-//! the cases the native binary must refuse and a negative control.
+//! CLI in fresh synthetic homes for "draft.route", "draft.judge" and
+//! "privacy.scan" (the `--file` draft form), plus the cases the native
+//! binary must refuse and negative controls.
 mod common;
 
 use common::*;
@@ -236,6 +237,155 @@ fn draft_commands_refuse_what_they_cannot_match() {
     let argv: Vec<&str> = args.iter().map(String::as_str).collect();
     assert_eq!(observe(&redaction, &argv, &Side::Native).code, Some(64));
     same(&redaction, &args, false, "draft.judge");
+}
+
+// ---------- "privacy.scan" --file ----------
+
+/// Writes a draft outside the data root, in the live home and in the copy
+/// every run restores, and returns its path.
+fn outside(home: &Home, name: &str, bytes: &[u8]) -> String {
+    let snap = home
+        .home
+        .parent()
+        .unwrap()
+        .with_file_name("snap")
+        .join("home");
+    for dir in [&home.home, &snap] {
+        std::fs::write(dir.join(name), bytes).unwrap();
+    }
+    format!("{}/{name}", home.home.display())
+}
+
+fn scan_home() -> (Home, Vec<String>) {
+    let home = prepare_setup(&Setup {
+        id: "scan-drafts",
+        cli: &[],
+        files: &[("inputs/inside.md", "Synthetic notes\n")],
+    });
+    let root = home.data.display().to_string();
+    let resolved = home.data.canonicalize().unwrap().display().to_string();
+    let drafts: Vec<(&str, Vec<u8>)> = vec![
+        ("clean.md", b"Synthetic notes for the team\n".to_vec()),
+        ("private.md", b"see private/work/notes.md\n".to_vec()),
+        (
+            "system.md",
+            b"/private/tmp/x and (/private/var/y) and /private/etc/z\n".to_vec(),
+        ),
+        ("glued.md", b"x/private/tmp/y\n".to_vec()),
+        ("word.md", b"aprivate/x and private/ alone\n".to_vec()),
+        ("twice.md", b"private/private/x\n".to_vec()),
+        ("crlf.md", b"line one\r\n(private/tmp\r\nend\r".to_vec()),
+        ("root.md", format!("data at {root}/day\n").into_bytes()),
+        ("resolved.md", format!("data at {resolved}\n").into_bytes()),
+        ("binary.md", vec![0x66, 0xff, 0xfe, 0x0a]),
+        ("empty.md", Vec::new()),
+    ];
+    let paths = drafts
+        .iter()
+        .map(|(name, bytes)| outside(&home, name, bytes))
+        .collect();
+    (home, paths)
+}
+
+fn scan(files: &[&str], extra: &[&str]) -> Vec<String> {
+    let mut argv = vec!["privacy".to_owned(), "scan".to_owned()];
+    for file in files {
+        argv.push("--file".to_owned());
+        argv.push((*file).to_owned());
+    }
+    argv.extend(extra.iter().map(|s| (*s).to_owned()));
+    argv
+}
+
+#[test]
+fn privacy_scan_files_matches_python() {
+    strict(NOW);
+    let (home, drafts) = scan_home();
+    let inside = format!("{}/inputs/inside.md", home.data.display());
+    for draft in &drafts {
+        same(&home, &scan(&[draft], &[]), true, "privacy.scan");
+    }
+    same(&home, &scan(&[&inside], &[]), true, "privacy.scan");
+    let all: Vec<&str> = drafts.iter().map(String::as_str).collect();
+    same(&home, &scan(&all, &[]), true, "privacy.scan");
+    same(
+        &home,
+        &scan(&[&drafts[0], &drafts[0], &inside], &["--show"]),
+        true,
+        "privacy.scan",
+    );
+    same(
+        &home,
+        &scan(&[&drafts[1]], &["--show"]),
+        true,
+        "privacy.scan",
+    );
+    // A relative path, read from the repo root both sides run in.
+    same(&home, &scan(&["LICENSE"], &[]), true, "privacy.scan");
+}
+
+#[test]
+fn privacy_scan_refuses_what_it_cannot_match() {
+    strict(NOW);
+    let (home, drafts) = scan_home();
+    let accent = outside(&home, "accent.md", "caf\u{e9} notes\n".as_bytes());
+    let wide = outside(&home, "wide.md", "\u{ff50}rivate/x\n".as_bytes());
+    let missing = format!("{}/missing.md", home.home.display());
+    let doubled = drafts[0].replacen('/', "//", 1);
+    let cases = vec![
+        scan(&[&missing], &[]),
+        scan(&[&drafts[0], &missing], &[]),
+        scan(&[&accent], &[]),
+        scan(&[&wide], &[]),
+        scan(&["~/clean.md"], &[]),
+        scan(&[&doubled], &[]),
+        scan(&[&drafts[0]], &["--staged"]),
+        scan(&[&drafts[0]], &["--repo", "."]),
+        // The repo scan runs `git`.
+        scan(&[], &[]),
+        scan(&[], &["--staged"]),
+    ];
+    for args in &cases {
+        let argv: Vec<&str> = args.iter().map(String::as_str).collect();
+        assert_eq!(
+            observe(&home, &argv, &Side::Native).code,
+            Some(64),
+            "{args:?} must refuse"
+        );
+    }
+    // Compare Python and the console script on the forms without a git
+    // walk of the repo.
+    for args in &cases[..8] {
+        same(&home, args, false, "privacy.scan");
+    }
+    let redaction = prepare_setup(&Setup {
+        id: "scan-redaction",
+        cli: &[],
+        files: &[("profile.yaml", "name: Synthetic Person\n")],
+    });
+    let draft = outside(&redaction, "clean.md", b"Synthetic notes\n");
+    let args = scan(&[&draft], &[]);
+    let argv: Vec<&str> = args.iter().map(String::as_str).collect();
+    assert_eq!(observe(&redaction, &argv, &Side::Native).code, Some(64));
+    same(&redaction, &args, false, "privacy.scan");
+}
+
+/// Negative control for the scan: a clean draft and a leaking one differ
+/// in output, exit code and event status.
+#[test]
+fn the_scan_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let (home, drafts) = scan_home();
+    let clean = scan(&[&drafts[0]], &[]);
+    let leak = scan(&[&drafts[1]], &[]);
+    let clean: Vec<&str> = clean.iter().map(String::as_str).collect();
+    let leak: Vec<&str> = leak.iter().map(String::as_str).collect();
+    let a = observe(&home, &clean, &Side::Native);
+    let b = observe(&home, &leak, &Side::Python);
+    assert_eq!((a.code, b.code), (Some(0), Some(1)));
+    assert_ne!(a.stdout, b.stdout);
+    assert_ne!(a.events, b.events);
+    assert!(b.stdout.contains("mentions-private-path"));
 }
 
 /// Negative control: the comparison sees a real difference. Two asks route
