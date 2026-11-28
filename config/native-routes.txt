@@ -235,7 +235,7 @@ notify.act native
 notify.open python
 indie.goal native
 indie.income native
-indie.scan python
+indie.scan native
 indie.bets native
 indie.bet native
 indie.decide native

@@ -588,3 +588,111 @@ fn the_comparison_detects_a_planted_difference() {
     assert_ne!(a, b);
     assert!(a.stdout.starts_with("  x-indie-1"));
 }
+
+/// Bets for `indie scan`: two whose folders do not exist and one whose
+/// empty path is the current folder (`Path("")`).
+const SCAN_BETS: (&str, &str) = (
+    "indie/bets.yaml",
+    "bets:\n  beta:\n    path: /nonexistent/beta\n    state: proposed\n  alpha:\n    path: /nonexistent/alpha\n    state: active\n  gamma:\n    path: ''\n    state: proposed\n",
+);
+/// Roots under the synthetic data folder (HOME is its sibling).
+const SCAN_ROOTS: (&str, &str) = (
+    "settings.yaml",
+    "indie_roots: ' ~/../data/roots , ~/nothere,'\n",
+);
+/// Folders `found_repos` skips: a nested folder with no repo, a hidden
+/// repo, a repo inside a `.noindex` group, and a linked worktree's child.
+const SCAN_TREE: &[(&str, &str)] = &[
+    SCAN_BETS,
+    SCAN_ROOTS,
+    ("roots/group/sub/notes.txt", "synthetic\n"),
+    ("roots/.hidden/.git/HEAD", "ref: refs/heads/main\n"),
+    (
+        "roots/old.noindex/inner/.git/HEAD",
+        "ref: refs/heads/main\n",
+    ),
+    ("roots/wt/.git", "gitdir: /nonexistent/wt\n"),
+    ("roots/wt/child/.git/HEAD", "ref: refs/heads/main\n"),
+];
+
+#[test]
+fn indie_scan_matches_python() {
+    strict(NOW);
+    // Route key: "indie.scan".
+    let empty = prepare_setup(&Setup {
+        id: "scan-empty",
+        cli: &[],
+        files: &[],
+    });
+    assert_same(&empty, &["indie", "scan"], true, "indie.scan empty");
+    let bets = prepare_setup(&Setup {
+        id: "scan-bets",
+        cli: &[],
+        files: &[SCAN_BETS],
+    });
+    assert_same(&bets, &["indie", "scan"], true, "indie.scan default roots");
+    assert_same(
+        &bets,
+        &["indie", "scan", "--json"],
+        true,
+        "indie.scan default roots json",
+    );
+    let tree = prepare_setup(&Setup {
+        id: "scan-tree",
+        cli: &[],
+        files: SCAN_TREE,
+    });
+    assert_same(
+        &tree,
+        &["indie", "scan"],
+        true,
+        "indie.scan skipped folders",
+    );
+    assert_same(
+        &tree,
+        &["indie", "scan", "--json"],
+        true,
+        "indie.scan skipped folders json",
+    );
+    // A repo under the roots: Python asks git for its origin and saves it.
+    refuses(
+        &Setup {
+            id: "scan-repo",
+            cli: &[],
+            files: &[
+                SCAN_BETS,
+                SCAN_ROOTS,
+                ("roots/group/proj/.git/HEAD", "ref: refs/heads/main\n"),
+            ],
+        },
+        &["indie", "scan"],
+        "indie.scan repo found",
+    );
+    refuses(
+        &Setup {
+            id: "scan-odd-roots",
+            cli: &[],
+            files: &[("settings.yaml", "indie_roots: 5\n")],
+        },
+        &["indie", "scan"],
+        "indie.scan roots not text",
+    );
+    refuses(
+        &Setup {
+            id: "scan-corporate",
+            cli: &[],
+            files: &[CORPORATE],
+        },
+        &["indie", "scan"],
+        "indie.scan corporate",
+    );
+    refuses(
+        &Setup {
+            id: "scan-terms",
+            cli: &[],
+            files: &[SCAN_BETS, TERMS],
+        },
+        &["indie", "scan"],
+        "indie.scan redaction",
+    );
+}

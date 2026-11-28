@@ -13,6 +13,11 @@
 //!   active yet, no measure command). Every other form refuses: showing a
 //!   bet depends on `may_show_business`, and the rest writes or runs a
 //!   command.
+//! - `indie.scan`: the run that finds no repo to read (no folder with a
+//!   `.git` folder under `indie_roots`, two levels deep): it counts the
+//!   bets and their missing folders, writes nothing and logs `indie.scan`.
+//!   A run that finds a repo asks `git` for its origin and may write
+//!   `bets.yaml`: Python runs it.
 //! - `indie.end`: the `--hours` error, when a value is certainly not a
 //!   float. Every other form writes and refuses.
 //! - `peer.experiment`: the trial list, and the errors `--start` and
@@ -27,8 +32,8 @@
 //!
 //! Left in Python, with the reason:
 //! - `start`: the whole start-up (watcher, web server, refresh, run page).
-//! - `indie.scan`, `indie.run`, `indie.review`, `peer.status`: git
-//!   subprocesses and run pages.
+//! - `indie.run`, `indie.review`, `peer.status`: git subprocesses (every
+//!   form) and run pages.
 use super::Ctx;
 use crate::args::{Parsed, Value};
 use crate::Outcome;
@@ -47,6 +52,7 @@ pub const COMMANDS: &[&str] = &[
     "indie.decide",
     "indie.measure",
     "indie.end",
+    "indie.scan",
     "peer.experiment",
 ];
 
@@ -89,6 +95,7 @@ fn serve(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
                 "indie.decide" => indie_decide(args, &files),
                 "indie.measure" => indie_measure(args, &files),
                 "indie.end" => indie_end(args),
+                "indie.scan" => indie_scan(args, ctx, &files),
                 _ => None,
             }
         }
@@ -519,6 +526,186 @@ impl Files<'_> {
             .all(|row| plain_map(row) && get(row, "bet").is_some())
             .then_some(rows)
     }
+}
+
+// ---------- indie: scan ----------
+
+/// Python's `Path.is_dir` (or `Path.exists`) on this path: Some(false) for
+/// the errors Python reads as "no", None for one it may raise on.
+fn py_stat(path: &Path, want_dir: bool) -> Option<bool> {
+    match std::fs::metadata(path) {
+        Ok(meta) => Some(!want_dir || meta.is_dir()),
+        Err(e)
+            if matches!(
+                e.kind(),
+                std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory
+            ) =>
+        {
+            Some(false)
+        }
+        Err(_) => None,
+    }
+}
+
+/// The folders of `dir` whose names do not start with a dot, as
+/// `d.iterdir()` filtered on `is_dir()`; None on any read error.
+fn sub_dirs(dir: &Path) -> Option<Vec<PathBuf>> {
+    let mut out = Vec::new();
+    for entry in std::fs::read_dir(dir).ok()? {
+        let path = entry.ok()?.path();
+        let hidden = path
+            .file_name()
+            .is_some_and(|name| name.as_encoded_bytes().starts_with(b"."));
+        if !hidden && py_stat(&path, true)? {
+            out.push(path);
+        }
+    }
+    Some(out)
+}
+
+/// `config.get("indie_roots")` split as `indie._roots` does, in printable
+/// ASCII only (so `str.strip` and this trim agree); None refuses.
+fn indie_roots(files: &Files, home: Option<String>) -> Option<Vec<PathBuf>> {
+    let settings = files.yaml("settings.yaml")?;
+    let value = if falsy(&settings) {
+        None
+    } else if plain_map(&settings) {
+        get(&settings, "indie_roots")
+    } else {
+        return None;
+    };
+    let raw = match value {
+        None => "~/apps".to_owned(),
+        Some(Canon::Str(text)) => text.clone(),
+        Some(_) => return None,
+    };
+    if !raw.chars().all(|c| (' '..='~').contains(&c)) {
+        return None;
+    }
+    raw.split(',')
+        .map(|part| part.trim_matches(' '))
+        .filter(|part| !part.is_empty())
+        .map(|part| crate::events::expand_user(part, home.clone()).map(PathBuf::from))
+        .collect()
+}
+
+/// Some(true) when `indie.found_repos` finds no repo, so it runs no `git`;
+/// Some(false) when it finds one; None on a read Python might fail on.
+fn no_repo_found(roots: &[PathBuf]) -> Option<bool> {
+    for root in roots {
+        if !py_stat(root, true)? {
+            continue;
+        }
+        let level1 = sub_dirs(root)?;
+        let mut all = level1.clone();
+        for d in &level1 {
+            let noindex = d
+                .file_name()
+                .is_some_and(|name| name.as_encoded_bytes().ends_with(b".noindex"));
+            if !py_stat(&d.join(".git"), false)? && !noindex {
+                all.extend(sub_dirs(d)?);
+            }
+        }
+        for d in &all {
+            if py_stat(&d.join(".git"), true)? {
+                // A repo: Python asks `git` for its origin.
+                return Some(false);
+            }
+        }
+    }
+    Some(true)
+}
+
+/// Appends one `events.emit` row whose fields are all ints, keys sorted.
+fn emit_counts(ctx: &Ctx, event: &str, fields: &[(&str, usize)]) {
+    use std::io::Write;
+    if !ctx.env.caps.events_on {
+        return;
+    }
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    let stamp = crate::events::stamp(secs);
+    let mut pairs: Vec<(&str, String)> = vec![
+        ("event", json_str(event)),
+        ("ts", json_str(&stamp)),
+        ("v", json_str(crate::events::version())),
+    ];
+    pairs.extend(fields.iter().map(|(k, n)| (*k, n.to_string())));
+    pairs.sort_by(|a, b| a.0.cmp(b.0));
+    let body: Vec<String> = pairs
+        .iter()
+        .map(|(k, v)| format!("{}: {v}", json_str(k)))
+        .collect();
+    let line = format!("{{{}}}\n", body.join(", "));
+    let logs = ctx.root.join("logs");
+    if std::fs::create_dir_all(&logs).is_err() {
+        return;
+    }
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(logs.join("events.jsonl"))
+    {
+        let _ = file.write_all(line.as_bytes());
+    }
+}
+
+/// `indie scan` when it finds no repo: every bet stays as it is, so it
+/// writes nothing but the `indie` folder `paths.sub` makes.
+fn indie_scan(args: &Parsed, ctx: &Ctx, files: &Files) -> Option<Outcome> {
+    let mut bets = files.bets()?;
+    let home = match std::env::var("HOME") {
+        Ok(home) => Some(home),
+        Err(std::env::VarError::NotPresent) => None,
+        Err(_) => return None,
+    };
+    let roots = indie_roots(files, home)?;
+    if !no_repo_found(&roots)? {
+        return None;
+    }
+    let mut missing = Vec::new();
+    for (ident, b) in &bets {
+        if !plain_map(b) {
+            return None;
+        }
+        let path = text(b, "path")?;
+        if path.contains('\0') {
+            return None;
+        }
+        // `Path("")` is the current folder.
+        let path = if path.is_empty() { "." } else { path };
+        if !py_stat(Path::new(path), true)? {
+            missing.push(ident.clone());
+        }
+    }
+    missing.sort();
+    bets.sort_by(|a, b| a.0.cmp(&b.0));
+    let ids: Vec<String> = bets.into_iter().map(|(k, _)| k).collect();
+    files.touch("indie")?;
+    emit_counts(
+        ctx,
+        "indie.scan",
+        &[("found", 0), ("added", 0), ("missing", missing.len())],
+    );
+    if args.flag("json") {
+        return ok(
+            format!(
+                "{{\"added\": [], \"missing\": {}, \"bets\": {}}}\n",
+                json_list(&missing),
+                json_list(&ids)
+            ),
+            0,
+        );
+    }
+    ok(
+        format!(
+            "bets: {} (0 new, {} with no folder)\n",
+            ids.len(),
+            missing.len()
+        ),
+        0,
+    )
 }
 
 // ---------- indie: bets ----------
