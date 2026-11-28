@@ -216,14 +216,14 @@ day.plan python
 day.next python
 day.handoff native
 day.run python
-day.update python
-day.check python
+day.update native
+day.check native
 day.start python
 day.history native
 day.render python
 day.end python
 day.wrap native
-day.question.add python
+day.question.add native
 day.question.list native
 day.question.recheck python
 day.question.close native

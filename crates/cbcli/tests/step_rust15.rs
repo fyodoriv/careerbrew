@@ -497,3 +497,390 @@ fn the_ask_comparison_detects_a_planted_difference() {
     assert_ne!(one.stdout, two.stdout);
     assert_ne!(one.files, two.files);
 }
+
+// ---------- wave 8: day check, day update, day question add ----------
+
+const CHECK: &str = "day.check";
+const UPDATE: &str = "day.update";
+const QUESTION_ADD: &str = "day.question.add";
+
+/// Two `work_steps` from the settings, one after the other.
+const STEPS: &[(&str, &str)] = &[
+    (".plaintext", ""),
+    (
+        "settings.yaml",
+        "work_steps:\n- /synth-review\n- step: /synth-ship\n  after: /synth-review\n  timeout: 5\n",
+    ),
+];
+
+/// A row started at 01:00 UTC: past its 30 minutes at 09:00.
+const RUNNING_ONCE: &[(&str, &str)] = &[
+    (".plaintext", ""),
+    (
+        "day/work-2026-11-20.json",
+        "{\"day\": \"2026-11-20\", \"handled\": {}, \"rows\": [{\"at\": \"2026-11-20T01:00:00+00:00\", \"attempt\": 1, \"ended\": \"\", \"error_class\": \"\", \"link\": \"\", \"needs_you\": \"\", \"next\": \"\", \"retry\": false, \"seconds\": null, \"started\": \"2026-11-20T01:00:00+00:00\", \"status\": \"running\", \"step\": \"/careerbrew\", \"summary\": \"\", \"timed_out\": false, \"verify\": \"\"}]}",
+    ),
+];
+
+/// The same row on its second attempt: the next timeout fails it.
+const RUNNING_TWICE: &[(&str, &str)] = &[
+    (".plaintext", ""),
+    (
+        "day/work-2026-11-20.json",
+        "{\"day\": \"2026-11-20\", \"handled\": {}, \"rows\": [{\"at\": \"2026-11-20T01:00:00+00:00\", \"attempt\": 2, \"ended\": \"\", \"error_class\": \"\", \"link\": \"\", \"needs_you\": \"\", \"next\": \"\", \"retry\": false, \"seconds\": null, \"started\": \"2026-11-20T01:00:00+00:00\", \"status\": \"running\", \"step\": \"/careerbrew\", \"summary\": \"\", \"timed_out\": false, \"verify\": \"\"}]}",
+    ),
+];
+
+const HELD: &[&[&str]] = &[&["day", "wrap", "--hold"]];
+
+const BLOCKED: &[&[&str]] = &[&[
+    "day",
+    "update",
+    "/careerbrew",
+    "--status",
+    "blocked",
+    "--needs-you",
+    "pick one",
+]];
+
+const ASKED: &[&[&str]] = &[&[
+    "day",
+    "question",
+    "add",
+    "/careerbrew",
+    "pick a reviewer",
+    "--option",
+    "synth-a",
+    "--option",
+    "synth-b",
+]];
+
+#[test]
+fn day_check_matches_python() {
+    strict(NOW);
+    let empty = prepare_setup(&Setup {
+        id: "check-empty",
+        cli: &[],
+        files: PLAIN,
+    });
+    let steps = prepare_setup(&Setup {
+        id: "check-steps",
+        cli: &[],
+        files: STEPS,
+    });
+    let once = prepare_setup(&Setup {
+        id: "check-retry",
+        cli: &[],
+        files: RUNNING_ONCE,
+    });
+    let twice = prepare_setup(&Setup {
+        id: "check-failed",
+        cli: &[],
+        files: RUNNING_TWICE,
+    });
+    let held = prepare_setup(&Setup {
+        id: "check-held",
+        cli: HELD,
+        files: PLAIN,
+    });
+    for (label, at) in [
+        ("empty", &empty),
+        ("steps", &steps),
+        ("retry", &once),
+        ("failed", &twice),
+        ("held", &held),
+    ] {
+        for argv in [&["day", "check"][..], &["day", "check", "--json"][..]] {
+            assert_same(at, argv, true, &format!("{CHECK} {label}"));
+        }
+    }
+}
+
+#[test]
+fn day_update_matches_python() {
+    strict(NOW);
+    let empty = prepare_setup(&Setup {
+        id: "update-empty",
+        cli: &[],
+        files: PLAIN,
+    });
+    let steps = prepare_setup(&Setup {
+        id: "update-steps",
+        cli: &[],
+        files: STEPS,
+    });
+    let asked = prepare_setup(&Setup {
+        id: "update-asked",
+        cli: BLOCKED,
+        files: PLAIN,
+    });
+    let empty_cases: &[&[&str]] = &[
+        &["day", "update", "/careerbrew", "--status", "running"],
+        &[
+            "day",
+            "update",
+            "careerbrew",
+            "--status",
+            "done",
+            "--summary",
+            "all good",
+        ],
+        &[
+            "day",
+            "update",
+            "/careerbrew",
+            "--status",
+            "blocked",
+            "--needs-you",
+            "pick a reviewer",
+        ],
+        &["day", "update", "/careerbrew", "--status", "blocked"],
+        &[
+            "day",
+            "update",
+            "/careerbrew",
+            "--status",
+            "failed",
+            "--error-class",
+            "tool",
+        ],
+        &["day", "update", "/careerbrew", "--status", "failed"],
+        &[
+            "day",
+            "update",
+            "/careerbrew",
+            "--status",
+            "running",
+            "--error-class",
+            "env",
+        ],
+        &["day", "update", "/careerbrew"],
+        &["day", "update", "/synth-missing", "--status", "running"],
+        &[
+            "day",
+            "update",
+            "/careerbrew",
+            "--link",
+            "https://example.com/x",
+        ],
+        &[
+            "day",
+            "update",
+            "/careerbrew",
+            "--handled",
+            "checkout:synth-repo",
+            "--handled",
+            "pr:synth-repo#7",
+        ],
+    ];
+    for argv in empty_cases {
+        assert_same(&empty, argv, true, &format!("{UPDATE} empty"));
+    }
+    let steps_cases: &[&[&str]] = &[
+        &["day", "update", "/synth-review", "--status", "running"],
+        &["day", "update", "/synth-ship", "--status", "done"],
+        &["day", "update", "/synth-review", "--status", "done"],
+    ];
+    for argv in steps_cases {
+        assert_same(&steps, argv, true, &format!("{UPDATE} steps"));
+    }
+    let asked_cases: &[&[&str]] = &[
+        &["day", "update", "/careerbrew", "--status", "done"],
+        &[
+            "day",
+            "update",
+            "/careerbrew",
+            "--status",
+            "blocked",
+            "--needs-you",
+            "pick one",
+        ],
+        &["day", "update", "/careerbrew", "--summary", "still waiting"],
+    ];
+    for argv in asked_cases {
+        assert_same(&asked, argv, true, &format!("{UPDATE} asked"));
+    }
+}
+
+#[test]
+fn day_question_add_matches_python() {
+    strict(NOW);
+    let empty = prepare_setup(&Setup {
+        id: "question-empty",
+        cli: &[],
+        files: PLAIN,
+    });
+    let asked = prepare_setup(&Setup {
+        id: "question-asked",
+        cli: ASKED,
+        files: PLAIN,
+    });
+    let empty_cases: &[&[&str]] = &[
+        &[
+            "day",
+            "question",
+            "add",
+            "/careerbrew",
+            "pick a reviewer",
+            "--option",
+            "synth-a",
+            "--option",
+            "synth-b",
+            "--pick",
+            "synth-a",
+        ],
+        &[
+            "day",
+            "question",
+            "add",
+            "careerbrew",
+            "is the page up?",
+            "--recheck",
+            "https://example.com/x",
+        ],
+        &["day", "question", "add", "/careerbrew", "  spaced   ask  "],
+        &["day", "question", "add", "/synth-missing", "q"],
+        &[
+            "day",
+            "question",
+            "add",
+            "/careerbrew",
+            "q",
+            "--plugin",
+            "synth-plugin",
+        ],
+        &["day", "question", "add", "/careerbrew", "   "],
+        &[
+            "day",
+            "question",
+            "add",
+            "/careerbrew",
+            "q",
+            "--option",
+            "a",
+            "--pick",
+            "b",
+        ],
+    ];
+    for argv in empty_cases {
+        assert_same(&empty, argv, true, &format!("{QUESTION_ADD} empty"));
+    }
+    let asked_cases: &[&[&str]] = &[
+        &[
+            "day",
+            "question",
+            "add",
+            "/careerbrew",
+            "pick a reviewer",
+            "--option",
+            "synth-a",
+            "--option",
+            "synth-b",
+        ],
+        &["day", "question", "add", "/careerbrew", "another ask"],
+    ];
+    for argv in asked_cases {
+        assert_same(&asked, argv, true, &format!("{QUESTION_ADD} asked"));
+    }
+}
+
+#[test]
+fn the_work_day_plan_refuses_what_it_cannot_copy() {
+    strict(NOW);
+    let sealed = prepare_setup(&Setup {
+        id: "plan-refuse-sealed",
+        cli: &[],
+        files: &[],
+    });
+    let verify = prepare_setup(&Setup {
+        id: "plan-refuse-verify",
+        cli: &[],
+        files: &[
+            (".plaintext", ""),
+            (
+                "settings.yaml",
+                "work_steps:\n- step: /synth-test\n  verify: uv run python -m unittest\n",
+            ),
+        ],
+    });
+    let other = prepare_setup(&Setup {
+        id: "plan-refuse-project",
+        cli: &[&["work", "project", "add", "synth-proj"]],
+        files: PLAIN,
+    });
+    let home = prepare_setup(&Setup {
+        id: "plan-refuse",
+        cli: &[],
+        files: PLAIN,
+    });
+    let cases: &[(&str, &Home, &[&str])] = &[
+        ("sealed check", &sealed, &["day", "check"]),
+        (
+            "sealed update",
+            &sealed,
+            &["day", "update", "/careerbrew", "--status", "running"],
+        ),
+        (
+            "sealed question",
+            &sealed,
+            &["day", "question", "add", "/careerbrew", "q"],
+        ),
+        (
+            "verify step",
+            &verify,
+            &["day", "update", "/synth-test", "--status", "done"],
+        ),
+        ("verify check", &verify, &["day", "check"]),
+        (
+            "a handled item it does not check",
+            &home,
+            &["day", "update", "/careerbrew", "--handled", "branch:synth"],
+        ),
+        ("a project file", &other, &["day", "check"]),
+        (
+            "command recheck",
+            &home,
+            &[
+                "day",
+                "question",
+                "add",
+                "/careerbrew",
+                "q",
+                "--recheck",
+                "true",
+            ],
+        ),
+    ];
+    for (label, at, argv) in cases {
+        assert!(
+            !assert_same(at, argv, false, &format!("work day plan {label}")),
+            "{label} must refuse"
+        );
+    }
+}
+
+/// Negative control: two statuses leave different day files and lines, so
+/// the comparison would see a wrong write.
+#[test]
+fn the_work_day_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "plan-control",
+        cli: &[],
+        files: PLAIN,
+    });
+    let one = observe(
+        &home,
+        &["day", "update", "/careerbrew", "--status", "running"],
+        &Side::Native,
+    );
+    let two = observe(
+        &home,
+        &["day", "update", "/careerbrew", "--status", "done"],
+        &Side::Python,
+    );
+    assert_eq!(one.code, Some(0));
+    assert_eq!(two.code, Some(0));
+    assert_ne!(one.stdout, two.stdout);
+    assert_ne!(one.files, two.files);
+}
