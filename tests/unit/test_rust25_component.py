@@ -88,6 +88,19 @@ def test_forwarded_routes_reach_the_python_handler_unchanged(candidate: Path, tm
     assert statuses["forward-put"] == 501
 
 
+def test_every_changes_case_is_asked_again_when_the_two_reads_race() -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("rust25_oracle", ORACLE)
+    assert spec is not None and spec.loader is not None
+    oracle = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(oracle)
+    changes = [c for c in FIXTURE["cases"] if c["path"].startswith("/api/changes")]
+    assert {c["id"] for c in changes} >= {"changes-ok", "changes-localhost-host", "changes-bad-days-setting"}
+    assert all(oracle.is_racy(c) for c in changes)
+    assert not any(oracle.is_racy(c) for c in FIXTURE["cases"] if not c["path"].startswith("/api/changes"))
+
+
 def test_the_default_server_stays_python_and_native_is_opt_in(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from careerbrew import config, server
 

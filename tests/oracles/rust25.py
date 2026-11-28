@@ -194,12 +194,18 @@ def _wait(port: int, token: str, proc: subprocess.Popen[bytes], seconds: float =
 
 # The change version hashes the data root, and either server's cache warmer may
 # write there between the two reads. Ask again until both reads see one state.
-RACY_CASES = {"changes-ok"}
+# Both servers share one data root, and a cache warmer may write between the two
+# reads, so every /api/changes answer (its version) can differ by timing alone.
+RACY_PATHS = ("/api/changes",)
 RACY_TRIES = 10
 
 
+def is_racy(case: dict[str, Any]) -> bool:
+    return str(case["path"]).startswith(RACY_PATHS)
+
+
 def _ask_both(case: dict[str, Any], token: str, py_port: int, rs_port: int) -> dict[str, Any]:
-    tries = RACY_TRIES if case["id"] in RACY_CASES else 1
+    tries = RACY_TRIES if is_racy(case) else 1
     answers: dict[str, Any] = {}
     for attempt in range(tries):
         answers = {name: normalize(case["id"], send_raw(port, request_bytes(case, port, token)), port) for name, port in (("python", py_port), ("native", rs_port))}
