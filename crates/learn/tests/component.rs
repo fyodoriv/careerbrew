@@ -167,10 +167,11 @@ fn production_route_and_shipped_inventory_stay_untouched_by_the_component() {
         };
         assert_eq!(record[1], expected, "{}", record[0]);
     }
-    // rust24 serves the slot-range error of `work project prd` natively
+    // rust24 serves the slot-range error of `work project prd` and the small
+    // cases of `work project explain` natively
     // (`crates/cbcli/src/steps/rust24.rs`); this crate still has no route.
     for (action, expected) in [
-        ("work.project.explain", "python"),
+        ("work.project.explain", "native"),
         ("work.project.prd", "native"),
     ] {
         let route = records.iter().find(|record| record[0] == action).unwrap();
