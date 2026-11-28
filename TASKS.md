@@ -507,6 +507,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P2
 
+- [ ] US-59 paint run: the PM page sends a draft save with no edit
+  - **ID**: pm-draft-autosave-race
+  - **Details**: Main run 46118046006 (job 140896166001, 2026-11-28) failed `tests/e2e/us-59-pm-update.sh` at "crowded disabled-control and gradient paint evidence" while all 4 Playwright paint tests passed. The read-only fixture `tests/safety/issue373_server.py` saw one `POST /api/pm/draft` (plus the allowed `/api/session` and `/api/timing`), recorded `forbidden business POST`, and the runner exited 2 with `server-boundary-or-close:crowded`. The same story passed on PR 263 and on the main run before it, with no web change between them, so the save is a timing race: the PM report saves its draft once although nobody typed.
+  - **Files**: web/src/views.tsx (PmReport); web/issue373/comfort-paint.spec.ts; tests/safety/issue373_server.py
+  - **Hypothesis**: the PM report sends a draft save when a fresh answer replaces the cached draft; saving only after an owner edit drops unasked draft saves to 0.
+  - **Measurement**: a Playwright test that loads the day log, waits for fresh data, and counts `POST /api/pm/draft` requests with no edit; plus the `us-59` failure count over 10 hosted runs.
+  - **Success**: 0 draft saves with no edit, and 0 of 10 hosted `us-59` runs fail on `server-boundary-or-close`.
+  - **Pivot**: if the save is needed to keep a cached draft, keep it and let the paint fixture answer `/api/pm/draft` with 204 without writing; record why in `docs/web.md`.
+  - **Anchor**: Luo et al. 2014, "An Empirical Analysis of Flaky Tests" (FSE; async wait and concurrency causes).
+
 - [ ] Exercise 052's complexity check cannot reject an O(n) walk
   - **ID**: exercise-052-reject-linear-walk
   - **Details**: In `knowledge/exercises/052-lowest-common-ancestor-of-a-binary-search-tree.yaml` a solution that walks every node first measured a slope of 1.01 (1.09 ms, 3.46 ms, 11.08 ms at 10,000, 31,623 and 100,000 nodes), but `_complexity` in `src/careerbrew/tutor/exercises.py` passes any run whose largest size takes under 50 ms, so it counts as `ok` against `O(log n)`. A memo keyed by a child node (the generator reuses the tree below each fresh root) would also escape the check. Larger trees cost CPU, which the hosted scaling limit cannot spare, so the fix is likely a lower floor for sublinear classes or a per-exercise floor.
