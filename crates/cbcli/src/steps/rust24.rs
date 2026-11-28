@@ -18,7 +18,16 @@
 //!   or label), after taking the same `work/.projects.yaml.lock` Python's
 //!   `@_writes` takes;
 //! - `work project check --since --status`, and `work project prd --slot`
-//!   out of range (Python's `SystemExit`).
+//!   out of range (Python's `SystemExit`);
+//! - wave 4 writers in a plaintext data folder, saved with
+//!   `pyyaml::safe_dump` under the project lock: `next` (`link_task`),
+//!   `reference` for a ref saved literally, `memory` for an empty path or
+//!   a path that names no folder or `MEMORY.md` index, and `set` with only
+//!   `--title` and `--group` when the project graph has no problem; each
+//!   one's `ProjectError` lines too;
+//! - `work project explain`: the outline of a project with no source, the
+//!   unknown-project error, and `--check` of an ASCII file outside the data
+//!   root.
 //!
 //! Every other form refuses (exit 64, Python runs it) before any write: a
 //! redaction input, any read error, a write of project data, any text that
@@ -54,6 +63,11 @@ pub const COMMANDS: &[&str] = &[
     "work.project.source",
     "work.project.check",
     "work.project.prd",
+    "work.project.next",
+    "work.project.reference",
+    "work.project.memory",
+    "work.project.set",
+    "work.project.explain",
 ];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
@@ -82,6 +96,11 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "work.project.source" => project_source(args, ctx),
         "work.project.check" => project_check(args, ctx),
         "work.project.prd" => project_prd(args),
+        "work.project.next" => project_next(args, ctx),
+        "work.project.reference" => project_reference(args, ctx),
+        "work.project.memory" => project_memory(args, ctx),
+        "work.project.set" => project_set(args, ctx),
+        "work.project.explain" => project_explain(args, ctx),
         _ => None,
     }
 }
@@ -111,16 +130,34 @@ fn printable_name(args: &Parsed) -> Option<&str> {
 /// Appends one row as `events.emit` writes it: `ts`, `v` and the id
 /// fields, sorted by key, in `json.dumps` form.
 fn emit(ctx: &Ctx, event: &str, fields: &[(&str, &str)]) {
+    let rendered: Vec<(&str, String)> = fields
+        .iter()
+        .map(|(key, value)| (*key, quoted(value)))
+        .collect();
+    emit_json(ctx, event, &rendered);
+}
+
+/// A string in `json.dumps` form.
+fn quoted(text: &str) -> String {
+    let mut out = String::new();
+    crate::render::py_string(text, &mut out);
+    out
+}
+
+/// `emit` with values already in `json.dumps` form (an int field).
+fn emit_json(ctx: &Ctx, event: &str, fields: &[(&str, String)]) {
     if !ctx.env.caps.events_on {
         return;
     }
     let secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_secs());
-    let stamp = events::stamp(secs);
-    let mut pairs: Vec<(&str, &str)> =
-        vec![("event", event), ("ts", &stamp), ("v", events::version())];
-    pairs.extend_from_slice(fields);
+    let mut pairs: Vec<(&str, String)> = vec![
+        ("event", quoted(event)),
+        ("ts", quoted(&events::stamp(secs))),
+        ("v", quoted(events::version())),
+    ];
+    pairs.extend(fields.iter().map(|(key, value)| (*key, value.clone())));
     pairs.sort_by(|a, b| a.0.cmp(b.0));
     let mut line = String::from("{");
     for (i, (key, value)) in pairs.iter().enumerate() {
@@ -129,7 +166,7 @@ fn emit(ctx: &Ctx, event: &str, fields: &[(&str, &str)]) {
         }
         crate::render::py_string(key, &mut line);
         line.push_str(": ");
-        crate::render::py_string(value, &mut line);
+        line.push_str(value);
     }
     line.push_str("}\n");
     let logs = ctx.root.join("logs");
@@ -631,6 +668,601 @@ fn project_prd(args: &Parsed) -> Option<Outcome> {
         code: 1,
         emit_event: false,
     })
+}
+
+// ---------- project writers: next, reference, memory, set ----------
+
+/// What one `@_writes` writer does with the records it loaded.
+#[derive(PartialEq)]
+enum Change {
+    /// `ProjectError` with its message: nothing is saved.
+    Error(String),
+    /// The `projects.yaml` text `_save` writes, the lines `cmd_work_project`
+    /// prints, and the fields of the `work.project` row the writer emits.
+    Save {
+        yaml: String,
+        out: String,
+        event: Option<Vec<(&'static str, String)>>,
+    },
+}
+
+/// Runs a writer the way `@_writes` does: decide before any write (a
+/// refusal leaves the folder alone), then take the lock, decide again from
+/// the records read under it, and save only when both agree.
+fn project_write(ctx: &Ctx, plan: impl Fn(&Store) -> Option<Change>) -> Option<Outcome> {
+    let vault = vault_context()?;
+    let store = vault.store();
+    if !(ctx.root.join("work").is_dir() || absent(&ctx.root.join("work"))) {
+        return None;
+    }
+    let first = plan(&store)?;
+    match &first {
+        Change::Error(message) if !printable(message) => return None,
+        // A sealed write differs on every run; leave it to Python.
+        Change::Save { .. } if store.encryption_enabled() => return None,
+        _ => {}
+    }
+    let file = ctx.root.join("work").join("projects.yaml");
+    let done = under_lock(ctx, || -> Option<Change> {
+        let again = plan(&store)?;
+        if again != first {
+            return None;
+        }
+        if let Change::Save { yaml, .. } = &again {
+            store.write_text(&file, yaml).ok()?;
+        }
+        Some(again)
+    })??;
+    match done {
+        Change::Error(message) => project_error(ctx, &message),
+        Change::Save { out, event, .. } => {
+            if let Some(fields) = event {
+                emit_json(ctx, "work.project", &fields);
+            }
+            said(out, 0)
+        }
+    }
+}
+
+/// `store.write_yaml(path(), {"projects": projects})`.
+fn save_yaml(every: &[(String, Canon)]) -> Option<String> {
+    let projects = every
+        .iter()
+        .map(|(name, record)| (Canon::Str(name.clone()), record.clone()))
+        .collect();
+    crate::pyyaml::safe_dump(&Canon::Map(vec![(
+        Canon::Str("projects".into()),
+        Canon::Map(projects),
+    )]))
+}
+
+/// The named record as a map of distinct string keys, to change in place.
+fn record_mut<'a>(every: &'a mut [(String, Canon)], name: &str) -> Option<&'a mut Pairs> {
+    let record = &mut every.iter_mut().find(|(n, _)| n == name)?.1;
+    plain_map(record)?;
+    match record {
+        Canon::Map(pairs) => Some(pairs),
+        _ => None,
+    }
+}
+
+fn get_mut<'a>(pairs: &'a mut Pairs, key: &str) -> Option<&'a mut Canon> {
+    pairs
+        .iter_mut()
+        .find(|(k, _)| matches!(k, Canon::Str(k) if k == key))
+        .map(|(_, v)| v)
+}
+
+/// `p[key] = value`: a key already there keeps its place.
+fn put(pairs: &mut Pairs, key: &str, value: Canon) {
+    match get_mut(pairs, key) {
+        Some(slot) => *slot = value,
+        None => pairs.push((Canon::Str(key.into()), value)),
+    }
+}
+
+fn pop(pairs: &mut Pairs, key: &str) {
+    pairs.retain(|(k, _)| !matches!(k, Canon::Str(k) if k == key));
+}
+
+/// `projects._put`: an empty value leaves the record.
+fn put_opt(pairs: &mut Pairs, key: &str, value: &str) {
+    if value.is_empty() {
+        pop(pairs, key);
+    } else {
+        put(pairs, key, Canon::Str(value.into()));
+    }
+}
+
+/// The task ids `priorities.load()` reads, when every task is a map with
+/// a string id and no old `link` field (`_migrate` would rewrite it).
+fn task_ids(store: &Store, root: &Path) -> Option<Vec<String>> {
+    let top = read_map(store, &root.join("work").join("tasks.yaml"))?;
+    let tasks = match get(&top, "tasks") {
+        None => return Some(Vec::new()),
+        Some(Canon::List(items)) => items,
+        Some(_) => return None,
+    };
+    tasks
+        .iter()
+        .map(|task| {
+            let pairs = plain_map(task)?;
+            if get(pairs, "link").is_some() {
+                return None;
+            }
+            match get(pairs, "id") {
+                Some(Canon::Str(id)) => Some(id.clone()),
+                _ => None,
+            }
+        })
+        .collect()
+}
+
+fn nonempty_text<'a>(args: &'a Parsed, key: &str) -> Option<&'a str> {
+    args.text(key).filter(|t| !t.is_empty() && printable(t))
+}
+
+/// `work project next <name> <task>`: `projects.link_task`.
+fn project_next(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let name = printable_name(args)?;
+    let task = nonempty_text(args, "task")?;
+    project_write(ctx, |store| {
+        let ids = task_ids(store, &ctx.root)?;
+        if !ids.iter().any(|id| id == task) {
+            return Some(Change::Error(format!(
+                "unknown task {task} (fix: `careerbrew work task \"<title>\" --hours <h>` first)"
+            )));
+        }
+        let mut every = load_projects(store, &ctx.root)?;
+        if let Some(message) = unknown_text(&every, name)? {
+            return Some(Change::Error(message));
+        }
+        let record = record_mut(&mut every, name)?;
+        let Some(Canon::List(tasks)) = get_mut(record, "tasks") else {
+            return None;
+        };
+        let id = Canon::Str(task.into());
+        if !tasks.contains(&id) {
+            tasks.push(id);
+        }
+        Some(Change::Save {
+            yaml: save_yaml(&every)?,
+            out: format!("next step {task} linked to {name}\n"),
+            event: None,
+        })
+    })
+}
+
+/// `work project reference <name> <ref> [--off]`: `projects.set_reference`
+/// for a ref saved literally (an alias match goes to Python).
+fn project_reference(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let name = printable_name(args)?;
+    let wanted = nonempty_text(args, "ref")?;
+    let off = args.flag("off");
+    project_write(ctx, |store| {
+        let mut every = load_projects(store, &ctx.root)?;
+        if let Some(message) = unknown_text(&every, name)? {
+            return Some(Change::Error(message));
+        }
+        let record = record_mut(&mut every, name)?;
+        let Some(Canon::List(sources)) = get_mut(record, "sources") else {
+            return None;
+        };
+        let target = Canon::Str(wanted.into());
+        let mut count = 0usize;
+        for source in sources.iter() {
+            // `s["ref"]` for every source: a missing one is a KeyError.
+            if *get(plain_map(source)?, "ref")? == target {
+                count += 1;
+            }
+        }
+        if count == 0 {
+            return None;
+        }
+        for source in sources.iter_mut() {
+            if let Canon::Map(pairs) = source {
+                if get(pairs, "ref") == Some(&target) {
+                    put(pairs, "reference", Canon::Bool(!off));
+                    pop(pairs, "stale_reason");
+                }
+            }
+        }
+        let out = if off {
+            format!("{name}: {wanted} is tracked again: it goes stale after the project's limit (read it, then careerbrew work project check {name} {wanted})\n")
+        } else {
+            format!("{name}: {wanted} is a reference now: careerbrew never reads it and it never goes stale\n")
+        };
+        Some(Change::Save {
+            yaml: save_yaml(&every)?,
+            out,
+            event: Some(vec![
+                ("action", quoted("reference")),
+                ("count", count.to_string()),
+                ("status", quoted("ok")),
+            ]),
+        })
+    })
+}
+
+/// What `projects.memory_path` returns for a path it keeps as typed: the
+/// empty path, or one that names no folder, no `MEMORY.md` index, and that
+/// `pathlib` prints unchanged. None for every other path.
+fn memory_value(path: &str) -> Option<String> {
+    if path.is_empty() {
+        return Some(String::new());
+    }
+    let odd = path.contains("//")
+        || path.contains("/./")
+        || path.starts_with("./")
+        || path.ends_with("/.")
+        || path.ends_with('/')
+        || path == "."
+        || path.starts_with('~');
+    if odd || !printable(path) {
+        return None;
+    }
+    let last = path.rsplit('/').next()?;
+    if last == "MEMORY.md" || last == ".." || Path::new(path).is_dir() {
+        return None;
+    }
+    Some(path.to_owned())
+}
+
+/// `work project memory <name> <path>`: `projects.set_memory`.
+fn project_memory(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let name = printable_name(args)?;
+    let memory = memory_value(args.text("path")?)?;
+    project_write(ctx, |store| {
+        let mut every = load_projects(store, &ctx.root)?;
+        if let Some(message) = unknown_text(&every, name)? {
+            return Some(Change::Error(message));
+        }
+        put(
+            record_mut(&mut every, name)?,
+            "memory",
+            Canon::Str(memory.clone()),
+        );
+        Some(Change::Save {
+            yaml: save_yaml(&every)?,
+            out: format!("memory for {name} set\n"),
+            event: None,
+        })
+    })
+}
+
+/// A record's `parent`, as `p.get("parent") or ""`, when it is a string.
+fn parent_of(record: &Canon) -> Option<String> {
+    match get(plain_map(record)?, "parent") {
+        None => Some(String::new()),
+        Some(value) if !truthy(value) => Some(String::new()),
+        Some(Canon::Str(parent)) => Some(parent.clone()),
+        Some(_) => None,
+    }
+}
+
+/// A record's `links`, as `p.get("links") or []`, when it is a list of
+/// strings.
+fn links_of(record: &Canon) -> Option<Vec<String>> {
+    match get(plain_map(record)?, "links") {
+        None => Some(Vec::new()),
+        Some(value) if !truthy(value) => Some(Vec::new()),
+        Some(Canon::List(items)) => items
+            .iter()
+            .map(|item| match item {
+                Canon::Str(link) => Some(link.clone()),
+                _ => None,
+            })
+            .collect(),
+        Some(_) => None,
+    }
+}
+
+/// True when `projects.graph_problems` finds nothing; None when a record
+/// holds a parent or links Python would read differently.
+fn graph_clean(every: &[(String, Canon)]) -> Option<bool> {
+    let names: Vec<&str> = every.iter().map(|(n, _)| n.as_str()).collect();
+    let record = |name: &str| every.iter().find(|(n, _)| n == name).map(|(_, r)| r);
+    for (name, rec) in every {
+        let parent = parent_of(rec)?;
+        if parent == *name || (!parent.is_empty() && !names.contains(&parent.as_str())) {
+            return Some(false);
+        }
+        for link in links_of(rec)? {
+            if link == *name || !names.contains(&link.as_str()) {
+                return Some(false);
+            }
+        }
+    }
+    for (name, rec) in every {
+        let mut chain = vec![name.clone()];
+        let mut cur = parent_of(rec)?;
+        while names.contains(&cur.as_str()) && !chain.contains(&cur) {
+            chain.push(cur.clone());
+            cur = parent_of(record(&cur)?)?;
+        }
+        if chain.contains(&cur) && chain.last() != Some(&cur) {
+            return Some(false);
+        }
+    }
+    Some(true)
+}
+
+/// `work project set <name> [--title] [--group]`: `projects.edit` with no
+/// parent, link, kind, event day or quiet change (those go to Python).
+fn project_set(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    for key in [
+        "parent",
+        "link",
+        "unlink",
+        "kind",
+        "event_on",
+        "quiet_until",
+    ] {
+        match args.get(key) {
+            Value::Missing => {}
+            Value::List(items) if items.is_empty() => {}
+            _ => return None,
+        }
+    }
+    let name = printable_name(args)?;
+    let title = args.text("title");
+    let group = args.text("group");
+    if [title, group].iter().flatten().any(|text| !printable(text)) {
+        return None;
+    }
+    project_write(ctx, |store| {
+        let mut every = load_projects(store, &ctx.root)?;
+        if let Some(message) = unknown_text(&every, name)? {
+            return Some(Change::Error(message));
+        }
+        let record = record_mut(&mut every, name)?;
+        for (value, key, limit) in [(title, "title", 200), (group, "group", 60)] {
+            let Some(value) = value else { continue };
+            let stored = if value == "none" {
+                String::new()
+            } else {
+                match label(value, key, limit)? {
+                    Ok(text) => text,
+                    Err(message) => return Some(Change::Error(message)),
+                }
+            };
+            put_opt(record, key, &stored);
+        }
+        // `_put(p, "links", links)`: an empty value leaves the record.
+        match get(record, "links") {
+            Some(value) if !truthy(value) => pop(record, "links"),
+            Some(Canon::List(items)) if items.iter().all(|i| matches!(i, Canon::Str(_))) => {}
+            None => {}
+            Some(_) => return None,
+        }
+        let prep = matches!(get(record, "kind"), Some(Canon::Str(kind)) if kind == "prep");
+        if get(record, "event_on").is_some_and(truthy) && !prep {
+            return Some(Change::Error(
+                "only a prep project has an event day (fix: add --kind prep)".into(),
+            ));
+        }
+        let shown = |key: &str| -> Option<String> {
+            match get(record, key) {
+                None => Some("none".into()),
+                Some(value) if !truthy(value) => Some("none".into()),
+                Some(Canon::Str(text)) if printable(text) => Some(text.clone()),
+                Some(_) => None,
+            }
+        };
+        let parent = shown("parent")?;
+        let group = shown("group")?;
+        let links = match get(record, "links") {
+            Some(Canon::List(items)) => items
+                .iter()
+                .map(|item| match item {
+                    Canon::Str(link) if printable(link) => Some(link.as_str()),
+                    _ => None,
+                })
+                .collect::<Option<Vec<_>>>()?
+                .join(", "),
+            _ => String::new(),
+        };
+        let links = if links.is_empty() {
+            "none".into()
+        } else {
+            links
+        };
+        if !graph_clean(&every)? {
+            return None;
+        }
+        Some(Change::Save {
+            yaml: save_yaml(&every)?,
+            out: format!("{name}: parent {parent}, links {links}, group {group}\n"),
+            event: Some(vec![("action", quoted("set")), ("status", quoted("ok"))]),
+        })
+    })
+}
+
+// ---------- work project explain ----------
+
+/// `projects.valid_name`: the shape of every project name `add` accepts.
+fn valid_name(name: &str) -> bool {
+    let mut chars = name.chars();
+    name.len() <= 40
+        && chars
+            .next()
+            .is_some_and(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+        && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+}
+
+/// `explain.scaffold` for a project with no source: the headings only.
+fn scaffold_text(name: &str, short: bool, deep: bool) -> String {
+    use careerbrew_learn::explain::{DEEP, FULL, SHORT};
+    let headings = if short {
+        SHORT
+    } else if deep {
+        DEEP
+    } else {
+        FULL
+    };
+    let mut lines = vec![
+        format!("# {name}: explained"),
+        String::new(),
+        format!("<!-- reading list from `careerbrew work project show {name}`: re-read each source now and record the date or sha -->"),
+        String::new(),
+    ];
+    for heading in headings {
+        lines.extend([
+            format!("## {heading}"),
+            String::new(),
+            "- TODO".into(),
+            String::new(),
+        ]);
+    }
+    lines.truncate(lines.len() - 2);
+    lines.push("| Id | Kind | Locator | Read |".into());
+    lines.push("|---|---|---|---|".into());
+    lines.join("\n") + "\n"
+}
+
+fn project_explain(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let name = printable_name(args)?;
+    let (short, deep) = (args.flag("short"), args.flag("deep"));
+    if short && deep {
+        return None;
+    }
+    match args.text("check") {
+        Some(check) if !check.is_empty() => explain_check(ctx, check, short, deep),
+        _ => explain_scaffold(ctx, name, short, deep),
+    }
+}
+
+/// `explain --check <file>` for a file outside the data root (Python reads
+/// it with `Path.read_text`): ASCII text with no carriage return only.
+fn explain_check(ctx: &Ctx, check: &str, short: bool, deep: bool) -> Option<Outcome> {
+    if !printable(check) {
+        return None;
+    }
+    let file = Path::new(check);
+    if !std::fs::metadata(file).ok()?.is_file() {
+        return None;
+    }
+    let real = std::fs::canonicalize(file).ok()?;
+    let root = std::fs::canonicalize(&ctx.root).ok()?;
+    if real.starts_with(&root) {
+        return None;
+    }
+    let text = String::from_utf8(std::fs::read(&real).ok()?).ok()?;
+    if !text.is_ascii() || text.contains('\r') {
+        return None;
+    }
+    let problems = careerbrew_learn::explain::check(&text, short, deep);
+    if !problems.iter().all(|p| printable(p)) {
+        return None;
+    }
+    let mut out = String::new();
+    for problem in &problems {
+        out.push_str(&format!("problem: {problem}\n"));
+    }
+    if problems.is_empty() {
+        out.push_str("explain check: pass\n");
+    } else {
+        out.push_str(&format!("explain check: {} problem(s)\n", problems.len()));
+    }
+    let status = if problems.is_empty() { "ok" } else { "fail" };
+    emit_json(
+        ctx,
+        "work.explain",
+        &[
+            ("problems", problems.len().to_string()),
+            ("status", quoted(status)),
+        ],
+    );
+    said(out, i32::from(!problems.is_empty()))
+}
+
+/// `explain <name>`: the outline of a project with no source yet, or the
+/// unknown-project error `projects.show` raises.
+fn explain_scaffold(ctx: &Ctx, name: &str, short: bool, deep: bool) -> Option<Outcome> {
+    if !valid_name(name) {
+        return None;
+    }
+    // The printed path is `paths.sub("out")`: the data root as given.
+    let root_text = ctx.root.to_str()?;
+    let given = std::env::var("CAREERBREW_HOME").ok()?;
+    let odd = root_text.contains("//")
+        || root_text.contains("/./")
+        || root_text.ends_with("/.")
+        || root_text.ends_with('/');
+    if given != root_text || odd || !printable(root_text) {
+        return None;
+    }
+    let vault = vault_context()?;
+    let store = vault.store();
+    let settings = read_map(&store, &ctx.root.join("settings.yaml"))?;
+    if !clock_safe(&settings) {
+        return None;
+    }
+    for dir in ["out", "work"] {
+        let path = ctx.root.join(dir);
+        if !(path.is_dir() || absent(&path)) {
+            return None;
+        }
+    }
+    let every = load_projects(&store, &ctx.root)?;
+    if let Some(message) = unknown_text(&every, name)? {
+        if !printable(&message) {
+            return None;
+        }
+        make_dirs(&ctx.root, &["out"])?;
+        make_dirs(&ctx.root, &["work"])?;
+        return project_error(ctx, &message);
+    }
+    // `projects.show`: every field it reads must read as Python reads it.
+    let record = plain_map(&every.iter().find(|(n, _)| n == name)?.1)?;
+    if !matches!(get(record, "sources"), Some(Canon::List(items)) if items.is_empty()) {
+        return None;
+    }
+    if !matches!(get(record, "tasks"), Some(Canon::List(items)) if items.iter().all(|t| matches!(t, Canon::Str(_))))
+    {
+        return None;
+    }
+    if !matches!(get(record, "stale_after_days"), None | Some(Canon::Int(_))) {
+        return None;
+    }
+    if matches!(get(record, "kind"), Some(Canon::Str(kind)) if kind == "prep") {
+        return None;
+    }
+    for (_, other) in &every {
+        let pairs = plain_map(other)?;
+        match get(pairs, "links") {
+            None | Some(Canon::List(_) | Canon::Str(_)) => {}
+            Some(value) if !truthy(value) => {}
+            Some(_) => return None,
+        }
+    }
+    task_ids(&store, &ctx.root)?;
+    // A sealed write differs on every run; leave it to Python.
+    if store.encryption_enabled() {
+        return None;
+    }
+    make_dirs(&ctx.root, &["out"])?;
+    let out = ctx.root.join("out").join(format!("explain-{name}.md"));
+    store
+        .write_text(&out, &scaffold_text(name, short, deep))
+        .ok()?;
+    let shown = out.display();
+    let depth = if short {
+        " --short"
+    } else if deep {
+        " --deep"
+    } else {
+        ""
+    };
+    emit_json(
+        ctx,
+        "work.explain",
+        &[("problems", "-1".into()), ("status", quoted("ok"))],
+    );
+    said(
+        format!("wrote {shown}: fill it from the sources, then: careerbrew work project explain {name} --check {shown}{depth}\n"),
+        0,
+    )
 }
 
 // ---------- checklist ----------
