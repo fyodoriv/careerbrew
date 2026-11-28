@@ -517,6 +517,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if the error kind is not `ExecutableFileBusy`, retry the spawn once on that kind only and record the real cause here.
   - **Anchor**: Luo et al. 2014, "An Empirical Analysis of Flaky Tests" (FSE; concurrency causes).
 
+- [ ] Native `report list --top -1` refuses where Python serves it
+  - **ID**: native-report-list-negative-top
+  - **Details**: PR 265 run 46129688605 (2026-11-28): `report_list_matches_python` in `crates/cbcli/tests/step_unowned.rs` saw the native binary refuse `report list --top -1` (exit 64) on both ubuntu-24.04 and macos-15, while `--top 1` served. Python's argparse reads `-1` as a number value; the native parser (`crates/cbcli/src/args.rs`) likely reads it as an unknown option. A refusal is safe (Python runs the command), so the test now allows it.
+  - **Files**: crates/cbcli/src/args.rs; crates/cbcli/src/steps/unowned.rs (report_list); crates/cbcli/tests/step_unowned.rs
+  - **Hypothesis**: accepting a negative number as an option value, as argparse does when the parser has no number-like options, makes the case serve on both hosted OSes.
+  - **Measurement**: set the case back to `must_serve=true` and read `gh pr checks <pr>` for `native (ubuntu-24.04)` and `native (macos-15)`.
+  - **Success**: the case serves and matches Python on both hosted OSes.
+  - **Pivot**: if the cause is the order of pages with equal times, refuse negative `top` on every OS and keep the case as a refusal test.
+  - **Anchor**: Luo et al. 2014, "An Empirical Analysis of Flaky Tests" (FSE; platform-dependent causes).
+
 - [ ] US-59 paint run: the PM page sends a draft save with no edit
   - **ID**: pm-draft-autosave-race
   - **Details**: Main run 46118046006 (job 140896166001, 2026-11-28) failed `tests/e2e/us-59-pm-update.sh` at "crowded disabled-control and gradient paint evidence" while all 4 Playwright paint tests passed. The read-only fixture `tests/safety/issue373_server.py` saw one `POST /api/pm/draft` (plus the allowed `/api/session` and `/api/timing`), recorded `forbidden business POST`, and the runner exited 2 with `server-boundary-or-close:crowded`. The same story passed on PR 263 and on the main run before it, with no web change between them, so the save is a timing race: the PM report saves its draft once although nobody typed.
