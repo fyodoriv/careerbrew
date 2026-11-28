@@ -163,11 +163,11 @@ data.set native
 data.show native
 backup.create python
 backup.verify native
-backup.restore python
+backup.restore native
 plugin.add python
 plugin.remove python
 plugin.list native
-plugin.refresh python
+plugin.refresh native
 plugin.new python
 plugin.verify native
 privacy.scan native
@@ -190,7 +190,7 @@ secret.set python
 connectors.list native
 machine.show native
 machine.new-user python
-machine.split-plugin-evidence python
+machine.split-plugin-evidence native
 machine.ready python
 machine.set native
 pair.init native

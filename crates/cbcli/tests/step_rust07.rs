@@ -1,5 +1,6 @@
-//! Parity cases for the rust-07 native handlers: `"init"` and
-//! `"machine.set"`.
+//! Parity cases for the rust-07 native handlers: `"init"`,
+//! `"machine.set"`, `"plugin.refresh"` and
+//! `"machine.split-plugin-evidence"`.
 //!
 //! Each case builds a synthetic home with the Python CLI, then compares the
 //! native binary and the console script with Python (stdout, exit code,
@@ -311,4 +312,203 @@ fn machine_set_negative_controls() {
     assert_eq!(refused.code, Some(64));
     assert_eq!(refused.files, vec![file_line(".plaintext", b"")]);
     assert!(refused.events.is_empty());
+}
+
+// ---------- "plugin.refresh" and "machine.split-plugin-evidence" ----------
+
+const SOURCES: &str =
+    "sources:\n- kind: repo\n  path: /srv/synthetic\n- kind: gh\n  repo: example/synthetic\n";
+const CONNECTORS: &str = "connectors:\n- kind: tracker\n  host: tracker.example.com\n";
+
+fn split(home: &Home, dry_run: bool, must_serve: bool) -> bool {
+    let mut args = vec!["machine", "split-plugin-evidence"];
+    if dry_run {
+        args.push("--dry-run");
+    }
+    assert_same(home, &args, must_serve, "machine.split-plugin-evidence")
+}
+
+#[test]
+fn plugin_refresh_matches_python_with_no_plugin_installed() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "refresh-none",
+        cli: &[],
+        files: &[(".plaintext", "")],
+    });
+    assert!(assert_same(
+        &home,
+        &["plugin", "refresh"],
+        true,
+        "plugin.refresh"
+    ));
+    let corporate = prepare_setup(&Setup {
+        id: "refresh-none-corporate",
+        cli: &[&["machine", "set", "corporate"]],
+        files: &[(".plaintext", "")],
+    });
+    assert!(assert_same(
+        &corporate,
+        &["plugin", "refresh"],
+        true,
+        "plugin.refresh"
+    ));
+}
+
+#[test]
+fn split_plugin_evidence_matches_python_in_an_empty_home() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "split-empty",
+        cli: &[],
+        files: &[(".plaintext", "")],
+    });
+    assert!(split(&home, true, true));
+    assert!(split(&home, false, true));
+}
+
+#[test]
+fn split_plugin_evidence_counts_private_sources_and_connectors() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "split-counts",
+        cli: &[],
+        files: &[
+            (".plaintext", ""),
+            ("work/sources.yaml", SOURCES),
+            ("work/connectors.yaml", CONNECTORS),
+        ],
+    });
+    assert!(split(&home, true, true));
+    assert!(split(&home, false, true));
+    let native = observe(
+        &home,
+        &["machine", "split-plugin-evidence", "--dry-run"],
+        &Side::Native,
+    );
+    assert!(native.stdout.contains(
+        "work/sources.yaml: 2 -> 2 source(s); work/connectors.yaml: 1 -> 1 connector(s)"
+    ));
+    let empty = prepare_setup(&Setup {
+        id: "split-empty-lists",
+        cli: &[],
+        files: &[
+            (".plaintext", ""),
+            ("work/sources.yaml", "sources: []\nnote: kept\n"),
+            ("work/connectors.yaml", ""),
+        ],
+    });
+    assert!(split(&empty, false, true));
+}
+
+/// Every case where Python could install, deploy, fail or count otherwise
+/// refuses natively, and the console script prints Python's result.
+#[test]
+fn plugin_refresh_and_split_refuse_what_python_must_run() {
+    strict(NOW);
+    // A lock (a redaction input) or a command fragment: Python reads the
+    // plugins, or runs the deployer.
+    let lock = prepare_setup(&Setup {
+        id: "refresh-lock",
+        cli: &[],
+        files: &[
+            (".plaintext", ""),
+            ("plugins.lock.json", "{\"plugins\": {}}"),
+        ],
+    });
+    assert!(!assert_same(
+        &lock,
+        &["plugin", "refresh"],
+        false,
+        "plugin.refresh"
+    ));
+    assert!(!split(&lock, true, false));
+    let fragment = prepare_setup(&Setup {
+        id: "refresh-fragment",
+        cli: &[],
+        files: &[
+            (".plaintext", ""),
+            ("agentbrew/Agentfile.yaml", "commands: []\n"),
+        ],
+    });
+    assert!(!assert_same(
+        &fragment,
+        &["plugin", "refresh"],
+        false,
+        "plugin.refresh"
+    ));
+    // Entry shapes Python fails on: a null list, a list of words, a list
+    // at the top of the file.
+    const NULL: &[(&str, &str)] = &[(".plaintext", ""), ("work/sources.yaml", "sources:\n")];
+    const WORDS: &[(&str, &str)] = &[
+        (".plaintext", ""),
+        ("work/sources.yaml", "sources:\n- repo\n"),
+    ];
+    const TOP: &[(&str, &str)] = &[(".plaintext", ""), ("work/sources.yaml", "- kind: repo\n")];
+    for (id, files) in [
+        ("split-null", NULL),
+        ("split-words", WORDS),
+        ("split-top-list", TOP),
+    ] {
+        let home = prepare_setup(&Setup {
+            id,
+            cli: &[],
+            files,
+        });
+        assert!(!split(&home, false, false), "{id}");
+    }
+    // Redaction inputs present.
+    let terms = prepare_setup(&Setup {
+        id: "split-terms",
+        cli: &[],
+        files: &[
+            (".plaintext", ""),
+            ("sensitive-terms.txt", "synthetic-codename\n"),
+        ],
+    });
+    assert!(!split(&terms, true, false));
+    assert!(!assert_same(
+        &terms,
+        &["plugin", "refresh"],
+        false,
+        "plugin.refresh"
+    ));
+}
+
+/// Negative controls: two homes with different counts print different
+/// lines, a dry run and a real run differ, and an unknown flag or an extra
+/// argument is refused by the argument reader.
+#[test]
+fn split_plugin_evidence_negative_controls() {
+    strict(NOW);
+    let empty = prepare_setup(&Setup {
+        id: "split-control-empty",
+        cli: &[],
+        files: &[(".plaintext", "")],
+    });
+    let full = prepare_setup(&Setup {
+        id: "split-control-full",
+        cli: &[],
+        files: &[(".plaintext", ""), ("work/sources.yaml", SOURCES)],
+    });
+    let a = observe(&empty, &["machine", "split-plugin-evidence"], &Side::Native);
+    let b = observe(&full, &["machine", "split-plugin-evidence"], &Side::Python);
+    assert_eq!(a.code, Some(0));
+    assert_ne!(a.stdout, b.stdout);
+    let dry = observe(
+        &empty,
+        &["machine", "split-plugin-evidence", "--dry-run"],
+        &Side::Native,
+    );
+    assert_ne!(dry, a);
+    let unknown = observe(
+        &empty,
+        &["machine", "split-plugin-evidence", "--force"],
+        &Side::Native,
+    );
+    assert_eq!(unknown.code, Some(64));
+    assert!(unknown.events.is_empty());
+    let extra = observe(&empty, &["plugin", "refresh", "extra"], &Side::Native);
+    assert_eq!(extra.code, Some(64));
+    assert!(extra.events.is_empty());
 }

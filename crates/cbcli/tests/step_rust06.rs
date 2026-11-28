@@ -1,5 +1,6 @@
-//! Parity cases for the rust-06 native handlers: `"sync.export"` and
-//! `"sync.import"` (the import cases are at the end of this file).
+//! Parity cases for the rust-06 native handlers: `"sync.export"`,
+//! `"sync.import"` (the import cases follow the export cases) and
+//! `"backup.restore"` (at the end of this file).
 //!
 //! Each case builds a synthetic home with the Python CLI (`pair init` makes
 //! the pairing key), then compares the native binary and the console script
@@ -449,4 +450,309 @@ fn sync_import_negative_controls() {
         .iter()
         .any(|line| line.starts_with("settings.yaml")));
     assert!(after.events.is_empty());
+}
+
+// ---------- "backup.restore" ----------
+
+/// A plaintext home (the hosted runner seals homes without the marker)
+/// with two synthetic files, backed up by Python into `~/Backups/careerbrew`.
+const BACKUP_FILES: &[(&str, &str)] = &[
+    (".plaintext", ""),
+    ("notes/synthetic.md", "synthetic note\n"),
+    ("work/sources.yaml", "sources: []\n"),
+];
+
+const BACKED_UP: &[&[&str]] = &[&["backup", "create"]];
+
+/// The one backup Python wrote in the scenario's home.
+fn backup_path(home: &Home) -> String {
+    let dir = home.home.join("Backups/careerbrew");
+    let mut found: Vec<_> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "cbk"))
+        .collect();
+    found.sort();
+    assert_eq!(found.len(), 1, "{found:?}");
+    found[0].display().to_string()
+}
+
+fn restore_case(home: &Home, dest: &str, must_serve: bool) -> bool {
+    let file = backup_path(home);
+    assert_same(
+        home,
+        &["backup", "restore", &file, dest],
+        must_serve,
+        "backup.restore",
+    )
+}
+
+/// Each file under `dir` with its bytes and mode, for a folder the
+/// harness does not compare (outside the data root).
+fn tree(dir: &Path) -> Vec<String> {
+    use std::os::unix::fs::PermissionsExt;
+    let mut out = Vec::new();
+    let mut stack = vec![dir.to_path_buf()];
+    while let Some(folder) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&folder) else {
+            continue;
+        };
+        for entry in entries {
+            let path = entry.unwrap().path();
+            let meta = std::fs::symlink_metadata(&path).unwrap();
+            if meta.is_dir() {
+                stack.push(path);
+            } else {
+                let bytes = std::fs::read(&path).unwrap();
+                out.push(format!(
+                    "{} {:o} {}",
+                    path.strip_prefix(dir).unwrap().display(),
+                    meta.permissions().mode() & 0o7777,
+                    String::from_utf8_lossy(&bytes)
+                ));
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
+/// The same path in the scenario's snapshot, which every run restores.
+fn in_snapshot(home: &Home, live: &Path) -> std::path::PathBuf {
+    let base = home.home.parent().unwrap();
+    base.with_file_name("snap")
+        .join(live.strip_prefix(base).unwrap())
+}
+
+#[test]
+fn backup_restore_matches_python_into_a_new_folder_in_the_data_root() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "restore-new",
+        cli: BACKED_UP,
+        files: BACKUP_FILES,
+    });
+    let dest = home.data.join("restored").display().to_string();
+    assert!(restore_case(&home, &dest, true));
+    let native = observe(
+        &home,
+        &["backup", "restore", &backup_path(&home), &dest],
+        &Side::Native,
+    );
+    assert_eq!(native.code, Some(0));
+    assert_eq!(
+        std::fs::read_to_string(home.data.join("restored/notes/synthetic.md")).unwrap(),
+        "synthetic note\n"
+    );
+    assert!(native
+        .events
+        .iter()
+        .any(|row| row.starts_with("event\": \"backup.restore")));
+}
+
+#[test]
+fn backup_restore_overwrites_files_already_in_the_folder() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "restore-over",
+        cli: BACKED_UP,
+        files: BACKUP_FILES,
+    });
+    // Written after the backup, so it is not a member of it.
+    let old = home.data.join("restored/notes/synthetic.md");
+    for path in [old.clone(), in_snapshot(&home, &old)] {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, "older synthetic text\n").unwrap();
+    }
+    let dest = home.data.join("restored").display().to_string();
+    assert!(restore_case(&home, &dest, true));
+}
+
+#[test]
+fn backup_restore_matches_python_outside_the_data_root() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "restore-outside",
+        cli: BACKED_UP,
+        files: BACKUP_FILES,
+    });
+    let target = home.home.join("restored-copy");
+    let dest = target.display().to_string();
+    assert!(restore_case(&home, &dest, true));
+    let file = backup_path(&home);
+    let args = ["backup", "restore", file.as_str(), dest.as_str()];
+    let python = observe(&home, &args, &Side::Python);
+    let want = tree(&target);
+    let native = observe(&home, &args, &Side::Native);
+    assert_eq!(native, python);
+    let got = tree(&target);
+    assert_eq!(got, want);
+    assert!(
+        got.iter()
+            .any(|line| line.starts_with("notes/synthetic.md ")
+                && line.ends_with(" synthetic note\n"))
+    );
+}
+
+/// Members with group-writable and executable modes: Python's `data`
+/// filter drops group and other write bits and keeps owner execute.
+#[test]
+fn backup_restore_applies_the_tarfile_data_filter_modes() {
+    use std::os::unix::fs::PermissionsExt;
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "restore-modes",
+        cli: &[],
+        files: &[
+            (".plaintext", ""),
+            ("notes/shared.md", "synthetic shared note\n"),
+            ("notes/run.sh", "echo synthetic\n"),
+            ("notes/locked.md", "synthetic locked note\n"),
+        ],
+    });
+    for (name, mode) in [
+        ("notes/shared.md", 0o666),
+        ("notes/run.sh", 0o775),
+        ("notes/locked.md", 0o400),
+    ] {
+        std::fs::set_permissions(home.data.join(name), std::fs::Permissions::from_mode(mode))
+            .unwrap();
+    }
+    let done = python(&home, &["backup", "create"])
+        .env("CAREERBREW_NATIVE", "off")
+        .output()
+        .unwrap();
+    assert!(done.status.success(), "{done:?}");
+    let _ = std::fs::remove_file(home.data.join("logs/events.jsonl"));
+    let live = home.home.parent().unwrap();
+    let snap = live.with_file_name("snap");
+    std::fs::remove_dir_all(&snap).unwrap();
+    copy_tree(live, &snap);
+    let target = home.home.join("restored-modes");
+    let dest = target.display().to_string();
+    assert!(restore_case(&home, &dest, true));
+    let file = backup_path(&home);
+    let args = ["backup", "restore", file.as_str(), dest.as_str()];
+    observe(&home, &args, &Side::Python);
+    let want = tree(&target);
+    observe(&home, &args, &Side::Native);
+    let got = tree(&target);
+    assert_eq!(got, want);
+    for line in [
+        "notes/shared.md 644 ",
+        "notes/run.sh 755 ",
+        "notes/locked.md 600 ",
+    ] {
+        assert!(
+            got.iter().any(|row| row.starts_with(line)),
+            "{line} {got:?}"
+        );
+    }
+}
+
+/// Every case where Python prints `error:` or could act otherwise refuses
+/// natively before any write, and the console script prints Python's
+/// result.
+#[test]
+fn backup_restore_refuses_what_python_must_run() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "restore-refusals",
+        cli: BACKED_UP,
+        files: BACKUP_FILES,
+    });
+    // A `~` folder depends on the home (it lands in the scenario's home).
+    assert!(!restore_case(&home, "~/restored-tilde", false));
+    // The data root itself: the restored files feed `privacy.redact`.
+    let root = home.data.display().to_string();
+    assert!(!restore_case(&home, &root, false));
+    // A tampered backup (appended bytes) fails verification.
+    let good = backup_path(&home);
+    let bad = home.home.join("tampered.cbk");
+    let mut bytes = std::fs::read(&good).unwrap();
+    bytes.extend_from_slice(b"AAAA");
+    for path in [bad.clone(), in_snapshot(&home, &bad)] {
+        std::fs::write(&path, &bytes).unwrap();
+    }
+    let dest = home.data.join("restored").display().to_string();
+    let bad_text = bad.display().to_string();
+    assert!(!assert_same(
+        &home,
+        &["backup", "restore", &bad_text, &dest],
+        false,
+        "backup.restore"
+    ));
+    // A link on a member's path in the folder: Python refuses.
+    let link = home.data.join("restored/notes");
+    for path in [link.clone(), in_snapshot(&home, &link)] {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::os::unix::fs::symlink("../elsewhere", &path).unwrap();
+    }
+    assert!(!restore_case(&home, &dest, false));
+    // Redaction inputs present.
+    let terms = prepare_setup(&Setup {
+        id: "restore-terms",
+        cli: BACKED_UP,
+        files: &[
+            (".plaintext", ""),
+            ("sensitive-terms.txt", "synthetic-codename\n"),
+        ],
+    });
+    let dest = terms.data.join("restored").display().to_string();
+    assert!(!restore_case(&terms, &dest, false));
+    // A corporate machine checks job-hunt members and marks the folder.
+    let corporate = prepare_setup(&Setup {
+        id: "restore-corporate",
+        cli: &[&["backup", "create"], &["machine", "set", "corporate"]],
+        files: &[(".plaintext", ""), ("work/sources.yaml", "sources: []\n")],
+    });
+    let dest = corporate.data.join("restored").display().to_string();
+    assert!(!restore_case(&corporate, &dest, false));
+    let native = observe(
+        &corporate,
+        &["backup", "restore", &backup_path(&corporate), &dest],
+        &Side::Native,
+    );
+    assert_eq!(native.code, Some(64));
+    assert!(!corporate.data.join("restored").exists());
+}
+
+/// Negative controls: two backups of different homes restore different
+/// files, and an extra argument is refused by the argument reader.
+#[test]
+fn backup_restore_negative_controls() {
+    strict(NOW);
+    let a = prepare_setup(&Setup {
+        id: "restore-control-a",
+        cli: BACKED_UP,
+        files: BACKUP_FILES,
+    });
+    let b = prepare_setup(&Setup {
+        id: "restore-control-b",
+        cli: BACKED_UP,
+        files: &[(".plaintext", ""), ("notes/synthetic.md", "another note\n")],
+    });
+    let dest_a = a.data.join("restored").display().to_string();
+    let dest_b = b.data.join("restored").display().to_string();
+    let one = observe(
+        &a,
+        &["backup", "restore", &backup_path(&a), &dest_a],
+        &Side::Native,
+    );
+    let two = observe(
+        &b,
+        &["backup", "restore", &backup_path(&b), &dest_b],
+        &Side::Native,
+    );
+    assert_eq!(one.code, Some(0));
+    assert_eq!(two.code, Some(0));
+    assert_ne!(one.files, two.files);
+    let extra = observe(
+        &a,
+        &["backup", "restore", &backup_path(&a), &dest_a, "extra"],
+        &Side::Native,
+    );
+    assert_eq!(extra.code, Some(64));
+    assert!(extra.events.is_empty());
+    assert!(!a.data.join("restored").exists());
 }
