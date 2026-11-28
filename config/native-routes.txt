@@ -32,8 +32,8 @@ jobs.log native
 cards.review python
 cards.next native
 cards.grade python
-cards.add python
-cards.stats python
+cards.add native
+cards.stats native
 cards.unsuspend native
 cards.explain-queue python
 cards.publish python

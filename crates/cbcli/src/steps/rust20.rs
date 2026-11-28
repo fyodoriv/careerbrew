@@ -12,15 +12,15 @@
 //! Left in Python, with the reason:
 //! - `cards.grade`: py-fsrs fuzzes review intervals, which the Rust
 //!   scheduler does not port yet (TASKS.md, rust-20 follow-up gap 1).
-//! - `cards.stats`: Python orders tied topics by first card in deck-file
-//!   order, and keeps microseconds in its 30-day bound; the domain crate
-//!   orders by topic name and cuts to seconds (gaps 8 and 9).
+//! - `cards.stats` is served here, not through the domain crate's `stats`:
+//!   Python orders tied topics by first card in deck-file order and keeps
+//!   microseconds in its 30-day bound (gaps 8 and 9), so this module counts
+//!   in Python's order itself.
 //! - `drill.next` is served only while no item has a card or an attempt
 //!   (no `tutor/cards.json` or `tutor/attempts.jsonl`): then every mastery
 //!   is 0 and no FSRS state is read. Any other state goes to Python.
 //! - `drill.answer`: it writes FSRS cards through py-fsrs's scheduler, and
 //!   `drill.speak` runs speech tools; no parity cases in this step yet.
-//! - `cards.add`: PyYAML deck output (see `COMMANDS`).
 //! - `cards.explain-queue`: it reads the flags, skips, private cards and
 //!   lapse counts; no parity cases in this step yet.
 //! - `import.notion`: it writes many files and the sensitive terms list.
@@ -35,7 +35,8 @@ use std::path::{Path, PathBuf};
 /// `crates/cbcli/tests/step_rust20.rs`.
 pub const COMMANDS: &[&str] = &[
     "cards.next",
-    // `cards.add` stays on Python until the deck YAML matches PyYAML byte for byte (TASKS.md).
+    "cards.add",
+    "cards.stats",
     "cards.unsuspend",
     "cards.public-check",
     "library.list",
@@ -78,6 +79,10 @@ fn serve(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "cards.unsuspend" => {
             files.personal()?;
             cards_unsuspend(args, &files)
+        }
+        "cards.stats" => {
+            files.personal()?;
+            cards_stats(&files)
         }
         "library.list" => {
             files.personal()?;
@@ -609,12 +614,15 @@ fn cards_add(args: &Parsed, files: &Files) -> Option<Outcome> {
         Some((_, value)) => *value = Canon::List(cards),
         None => pairs.push((Canon::Str("cards".into()), Canon::List(cards))),
     }
+    // `store.write_yaml` is `yaml.safe_dump(sort_keys=False,
+    // allow_unicode=True)`; a value the port cannot prove identical refuses.
+    // A sealed write differs on every run, so an encrypted folder refuses.
+    let yaml = crate::pyyaml::safe_dump(&Canon::Map(pairs))?;
+    if files.vault.store().encryption_enabled() {
+        return None;
+    }
     std::fs::create_dir_all(path.parent()?).ok()?;
-    files
-        .vault
-        .store()
-        .write_yaml(&path, &Canon::Map(pairs))
-        .ok()?;
+    files.vault.store().write_text(&path, &yaml).ok()?;
     emit(&files.root, "cards.add", "ok");
     ok(format!("added card {id} to deck {name}\n"), 0)
 }
@@ -668,6 +676,231 @@ fn set(pairs: &mut Vec<(Canon, Canon)>, key: &str, value: Canon) {
         Some((_, old)) => *old = value,
         None => pairs.push((Canon::Str(key.into()), value)),
     }
+}
+
+/// Python's `datetime.isoformat()` of a UTC instant in microseconds.
+fn utc_iso(micros: i64) -> String {
+    let secs = micros.div_euclid(1_000_000);
+    let frac = micros.rem_euclid(1_000_000);
+    let days = secs.div_euclid(86_400);
+    let rest = secs.rem_euclid(86_400);
+    // Civil date from days since 1970-01-01 (H. Hinnant's algorithm).
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    let mut out = format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}",
+        rest / 3600,
+        rest % 3600 / 60,
+        rest % 60
+    );
+    if frac != 0 {
+        out.push_str(&format!(".{frac:06}"));
+    }
+    out.push_str("+00:00");
+    out
+}
+
+/// An instant in microseconds since the epoch.
+fn micros_of(stamp: &str) -> Option<i64> {
+    let at = careerbrew_tutor::parse_at(stamp).ok()?;
+    Some(at.timestamp() * 1_000_000 + i64::from(at.timestamp_subsec_micros()))
+}
+
+/// `cards.stats()` as `cmd_cards_stats` prints it. Every row Python reads
+/// is checked first; a shape where Python would crash or read differently
+/// refuses.
+fn cards_stats(files: &Files) -> Option<Outcome> {
+    let public = public_dir()?;
+    files.decks_ok()?;
+    files.public_ok(&public)?;
+    let meta = files.meta()?;
+    let reviews = files.reviews_ok()?;
+    files.settings_ok()?;
+    clock_ok(files)?;
+
+    // `all_cards()` in dict order: a later card with a known id replaces the
+    // value but keeps the first position.
+    type Cards = std::collections::HashMap<String, (String, String)>;
+    fn put(ids: &mut Vec<String>, cards: &mut Cards, id: String, topic: String, question: String) {
+        if !cards.contains_key(&id) {
+            ids.push(id.clone());
+        }
+        cards.insert(id, (topic, question));
+    }
+    let mut ids: Vec<String> = Vec::new();
+    let mut cards = Cards::new();
+    for path in yaml_files(&files.root.join("tutor/decks"))? {
+        for card in rows_of(&files.yaml_at(&path)?, "cards")? {
+            put(
+                &mut ids,
+                &mut cards,
+                text(&card, "id")?.to_owned(),
+                text(&card, "topic")?.to_owned(),
+                text(&card, "question")?.to_owned(),
+            );
+        }
+    }
+    let mine: std::collections::BTreeSet<String> = cards
+        .values()
+        .map(|(_, question)| careerbrew_tutor::public::qhash(question))
+        .collect();
+    let mut public_cards = Vec::new();
+    for path in yaml_files(&public)? {
+        public_cards.extend(rows_of(&repo_yaml(&path)?, "cards")?);
+    }
+    for card in public_cards {
+        let question = text(&card, "question")?;
+        let mut hashes = texts(&card, "match");
+        hashes.push(careerbrew_tutor::public::qhash(question));
+        if hashes.iter().all(|hash| !mine.contains(hash)) {
+            put(
+                &mut ids,
+                &mut cards,
+                text(&card, "id")?.to_owned(),
+                text(&card, "topic")?.to_owned(),
+                question.to_owned(),
+            );
+        }
+    }
+
+    // `_states()`: falsy is empty, else a map of FSRS card maps whose `due`
+    // (and any `last_review`) is an aware ISO stamp; the domain crate must
+    // read every state too, as `Card.from_dict` does.
+    let raw = files.json("tutor/card-state.json")?;
+    let mut due: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+    if !falsy(&raw) {
+        if !plain_map(&raw) {
+            return None;
+        }
+        let Canon::Map(pairs) = &raw else {
+            return None;
+        };
+        for (key, state) in pairs {
+            let Canon::Str(id) = key else {
+                return None;
+            };
+            if !plain_map(state) {
+                return None;
+            }
+            let stamp = text(state, "due")?;
+            if !iso_stamp(stamp) {
+                return None;
+            }
+            match get(state, "last_review")? {
+                Canon::Str(last) if iso_stamp(last) => {}
+                value if falsy(value) => {}
+                _ => return None,
+            }
+            due.insert(id.clone(), micros_of(stamp)?);
+        }
+        let parsed = careerbrew_tutor::cards::states(&files.root).ok()?;
+        if parsed.len() != due.len() {
+            return None;
+        }
+    }
+    let suspended: std::collections::BTreeSet<String> =
+        texts(&meta, "suspended").into_iter().collect();
+
+    let now = careerbrew_tutor::now();
+    let at = now.timestamp() * 1_000_000 + i64::from(now.timestamp_subsec_micros());
+    let zone = careerbrew_tutor::system_zone();
+    let local = now.with_timezone(&zone);
+    let today = local.date_naive();
+    let offset = (local.naive_local() - now.naive_utc()).num_seconds();
+    let end_of_day = today
+        .and_hms_micro_opt(23, 59, 59, 999_999)?
+        .and_utc()
+        .timestamp_micros()
+        - offset * 1_000_000;
+    let since = utc_iso(at - 30 * 86_400 * 1_000_000);
+
+    // Every review row: a text `at` in an aware ISO shape (`_day` parses it);
+    // a recent row also needs `rating` and `topic`, which Python indexes.
+    let mut days = std::collections::BTreeSet::new();
+    let mut reviewed_today = 0usize;
+    let mut recent = Vec::new();
+    for row in &reviews {
+        let stamp = text(row, "at")?;
+        if !iso_stamp(stamp) {
+            return None;
+        }
+        let day = careerbrew_tutor::parse_at(stamp)
+            .ok()?
+            .with_timezone(&zone)
+            .date_naive();
+        reviewed_today += usize::from(day == today);
+        days.insert(day);
+        if stamp >= since.as_str() && cards.contains_key(text(row, "card")?) {
+            get(row, "topic")?;
+            recent.push(get(row, "rating")?);
+        }
+    }
+    let retention = if recent.is_empty() {
+        "n/a".to_owned()
+    } else {
+        let kept = recent
+            .iter()
+            .filter(|rating| !matches!(rating, Canon::Str(r) if r == "again"))
+            .count();
+        let value = careerbrew_projects::python_round(kept as f64 / recent.len() as f64, 3);
+        format!("{:.0}%", value * 100.0)
+    };
+    let mut streak = 0usize;
+    let mut day = if days.contains(&today) {
+        today
+    } else {
+        today.pred_opt()?
+    };
+    while days.contains(&day) {
+        streak += 1;
+        day = day.pred_opt()?;
+    }
+
+    let is_due = |id: &str, bound: i64| {
+        due.get(id)
+            .is_some_and(|when| !suspended.contains(id) && *when <= bound)
+    };
+    let mut topics: Vec<(String, usize, usize, usize)> = Vec::new();
+    for id in &ids {
+        let topic = &cards[id].0;
+        let at_row = match topics.iter().position(|row| &row.0 == topic) {
+            Some(index) => index,
+            None => {
+                topics.push((topic.clone(), 0, 0, 0));
+                topics.len() - 1
+            }
+        };
+        let row = &mut topics[at_row];
+        row.1 += 1;
+        row.2 += usize::from(is_due(id, at));
+        row.3 += usize::from(!due.contains_key(id));
+    }
+    let new = ids.iter().filter(|id| !due.contains_key(*id)).count();
+    let due_now = ids.iter().filter(|id| is_due(id, at)).count();
+    let due_today = ids.iter().filter(|id| is_due(id, end_of_day)).count();
+    let leeches = suspended
+        .iter()
+        .filter(|id| cards.contains_key(*id))
+        .count();
+    let mut out = format!(
+        "cards {}  new {new}  due now {due_now}  due today {due_today}  reviewed today {reviewed_today}  retention (30 d) {retention}  streak {streak} d  leeches {leeches}\n",
+        ids.len()
+    );
+    topics.sort_by_key(|row| std::cmp::Reverse(row.1));
+    for (topic, total, due, new) in topics.iter().take(12) {
+        out.push_str(&format!(
+            "  {} {total:>4} cards  {due:>3} due  {new:>4} new\n",
+            left(topic, 24)
+        ));
+    }
+    ok(out, 0)
 }
 
 /// `public.check()`: every committed card passes lint and ids are unique.
