@@ -255,7 +255,8 @@ fn jobs_log(args: &Parsed, ctx: &Ctx, io: &Io) -> Option<Outcome> {
         (s("at"), s(&at)),
         (s("origin"), s("user")),
     ]);
-    io.ctx.store().append_jsonl(&path, &[row]).ok()?;
+    let store = io.ctx.store();
+    store.append_jsonl(&path, &[row]).ok()?;
     emit(
         ctx,
         "jobs.application",
