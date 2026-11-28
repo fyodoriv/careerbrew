@@ -41,7 +41,7 @@ cards.public-check native
 learn.list native
 learn.start python
 learn.note native
-learn.concepts python
+learn.concepts native
 learn.next native
 learn.answer python
 learn.status native
@@ -104,9 +104,9 @@ work.priority.set native
 work.priority.remove native
 work.feed.show native
 work.feed.pull python
-work.feed.add python
-work.feed.transcript python
-work.feed.cycle python
+work.feed.add native
+work.feed.transcript native
+work.feed.cycle native
 work.feed.mark native
 work.feed.rules native
 work.feed.retriage native

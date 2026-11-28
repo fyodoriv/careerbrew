@@ -499,3 +499,186 @@ fn a_different_roster_gives_a_different_removal() {
     let want = observe(&roster, &args, &Side::Python);
     assert_ne!(got, want);
 }
+
+// ---------- wave 7: "work.feed.add", "work.feed.transcript" and
+// "work.feed.cycle" (their FeedError lines) ----------
+
+/// Writes files under the home's HOME (outside the data root), then takes
+/// the snapshot again so that every run sees them.
+fn with_files(home: &Home, files: &[(&str, &str)]) -> Vec<String> {
+    let mut out = Vec::new();
+    for (name, text) in files {
+        let path = home.home.join(name);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, text).unwrap();
+        out.push(path.to_str().unwrap().to_owned());
+    }
+    let live = home.home.parent().unwrap().to_path_buf();
+    let snap = live.with_file_name("snap");
+    std::fs::remove_dir_all(&snap).unwrap();
+    copy_tree(&live, &snap);
+    out
+}
+
+const TOOLS: &[&str] = &[
+    "config",
+    "set",
+    "feed_tool_sources",
+    "mcp__chat__*=chat, mcp__tickets__*=tickets",
+];
+
+#[test]
+fn feed_add_errors_match_python() {
+    strict(NOW);
+    let home = empty("feed-add");
+    let files = with_files(
+        &home,
+        &[
+            ("in/empty.jsonl", ""),
+            ("in/blank.jsonl", "\n  \n\t\n"),
+            ("in/words.jsonl", "\n \nhello there\n{\"id\": 1}\n"),
+            ("in/first.jsonl", "<not json>"),
+        ],
+    );
+    for file in &files {
+        assert_same(&home, &["work", "feed", "add", file], true, "work.feed.add");
+    }
+    assert_same(
+        &home,
+        &["work", "feed", "add", &files[0], "--source", ""],
+        true,
+        "work.feed.add empty source",
+    );
+}
+
+#[test]
+fn feed_transcript_errors_match_python() {
+    strict(NOW);
+    let home = empty("feed-transcript");
+    for args in [
+        &["work", "feed", "transcript", "/nonexistent/session.jsonl"][..],
+        &["work", "feed", "transcript", "x.jsonl", "--since", "30m"],
+    ] {
+        assert_same(&home, args, true, "work.feed.transcript no tool map");
+    }
+    let mapped = plain("feed-transcript-mapped", &[TOOLS]);
+    assert_same(
+        &mapped,
+        &["work", "feed", "transcript", "/nonexistent/session.jsonl"],
+        true,
+        "work.feed.transcript",
+    );
+}
+
+#[test]
+fn feed_cycle_errors_match_python() {
+    strict(NOW);
+    let home = empty("feed-cycle");
+    for args in [
+        &["work", "feed", "cycle"][..],
+        &["work", "feed", "cycle", "--json"],
+        &["work", "feed", "cycle", "--require", " , ,"],
+        &["work", "feed", "cycle", "--require", ""],
+    ] {
+        assert_same(&home, args, true, "work.feed.cycle");
+    }
+}
+
+#[test]
+fn feed_add_transcript_and_cycle_refuse_what_they_cannot_repeat() {
+    strict(NOW);
+    let home = plain("feed-refuse", &[]);
+    let files = with_files(
+        &home,
+        &[
+            (
+                "in/event.jsonl",
+                "{\"id\": \"e1\", \"at\": \"2026-11-20T08:00:00Z\", \"title\": \"Hi\"}\n",
+            ),
+            ("in/raw.json", "{\"tickets\": []}"),
+            ("in/number.jsonl", "12 apples\n"),
+            ("in/session.jsonl", "{}\n"),
+        ],
+    );
+    let refused: [(&str, &[&str]); 7] = [
+        ("work.feed.add event", &["work", "feed", "add", &files[0]]),
+        (
+            "work.feed.add raw reply",
+            &["work", "feed", "add", &files[1]],
+        ),
+        (
+            "work.feed.add number start",
+            &["work", "feed", "add", &files[2]],
+        ),
+        (
+            "work.feed.add source",
+            &["work", "feed", "add", &files[2], "--source", "chat"],
+        ),
+        (
+            "work.feed.add plugin",
+            &["work", "feed", "add", &files[2], "--plugin", "acme"],
+        ),
+        (
+            "work.feed.add missing",
+            &["work", "feed", "add", "/nonexistent/x.jsonl"],
+        ),
+        (
+            "work.feed.cycle require",
+            &["work", "feed", "cycle", "--require", "chat"],
+        ),
+    ];
+    for (label, args) in refused {
+        assert!(!assert_same(&home, args, false, label));
+    }
+    // A tool map and a transcript that exists: Python reads it.
+    let mapped = plain("feed-refuse-mapped", &[TOOLS]);
+    let session = with_files(&mapped, &[("in/session.jsonl", "{}\n")]);
+    for (label, args) in [
+        (
+            "work.feed.transcript file",
+            &["work", "feed", "transcript", &session[0]][..],
+        ),
+        ("work.feed.cycle tools", &["work", "feed", "cycle"]),
+    ] {
+        assert!(!assert_same(&mapped, args, false, label));
+    }
+    // Owner live sources: Python reads and checks them.
+    let live = prepare_setup(&Setup {
+        id: "feed-refuse-live",
+        cli: &[],
+        files: &[PLAIN, ("work/live-sources.yaml", "sources: []\n")],
+    });
+    assert!(!assert_same(
+        &live,
+        &["work", "feed", "cycle"],
+        false,
+        "work.feed.cycle live sources"
+    ));
+    // Python prints through `privacy.redact`, which reads the profile.
+    let redact = prepare_setup(&Setup {
+        id: "feed-refuse-redact",
+        cli: &[],
+        files: &[("profile.yaml", "name: Synthetic Person\n")],
+    });
+    assert!(!assert_same(
+        &redact,
+        &["work", "feed", "cycle"],
+        false,
+        "work.feed.cycle redact"
+    ));
+}
+
+/// Negative control: an input with no events and one whose first line is
+/// not JSON print different errors.
+#[test]
+fn a_not_json_line_gives_a_different_add_error() {
+    strict(NOW);
+    let home = empty("feed-add-control");
+    let files = with_files(
+        &home,
+        &[("in/empty.jsonl", ""), ("in/words.jsonl", "hello\n")],
+    );
+    let got = observe(&home, &["work", "feed", "add", &files[0]], &Side::Native);
+    let want = observe(&home, &["work", "feed", "add", &files[1]], &Side::Python);
+    assert_ne!(got, want);
+}

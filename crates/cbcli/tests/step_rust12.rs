@@ -528,3 +528,207 @@ fn a_present_tour_gives_a_different_export() {
     let want = observe(&some, &args, &Side::Python);
     assert_ne!(got, want);
 }
+
+// ---------- wave 7: "learn.concepts" ----------
+
+const BAD_CONCEPTS: &str = "concepts:\n  - {id: queue, title: The queue, cites: [file:readme, note:missing.md], questions: [{bloom: remember, prompt: \"What?\", answer: A queue.}, {bloom: remember, prompt: \"Why?\", answer: \"\"}]}\n  - {id: worker, section: core, prereqs: [queue, ghost], cites: [], questions: []}\n  - section: ops\n    title: No id\n    cites: [file:readme]\n    questions:\n      - {bloom: guess, prompt: Pick one, answer: B, options: [A, B, C], misconceptions: [x]}\n";
+
+const CYCLE: &str = "concepts:\n  - {id: a, section: s, title: A, prereqs: [b], cites: [file:readme], questions: [{bloom: apply, prompt: p, answer: x}]}\n  - {id: b, section: s, title: B, prereqs: [a], cites: [file:readme], questions: [{bloom: apply, prompt: p, answer: x}]}\n";
+
+const IMPORT: &str = "# a comment\nconcepts:\n- id: queue\n  section: Core Ideas\n  title: The queue\n  cites: [file:readme]\n  extra: {weight: 2, ok: true, when: 2026-11-20}\n  questions:\n  - {bloom: understand, kind: choice, prompt: \"  Why a queue?  \", answer: Decoupling., options: [a, b], misconceptions: [m]}\n  - {bloom: apply, kind: open, prompt: \"Enqueue twice?\", answer: Runs twice.}\n- id: deploy\n  section: ops\n  title: Deploys\n  cites: [file:readme, file:readme]\n  questions:\n  - {bloom: analyze, kind: choice, prompt: \"How to ship? It is a long question that runs past the eighty column fold of the dumper for sure\", answer: make ship.}\n";
+
+fn concepts_file(home: &Home, name: &str, text: &str) -> String {
+    extend(home, &[(name, text)], &[]);
+    in_home(home, name).to_str().unwrap().to_owned()
+}
+
+#[test]
+fn learn_concepts_check_matches_python() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "concepts-check",
+        cli: &[START_ALPHA],
+        files: &[],
+    });
+    let good = concepts_file(&home, "in/good.yaml", CONCEPTS);
+    let bad = concepts_file(&home, "in/bad.yaml", BAD_CONCEPTS);
+    let cycle = concepts_file(&home, "in/cycle.yaml", CYCLE);
+    let empty = concepts_file(&home, "in/empty.yaml", "");
+    let map = concepts_file(&home, "in/map.yaml", "{}\n");
+    let other = concepts_file(&home, "in/other.yaml", "title: no concepts here\n");
+    let cases: [(&str, &[&str]); 7] = [
+        (
+            "learn.concepts",
+            &["learn", "concepts", "alpha", &good, "--check"],
+        ),
+        (
+            "learn.concepts problems",
+            &["learn", "concepts", "alpha", &bad, "--check"],
+        ),
+        (
+            "learn.concepts cycle",
+            &["learn", "concepts", "alpha", &cycle, "--check"],
+        ),
+        (
+            "learn.concepts empty",
+            &["learn", "concepts", "alpha", &empty, "--check"],
+        ),
+        (
+            "learn.concepts map",
+            &["learn", "concepts", "alpha", &map, "--check"],
+        ),
+        (
+            "learn.concepts other",
+            &["learn", "concepts", "alpha", &other, "--check"],
+        ),
+        // No project folder yet: every citation fails, and the folder is made.
+        (
+            "learn.concepts new project",
+            &["learn", "concepts", "Beta Two", &good, "--check"],
+        ),
+    ];
+    for (label, args) in cases {
+        assert_same(&home, args, true, label);
+    }
+    // The import refuses with the same problems (exit 2), writing nothing.
+    assert_same(
+        &home,
+        &["learn", "concepts", "alpha", &bad, "--consume"],
+        true,
+        "learn.concepts not imported",
+    );
+}
+
+#[test]
+fn learn_concepts_import_matches_python() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "concepts-import",
+        cli: &[START_ALPHA],
+        files: &[(".plaintext", "")],
+    });
+    let good = concepts_file(&home, "in/good.yaml", CONCEPTS);
+    let wide = concepts_file(&home, "in/wide.yaml", IMPORT);
+    let empty = concepts_file(&home, "in/empty.yaml", "concepts: []\n");
+    for (label, args) in [
+        (
+            "learn.concepts import",
+            &["learn", "concepts", "alpha", &good][..],
+        ),
+        (
+            "learn.concepts import consume",
+            &["learn", "concepts", "alpha", &wide, "--consume"],
+        ),
+        (
+            "learn.concepts import empty",
+            &["learn", "concepts", "alpha", &empty],
+        ),
+        (
+            "learn.concepts plaintext check",
+            &["learn", "concepts", "alpha", &wide, "--check"],
+        ),
+    ] {
+        assert_same(&home, args, true, label);
+    }
+}
+
+#[test]
+fn learn_concepts_refuses_what_it_cannot_repeat() {
+    strict(NOW);
+    // A sealed data folder: the import's writes differ on every run.
+    let sealed = prepare_setup(&Setup {
+        id: "concepts-sealed",
+        cli: &[START_ALPHA],
+        files: &[],
+    });
+    let good = concepts_file(&sealed, "in/good.yaml", CONCEPTS);
+    let anchors = concepts_file(
+        &sealed,
+        "in/anchor.yaml",
+        "concepts:\n  - &one {id: a, section: s, title: A, cites: [file:readme], questions: [{bloom: apply, prompt: p, answer: x}]}\n  - *one\n",
+    );
+    let list = concepts_file(&sealed, "in/list.yaml", "- {id: a}\n");
+    let repeated = concepts_file(
+        &sealed,
+        "in/repeat.yaml",
+        "concepts:\n  - {id: a}\n  - {id: a}\n",
+    );
+    let number = concepts_file(
+        &sealed,
+        "in/number.yaml",
+        "concepts:\n  - {id: 7, section: s}\n",
+    );
+    let cases: [(&str, &[&str]); 6] = [
+        (
+            "learn.concepts sealed import",
+            &["learn", "concepts", "alpha", &good],
+        ),
+        (
+            "learn.concepts anchors",
+            &["learn", "concepts", "alpha", &anchors, "--check"],
+        ),
+        (
+            "learn.concepts list",
+            &["learn", "concepts", "alpha", &list, "--check"],
+        ),
+        (
+            "learn.concepts repeated",
+            &["learn", "concepts", "alpha", &repeated, "--check"],
+        ),
+        (
+            "learn.concepts number id",
+            &["learn", "concepts", "alpha", &number, "--check"],
+        ),
+        (
+            "learn.concepts missing file",
+            &[
+                "learn",
+                "concepts",
+                "alpha",
+                "/nonexistent/x.yaml",
+                "--check",
+            ],
+        ),
+    ];
+    for (label, args) in cases {
+        assert!(!assert_same(&sealed, args, false, label));
+    }
+    // Python prints through `privacy.redact`, which reads the profile.
+    let redact = prepare_setup(&Setup {
+        id: "concepts-redact",
+        cli: &[START_ALPHA],
+        files: &[("profile.yaml", "name: Synthetic Person\n")],
+    });
+    let good = concepts_file(&redact, "in/good.yaml", CONCEPTS);
+    assert!(!assert_same(
+        &redact,
+        &["learn", "concepts", "alpha", &good, "--check"],
+        false,
+        "learn.concepts redact"
+    ));
+}
+
+/// Negative control: a passing and a failing concepts file give different
+/// observations.
+#[test]
+fn a_bad_concepts_file_gives_a_different_check() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "concepts-control",
+        cli: &[START_ALPHA],
+        files: &[],
+    });
+    let good = concepts_file(&home, "in/good.yaml", CONCEPTS);
+    let bad = concepts_file(&home, "in/bad.yaml", BAD_CONCEPTS);
+    let got = observe(
+        &home,
+        &["learn", "concepts", "alpha", &good, "--check"],
+        &Side::Native,
+    );
+    let want = observe(
+        &home,
+        &["learn", "concepts", "alpha", &bad, "--check"],
+        &Side::Python,
+    );
+    assert_ne!(got, want);
+}

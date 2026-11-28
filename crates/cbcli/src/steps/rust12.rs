@@ -11,10 +11,17 @@
 //! Wave 4 adds `learn tour approve` and `learn tour export` for a tour that
 //! does not exist (or a name that is not a tour name): Python's `ValueError`
 //! and `KeyError` lines.
+//!
+//! Wave 7 adds `learn concepts`: `--check` in any data folder, the import's
+//! "not imported" error, and an import into a plaintext data folder that
+//! writes only `concepts.yaml` and the concepts deck (no stale list to
+//! clear, no retest to drop), each for a concepts file in the shape
+//! `concepts_ok` names.
 use super::Ctx;
 use crate::args::Parsed;
 use crate::{events, Outcome};
 use careerbrew_learn::project as lp;
+use careerbrew_vault::canon::Canon;
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
@@ -29,6 +36,7 @@ pub const COMMANDS: &[&str] = &[
     "learn.next",
     "learn.tour.approve",
     "learn.tour.export",
+    "learn.concepts",
 ];
 
 const BLOOM: &[&str] = &[
@@ -54,6 +62,7 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "learn.next" => next(args, ctx),
         "learn.tour.approve" => no_tour(args, ctx, true),
         "learn.tour.export" => no_tour(args, ctx, false),
+        "learn.concepts" => concepts(args, ctx),
         _ => None,
     }
 }
@@ -766,4 +775,448 @@ fn no_tour(args: &Parsed, ctx: &Ctx, approve: bool) -> Option<Outcome> {
             "'no tour {name} in {project}; add one with `careerbrew learn tour add {project} {name} FILE`'"
         ),
     )
+}
+
+// ---------- wave 7: learn concepts ----------
+
+/// A string `str.strip` and `str.trim` read the same way, that needs no
+/// escape PyYAML and the vault reader could see differently: no control
+/// character but `\n` and `\t`.
+fn plain_text(text: &str) -> bool {
+    !text
+        .chars()
+        .any(|c| (c < ' ' && c != '\n' && c != '\t') || c == '\u{7f}' || c == '\u{feff}')
+}
+
+fn map_pairs(value: &Canon) -> Option<&[(Canon, Canon)]> {
+    match value {
+        Canon::Map(pairs) => Some(pairs),
+        _ => None,
+    }
+}
+
+/// The value under a string key in a map whose keys are all strings, once
+/// each; None (refuse) for any other key.
+fn str_map(value: &Canon) -> Option<Vec<(&str, &Canon)>> {
+    let mut out: Vec<(&str, &Canon)> = Vec::new();
+    for (key, item) in map_pairs(value)? {
+        let Canon::Str(key) = key else {
+            return None;
+        };
+        if out.iter().any(|(known, _)| *known == key) {
+            return None;
+        }
+        out.push((key, item));
+    }
+    Some(out)
+}
+
+fn lookup<'a>(map: &[(&str, &'a Canon)], key: &str) -> Option<&'a Canon> {
+    map.iter().find(|(k, _)| *k == key).map(|(_, v)| *v)
+}
+
+/// Absent or a string (`str(c.get(key, ""))` then reads it as is).
+fn opt_str<'a>(map: &[(&str, &'a Canon)], key: &str) -> Option<Option<&'a str>> {
+    match lookup(map, key) {
+        None => Some(None),
+        Some(Canon::Str(text)) => Some(Some(text)),
+        Some(_) => None,
+    }
+}
+
+/// Absent, or a list whose items pass `item`.
+fn opt_list<'a>(
+    map: &[(&str, &'a Canon)],
+    key: &str,
+    item: impl Fn(&Canon) -> bool,
+) -> Option<&'a [Canon]> {
+    match lookup(map, key) {
+        None => Some(&[]),
+        Some(Canon::List(items)) if items.iter().all(item) => Some(items),
+        Some(_) => None,
+    }
+}
+
+/// True for every string inside `value` passing `plain_text`.
+fn all_plain(value: &Canon) -> bool {
+    match value {
+        Canon::Str(text) => plain_text(text),
+        Canon::List(items) => items.iter().all(all_plain),
+        Canon::Map(pairs) => pairs.iter().all(|(k, v)| all_plain(k) && all_plain(v)),
+        _ => true,
+    }
+}
+
+/// The concept rows in the shape Python's `check_concepts` reads without an
+/// error, and the learn crate reads the same way: maps with string keys;
+/// `id` a non-empty string (absent once at most), unique, not "None";
+/// `section` and `title` strings; `prereqs` and `cites` lists of strings
+/// (no prerequisite "" or "None": Python keys an absent id as "None");
+/// `questions` a list of maps with string `bloom`, `prompt`, `answer` and
+/// `kind`, list `options` and `misconceptions`.
+fn concepts_ok(rows: &[Canon]) -> Option<()> {
+    let mut ids: Vec<&str> = Vec::new();
+    let mut absent_ids = 0;
+    for row in rows {
+        let map = str_map(row)?;
+        match opt_str(&map, "id")? {
+            None => absent_ids += 1,
+            Some(id) => {
+                if id.is_empty() || id == "None" || ids.contains(&id) {
+                    return None;
+                }
+                ids.push(id);
+            }
+        }
+        opt_str(&map, "section")?;
+        opt_str(&map, "title")?;
+        let is_str = |v: &Canon| matches!(v, Canon::Str(_));
+        for parent in opt_list(&map, "prereqs", is_str)? {
+            if matches!(parent, Canon::Str(p) if p.is_empty() || p == "None") {
+                return None;
+            }
+        }
+        opt_list(&map, "cites", is_str)?;
+        for question in opt_list(&map, "questions", |v| matches!(v, Canon::Map(_)))? {
+            let q = str_map(question)?;
+            for key in ["bloom", "prompt", "answer", "kind"] {
+                opt_str(&q, key)?;
+            }
+            match lookup(&q, "options") {
+                None | Some(Canon::Null) | Some(Canon::List(_)) => {}
+                Some(_) => return None,
+            }
+            opt_list(&q, "misconceptions", |_| true)?;
+        }
+    }
+    (absent_ids <= 1).then_some(())
+}
+
+/// The manifest in the shape `_cite_ok` reads without an error: absent, or
+/// a map whose `sources` (when there) are maps with string `key` and
+/// `kind`, a string `path` for a repo, and a string `file` when set.
+fn manifest_ok(root: &Path, slug: &str) -> Option<Canon> {
+    let context = careerbrew_vault::transfer::Context::from_env().ok()?;
+    let manifest = context
+        .store()
+        .read_json(
+            &root.join(format!("learn/{slug}/manifest.json")),
+            Canon::Null,
+            false,
+        )
+        .ok()?;
+    if matches!(manifest, Canon::Null) {
+        return Some(manifest);
+    }
+    let map = str_map(&manifest)?;
+    for source in opt_list(&map, "sources", |v| matches!(v, Canon::Map(_)))? {
+        let s = str_map(source)?;
+        opt_str(&s, "key")??;
+        let kind = opt_str(&s, "kind")??;
+        opt_str(&s, "file")?;
+        if kind == "repo" {
+            opt_str(&s, "path")??;
+        }
+    }
+    Some(manifest)
+}
+
+/// The notes folder as Python's `rglob("*.md")` and the learn crate's glob
+/// both read it: no symlink, UTF-8 names, no `.MD` look-alike.
+fn notes_ok(dir: &Path) -> Option<()> {
+    let meta = match std::fs::symlink_metadata(dir) {
+        Err(_) => return Some(()),
+        Ok(meta) => meta,
+    };
+    if !meta.is_dir() {
+        return None;
+    }
+    for entry in std::fs::read_dir(dir).ok()? {
+        let entry = entry.ok()?;
+        let name = entry.file_name().into_string().ok()?;
+        if name.to_lowercase().ends_with(".md") && !name.ends_with(".md") {
+            return None;
+        }
+        if name.contains(['*', '?', '[', ']']) {
+            return None;
+        }
+        let kind = entry.file_type().ok()?;
+        if kind.is_symlink() {
+            return None;
+        }
+        if kind.is_dir() {
+            notes_ok(&entry.path())?;
+        }
+    }
+    Some(())
+}
+
+/// `model.json` when `import_concepts` keeps it: absent, or a map whose
+/// `retests` (when there) is a map keyed by concept ids only.
+fn model_kept(root: &Path, slug: &str, ids: &[&str]) -> Option<()> {
+    let context = careerbrew_vault::transfer::Context::from_env().ok()?;
+    let model = context
+        .store()
+        .read_json(
+            &root.join(format!("learn/{slug}/model.json")),
+            Canon::Null,
+            false,
+        )
+        .ok()?;
+    if matches!(model, Canon::Null) {
+        return Some(());
+    }
+    let map = str_map(&model)?;
+    match lookup(&map, "retests") {
+        None => Some(()),
+        Some(retests) => {
+            let rows = str_map(retests)?;
+            rows.iter().all(|(id, _)| ids.contains(id)).then_some(())
+        }
+    }
+}
+
+/// What a successful import writes, worked out before anything is written:
+/// the `concepts.yaml` and deck texts. None when Python would write
+/// anything else (a stale list to clear, retests to drop), when the data
+/// folder is sealed, or when a text cannot be proven identical.
+fn import_plan(
+    root: &Path,
+    slug: &str,
+    rows: &[Canon],
+    manifest: &Canon,
+) -> Option<(String, String)> {
+    let context = careerbrew_vault::transfer::Context::from_env().ok()?;
+    if context.store().encryption_enabled() {
+        return None;
+    }
+    if !matches!(manifest, Canon::Null) {
+        let map = str_map(manifest)?;
+        match lookup(&map, "stale") {
+            None | Some(Canon::Null) => {}
+            Some(Canon::List(items)) if items.is_empty() => {}
+            Some(_) => return None,
+        }
+    }
+    let mut ids = Vec::new();
+    let mut cards = Vec::new();
+    for row in rows {
+        let map = str_map(row)?;
+        let id = opt_str(&map, "id")??;
+        ids.push(id);
+        let section = opt_str(&map, "section")??;
+        let cites: Vec<&str> = opt_list(&map, "cites", |_| true)?
+            .iter()
+            .map(|cite| match cite {
+                Canon::Str(text) => Some(text.as_str()),
+                _ => None,
+            })
+            .collect::<Option<_>>()?;
+        let questions = opt_list(&map, "questions", |_| true)?;
+        let pick = questions
+            .iter()
+            .find(|q| {
+                str_map(q).is_some_and(|q| matches!(opt_str(&q, "kind"), Some(None | Some("open"))))
+            })
+            .or_else(|| questions.first())?;
+        let q = str_map(pick)?;
+        let question = opt_str(&q, "prompt")??.trim();
+        let answer = opt_str(&q, "answer")??.trim();
+        if question.is_empty() || answer.is_empty() {
+            return None;
+        }
+        let source = cites.join(", ");
+        let s = |text: &str| Canon::Str(text.to_owned());
+        let mut card = vec![
+            (s("id"), s(id)),
+            (s("question"), s(question)),
+            (s("answer"), s(answer)),
+            (s("topic"), Canon::Str(careerbrew_learn::casefold(section))),
+            (s("tags"), Canon::List(vec![s(section)])),
+        ];
+        if !source.is_empty() {
+            card.push((s("source"), Canon::Str(source)));
+        }
+        cards.push(Canon::Map(card));
+    }
+    model_kept(root, slug, &ids)?;
+    let key = |text: &str| Canon::Str(text.to_owned());
+    let concepts = crate::pyyaml::safe_dump(&Canon::Map(vec![(
+        key("concepts"),
+        Canon::List(rows.to_vec()),
+    )]))?;
+    let deck = crate::pyyaml::safe_dump(&Canon::Map(vec![(key("cards"), Canon::List(cards))]))?;
+    Some((concepts, deck))
+}
+
+/// Appends one `learn.concepts` row as `events.emit` writes it (keys sorted).
+fn emit_concepts(ctx: &Ctx, count: usize) {
+    if !ctx.env.caps.events_on {
+        return;
+    }
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    let stamp = events::stamp(secs);
+    let mut line = String::from("{\"concepts\": ");
+    line.push_str(&count.to_string());
+    line.push_str(", \"event\": \"learn.concepts\", \"status\": \"ok\", \"ts\": ");
+    crate::render::py_string(&stamp, &mut line);
+    line.push_str(", \"v\": ");
+    crate::render::py_string(events::version(), &mut line);
+    line.push_str("}\n");
+    let logs = ctx.root.join("logs");
+    if std::fs::create_dir_all(&logs).is_err() {
+        return;
+    }
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(logs.join("events.jsonl"))
+    {
+        let _ = file.write_all(line.as_bytes());
+    }
+}
+
+/// `learn concepts PROJECT FILE [--check] [--consume]`: the check (any data
+/// folder), the import's "not imported" error, and an import in a plaintext
+/// folder that writes only `concepts.yaml` and the deck.
+fn concepts(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let project = args.text("project")?;
+    let file = args.text("file")?;
+    let check = args.flag("check");
+    let consume = args.flag("consume");
+    let root = &ctx.root;
+    // A sealed folder needs the key (Python could make one); a plaintext
+    // folder reads no key.
+    let sealed = careerbrew_vault::transfer::Context::from_env()
+        .ok()?
+        .store()
+        .encryption_enabled();
+    if (sealed && !key_present()) || file.is_empty() {
+        return None;
+    }
+    // The learn crate globs under the root; a pattern character breaks it.
+    if root
+        .to_str()
+        .is_none_or(|r| r.contains(['*', '?', '[', ']']))
+    {
+        return None;
+    }
+    let meta = std::fs::metadata(file).ok()?;
+    if !meta.is_file() {
+        return None;
+    }
+    let text = String::from_utf8(std::fs::read(file).ok()?).ok()?;
+    // `read_text` turns `\r` into `\n`; anchors make PyYAML share objects
+    // (and write `&id001`); a BOM, tabs, directives and control characters
+    // are where the two YAML readers could part.
+    if !plain_text(&text)
+        || text.contains(['\t', '&'])
+        || text.lines().any(|line| line.starts_with('%'))
+    {
+        return None;
+    }
+    let doc = careerbrew_vault::json_yaml::yaml_read(&text).ok()?;
+    if !all_plain(&doc) {
+        return None;
+    }
+    let rows: Vec<Canon> = match &doc {
+        Canon::Null => Vec::new(),
+        Canon::Map(pairs) if pairs.is_empty() => Vec::new(),
+        Canon::Map(_) => {
+            let map = str_map(&doc)?;
+            match lookup(&map, "concepts") {
+                None => Vec::new(),
+                Some(Canon::List(items)) => items.clone(),
+                Some(_) => return None,
+            }
+        }
+        _ => return None,
+    };
+    concepts_ok(&rows)?;
+    let slug = lp::slug(project);
+    if !dirs_ok(root, &["learn", &slug]) {
+        return None;
+    }
+    let folder = root.join("learn").join(&slug);
+    let manifest = manifest_ok(root, &slug)?;
+    notes_ok(&folder.join("notes"))?;
+    // An import that may succeed must know its writes first; when it cannot
+    // and the project folder is new, the check below would make the folder
+    // before the refusal.
+    let plan = if check {
+        None
+    } else {
+        import_plan(root, &slug, &rows, &manifest)
+    };
+    if !check && plan.is_none() && !folder.is_dir() {
+        return None;
+    }
+    let values: Vec<Value> = rows
+        .iter()
+        .map(careerbrew_setup::value::from_canon)
+        .collect();
+    touch_dirs(root, std::slice::from_ref(&folder))?;
+    let problems = lp::check_concepts(root, project, &values).ok()?;
+    if check {
+        let mut out = String::new();
+        for line in &problems {
+            out.push_str(&format!("  {line}\n"));
+        }
+        out.push_str(&format!(
+            "concepts check: {}\n",
+            if problems.is_empty() {
+                "pass".to_owned()
+            } else {
+                format!("{} problem(s)", problems.len())
+            }
+        ));
+        return Some(Outcome {
+            stdout: out,
+            stderr: String::new(),
+            code: i32::from(!problems.is_empty()),
+            emit_event: true,
+        });
+    }
+    if !problems.is_empty() {
+        emit_error(ctx, "learn.concepts", "valueerror");
+        return Some(Outcome {
+            stdout: format!(
+                "error: concepts not imported:\n  {}\n",
+                problems.join("\n  ")
+            ),
+            stderr: String::new(),
+            code: 2,
+            emit_event: false,
+        });
+    }
+    let (concepts_yaml, deck_yaml) = plan?;
+    let context = careerbrew_vault::transfer::Context::from_env().ok()?;
+    let store = context.store();
+    store
+        .write_text(&folder.join("concepts.yaml"), &concepts_yaml)
+        .ok()?;
+    let decks = folder.join("srs").join("decks");
+    std::fs::create_dir_all(&decks).ok()?;
+    store
+        .write_text(&decks.join("concepts.yaml"), &deck_yaml)
+        .ok()?;
+    emit_concepts(ctx, rows.len());
+    if consume {
+        std::fs::remove_file(file).ok()?;
+    }
+    let mut sections: Vec<&str> = Vec::new();
+    for row in &rows {
+        let map = str_map(row)?;
+        let section = opt_str(&map, "section")??;
+        if !sections.contains(&section) {
+            sections.push(section);
+        }
+    }
+    done(format!(
+        "imported {} concept(s) in {} section(s); each is a card with spaced reviews\n",
+        rows.len(),
+        sections.len()
+    ))
 }
