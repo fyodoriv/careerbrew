@@ -179,7 +179,7 @@ report.list native
 report.public native
 serve python
 web.rotate-token native
-changes python
+changes native
 research.page python
 research.stale native
 interview-patterns native
