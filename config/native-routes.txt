@@ -99,9 +99,9 @@ work.project.update native
 work.project.explain native
 work.project.prd native
 work.project.show python
-work.priority.show python
-work.priority.set python
-work.priority.remove python
+work.priority.show native
+work.priority.set native
+work.priority.remove native
 work.feed.show native
 work.feed.pull python
 work.feed.add python
