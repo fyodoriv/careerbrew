@@ -129,10 +129,10 @@ work.promise.step python
 work.agent.event native
 work.agent.show python
 work.session.open python
-work.session.list python
+work.session.list native
 work.session.ask python
 work.session.handoff native
-work.session.end python
+work.session.end native
 work.claim.take native
 work.claim.release native
 work.claim.list python
@@ -228,10 +228,10 @@ day.question.list native
 day.question.recheck python
 day.question.close native
 day.loop native
-notify.status python
+notify.status native
 notify.check python
 notify.list native
-notify.act python
+notify.act native
 notify.open python
 indie.goal python
 indie.income python

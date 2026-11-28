@@ -1,5 +1,7 @@
 //! Native CLI handlers owned by `rust-14` (see `steps/mod.rs`): the live
-//! feed's `work live stop` and `notify list`, over `careerbrew_live`.
+//! feed's `work live stop`, `notify list`, `notify status` and `notify act`
+//! over `careerbrew_live`, and the project sessions' `work session list`
+//! and the argument error of `work session end`.
 //!
 //! Each handler checks, before any write, that the Python code would read
 //! the same inputs the same way; any doubt refuses (exit 64) and Python runs
@@ -17,7 +19,14 @@ use std::time::Instant;
 /// The route keys this module serves. Each one must be routed `native` in
 /// `config/native-routes.txt` and have a parity case in
 /// `crates/cbcli/tests/step_rust14.rs`.
-pub const COMMANDS: &[&str] = &["work.live.stop", "notify.list"];
+pub const COMMANDS: &[&str] = &[
+    "work.live.stop",
+    "notify.list",
+    "notify.status",
+    "notify.act",
+    "work.session.list",
+    "work.session.end",
+];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
 pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
@@ -28,6 +37,10 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
     match name {
         "work.live.stop" => live_stop(ctx, started),
         "notify.list" => notify_list(args, ctx),
+        "notify.status" => notify_status(ctx),
+        "notify.act" => notify_act(args, ctx, started),
+        "work.session.list" => session_list(args, ctx),
+        "work.session.end" => session_end(args),
         _ => None,
     }
 }
@@ -466,6 +479,576 @@ fn notify_list(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         stdout: out,
         stderr: String::new(),
         code: 0,
+        emit_event: true,
+    })
+}
+
+// ---------- notify status ----------
+
+/// True when `CAREERBREW_NOW` is pinned with a UTC offset: Python's clock
+/// then carries a fixed offset, as the crates' clock does. Otherwise it
+/// carries the local zone, whose offset can change (daylight saving time).
+fn clock_is_fixed() -> bool {
+    std::env::var("CAREERBREW_NOW").is_ok_and(|value| matches!(iso(&value), Some(Some(_))))
+}
+
+/// The notifier lookup reads `PATH` the same way in Python (`shutil.which`)
+/// and the crate: every entry absolute, and every notifier found there an
+/// executable file (the crate does not check the mode). The crate's test
+/// platform hook must be unset.
+fn notifier_path_ok() -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    if std::env::var_os("CAREERBREW_RUST14_PLATFORM").is_some() {
+        return false;
+    }
+    let Ok(path) = std::env::var("PATH") else {
+        return false;
+    };
+    for dir in path.split(':') {
+        if !dir.starts_with('/') {
+            return false;
+        }
+        for name in ["alerter", "terminal-notifier", "osascript"] {
+            let file = Path::new(dir).join(name);
+            if let Ok(meta) = std::fs::metadata(&file) {
+                if !meta.is_file() || meta.permissions().mode() & 0o111 != 0o111 {
+                    return false;
+                }
+            }
+        }
+    }
+    true
+}
+
+/// The stored notifications as `notify.load` reads them without raising:
+/// a mapping whose `items` and `popups` are lists (or absent).
+fn notify_state(root: &Path) -> Option<(Canon, Vec<Canon>, Vec<Canon>)> {
+    let state = read_json(root, "day/notifications.json")?;
+    if !matches!(state, Canon::Map(_)) {
+        return None;
+    }
+    let items = match get(&state, "items") {
+        None => Vec::new(),
+        value => list(value)?.to_vec(),
+    };
+    let popups = match get(&state, "popups") {
+        None => Vec::new(),
+        value => list(value)?.to_vec(),
+    };
+    Some((state, items, popups))
+}
+
+/// One pop-up's `at` is aware, and its day is the same in the clock's
+/// fixed offset (the crate) and in the local zone (Python, unless the
+/// clock is pinned with an offset).
+fn popup_day_ok(popup: &Canon, fixed_clock: bool) -> bool {
+    let Some(at) = string(popup, "at") else {
+        return false;
+    };
+    if !matches!(iso(at), Some(Some(_))) {
+        return false;
+    }
+    if fixed_clock {
+        return true;
+    }
+    let Some(time) = careerbrew_live::parse_time(at) else {
+        return false;
+    };
+    let now = careerbrew_feed::now();
+    let zone = careerbrew_feed::local_zone();
+    time.with_timezone(&now.timezone()).date_naive() == time.with_timezone(&zone).date_naive()
+}
+
+fn notify_status(ctx: &Ctx) -> Option<Outcome> {
+    let root = &ctx.root;
+    if !notifier_path_ok() {
+        return None;
+    }
+    let settings = read_yaml(root, "settings.yaml")?;
+    if !notify_settings_ok(&settings) {
+        return None;
+    }
+    let (_, items, popups) = notify_state(root)?;
+    if !items
+        .iter()
+        .all(|row| matches!(row, Canon::Map(_)) && string(row, "status").is_some())
+    {
+        return None;
+    }
+    let fixed = clock_is_fixed();
+    if !popups.iter().all(|popup| popup_day_ok(popup, fixed)) {
+        return None;
+    }
+    let state = careerbrew_live::notify::status(root).ok()?;
+    let state = careerbrew_setup::value::to_canon(&state);
+    let flag = |key: &str| match get(&state, key) {
+        Some(Canon::Bool(value)) => Some(*value),
+        _ => None,
+    };
+    let number = |key: &str| int(get(&state, key));
+    let enabled = flag("enabled")?;
+    let quiet = string(&state, "quiet_hours")?;
+    let mut out = format!(
+        "notifications: {}\n",
+        if enabled {
+            "on"
+        } else {
+            "off (opt in: careerbrew config set notify_events true)"
+        }
+    );
+    out.push_str(&format!("pop-ups: {}\n", string(&state, "backend_note")?));
+    out.push_str(&format!(
+        "rules: priority >= {} (5 a page on you, 4 a DM or review request, 3 a mention, important mail, or suggestion), \
+         quiet hours {}{}, cap {} a day ({} today), batch {} min, snooze {} min\n",
+        number("min_priority")?,
+        if quiet.is_empty() { "none" } else { quiet },
+        if flag("quiet_now")? { " (now)" } else { "" },
+        number("daily_cap")?,
+        number("sent_today")?,
+        number("batch_minutes")?,
+        number("snooze_minutes")?,
+    ));
+    out.push_str(&format!(
+        "open: {} ({} unread): careerbrew notify list, or the web app's Notifications view\n",
+        number("open")?,
+        number("unread")?
+    ));
+    Some(Outcome {
+        stdout: out,
+        stderr: String::new(),
+        code: 0,
+        emit_event: true,
+    })
+}
+
+// ---------- notify act ----------
+
+/// A JSON value the crate's `serde_json` round trip writes back as Python's
+/// `json.dumps` does: no floats and no integers past `i64`.
+fn plain(value: &Canon) -> bool {
+    match value {
+        Canon::Null | Canon::Bool(_) | Canon::Str(_) => true,
+        Canon::Int(_) => int(Some(value)).is_some(),
+        Canon::List(items) => items.iter().all(plain),
+        Canon::Map(pairs) => pairs
+            .iter()
+            .all(|(k, v)| matches!(k, Canon::Str(_)) && plain(v)),
+        _ => false,
+    }
+}
+
+fn printable(text: &str) -> bool {
+    !text.is_empty() && text.chars().all(|c| (' '..='~').contains(&c))
+}
+
+/// The local zone's UTC offset at `secs` since the epoch.
+fn zone_offset_at(secs: i64) -> Option<i32> {
+    let stamp = crate::events::stamp(u64::try_from(secs).ok()?);
+    let time = careerbrew_live::parse_time(&stamp)?;
+    let zone = careerbrew_feed::local_zone();
+    Some(
+        time.with_timezone(&zone)
+            .fixed_offset()
+            .offset()
+            .local_minus_utc(),
+    )
+}
+
+/// Python adds the snooze to the wall clock of a zoned `now` and takes the
+/// zone's offset then; the crate keeps `now`'s offset. They agree when the
+/// zone keeps one offset over the snooze (or the clock is pinned with an
+/// offset).
+fn snooze_clock_ok(minutes: i64) -> bool {
+    if clock_is_fixed() {
+        return true;
+    }
+    let now = careerbrew_feed::now();
+    let at = now.timestamp();
+    let offset = now.offset().local_minus_utc();
+    [at, at + (minutes + 120) * 60]
+        .iter()
+        .all(|secs| zone_offset_at(*secs) == Some(offset))
+}
+
+fn notify_act(args: &Parsed, ctx: &Ctx, started: Instant) -> Option<Outcome> {
+    if !event_version_ok() {
+        return None;
+    }
+    let id = args.text("id")?;
+    let action = args.text("action")?;
+    // Accept, and Dismiss of a suggestion, decide an inbox item: Python.
+    if !printable(id) || !["read", "snooze", "dismiss"].contains(&action) {
+        return None;
+    }
+    let root = &ctx.root;
+    let settings = read_yaml(root, "settings.yaml")?;
+    if !notify_settings_ok(&settings) {
+        return None;
+    }
+    let (state, items, _) = notify_state(root)?;
+    if !plain(&state) {
+        return None;
+    }
+    if !items
+        .iter()
+        .all(|row| matches!(row, Canon::Map(_)) && string(row, "id").is_some())
+    {
+        return None;
+    }
+    // Every refusal Python raises (`NotifyError`) stays with Python.
+    let row = items.iter().find(|row| string(row, "id") == Some(id))?;
+    let status = string(row, "status")?;
+    let kind = string(row, "kind")?;
+    if action != "read" && !OPEN.contains(&status) {
+        return None;
+    }
+    if kind == "suggestion" && action == "dismiss" {
+        return None;
+    }
+    let refs_ok = match get(row, "held_refs") {
+        None | Some(Canon::Null) => true,
+        Some(Canon::List(refs)) => refs.iter().all(|r| matches!(r, Canon::Str(_))),
+        Some(_) => false,
+    };
+    if !refs_ok
+        || !null_or_map(get(row, "snoozed_until_by_ref"))
+        || !matches!(get(row, "snoozes"), None | Some(Canon::List(_)))
+    {
+        return None;
+    }
+    if action == "snooze" {
+        let minutes = match get(&settings, "notify_snooze_minutes") {
+            None => 60,
+            value => int(value)?,
+        };
+        if !snooze_clock_ok(minutes) {
+            return None;
+        }
+    }
+    let done = careerbrew_live::notify::act(root, id, action, "cli", None).ok()?;
+    let done = careerbrew_setup::value::to_canon(&done);
+    let status = string(&done, "status")?;
+    let mut line = format!("{id}: {status}");
+    if status == "snoozed" {
+        let until = string(&done, "snooze_until")?;
+        line.push_str(" until ");
+        line.push_str(until.get(11..16)?);
+    }
+    line.push('\n');
+    Some(written(ctx, "notify.act", started, line))
+}
+
+// ---------- work session list ----------
+
+/// `date.fromisoformat(day).isoformat() == day`.
+fn plain_day(day: &str) -> bool {
+    day.len() == 10 && iso(&format!("{day}T00:00:00")).is_some()
+}
+
+/// Days since 1970-01-01 for a `YYYY-MM-DD` day (Howard Hinnant).
+fn day_number(day: &str) -> Option<i64> {
+    let y: i64 = day.get(0..4)?.parse().ok()?;
+    let m: i64 = day.get(5..7)?.parse().ok()?;
+    let d: i64 = day.get(8..10)?.parse().ok()?;
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let mp = (m + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    Some(era * 146_097 + doe - 719_468)
+}
+
+/// The `YYYY-MM-DD` day `n` days after 1970-01-01.
+fn day_text(n: i64) -> Option<String> {
+    let secs = u64::try_from(n.checked_mul(86_400)?).ok()?;
+    crate::events::stamp(secs).get(0..10).map(str::to_owned)
+}
+
+/// One saved session as Python's `sessions._load` accepts it, in the forms
+/// the listing below reads the same way.
+fn session_ok(session: &Canon) -> bool {
+    if !matches!(session, Canon::Map(_))
+        || ["id", "project", "day", "started", "ended"]
+            .iter()
+            .any(|key| string(session, key).is_none())
+    {
+        return false;
+    }
+    let id = string(session, "id").unwrap_or("");
+    let project = string(session, "project").unwrap_or("");
+    let started = string(session, "started").unwrap_or("");
+    let ended = string(session, "ended").unwrap_or("");
+    let paired =
+        get(session, "record_id").is_some() == get(session, "project_incarnation").is_some();
+    let record_ok = match get(session, "record_id") {
+        None => true,
+        Some(Canon::Str(value)) => {
+            value.len() == 32
+                && value
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        }
+        Some(_) => false,
+    };
+    printable(id)
+        && !project.is_empty()
+        && paired
+        && record_ok
+        && matches!(iso(started), Some(Some(_)))
+        && plain_day(string(session, "day").unwrap_or(""))
+        && (ended.is_empty() || iso(ended).is_some())
+        && ["handoff", "wrap_requested_at", "handoff_at"]
+            .iter()
+            .all(|key| matches!(get(session, key), None | Some(Canon::Str(_))))
+}
+
+/// One saved claim as Python's `_load` accepts it; an aware `until`, so
+/// `_prune` compares it the same way.
+fn claim_ok(claim: &Canon) -> bool {
+    matches!(claim, Canon::Map(_))
+        && ["resource", "session", "until"]
+            .iter()
+            .all(|key| string(claim, key).is_some_and(|text| !text.is_empty()))
+        && matches!(string(claim, "until").and_then(iso), Some(Some(_)))
+}
+
+/// Python's `_fresh_handoff`; None when Python could read a stamp this
+/// reader does not.
+fn fresh_handoff(session: &Canon) -> Option<bool> {
+    if string(session, "handoff").unwrap_or("").is_empty() {
+        return Some(false);
+    }
+    let wrap = string(session, "wrap_requested_at").unwrap_or("");
+    if wrap.is_empty() {
+        return Some(true);
+    }
+    let written = string(session, "handoff_at").unwrap_or("");
+    if written.is_empty() {
+        return Some(false);
+    }
+    let (Some(_), Some(_)) = (iso(written)?, iso(wrap)?) else {
+        return Some(false);
+    };
+    let written = careerbrew_live::parse_time(written)?;
+    let wrap = careerbrew_live::parse_time(wrap)?;
+    Some(written > wrap)
+}
+
+/// A setting Python reads with `int(config.get(key))`: absent or an int.
+fn int_setting(settings: &Canon, key: &str, default: i64) -> Option<i64> {
+    match get(settings, key) {
+        None => Some(default),
+        value => int(value),
+    }
+}
+
+/// True when a day file `day/work-<day>.json` (the work-day questions) may
+/// exist: the listing counts their open questions, which stay with Python.
+fn work_day_files(root: &Path) -> bool {
+    let Ok(entries) = std::fs::read_dir(root.join("day")) else {
+        return root.join("day").exists();
+    };
+    entries.into_iter().any(|entry| match entry {
+        Ok(entry) => {
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            name.starts_with("work-") || name.starts_with(".work-")
+        }
+        Err(_) => true,
+    })
+}
+
+struct Row<'a> {
+    session: &'a Canon,
+    state: &'static str,
+    claims: usize,
+    fresh: bool,
+}
+
+fn session_list(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let root = &ctx.root;
+    // Projects and handoffs show only on a terminal (a plugin policy is
+    // refused with the redaction inputs).
+    if ctx.env.stdout_is_terminal {
+        return None;
+    }
+    // Agent activity and open questions stay with Python.
+    if root.join("work/agents/events.jsonl").exists() || work_day_files(root) {
+        return None;
+    }
+    let settings = read_yaml(root, "settings.yaml")?;
+    let cap = int_setting(&settings, "work_session_cap", 3)?;
+    let keep_days = int_setting(&settings, "agent_keep_days", 7)?;
+    int_setting(&settings, "agent_quiet_minutes", 0)?;
+    let store = if root.join("work/sessions.json").exists() {
+        read_json(root, "work/sessions.json")?
+    } else {
+        Canon::Map(Vec::new())
+    };
+    if !matches!(store, Canon::Map(_)) {
+        return None;
+    }
+    let sessions = match get(&store, "sessions") {
+        None => &[][..],
+        value => list(value)?,
+    };
+    let claims = match get(&store, "claims") {
+        None => &[][..],
+        value => list(value)?,
+    };
+    if !sessions.iter().all(session_ok) || !claims.iter().all(claim_ok) {
+        return None;
+    }
+    let mut records: Vec<&str> = sessions
+        .iter()
+        .filter_map(|s| string(s, "record_id"))
+        .collect();
+    let count = records.len();
+    records.sort_unstable();
+    records.dedup();
+    if records.len() != count {
+        return None;
+    }
+    let now = careerbrew_feed::now();
+    let today = now.date_naive().to_string();
+    let keep = day_text(day_number(&today)?.checked_sub(keep_days)?)?;
+    let open_ids: Vec<&str> = sessions
+        .iter()
+        .filter(|s| string(s, "ended") == Some(""))
+        .filter_map(|s| string(s, "id"))
+        .collect();
+    let held: Vec<&Canon> = claims
+        .iter()
+        .filter(|c| {
+            string(c, "until")
+                .and_then(careerbrew_live::parse_time)
+                .is_some_and(|until| until > now)
+                && string(c, "session").is_some_and(|s| open_ids.contains(&s))
+        })
+        .collect();
+    let all = args.flag("all");
+    let mut rows = Vec::new();
+    for session in sessions.iter().rev() {
+        let ended = !string(session, "ended")?.is_empty();
+        let day = string(session, "day")?;
+        if ended && (!all || day < keep.as_str()) {
+            continue;
+        }
+        let id = string(session, "id")?;
+        rows.push(Row {
+            session,
+            state: if ended {
+                "ended"
+            } else if day == today {
+                "live"
+            } else {
+                "stale"
+            },
+            claims: held
+                .iter()
+                .filter(|c| string(c, "session") == Some(id))
+                .count(),
+            fresh: fresh_handoff(session)?,
+        });
+    }
+    let stdout = if args.flag("json") {
+        session_json(cap, &rows)?
+    } else {
+        session_text(cap, &rows)?
+    };
+    Some(Outcome {
+        stdout,
+        stderr: String::new(),
+        code: 0,
+        emit_event: true,
+    })
+}
+
+/// `json.dumps({"cap": ..., "sessions": [public(row), ...]})`.
+fn session_json(cap: i64, rows: &[Row]) -> Option<String> {
+    use crate::render::py_string;
+    let mut out = format!("{{\"cap\": {cap}, \"sessions\": [");
+    for (n, row) in rows.iter().enumerate() {
+        let s = row.session;
+        if n > 0 {
+            out.push_str(", ");
+        }
+        out.push_str("{\"id\": ");
+        py_string(string(s, "id")?, &mut out);
+        out.push_str(", \"project\": ");
+        let hash = careerbrew_sessions::digest(string(s, "project")?);
+        py_string(hash.get(..8)?, &mut out);
+        for key in ["day", "started", "ended"] {
+            out.push_str(&format!(", \"{key}\": "));
+            py_string(string(s, key)?, &mut out);
+        }
+        out.push_str(", \"state\": ");
+        py_string(row.state, &mut out);
+        out.push_str(", \"questions\": 0, \"has_handoff\": ");
+        out.push_str(if row.fresh { "true" } else { "false" });
+        for key in ["wrap_requested_at", "handoff_at"] {
+            out.push_str(&format!(", \"{key}\": "));
+            py_string(string(s, key).unwrap_or(""), &mut out);
+        }
+        out.push_str(
+            ", \"activity\": {\"status\": \"none\", \"at\": \"\", \"events\": 0}, \"claims\": ",
+        );
+        out.push_str(&row.claims.to_string());
+        out.push('}');
+    }
+    out.push_str("]}\n");
+    Some(out)
+}
+
+/// `cmd_work_session`'s listing with business data hidden.
+fn session_text(cap: i64, rows: &[Row]) -> Option<String> {
+    if rows.is_empty() {
+        return Some("no project sessions: the /work agent opens one per pressing project with careerbrew work session open <project> --id <session id>\n".to_owned());
+    }
+    let mut out = String::new();
+    for row in rows {
+        let s = row.session;
+        let handoff = if row.fresh {
+            "written"
+        } else if !string(s, "handoff").unwrap_or("").is_empty() {
+            "stale or unverified: write a fresh handoff"
+        } else {
+            "not yet"
+        };
+        out.push_str(&format!(
+            "  {:<6} {}  no event yet, {} claim(s), 0 open question(s), handoff {handoff}\n",
+            row.state,
+            string(s, "id")?,
+            row.claims
+        ));
+    }
+    let live = rows.iter().filter(|r| r.state == "live").count();
+    let stale = rows.iter().filter(|r| r.state == "stale").count();
+    out.push_str(&format!("sessions: {live} of {cap} live"));
+    if stale > 0 {
+        out.push_str(&format!(", {stale} left from an earlier day"));
+    }
+    out.push('\n');
+    out.push_str("projects and handoffs hidden: stdout is not a terminal and no plugin policy allows agents to read business data\n");
+    Some(out)
+}
+
+// ---------- work session end ----------
+
+/// Only the argument error (no id and no `--all`, or both): Python raises
+/// it before it reads the session store. Every real end stays with Python.
+fn session_end(args: &Parsed) -> Option<Outcome> {
+    let id = args.text("id")?;
+    // Python raises when `bool(id) == bool(all)`.
+    if id.is_empty() == args.flag("all") {
+        return None;
+    }
+    Some(Outcome {
+        stdout: "error: end needs a session id (or its project) or --all (breaks US-107)\n"
+            .to_owned(),
+        stderr: String::new(),
+        code: 2,
         emit_event: true,
     })
 }
