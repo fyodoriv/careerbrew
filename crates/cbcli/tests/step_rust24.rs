@@ -5,7 +5,9 @@
 //! "work.project.gate", "work.project.update", "work.project.source",
 //! "work.project.check", "work.project.prd", "work.project.next",
 //! "work.project.reference", "work.project.memory", "work.project.set",
-//! "work.project.explain", "metrics.time-saved" and "cards.publish".
+//! "work.project.explain", "metrics.time-saved", "cards.publish",
+//! "work.project.add", "work.project.show", "work.project.sync" and
+//! "drill.progress".
 mod common;
 
 use common::*;
@@ -1147,4 +1149,353 @@ fn the_cards_comparison_detects_a_planted_difference() {
     assert_eq!(a.code, Some(0));
     assert_eq!(b.code, Some(1));
     assert_ne!(a.stdout, b.stdout);
+}
+
+// ---------- wave 7: "work.project.add", "work.project.show",
+// "work.project.sync" and "drill.progress" ----------
+
+#[test]
+fn work_project_add_errors_match_python() {
+    strict(NOW);
+    let home = projects_home("add-errors");
+    let long_title = "t".repeat(201);
+    let long_group = "g".repeat(61);
+    let cases: Vec<(Vec<&str>, &str)> = vec![
+        (vec!["work", "project", "add", "Bad_Name"], "bad name"),
+        (vec!["work", "project", "add", "alpha"], "already exists"),
+        (
+            vec!["work", "project", "add", "gamma", "--stale-after", "0d"],
+            "zero days",
+        ),
+        (
+            vec!["work", "project", "add", "gamma", "--stale-after", "soon"],
+            "days not a number",
+        ),
+        (
+            vec!["work", "project", "add", "gamma", "--title", &long_title],
+            "title too long",
+        ),
+        (
+            vec!["work", "project", "add", "gamma", "--group", &long_group],
+            "group too long",
+        ),
+        (
+            vec!["work", "project", "add", "gamma", "--kind", "demo"],
+            "unknown kind",
+        ),
+        (
+            vec![
+                "work",
+                "project",
+                "add",
+                "gamma",
+                "--kind",
+                "prep",
+                "--event-on",
+                "soon",
+            ],
+            "event day not a date",
+        ),
+        (
+            vec![
+                "work",
+                "project",
+                "add",
+                "gamma",
+                "--event-on",
+                "2026-12-01",
+            ],
+            "event day without prep",
+        ),
+        (
+            vec!["work", "project", "add", "gamma", "--parent", "ghost"],
+            "unknown parent",
+        ),
+        (
+            vec!["work", "project", "add", "gamma", "--parent", "gamma"],
+            "own parent",
+        ),
+        (
+            vec![
+                "work", "project", "add", "gamma", "--link", "ghost", "--link", "alpha", "--link",
+                "gamma", "--link", "ghost",
+            ],
+            "unknown and own links",
+        ),
+    ];
+    for (args, label) in cases {
+        same(&home, &args, &format!("work.project.add {label}"));
+    }
+}
+
+#[test]
+fn work_project_add_refuses_what_it_cannot_prove() {
+    strict(NOW);
+    let home = projects_home("add-refusals");
+    // A new record holds a random id: Python saves it.
+    refused(
+        &home,
+        &["work", "project", "add", "gamma"],
+        "work.project.add success",
+    );
+    refused(
+        &home,
+        &[
+            "work",
+            "project",
+            "add",
+            "gamma",
+            "--kind",
+            "prep",
+            "--event-on",
+            "2026-12-01",
+        ],
+        "work.project.add prep success",
+    );
+    // Several words after one `--link` are left to argparse.
+    refused(
+        &home,
+        &[
+            "work", "project", "add", "gamma", "--link", "ghost", "alpha",
+        ],
+        "work.project.add one flag, many links",
+    );
+    // A week date is left to `date.fromisoformat`.
+    refused(
+        &home,
+        &[
+            "work",
+            "project",
+            "add",
+            "gamma",
+            "--event-on",
+            "2026-W01-1",
+        ],
+        "work.project.add week date",
+    );
+}
+
+/// Synthetic records with every row shape `show` prints.
+const SHOWN: &str = "projects:
+  alpha:
+    memory: ''
+    stale_after_days: 7
+    group: Synthetic group
+    links:
+    - beta
+    sources:
+    - kind: repo
+      ref: example/synthetic
+      checked_at: '2026-11-19T09:00:00+00:00'
+      status: ''
+    - kind: doc
+      ref: notes-a
+      checked_at: '2026-11-10T21:00:00+00:00'
+      status: ''
+      stale_reason: synthetic reason
+    - kind: url
+      ref: notes-b
+      checked_at: null
+      status: ''
+    - kind: chat
+      ref: thread-one
+      checked_at: '2026-11-18T09:00:00+00:00'
+      status: ''
+      reference: true
+    proposed:
+    - kind: doc
+      ref: notes-c
+    tasks:
+    - t1
+    - t2
+  beta:
+    memory: ''
+    stale_after_days: 14
+    parent: alpha
+    links:
+    - alpha
+    sources: []
+    tasks: []
+";
+
+const SHOWN_TASKS: &str = "tasks:
+- id: t1
+  title: Synthetic open task
+  status: open
+- id: t2
+  title: Synthetic done task
+  status: done
+";
+
+fn shown_home(id: &'static str, projects: &'static str) -> Home {
+    // `Setup` holds static slices: one small leak per test home.
+    let files = Box::leak(Box::new([
+        ZONE,
+        PLAIN,
+        ("work/projects.yaml", projects),
+        ("work/tasks.yaml", SHOWN_TASKS),
+    ]));
+    prepare_setup(&Setup {
+        id,
+        cli: &[],
+        files,
+    })
+}
+
+#[test]
+fn work_project_show_matches_python() {
+    strict(NOW);
+    let home = projects_home("show-plain");
+    for (args, label) in [
+        (["work", "project", "show", "alpha"], "a plain project"),
+        (["work", "project", "show", "beta"], "a titled project"),
+        (["work", "project", "show", "ghost"], "an unknown project"),
+    ] {
+        same(&home, &args, &format!("work.project.show {label}"));
+    }
+    let shown = shown_home("show-rows", SHOWN);
+    same(
+        &shown,
+        &["work", "project", "show", "alpha"],
+        "work.project.show every row shape",
+    );
+    same(
+        &shown,
+        &["work", "project", "show", "beta"],
+        "work.project.show parent and links",
+    );
+}
+
+#[test]
+fn work_project_show_refuses_what_it_cannot_prove() {
+    strict(NOW);
+    let home = projects_home("show-refusals");
+    refused(
+        &home,
+        &["work", "project", "show", "prepper"],
+        "work.project.show prep project",
+    );
+    let linked = shown_home(
+        "show-link",
+        "projects:\n  alpha:\n    sources:\n    - kind: url\n      ref: https://example.test/a\n      checked_at: null\n    tasks: []\n",
+    );
+    refused(
+        &linked,
+        &["work", "project", "show", "alpha"],
+        "work.project.show a link ref",
+    );
+    let odd_age = shown_home(
+        "show-odd-age",
+        "projects:\n  alpha:\n    sources:\n    - kind: repo\n      ref: example/synthetic\n      checked_at: '2026-11-19T08:59:00+00:00'\n    tasks: []\n",
+    );
+    refused(
+        &odd_age,
+        &["work", "project", "show", "alpha"],
+        "work.project.show an age between tenths",
+    );
+    let plugin = shown_home("show-plugin", SHOWN);
+    plant(&plugin, "plugins.lock.json", "{\"plugins\": {}}\n");
+    refused(
+        &plugin,
+        &["work", "project", "show", "alpha"],
+        "work.project.show with a plugin lock",
+    );
+}
+
+#[test]
+fn work_project_sync_matches_python() {
+    strict(NOW);
+    same(
+        &projects_home("sync-on"),
+        &["work", "project", "sync"],
+        "work.project.sync with nothing to sync",
+    );
+    same(
+        &empty_home("sync-empty"),
+        &["work", "project", "sync"],
+        "work.project.sync with no project",
+    );
+    let off = prepare_setup(&Setup {
+        id: "sync-off",
+        cli: PROJECTS,
+        files: &[(
+            "settings.yaml",
+            "timezone: Etc/UTC\nproject_memory_sync: false\n",
+        )],
+    });
+    same(&off, &["work", "project", "sync"], "work.project.sync off");
+}
+
+#[test]
+fn work_project_sync_refuses_what_it_cannot_prove() {
+    strict(NOW);
+    refused(
+        &shown_home("sync-sources", SHOWN),
+        &["work", "project", "sync"],
+        "work.project.sync a project with sources",
+    );
+    let feed = projects_home("sync-feed");
+    plant(&feed, "work/feed/events.jsonl", "");
+    refused(
+        &feed,
+        &["work", "project", "sync"],
+        "work.project.sync with feed events",
+    );
+}
+
+#[test]
+fn drill_progress_matches_python() {
+    strict(NOW);
+    same(
+        &empty_home("drill-empty"),
+        &["drill", "progress"],
+        "drill.progress before any attempt",
+    );
+    same(
+        &projects_home("drill-projects"),
+        &["drill", "progress"],
+        "drill.progress beside other data",
+    );
+}
+
+#[test]
+fn drill_progress_refuses_what_it_cannot_prove() {
+    strict(NOW);
+    let tried = empty_home("drill-attempts");
+    plant(&tried, "tutor/attempts.jsonl", "");
+    refused(
+        &tried,
+        &["drill", "progress"],
+        "drill.progress with an attempts file",
+    );
+    let corporate = prepare_setup(&Setup {
+        id: "drill-corporate",
+        cli: &[&["machine", "set", "corporate"]],
+        files: &[ZONE],
+    });
+    refused(
+        &corporate,
+        &["drill", "progress"],
+        "drill.progress on a corporate machine",
+    );
+}
+
+/// Negative control for wave 7: two served reads differ, and the progress
+/// page is written.
+#[test]
+fn the_wave_seven_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let shown = shown_home("wave7-control", SHOWN);
+    let alpha = observe(&shown, &["work", "project", "show", "alpha"], &Side::Native);
+    let beta = observe(&shown, &["work", "project", "show", "beta"], &Side::Native);
+    assert_eq!(alpha.code, Some(0));
+    assert_eq!(beta.code, Some(0));
+    assert_ne!(alpha.stdout, beta.stdout);
+    let drill = empty_home("wave7-drill");
+    let page = observe(&drill, &["drill", "progress"], &Side::Native);
+    assert_eq!(page.code, Some(0));
+    assert!(page
+        .files
+        .iter()
+        .any(|f| f.starts_with("out/progress.html ")));
 }
