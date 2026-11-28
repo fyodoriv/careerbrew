@@ -22,7 +22,7 @@ jobs.scan python
 jobs.choose native
 jobs.unchoose native
 jobs.linkedin-import python
-jobs.interview-gaps python
+jobs.interview-gaps native
 jobs.preset native
 jobs.list python
 jobs.rate python
@@ -172,7 +172,7 @@ plugin.new python
 plugin.verify native
 privacy.scan python
 connect python
-interview python
+interview native
 open python
 report.latest python
 report.list python
@@ -181,8 +181,8 @@ serve python
 web.rotate-token python
 changes python
 research.page python
-research.stale python
-interview-patterns python
+research.stale native
+interview-patterns native
 prep.check python
 prep.story native
 mail.scan python
