@@ -170,7 +170,7 @@ plugin.list native
 plugin.refresh python
 plugin.new python
 plugin.verify native
-privacy.scan python
+privacy.scan native
 connect python
 interview native
 open python

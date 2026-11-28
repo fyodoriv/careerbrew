@@ -17,6 +17,16 @@
 //!   text (plus the ask file's plain name).
 //!
 //! Anything else returns None before any write, and Python runs it.
+//!
+//! `privacy scan --file <draft>...` (`privacy.scan_files`) is served only
+//! when no sensitive term can exist (no redaction input, so
+//! `sensitive_terms` is empty and `say` prints unchanged), every path and
+//! name prints unchanged through `pathlib`, every draft is a regular file
+//! whose text is printable ASCII plus tab, newline and carriage return (NFKC
+//! and Python's Unicode `\w` then read it as Rust does), and every read
+//! succeeds. The repo scan (it runs `git`), `--staged`, `--repo` and a
+//! missing draft go to Python. The handler writes nothing: only the
+//! `cli.run` row follows.
 use super::Ctx;
 use crate::args::{Parsed, Value};
 use crate::registry::{self, Json};
@@ -28,7 +38,7 @@ use careerbrew_policy::Rules;
 /// The route keys this module serves. Each one must be routed `native` in
 /// `config/native-routes.txt` and have a parity case in
 /// `crates/cbcli/tests/step_rust04.rs`.
-pub const COMMANDS: &[&str] = &["draft.route", "draft.judge"];
+pub const COMMANDS: &[&str] = &["draft.route", "draft.judge", "privacy.scan"];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
 pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
@@ -38,6 +48,7 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
     match name {
         "draft.route" => draft_route(args),
         "draft.judge" => draft_judge(args),
+        "privacy.scan" => privacy_scan(args, ctx),
         _ => None,
     }
 }
@@ -298,4 +309,181 @@ fn draft_judge(args: &Parsed) -> Option<Outcome> {
         return None;
     }
     fail(&message, 1)
+}
+
+// ---------- privacy scan --file ----------
+
+/// True when `str(pathlib.Path(path))` is `path` unchanged.
+fn pathlib_plain(path: &str) -> bool {
+    !(path.is_empty()
+        || path == "."
+        || path.contains("//")
+        || path.contains("/./")
+        || path.starts_with("./")
+        || path.ends_with("/.")
+        || (path.len() > 1 && path.ends_with('/')))
+}
+
+/// Python's `re` `\w`, `.` or `-` on one ASCII byte.
+fn path_char(ch: u8) -> bool {
+    ch.is_ascii_alphanumeric() || ch == b'_' || ch == b'.' || ch == b'-'
+}
+
+/// `privacy._PATH_START` on one ASCII byte.
+fn path_start_char(ch: u8) -> bool {
+    matches!(
+        ch,
+        b' ' | b'\t'
+            | b'\n'
+            | b'\r'
+            | 0x0b
+            | 0x0c
+            | b'('
+            | b'['
+            | b'{'
+            | b'<'
+            | b'"'
+            | b'\''
+            | b'`'
+            | b'='
+            | b':'
+            | b','
+    )
+}
+
+/// `privacy._names_private_path` on ASCII text: `finditer` over
+/// `(?<![\w.-])private/([\w.-]+)`, non-overlapping, left to right.
+fn names_private_path(text: &[u8]) -> bool {
+    const WORD: &[u8] = b"private/";
+    let mut i = 0;
+    while i < text.len() {
+        let lookbehind = i == 0 || !path_char(text[i - 1]);
+        if !(lookbehind && text[i..].starts_with(WORD)) {
+            i += 1;
+            continue;
+        }
+        let start = i + WORD.len();
+        let mut end = start;
+        while end < text.len() && path_char(text[end]) {
+            end += 1;
+        }
+        if end == start {
+            i += 1;
+            continue;
+        }
+        let group = &text[start..end];
+        let path_start = i == 1 || (i >= 2 && path_start_char(text[i - 2]));
+        let system_root = i >= 1
+            && text[i - 1] == b'/'
+            && path_start
+            && matches!(group, b"tmp" | b"var" | b"etc");
+        if !system_root {
+            return true;
+        }
+        i = end;
+    }
+    false
+}
+
+/// What one draft holds, as `privacy.scan_files` reads it.
+enum Draft {
+    UnderRoot,
+    NotText,
+    /// The text after Python's universal newlines.
+    Text(String),
+}
+
+/// The draft as Python's `read_text` gives it; None refuses (text outside
+/// printable ASCII plus tab, newline and carriage return).
+fn draft_of(bytes: Vec<u8>) -> Option<Draft> {
+    let Ok(text) = String::from_utf8(bytes) else {
+        return Some(Draft::NotText);
+    };
+    if !text
+        .chars()
+        .all(|ch| matches!(ch, '\t' | '\n' | '\r') || printable(ch))
+    {
+        return None;
+    }
+    Some(Draft::Text(text.replace("\r\n", "\n").replace('\r', "\n")))
+}
+
+fn privacy_scan(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let files = args.list("files");
+    if files.is_empty() || args.flag("staged") || !matches!(args.get("repo"), Value::Missing) {
+        return None;
+    }
+    // `Path.home()` and `paths.data_root()` as Python prints them.
+    let home = std::env::var("HOME").ok()?;
+    if home.is_empty() || !home.chars().all(printable) {
+        return None;
+    }
+    let home = match home.trim_end_matches('/') {
+        "" => "/".to_owned(),
+        trimmed => trimmed.to_owned(),
+    };
+    if !pathlib_plain(&home) {
+        return None;
+    }
+    let plain_root = ctx.root.to_str()?.to_owned();
+    if !pathlib_plain(&plain_root) || !plain_root.chars().all(printable) {
+        return None;
+    }
+    let root = std::fs::canonicalize(&ctx.root).ok()?;
+    let resolved_root = root.to_str()?.to_owned();
+    if !resolved_root.chars().all(printable) {
+        return None;
+    }
+    let mut names = vec![resolved_root, plain_root];
+    let prefix = format!("{home}/");
+    let tilde: Vec<String> = names
+        .iter()
+        .filter(|name| name.starts_with(&prefix))
+        .map(|name| format!("~{}", &name[home.len()..]))
+        .collect();
+    names.extend(tilde);
+    // Every draft is read before anything prints: Python raises on the
+    // first missing one, and that run goes to Python.
+    let mut drafts = Vec::new();
+    for name in files {
+        if name.starts_with('~') || !pathlib_plain(name) || !name.chars().all(printable) {
+            return None;
+        }
+        if !std::fs::metadata(name).ok()?.is_file() {
+            return None;
+        }
+        let real = std::fs::canonicalize(name).ok()?;
+        let draft = if real.starts_with(&root) {
+            Draft::UnderRoot
+        } else {
+            draft_of(std::fs::read(name).ok()?)?
+        };
+        drafts.push((name.as_str(), draft));
+    }
+    let mut findings: Vec<(&str, &str)> = Vec::new();
+    let mut scanned = 0usize;
+    for (name, draft) in &drafts {
+        match draft {
+            Draft::UnderRoot => findings.push((name, "path-under-private")),
+            Draft::NotText => findings.push((name, "not-text")),
+            Draft::Text(text) => {
+                scanned += 1;
+                if names_private_path(text.as_bytes()) {
+                    findings.push((name, "mentions-private-path"));
+                }
+                if names.iter().any(|n| text.contains(n.as_str())) {
+                    findings.push((name, "mentions-data-root"));
+                }
+            }
+        }
+    }
+    let mut out = String::new();
+    for (path, why) in &findings {
+        out.push_str(&format!("LEAK  {path}: {why}\n"));
+    }
+    out.push_str(&format!(
+        "privacy scan: {scanned} file(s), {} finding(s)\n",
+        findings.len()
+    ));
+    served(out, i32::from(!findings.is_empty()))
 }
