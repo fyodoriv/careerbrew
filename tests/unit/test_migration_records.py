@@ -135,3 +135,60 @@ def test_the_workflow_uploads_only_the_four_records_and_keeps_the_safety_rules()
     # This is the only workflow that may upload an artifact (docs/ci.md, "Safety rules").
     uploads = [p.name for p in (ROOT / ".github/workflows").glob("*.yml") if "upload-artifact" in p.read_text(encoding="utf-8")]
     assert uploads == ["migration-measure.yml"]
+
+
+def _stub_cargo(folder: Path) -> Path:
+    """A fake `cargo` that logs each call and answers `metadata` with one package that has two bins."""
+    folder.mkdir(parents=True, exist_ok=True)
+    meta = {
+        "packages": [
+            {
+                "name": "careerbrew-exercises",
+                "targets": [
+                    {"name": "exercises-component", "kind": ["bin"]},
+                    {"name": "exercise-fixture-runner", "kind": ["bin"]},
+                    {"name": "careerbrew_exercises", "kind": ["lib"]},
+                ],
+            }
+        ]
+    }
+    (folder / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    stub = folder / "cargo"
+    stub.write_text(
+        f'#!/usr/bin/env bash\necho "$*" >> "{folder}/calls.log"\nif [ "$1" = metadata ]; then cat "{folder}/meta.json"; fi\n',
+        encoding="utf-8",
+    )
+    stub.chmod(0o755)
+    return folder
+
+
+def test_run_builds_every_bin_of_the_candidates_package(tmp_path):
+    """rust-22's verify needs exercise-fixture-runner next to exercises-component (run 46069607808 missed it)."""
+    stubs = _stub_cargo(tmp_path / "bin")
+    env = {**os.environ, "PATH": f"{stubs}:{os.environ['PATH']}"}
+    done = subprocess.run(["bash", str(SCRIPT), "run", "rust-22", "1", str(tmp_path / "out")], capture_output=True, text=True, env=env, check=False)
+    calls = (stubs / "calls.log").read_text(encoding="utf-8").splitlines()
+    assert "build --locked --release -p careerbrew-exercises --bins" in calls, calls
+    # The stub writes no records, so the step must fail, never pass quietly.
+    assert done.returncode == 1, (done.stdout, done.stderr)
+
+
+def test_the_workflow_step_fails_when_the_records_script_fails(tmp_path):
+    """The step pipes the script into tee; without pipefail the job passed with records missing (run 46069607808)."""
+    import yaml
+
+    jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+    steps = [s for job in jobs.values() for s in job.get("steps", []) if s.get("name") == "Baseline, verify, measure and decide"]
+    assert len(steps) == 1 and "shell" not in steps[0]
+    repo = tmp_path / "repo"
+    (repo / "scripts").mkdir(parents=True)
+    fake = repo / "scripts/migration-records.sh"
+    fake.write_text("#!/usr/bin/env bash\necho 'rust-22 verify=missing decide=missing'\nexit 1\n", encoding="utf-8")
+    fake.chmod(0o755)
+    script = tmp_path / "step.sh"
+    script.write_text(steps[0]["run"], encoding="utf-8")
+    env = {**os.environ, "RUNNER_TEMP": str(tmp_path), "GITHUB_STEP_SUMMARY": str(tmp_path / "summary.md"), "STEP": "rust-22", "PAIRS": "1", "OS": "ubuntu-24.04", "GITHUB_RUN_ID": "1", "GITHUB_SHA": "0" * 40}
+    # GitHub runs a `run:` block with no `shell:` as `bash -e {0}`.
+    done = subprocess.run(["bash", "-e", str(script)], cwd=repo, capture_output=True, text=True, env=env, check=False)
+    assert done.returncode == 1, (done.stdout, done.stderr)
+    assert "verify=missing" in (tmp_path / "summary.md").read_text(encoding="utf-8")

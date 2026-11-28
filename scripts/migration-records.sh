@@ -5,7 +5,7 @@
 # Usage:
 #   scripts/migration-records.sh steps                    every step with a registered Rust candidate (xtask/src/measure.rs)
 #   scripts/migration-records.sh matrix "<steps>" <macos> the workflow's job matrix as JSON; empty steps means every step
-#   scripts/migration-records.sh run <step> <pairs> <dir> on the runner: build the candidate, write the four records in <dir>
+#   scripts/migration-records.sh run <step> <pairs> <dir> on the runner: build the candidate's package, write the four records in <dir>
 #   scripts/migration-records.sh fetch <run-id>           on your machine: download a run's records into .metrics/migration/
 #   scripts/migration-records.sh fetch --dir <dir>        the same, from artifacts already downloaded into <dir>
 set -euo pipefail
@@ -83,7 +83,13 @@ run() {
   local -a release=()
   [ "$profile" = release ] && release=(--release)
   cargo build --locked -p careerbrew-xtask
-  cargo build --locked ${release[@]+"${release[@]}"} --workspace --bin "$bin"
+  # Build every bin of the candidate's package: some verifies need a helper next to the candidate
+  # (rust-22 runs exercise-fixture-runner).
+  local package
+  package="$(cargo metadata --locked --no-deps --format-version 1 \
+    | jq -r --arg bin "$bin" '.packages[] | select(any(.targets[]; .name == $bin and (.kind | index("bin")))) | .name')"
+  [ -n "$package" ] || die "no workspace package builds the bin $bin"
+  cargo build --locked ${release[@]+"${release[@]}"} -p "$package" --bins
   local -a few=()
   [ "$pairs" -ge 30 ] || few=(--test-allow-few-pairs)
   # verify exits 1 on a differing case and decide exits 1 on keep-python: both still write their record.

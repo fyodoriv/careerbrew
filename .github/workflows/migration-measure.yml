@@ -97,6 +97,8 @@ jobs:
           PAIRS: ${{ inputs.pairs }}
           OS: ${{ matrix.os }}
         run: |
+          # Without pipefail, `| tee` hides the script's exit status and the job passes with records missing.
+          set -o pipefail
           out="$RUNNER_TEMP/migration/$STEP"
           status=0
           scripts/migration-records.sh run "$STEP" "$PAIRS" "$out" | tee "$RUNNER_TEMP/summary.txt" || status=$?

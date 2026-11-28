@@ -198,12 +198,16 @@ them for many steps at once.
   `xtask/src/measure.rs`), `pairs` (default 30; fewer adds the test-only
   `--test-allow-few-pairs` flag) and `macos` (default off; on adds a
   `macos-15` job per step).
-- **What a job does**: one job per step and OS. It builds xtask and the step's
-  candidate with the profile its registry path names, then runs
+- **What a job does**: one job per step and OS. It builds xtask and every bin
+  of the package that holds the step's candidate (some verifies need a helper
+  next to it, such as rust-22's `exercise-fixture-runner`), with the profile
+  the candidate's registry path names, then runs
   `scripts/migration-records.sh run`: `baseline`, `verify`, `measure --pairs N`
   and `decide`, each into a new file under the runner's temp folder, in fresh
   synthetic homes. A failed verify or a missing record fails the job; a
-  `keep-python` verdict does not.
+  `keep-python` verdict does not. The step sets `pipefail`, because it pipes
+  the script into `tee` and would otherwise pass with records missing (run
+  46069607808 did for rust-22).
 - **The records**: each job uploads `baseline.json`, `verify.json`,
   `measure.json` and `decide.json` as the artifact `migration-<step>` (on macOS
   `migration-<step>-macos-15`), kept 30 days. They are content-free.
