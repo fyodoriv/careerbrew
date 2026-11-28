@@ -159,7 +159,7 @@ data.status native
 data.encrypt native
 data.decrypt native
 data.edit python
-data.set python
+data.set native
 data.show native
 backup.create python
 backup.verify native
@@ -176,7 +176,7 @@ interview native
 open python
 report.latest native
 report.list native
-report.public python
+report.public native
 serve python
 web.rotate-token native
 changes python

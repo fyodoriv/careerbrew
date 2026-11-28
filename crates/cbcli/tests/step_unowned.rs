@@ -2,7 +2,9 @@
 //! each served route key runs in fresh synthetic homes on both sides, plus
 //! cases the handler must refuse and one negative control.
 mod common;
-use common::{assert_same, observe, prepare_setup, strict, Setup, Side};
+use common::{assert_same, observe, prepare_setup, strict, Home, Observed, Setup, Side};
+use std::path::Path;
+use std::process::Command;
 
 const NOW: &str = "2026-11-20T09:00:00";
 const TERMS: (&str, &str) = ("sensitive-terms.txt", "zebrafruit\n");
@@ -388,4 +390,292 @@ fn the_comparison_detects_a_planted_difference() {
     assert_ne!(native, python);
     assert!(native.stdout.contains("review: ok at"));
     assert!(python.stdout.contains("checkup: blocked at"));
+}
+
+// ---------- report.public ----------
+
+const GATE_SCRIPT: &str =
+    "#!/bin/sh\nstep docs true\nstep unit true\nif true; then step lint true\nfi\n";
+const GATE_EVENTS: &str = concat!(
+    "{\"event\": \"check.step\", \"name\": \"docs\", \"seconds\": 1.5, \"ok\": true, \"ts\": \"2026-11-19T10:00:00Z\"}\n",
+    "{\"event\": \"check.step\", \"name\": \"unit\", \"seconds\": 30, \"ok\": false, \"ts\": \"2026-11-19T10:01:00Z\"}\n",
+    "{\"event\": \"check.step\", \"name\": \"unit\", \"seconds\": 12.25, \"ok\": true, \"ts\": \"2026-11-20T08:00:00+01:00\"}\n",
+    "{\"event\": \"check.step\", \"name\": \"docs\", \"seconds\": 2, \"ok\": true, \"ts\": \"2026-11-20T08:30:00\"}\n",
+    "{\"event\": \"check.step\", \"name\": \"lint\", \"seconds\": 0, \"ok\": true, \"cached\": true, \"ts\": \"2026-11-20T08:31:00\"}\n",
+    "{\"event\": \"check.step\", \"name\": \"lint\", \"seconds\": 0.1, \"ok\": false, \"ts\": \"2026-11-20T08:32:00.250000\"}\n",
+    "{\"event\": \"check.step\", \"name\": \"mystery\", \"seconds\": 4, \"ok\": false, \"ts\": \"2026-11-20T08:33:00\"}\n",
+    "{\"event\": \"check.step\", \"name\": \"docs\", \"seconds\": 3, \"ok\": true, \"ts\": \"2026-10-01T00:00:00Z\"}\n",
+    "{\"event\": \"check.run\", \"ok\": true}\n",
+    "\n",
+);
+const E2E: &str = "{\"results\": {\"us-01\": \"ok\", \"us-02\": \"fail\", \"us-03\": \"ok\"}}\n";
+const REPO_CHECKUP: (&str, &str) = (
+    "out/reports/repo-checkup-20261120-080000.json",
+    "{\"run\": \"repo-checkup\", \"status\": \"blocked\", \"at\": \"2026-11-20T08:00:00\", \"seq\": 3, \"done\": [], \"blockers\": [{\"label\": \"x\", \"why\": \"y\"}], \"next\": [{\"id\": \"pr-12\", \"label\": \"a\"}, {\"id\": \"task-1\", \"label\": \"b\"}, {\"id\": \"pr-40\", \"label\": \"c\"}]}\n",
+);
+
+/// A synthetic checkout for `CAREERBREW_REPO_DIR`: the gate script and its
+/// `.metrics` files, so no run reads the real repo's metrics.
+fn synthetic_repo(dir: &Path, events: &str) {
+    std::fs::create_dir_all(dir.join("scripts")).unwrap();
+    std::fs::create_dir_all(dir.join(".metrics")).unwrap();
+    std::fs::write(dir.join("scripts/check.sh"), GATE_SCRIPT).unwrap();
+    std::fs::write(dir.join(".metrics/events.jsonl"), events).unwrap();
+    std::fs::write(dir.join(".metrics/e2e-results.json"), E2E).unwrap();
+}
+
+/// One run with `CAREERBREW_REPO_DIR` set, plus every file in `extra`
+/// (a folder outside the data root, reset with the home) and its content.
+fn observe_repo(home: &Home, repo: &Path, args: &[&str], native: bool) -> Observed {
+    common::restore(home);
+    let mut cmd = if native {
+        let mut cmd = Command::new(common::BIN);
+        cmd.args(args);
+        common::base(&mut cmd, home);
+        cmd
+    } else {
+        let mut cmd = common::python(home, args);
+        cmd.env("CAREERBREW_NATIVE", "off");
+        cmd
+    };
+    let output = cmd.env("CAREERBREW_REPO_DIR", repo).output().unwrap();
+    let mut files = Vec::new();
+    common::walk(&home.data, &home.data, &mut files);
+    if let Ok(entries) = std::fs::read_dir(public_dir(home)) {
+        for entry in entries {
+            let path = entry.unwrap().path();
+            let text = std::fs::read_to_string(&path).unwrap();
+            files.push(format!("{}: {text}", path.display()));
+        }
+    }
+    files.sort();
+    let events = std::fs::read_to_string(home.data.join("logs/events.jsonl"))
+        .unwrap_or_default()
+        .lines()
+        .map(common::normalize)
+        .collect();
+    Observed {
+        code: output.status.code(),
+        stdout: String::from_utf8(output.stdout).unwrap(),
+        files,
+        events,
+    }
+}
+
+fn public_dir(home: &Home) -> std::path::PathBuf {
+    home.home.parent().unwrap().join("public")
+}
+
+fn public_same(home: &Home, repo: &Path, args: &[&str], label: &str) {
+    let want = observe_repo(home, repo, args, false);
+    let got = observe_repo(home, repo, args, true);
+    assert_ne!(got.code, Some(64), "{label}: {args:?} refused natively");
+    assert_eq!(got, want, "{label}: {args:?}");
+}
+
+#[test]
+fn report_public_matches_python() {
+    strict(NOW);
+    // Route key: "report.public".
+    let empty = prepare_setup(&Setup {
+        id: "public-days",
+        cli: &[],
+        files: &[],
+    });
+    // The window check refuses before any repo file is read.
+    assert_same(
+        &empty,
+        &["report", "public", "--days", "0"],
+        true,
+        "report.public days 0",
+    );
+    assert_same(
+        &empty,
+        &["report", "public", "--days", "367", "--json"],
+        true,
+        "report.public days 367",
+    );
+    refuses(
+        &Setup {
+            id: "public-terms",
+            cli: &[],
+            files: &[TERMS],
+        },
+        &["report", "public", "--days", "0"],
+        "report.public redaction input",
+    );
+
+    let repo_dir = tempfile::tempdir().unwrap();
+    let repo = repo_dir.path().join("checkout");
+    synthetic_repo(&repo, GATE_EVENTS);
+    let home = prepare_setup(&Setup {
+        id: "public",
+        cli: &[],
+        files: &[REPO_CHECKUP, REVIEW],
+    });
+    public_same(&home, &repo, &["report", "public"], "report.public text");
+    public_same(
+        &home,
+        &repo,
+        &["report", "public", "--json"],
+        "report.public json",
+    );
+    public_same(
+        &home,
+        &repo,
+        &["report", "public", "--days", "1"],
+        "report.public one day",
+    );
+    let out = public_dir(&home);
+    let out = out.to_str().unwrap();
+    public_same(
+        &home,
+        &repo,
+        &["report", "public", "--out", out],
+        "report.public out",
+    );
+    public_same(
+        &home,
+        &repo,
+        &["report", "public", "--json", "--days", "7", "--out", out],
+        "report.public json out",
+    );
+    let inside = home.data.join("exports");
+    public_same(
+        &home,
+        &repo,
+        &["report", "public", "--out", inside.to_str().unwrap()],
+        "report.public out inside the data root",
+    );
+    let bare = prepare_setup(&Setup {
+        id: "public-bare",
+        cli: &[],
+        files: &[],
+    });
+    let none = repo_dir.path().join("no-metrics");
+    std::fs::create_dir_all(none.join("scripts")).unwrap();
+    public_same(
+        &bare,
+        &none,
+        &["report", "public"],
+        "report.public no metrics",
+    );
+
+    // A torn event line goes to Python, which skips it.
+    let torn = repo_dir.path().join("torn");
+    synthetic_repo(
+        &torn,
+        &format!("{GATE_EVENTS}{{\"event\": \"check.step\", \"name\": \"do"),
+    );
+    let native = observe_repo(&home, &torn, &["report", "public"], true);
+    assert_eq!(native.code, Some(64), "report.public torn line served");
+    assert!(native.stdout.is_empty() && native.events.is_empty());
+    let python = observe_repo(&home, &torn, &["report", "public"], false);
+    assert_eq!(python.code, Some(0), "report.public torn line in Python");
+}
+
+// ---------- data.set ----------
+
+const PLAIN: (&str, &str) = (".plaintext", "");
+const PROFILE: (&str, &str) = (
+    "profile.yaml",
+    "# synthetic profile\nname: \"Old Name\"\nemployer: Example Shop  # current\nrole: engineer\nskills:\n- rust\n- python\n",
+);
+const PROFILE_NULL: (&str, &str) = ("profile.yaml", "name:\nrole: engineer\n");
+const PROFILE_ANCHOR: (&str, &str) = ("profile.yaml", "name: &a Old\nrole: *a\n");
+const PROFILE_TAB: (&str, &str) = ("profile.yaml", "name:\tOld\n");
+
+#[test]
+fn data_set_matches_python() {
+    strict(NOW);
+    // Route key: "data.set".
+    let both = [
+        "data",
+        "set",
+        "profile.yaml",
+        "--employer",
+        "Sample Works",
+        "--name",
+        "Pat Example",
+    ];
+    let home = prepare_setup(&Setup {
+        id: "set-profile",
+        cli: &[],
+        files: &[PLAIN, PROFILE],
+    });
+    assert_same(&home, &both, true, "data.set both fields");
+    assert_same(
+        &home,
+        &["data", "set", "profile.yaml", "--name", "Pat O'Example"],
+        true,
+        "data.set name only",
+    );
+    assert_same(
+        &home,
+        &["data", "set", "other.yaml", "--name", "Pat"],
+        true,
+        "data.set other file",
+    );
+    assert_same(
+        &home,
+        &["data", "set", "profile.yaml"],
+        true,
+        "data.set no fields",
+    );
+    assert_same(
+        &home,
+        &["data", "set", "profile.yaml", "--name", ""],
+        true,
+        "data.set empty name",
+    );
+    let null = prepare_setup(&Setup {
+        id: "set-null",
+        cli: &[],
+        files: &[PLAIN, PROFILE_NULL],
+    });
+    assert_same(&null, &both, true, "data.set null name, appended employer");
+    let missing = prepare_setup(&Setup {
+        id: "set-missing",
+        cli: &[],
+        files: &[PLAIN],
+    });
+    assert_same(&missing, &both, true, "data.set missing profile");
+
+    let unicode = ["data", "set", "profile.yaml", "--name", "Caf\u{e9} Example"];
+    refuses(
+        &Setup {
+            id: "set-unicode",
+            cli: &[],
+            files: &[PLAIN, PROFILE],
+        },
+        &unicode,
+        "data.set non-ASCII value",
+    );
+    refuses(
+        &Setup {
+            id: "set-encrypted",
+            cli: &[],
+            files: &[PROFILE],
+        },
+        &both,
+        "data.set encrypted folder",
+    );
+    refuses(
+        &Setup {
+            id: "set-anchor",
+            cli: &[],
+            files: &[PLAIN, PROFILE_ANCHOR],
+        },
+        &both,
+        "data.set anchor",
+    );
+    refuses(
+        &Setup {
+            id: "set-tab",
+            cli: &[],
+            files: &[PLAIN, PROFILE_TAB],
+        },
+        &both,
+        "data.set tab",
+    );
 }
