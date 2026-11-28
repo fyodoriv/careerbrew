@@ -35,6 +35,9 @@ pub const COMMANDS: &[&str] = &[
     "interview-patterns",
     "research.stale",
     "jobs.interview-gaps",
+    "jobs.list",
+    "jobs.rate",
+    "jobs.learn",
 ];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
@@ -54,6 +57,9 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "interview-patterns" if same_repo() => interview_patterns(args, &io),
         "research.stale" if same_repo() => research_stale(args, ctx, &io),
         "jobs.interview-gaps" if same_repo() => jobs_interview_gaps(&io),
+        "jobs.list" => jobs_list(args, &io),
+        "jobs.rate" => jobs_rate(args, ctx, &io),
+        "jobs.learn" => jobs_learn(&io),
         _ => None,
     }
 }
@@ -1356,6 +1362,160 @@ fn interview(args: &Parsed, ctx: &Ctx, io: &Io) -> Option<Outcome> {
         )
     };
     ok(stdout, 0)
+}
+
+// ---------- jobs list / rate / learn ----------
+
+/// `want.ratings()`: posting id to its latest rating, in first-seen order.
+/// None when a row has a shape `int(row["rating"])` or the dict key could
+/// read another way (only text ids and whole-number ratings are served).
+fn ratings(io: &Io) -> Option<Vec<(String, i64)>> {
+    let path = io.sub(&["jobs", "ratings.jsonl"])?;
+    let context = io.ctx;
+    let rows = context.store().read_jsonl(&path, true).ok()?;
+    let mut out: Vec<(String, i64)> = Vec::new();
+    for row in rows {
+        let Canon::Map(fields) = row else { return None };
+        // `json.loads` keeps the last of a repeated key.
+        if fields
+            .iter()
+            .enumerate()
+            .any(|(i, (k, _))| fields[..i].iter().any(|(have, _)| have == k))
+        {
+            return None;
+        }
+        let Canon::Str(id) = get(&fields, "id")? else {
+            return None;
+        };
+        let Canon::Int(rating) = get(&fields, "rating")? else {
+            return None;
+        };
+        let rating: i64 = rating.to_string().parse().ok()?;
+        match out.iter_mut().find(|(have, _)| have == id) {
+            Some(slot) => slot.1 = rating,
+            None => out.push((id.clone(), rating)),
+        }
+    }
+    Some(out)
+}
+
+/// `criteria.load()` does not raise: the file is missing, empty or a
+/// mapping (`{**DEFAULTS, **user}` needs one).
+fn criteria_ok(io: &Io) -> Option<()> {
+    let context = io.ctx;
+    let path = context.root.join("jobs").join("criteria.yaml");
+    yaml_map(io, &path).map(|_| ())
+}
+
+/// `want.weights()` does not raise: each known weight `float()` reads is a
+/// number (text and other shapes go to Python).
+fn weights_ok(io: &Io) -> Option<()> {
+    let context = io.ctx;
+    let path = context.root.join("jobs").join("weights.yaml");
+    let saved = yaml_map(io, &path)?;
+    let known = [
+        "comp",
+        "tech_match",
+        "growth",
+        "learning",
+        "remote",
+        "company",
+    ];
+    for (key, value) in &saved {
+        let Canon::Str(key) = key else { return None };
+        if known.contains(&key.as_str()) && !matches!(value, Canon::Int(_) | Canon::Float(_)) {
+            return None;
+        }
+    }
+    Some(())
+}
+
+fn jobs_list(args: &Parsed, io: &Io) -> Option<Outcome> {
+    let rated = ratings(io)?;
+    // Scored rows stay Python; only a home with no postings is served.
+    if !posting_ids(io)?.is_empty() {
+        return None;
+    }
+    criteria_ok(io)?;
+    weights_ok(io)?;
+    args.int("top")?;
+    if args.flag("json") {
+        return ok("[]\n".into(), 0);
+    }
+    ok(
+        format!(
+            "rate with: careerbrew jobs rate <id> <1-5>   ({} rated so far; 5+ ratings let `jobs learn` refit your Want weights)\n",
+            rated.len()
+        ),
+        0,
+    )
+}
+
+/// `want.AUTO_LEARN_EVERY`.
+const AUTO_LEARN_EVERY: usize = 5;
+
+fn jobs_learn(io: &Io) -> Option<Outcome> {
+    let ids = posting_ids(io)?;
+    criteria_ok(io)?;
+    let rated = ratings(io)?;
+    let count = ids
+        .iter()
+        .filter(|id| rated.iter().any(|(have, _)| have == *id))
+        .count();
+    // A refit runs 2000 float steps; that stays Python.
+    if count >= AUTO_LEARN_EVERY {
+        return None;
+    }
+    ok(
+        format!("{{\"status\": \"need-more-ratings\", \"rated\": {count}}}\n"),
+        0,
+    )
+}
+
+fn jobs_rate(args: &Parsed, ctx: &Ctx, io: &Io) -> Option<Outcome> {
+    let id = args.text("id")?;
+    let rating = args.int("rating")?;
+    let ids = posting_ids(io)?;
+    if !ids.iter().any(|have| have == id) {
+        return ok(
+            format!("unknown posting id {id} (see `careerbrew jobs list`)\n"),
+            2,
+        );
+    }
+    // `want.rate` raises ValueError: Python prints it and logs `cli.error`.
+    if !(1..=5).contains(&rating) {
+        return None;
+    }
+    let rated = ratings(io)?;
+    let n = rated.len() + usize::from(!rated.iter().any(|(have, _)| have == id));
+    // Every fifth rating refits the weights; that stays Python.
+    if n >= AUTO_LEARN_EVERY && n % AUTO_LEARN_EVERY == 0 {
+        return None;
+    }
+    // A sealed append rewrites the file with a new ciphertext.
+    let context = io.ctx;
+    let store = context.store();
+    if store.encryption_enabled() {
+        return None;
+    }
+    let tags: Vec<Canon> = match args.text("tags").filter(|t| !t.is_empty()) {
+        Some(text) => text.split(',').map(|t| Canon::Str(t.to_owned())).collect(),
+        None => Vec::new(),
+    };
+    let at = careerbrew_career::when::iso_seconds(&py_now_utc(ctx)?);
+    let number = careerbrew_vault::json_yaml::json_read(&rating.to_string()).ok()?;
+    let path = io.sub(&["jobs", "ratings.jsonl"])?;
+    let s = |text: &str| Canon::Str(text.to_owned());
+    let row = Canon::Map(vec![
+        (s("id"), s(id)),
+        (s("rating"), number),
+        (s("tags"), Canon::List(tags)),
+        (s("at"), s(&at)),
+        (s("origin"), s("user")),
+    ]);
+    store.append_jsonl(&path, &[row]).ok()?;
+    emit(ctx, "jobs.rate", &[("status", "ok")]);
+    ok(format!("rated {id} = {rating}\n"), 0)
 }
 
 #[cfg(test)]
