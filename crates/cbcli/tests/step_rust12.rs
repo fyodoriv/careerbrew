@@ -1,5 +1,6 @@
 //! rust-12 native handlers: "learn.list", "learn.note", "learn.status" and
-//! "learn.next" match Python in synthetic homes (stdout, exit code,
+//! "learn.next" (and the wave 4 tour cases below) match Python in synthetic
+//! homes (stdout, exit code,
 //! data-root files, event rows).
 mod common;
 
@@ -440,4 +441,90 @@ fn a_different_home_gives_a_different_observation() {
     assert_eq!(got.code, Some(0));
     assert_ne!(got.stdout, want.stdout);
     assert_ne!(got.files, want.files);
+}
+
+// ---------- wave 4: "learn.tour.approve" and "learn.tour.export" ----------
+
+#[test]
+fn tour_approve_and_export_without_a_tour_match_python() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "tour-none",
+        cli: &[],
+        files: &[(".plaintext", "")],
+    });
+    let cases: [(&str, &[&str]); 5] = [
+        (
+            "learn.tour.approve",
+            &["learn", "tour", "approve", "alpha", "intro", "--by", "Rev"],
+        ),
+        (
+            "learn.tour.export",
+            &["learn", "tour", "export", "alpha", "intro"],
+        ),
+        (
+            "learn.tour.export",
+            &["learn", "tour", "export", "Zeta Ete", "a-1"],
+        ),
+        (
+            "learn.tour.export",
+            &["learn", "tour", "export", "alpha", "Bad_Name"],
+        ),
+        (
+            "learn.tour.approve",
+            &["learn", "tour", "approve", "it's", "BAD", "--by", "Rev"],
+        ),
+    ];
+    for (label, args) in cases {
+        assert_same(&home, args, true, label);
+    }
+}
+
+#[test]
+fn tour_approve_and_export_refuse_what_they_cannot_repeat() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "tour-refuse",
+        cli: &[],
+        files: &[(".plaintext", ""), ("learn/alpha/tours/intro.json", "{}\n")],
+    });
+    let cases: [(&str, &[&str]); 3] = [
+        (
+            "learn.tour.export",
+            &["learn", "tour", "export", "alpha", "intro"],
+        ),
+        (
+            "learn.tour.approve",
+            &["learn", "tour", "approve", "alpha", "intro", "--by", "Rev"],
+        ),
+        // A quote in the project: the KeyError repr changes its quotes.
+        (
+            "learn.tour.export",
+            &["learn", "tour", "export", "it's", "intro"],
+        ),
+    ];
+    for (label, args) in cases {
+        assert!(!assert_same(&home, args, false, label));
+    }
+}
+
+/// Negative control: a home with the tour and one without give different
+/// observations.
+#[test]
+fn a_present_tour_gives_a_different_export() {
+    strict(NOW);
+    let none = prepare_setup(&Setup {
+        id: "tour-control-none",
+        cli: &[],
+        files: &[(".plaintext", "")],
+    });
+    let some = prepare_setup(&Setup {
+        id: "tour-control-some",
+        cli: &[],
+        files: &[(".plaintext", ""), ("learn/alpha/tours/intro.json", "{}\n")],
+    });
+    let args = ["learn", "tour", "export", "alpha", "intro"];
+    let got = observe(&none, &args, &Side::Native);
+    let want = observe(&some, &args, &Side::Python);
+    assert_ne!(got, want);
 }

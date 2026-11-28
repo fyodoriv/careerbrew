@@ -1,5 +1,6 @@
 //! Native CLI handlers owned by `rust-15` (see `steps/mod.rs`): the work
-//! day's `work session handoff`, over `careerbrew_sessions`.
+//! day's `work session handoff`, over `careerbrew_sessions`, and (wave 4)
+//! the unknown-project error of `work session open`.
 //!
 //! The handler checks every input Python's `sessions.write_handoff` and
 //! `day/handoff.add` read before it writes anything: the text and link, the
@@ -8,7 +9,8 @@
 //! `handoff_at` and picks the handoff day in UTC, Python in the local zone.
 //! The `Canon` and clock helpers are shared with `rust14`.
 use super::rust14::{
-    event_version_ok, get, inputs_ok, int, iso, list, read_json, read_yaml, string, written,
+    event_version_ok, get, inputs_ok, int, iso, list, printable, read_json, read_yaml, string,
+    written,
 };
 use super::Ctx;
 use crate::args::Parsed;
@@ -20,7 +22,7 @@ use std::time::Instant;
 /// The route keys this module serves. Each one must be routed `native` in
 /// `config/native-routes.txt` and have a parity case in
 /// `crates/cbcli/tests/step_rust15.rs`.
-pub const COMMANDS: &[&str] = &["work.session.handoff"];
+pub const COMMANDS: &[&str] = &["work.session.handoff", "work.session.open"];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
 pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
@@ -30,6 +32,7 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
     }
     match name {
         "work.session.handoff" => handoff(args, ctx, started),
+        "work.session.open" => session_open(args, ctx),
         _ => None,
     }
 }
@@ -205,4 +208,41 @@ fn handoff(args: &Parsed, ctx: &Ctx, started: Instant) -> Option<Outcome> {
         "handoff written for session {id} (Project sessions in careerbrew day handoff show); end it: careerbrew work session end {id}\n"
     );
     Some(written(ctx, "work.session", started, line))
+}
+
+// ---------- work session open ----------
+
+/// `work session open` for a project `projects.records()` does not hold:
+/// `sessions._project` raises `SessionError` before any lock or write (only
+/// `paths.sub` makes the `work` folder), and `cmd_work_session` prints it
+/// with exit 2. Every other open (a known project) stays with Python: a new
+/// session takes a random record id.
+fn session_open(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let root = &ctx.root;
+    let project = args.text("project")?;
+    // `str(name).strip()`: a name with no outer space and only plain
+    // characters reads the same way on both sides.
+    if !printable(project) || project.trim() != project {
+        return None;
+    }
+    // `(read_yaml(path) or {}).get("projects", {}) or {}`; any other shape
+    // (a list or a string answers `in` differently) stays with Python.
+    let file = read_yaml(root, "work/projects.yaml")?;
+    let known = match get(&file, "projects") {
+        None | Some(Canon::Null) => false,
+        Some(Canon::Map(pairs)) => pairs
+            .iter()
+            .any(|(key, _)| matches!(key, Canon::Str(name) if name == project)),
+        Some(_) => return None,
+    };
+    if known {
+        return None;
+    }
+    std::fs::create_dir_all(root.join("work")).ok()?;
+    Some(Outcome {
+        stdout: "error: unknown project: add it first with `careerbrew work project add <name>` (careerbrew work project list shows them) (breaks US-107)\n".to_owned(),
+        stderr: String::new(),
+        code: 2,
+        emit_event: true,
+    })
 }

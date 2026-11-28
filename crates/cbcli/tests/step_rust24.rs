@@ -3,7 +3,9 @@
 //! "work.project.rules", "work.project.rules-set", "work.project.remove",
 //! "work.project.archive", "work.project.unarchive", "work.project.quiz",
 //! "work.project.gate", "work.project.update", "work.project.source",
-//! "work.project.check" and "work.project.prd".
+//! "work.project.check", "work.project.prd", "work.project.next",
+//! "work.project.reference", "work.project.memory", "work.project.set" and
+//! "work.project.explain".
 mod common;
 
 use common::*;
@@ -494,4 +496,345 @@ fn the_comparison_detects_a_planted_difference() {
             "{args:?}"
         );
     }
+}
+
+/// Plaintext projects with sources, a task, a link and a parent: the
+/// writers' homes (wave 4).
+const WRITERS: &[&[&str]] = &[
+    &[
+        "work",
+        "project",
+        "add",
+        "alpha",
+        "--memory",
+        "/nonexistent-synthetic/alpha-notes.md",
+    ],
+    &[
+        "work",
+        "project",
+        "source",
+        "alpha",
+        "url",
+        "https://example.com/synthetic",
+    ],
+    &[
+        "work",
+        "project",
+        "source",
+        "alpha",
+        "repo",
+        "example/synthetic",
+    ],
+    &[
+        "work",
+        "task",
+        "Synthetic task",
+        "--hours",
+        "1",
+        "--why",
+        "synthetic",
+    ],
+    &[
+        "work",
+        "project",
+        "add",
+        "beta",
+        "--title",
+        "Synthetic beta",
+        "--group",
+        "syn-team",
+        "--link",
+        "alpha",
+    ],
+    &["work", "project", "add", "gamma", "--parent", "alpha"],
+    &["work", "project", "next", "beta", "t001"],
+];
+
+fn writers_home(id: &'static str) -> Home {
+    prepare_setup(&Setup {
+        id,
+        cli: WRITERS,
+        files: &[PLAIN, ZONE],
+    })
+}
+
+#[test]
+fn work_project_next_matches_python() {
+    strict(NOW);
+    let home = writers_home("next");
+    for (args, label) in [
+        (
+            ["work", "project", "next", "alpha", "t001"],
+            "work.project.next links a task",
+        ),
+        (
+            ["work", "project", "next", "beta", "t001"],
+            "work.project.next already linked",
+        ),
+        (
+            ["work", "project", "next", "alpha", "t999"],
+            "work.project.next unknown task",
+        ),
+        (
+            ["work", "project", "next", "nope", "t001"],
+            "work.project.next unknown project",
+        ),
+    ] {
+        same(&home, &args, label);
+    }
+    same(
+        &empty_home("next-empty"),
+        &["work", "project", "next", "alpha", "t001"],
+        "work.project.next no tasks",
+    );
+    let sealed = prepare_setup(&Setup {
+        id: "next-sealed",
+        cli: &[
+            &["machine", "set", "personal"],
+            &["data", "encrypt"],
+            &["work", "project", "add", "alpha"],
+            &[
+                "work",
+                "task",
+                "Synthetic",
+                "--hours",
+                "1",
+                "--why",
+                "synthetic",
+            ],
+        ],
+        files: &[],
+    });
+    refused(
+        &sealed,
+        &["work", "project", "next", "alpha", "t001"],
+        "work.project.next sealed write",
+    );
+    refused(
+        &redact_home("next-redact"),
+        &["work", "project", "next", "alpha", "t001"],
+        "work.project.next redaction input",
+    );
+}
+
+#[test]
+fn work_project_reference_matches_python() {
+    strict(NOW);
+    let home = writers_home("reference");
+    same(
+        &home,
+        &[
+            "work",
+            "project",
+            "reference",
+            "alpha",
+            "https://example.com/synthetic",
+        ],
+        "work.project.reference on",
+    );
+    same(
+        &home,
+        &[
+            "work",
+            "project",
+            "reference",
+            "alpha",
+            "example/synthetic",
+            "--off",
+        ],
+        "work.project.reference off",
+    );
+    same(
+        &home,
+        &["work", "project", "reference", "nope", "x"],
+        "work.project.reference unknown project",
+    );
+    refused(
+        &home,
+        &["work", "project", "reference", "alpha", "no-such-ref"],
+        "work.project.reference no literal match",
+    );
+}
+
+#[test]
+fn work_project_memory_matches_python() {
+    strict(NOW);
+    let home = writers_home("memory");
+    same(
+        &home,
+        &[
+            "work",
+            "project",
+            "memory",
+            "gamma",
+            "/nonexistent-synthetic/gamma.md",
+        ],
+        "work.project.memory a file",
+    );
+    same(
+        &home,
+        &["work", "project", "memory", "alpha", ""],
+        "work.project.memory cleared",
+    );
+    same(
+        &home,
+        &[
+            "work",
+            "project",
+            "memory",
+            "nope",
+            "/nonexistent-synthetic/x.md",
+        ],
+        "work.project.memory unknown project",
+    );
+    for (path, label) in [
+        ("/tmp", "work.project.memory a folder"),
+        (
+            "/nonexistent-synthetic/MEMORY.md",
+            "work.project.memory an index",
+        ),
+        ("~/synthetic.md", "work.project.memory home path"),
+    ] {
+        refused(&home, &["work", "project", "memory", "gamma", path], label);
+    }
+}
+
+#[test]
+fn work_project_set_matches_python() {
+    strict(NOW);
+    let home = writers_home("set");
+    let long = "z".repeat(201);
+    for (args, label) in [
+        (
+            vec!["work", "project", "set", "beta", "--title", "New title"],
+            "work.project.set title",
+        ),
+        (
+            vec!["work", "project", "set", "beta", "--group", "none"],
+            "work.project.set clear group",
+        ),
+        (
+            vec![
+                "work",
+                "project",
+                "set",
+                "gamma",
+                "--title",
+                "  Padded  ",
+                "--group",
+                "syn-group",
+            ],
+            "work.project.set title and group",
+        ),
+        (
+            vec!["work", "project", "set", "alpha"],
+            "work.project.set nothing",
+        ),
+        (
+            vec!["work", "project", "set", "beta", "--title", long.as_str()],
+            "work.project.set long title",
+        ),
+        (
+            vec!["work", "project", "set", "nope", "--title", "x"],
+            "work.project.set unknown project",
+        ),
+    ] {
+        same(&home, &args, label);
+    }
+    refused(
+        &home,
+        &["work", "project", "set", "beta", "--parent", "alpha"],
+        "work.project.set parent",
+    );
+    refused(
+        &home,
+        &["work", "project", "set", "beta", "--link", "gamma"],
+        "work.project.set link",
+    );
+}
+
+#[test]
+fn work_project_explain_matches_python() {
+    strict(NOW);
+    let home = writers_home("explain");
+    let example = "skills/careerbrew-project-explainer/references/example-careerbrew.md";
+    for (args, label) in [
+        (
+            vec!["work", "project", "explain", "gamma"],
+            "work.project.explain scaffold",
+        ),
+        (
+            vec!["work", "project", "explain", "gamma", "--short"],
+            "work.project.explain scaffold short",
+        ),
+        (
+            vec!["work", "project", "explain", "gamma", "--deep"],
+            "work.project.explain scaffold deep",
+        ),
+        (
+            vec!["work", "project", "explain", "nope"],
+            "work.project.explain unknown project",
+        ),
+        (
+            vec!["work", "project", "explain", "gamma", "--check", example],
+            "work.project.explain check passes",
+        ),
+        (
+            vec![
+                "work", "project", "explain", "gamma", "--check", example, "--short",
+            ],
+            "work.project.explain check short fails",
+        ),
+        (
+            vec![
+                "work",
+                "project",
+                "explain",
+                "gamma",
+                "--check",
+                "config/native-routes.txt",
+            ],
+            "work.project.explain check fails",
+        ),
+    ] {
+        same(&home, &args, label);
+    }
+    refused(
+        &home,
+        &["work", "project", "explain", "alpha"],
+        "work.project.explain project with sources",
+    );
+    let inside = home.data.join("settings.yaml").display().to_string();
+    refused(
+        &home,
+        &["work", "project", "explain", "gamma", "--check", &inside],
+        "work.project.explain check inside the data root",
+    );
+}
+
+/// Negative control for the wave-4 writers: two served writes differ.
+#[test]
+fn the_writers_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let home = writers_home("writers-control");
+    let on = observe(
+        &home,
+        &["work", "project", "reference", "alpha", "example/synthetic"],
+        &Side::Native,
+    );
+    let off = observe(
+        &home,
+        &[
+            "work",
+            "project",
+            "reference",
+            "alpha",
+            "example/synthetic",
+            "--off",
+        ],
+        &Side::Native,
+    );
+    assert_eq!(on.code, Some(0));
+    assert_ne!(on.files, off.files);
+    assert_ne!(on.stdout, off.stdout);
 }

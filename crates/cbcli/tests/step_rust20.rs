@@ -7,6 +7,7 @@ use common::{assert_same, prepare_setup, strict, Setup};
 const NOW: &str = "2026-11-20T09:00:00";
 const CORPORATE: (&str, &str) = ("machine.yaml", "role: corporate\n");
 const TERMS: (&str, &str) = ("sensitive-terms.txt", "zebrafruit\n");
+const PLAIN: (&str, &str) = (".plaintext", "");
 const SEED: &[&[&str]] = &[&["cards", "add", "What is a heap?", "A tree with order"]];
 const PUBLIC_ID: &str = "kb-b34d21ae5816";
 
@@ -61,14 +62,13 @@ fn cards_next_matches_python() {
 }
 
 #[test]
-#[ignore = "cards.add is routed to Python: the deck file is 44 bytes off PyYAML (TASKS.md)"]
 fn cards_add_matches_python() {
     strict(NOW);
     // Route key: "cards.add".
     let home = prepare_setup(&Setup {
         id: "add",
         cli: SEED,
-        files: &[],
+        files: &[PLAIN],
     });
     assert_same(
         &home,
@@ -102,10 +102,50 @@ fn cards_add_matches_python() {
         true,
         "cards.add deck",
     );
+    assert_same(
+        &home,
+        &[
+            "cards",
+            "add",
+            "Qu'est-ce qu'un tas : « heap » ?",
+            "A long answer that keeps going past the eighty column fold of the dumper, so the plain scalar wraps onto a second line",
+            "--tags",
+            "Ärger, spaced ",
+        ],
+        true,
+        "cards.add unicode and folding",
+    );
+    assert_same(
+        &home,
+        &["cards", "add", "yes", "12: no #x"],
+        true,
+        "cards.add quoted scalars",
+    );
+    let empty = prepare_setup(&Setup {
+        id: "add-empty",
+        cli: &[],
+        files: &[PLAIN],
+    });
+    assert_same(
+        &empty,
+        &["cards", "add", "First card", "First answer"],
+        true,
+        "cards.add first deck",
+    );
+    let sealed = Setup {
+        id: "add-sealed",
+        cli: SEED,
+        files: &[],
+    };
+    refuses(
+        &sealed,
+        &["cards", "add", "A question", "An answer"],
+        "cards.add encrypted folder",
+    );
     let blank = Setup {
         id: "add-blank",
         cli: SEED,
-        files: &[],
+        files: &[PLAIN],
     };
     refuses(
         &blank,
@@ -115,7 +155,7 @@ fn cards_add_matches_python() {
     let odd = Setup {
         id: "add-odd",
         cli: SEED,
-        files: &[],
+        files: &[PLAIN],
     };
     refuses(
         &odd,
@@ -125,12 +165,162 @@ fn cards_add_matches_python() {
     let terms = Setup {
         id: "add-terms",
         cli: SEED,
-        files: &[TERMS],
+        files: &[PLAIN, TERMS],
     };
     refuses(
         &terms,
         &["cards", "add", "A question", "An answer"],
         "cards.add redaction",
+    );
+    let corporate = Setup {
+        id: "add-corp",
+        cli: &[],
+        files: &[PLAIN, CORPORATE],
+    };
+    refuses(
+        &corporate,
+        &["cards", "add", "A question", "An answer"],
+        "cards.add corporate",
+    );
+    // Negative control: a card without an id is a Python KeyError.
+    let broken = Setup {
+        id: "add-broken",
+        cli: &[],
+        files: &[
+            PLAIN,
+            (
+                "tutor/decks/mine.yaml",
+                "cards:\n- question: q\n  answer: a\n",
+            ),
+        ],
+    };
+    refuses(
+        &broken,
+        &["cards", "add", "A question", "An answer"],
+        "cards.add card without id",
+    );
+}
+
+/// Fourteen topics over two decks, with ties, so the top-12 cut and the
+/// stable order of tied topics both show.
+const MANY_TOPICS: &str = "cards:
+- {id: m-1, question: q1, answer: a, topic: zeta, tags: []}
+- {id: m-2, question: q2, answer: a, topic: alpha, tags: []}
+- {id: m-3, question: q3, answer: a, topic: alpha, tags: []}
+- {id: m-4, question: q4, answer: a, topic: kappa, tags: []}
+- {id: m-5, question: q5, answer: a, topic: beta, tags: []}
+- {id: m-6, question: q6, answer: a, topic: gamma, tags: []}
+- {id: m-7, question: q7, answer: a, topic: delta, tags: []}
+- {id: m-8, question: q8, answer: a, topic: epsilon, tags: []}
+- {id: m-9, question: q9, answer: a, topic: eta, tags: []}
+- {id: m-10, question: q10, answer: a, topic: theta, tags: []}
+- {id: m-11, question: q11, answer: a, topic: iota, tags: []}
+- {id: m-12, question: q12, answer: a, topic: lambda, tags: []}
+- {id: m-13, question: q13, answer: a, topic: mu, tags: []}
+- {id: m-14, question: q14, answer: a, topic: a very long topic name over twenty four, tags: []}
+";
+const SECOND_DECK: &str = "cards:
+- {id: m-2, question: q2 again, answer: a, topic: omega, tags: []}
+- {id: s-1, question: s1, answer: a, topic: zeta, tags: []}
+";
+/// Reviews over several days: a streak, an old row outside 30 days, and
+/// retention 1 of 8 (0.125, a rounding tie).
+const REVIEWS: &str = r#"{"at": "2026-09-01T10:00:00+00:00", "card": "m-1", "rating": "good", "topic": "zeta"}
+{"at": "2026-11-17T10:00:00+00:00", "card": "m-1", "rating": "again", "topic": "zeta"}
+{"at": "2026-11-18T10:00:00.250000+00:00", "card": "m-2", "rating": "again", "topic": "omega"}
+{"at": "2026-11-19T10:00:00+00:00", "card": "m-3", "rating": "again", "topic": "alpha"}
+{"at": "2026-11-19T11:00:00+00:00", "card": "m-4", "rating": "again", "topic": "kappa"}
+{"at": "2026-11-19T12:00:00+00:00", "card": "gone", "rating": "good", "topic": "kappa"}
+{"at": "2026-11-20T08:00:00+00:00", "card": "m-5", "rating": "again", "topic": "beta"}
+{"at": "2026-11-20T08:10:00+00:00", "card": "m-6", "rating": "again", "topic": "gamma"}
+{"at": "2026-11-20T08:20:00+00:00", "card": "m-7", "rating": "again", "topic": "delta"}
+{"at": "2026-11-20T08:30:00+00:00", "card": "m-8", "rating": "good", "topic": "epsilon", "first": true}
+"#;
+const STATES: &str = r#"{"m-1": {"card_id": 1, "state": 2, "step": null, "stability": 3.5, "difficulty": 5.0, "due": "2026-11-19T10:00:00+00:00", "last_review": "2026-11-17T10:00:00+00:00"},
+ "m-2": {"card_id": 2, "state": 1, "step": 0, "stability": 1.0, "difficulty": 6.0, "due": "2026-11-20T20:00:00+00:00", "last_review": "2026-11-18T10:00:00+00:00"},
+ "m-3": {"card_id": 3, "state": 2, "step": null, "stability": 9.0, "difficulty": 4.0, "due": "2026-12-20T20:00:00+00:00", "last_review": "2026-11-19T10:00:00+00:00"},
+ "m-4": {"card_id": 4, "state": 2, "step": null, "stability": 2.0, "difficulty": 4.0, "due": "2026-11-20T08:59:59.999999+00:00", "last_review": null}}
+"#;
+const META: &str = r#"{"suspended": ["m-4", "not-a-card"], "lapse_base": {}}"#;
+
+#[test]
+fn cards_stats_matches_python() {
+    strict(NOW);
+    // Route key: "cards.stats".
+    let empty = prepare_setup(&Setup {
+        id: "stats-empty",
+        cli: &[],
+        files: &[PLAIN],
+    });
+    assert_same(&empty, &["cards", "stats"], true, "cards.stats empty home");
+    let graded = prepare_setup(&Setup {
+        id: "stats-graded",
+        cli: &[
+            &["cards", "add", "What is a heap?", "A tree with order"],
+            &["cards", "grade", PUBLIC_ID, "again"],
+        ],
+        files: &[PLAIN],
+    });
+    assert_same(&graded, &["cards", "stats"], true, "cards.stats graded");
+    let full = prepare_setup(&Setup {
+        id: "stats-full",
+        cli: &[],
+        files: &[
+            PLAIN,
+            ("tutor/decks/mine.yaml", MANY_TOPICS),
+            ("tutor/decks/side.yaml", SECOND_DECK),
+            ("tutor/card-reviews.jsonl", REVIEWS),
+            ("tutor/card-state.json", STATES),
+            ("tutor/card-meta.json", META),
+        ],
+    });
+    assert_same(&full, &["cards", "stats"], true, "cards.stats many topics");
+    let corporate = Setup {
+        id: "stats-corp",
+        cli: &[],
+        files: &[PLAIN, CORPORATE],
+    };
+    refuses(&corporate, &["cards", "stats"], "cards.stats corporate");
+    let terms = Setup {
+        id: "stats-terms",
+        cli: &[],
+        files: &[PLAIN, TERMS],
+    };
+    refuses(&terms, &["cards", "stats"], "cards.stats redaction");
+    let naive = Setup {
+        id: "stats-naive",
+        cli: &[],
+        files: &[
+            PLAIN,
+            ("tutor/decks/mine.yaml", MANY_TOPICS),
+            (
+                "tutor/card-reviews.jsonl",
+                "{\"at\": \"2026-11-19T10:00:00\", \"card\": \"m-1\", \"rating\": \"good\", \"topic\": \"zeta\"}\n",
+            ),
+        ],
+    };
+    refuses(
+        &naive,
+        &["cards", "stats"],
+        "cards.stats naive review stamp",
+    );
+    // Negative control: a recent row with no topic is a Python KeyError.
+    let topicless = Setup {
+        id: "stats-topicless",
+        cli: &[],
+        files: &[
+            PLAIN,
+            ("tutor/decks/mine.yaml", MANY_TOPICS),
+            (
+                "tutor/card-reviews.jsonl",
+                "{\"at\": \"2026-11-19T10:00:00+00:00\", \"card\": \"m-1\", \"rating\": \"good\"}\n",
+            ),
+        ],
+    };
+    refuses(
+        &topicless,
+        &["cards", "stats"],
+        "cards.stats recent row without topic",
     );
 }
 

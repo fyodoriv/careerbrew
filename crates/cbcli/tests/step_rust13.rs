@@ -1,5 +1,6 @@
 //! rust-13 native handlers: "work.feed.rules", "work.feed.show",
-//! "work.feed.links", "work.feed.open" and "work.team.list" match Python in
+//! "work.feed.links", "work.feed.open" and "work.team.list" (and the wave 4
+//! handlers below) match Python in
 //! synthetic homes (stdout, exit code, data-root files, event rows).
 mod common;
 
@@ -187,4 +188,314 @@ fn a_different_home_gives_a_different_observation() {
     let got = observe(&none, &args, &Side::Native);
     let want = observe(&roster, &args, &Side::Python);
     assert_ne!(got.stdout, want.stdout);
+}
+
+// ---------- wave 4: "work.team.add", "work.team.remove", "work.team.feed",
+// "work.feed.retriage", "work.feed.mark" and "work.feed.research" ----------
+
+/// The hosted Linux runner seals a home without this marker: every write
+/// case gets it.
+const PLAIN: (&str, &str) = (".plaintext", "");
+
+fn plain(id: &'static str, cli: &'static [&'static [&'static str]]) -> Home {
+    prepare_setup(&Setup {
+        id,
+        cli,
+        files: &[PLAIN],
+    })
+}
+
+#[test]
+fn team_add_matches_python() {
+    strict(NOW);
+    let fresh = plain("add-fresh", &[]);
+    for args in [
+        &[
+            "work",
+            "team",
+            "add",
+            "Sam Lee",
+            "--chat",
+            "U0SAM",
+            "--email",
+            "Sam@Example.com",
+            "--login",
+            "@samlee",
+        ][..],
+        &["work", "team", "add", "  Bo   Rae "],
+        &["work", "team", "add", "Pat", "--chat", "W0PAT9"],
+    ] {
+        assert_same(&fresh, args, true, "work.team.add new");
+    }
+    let roster = plain("add-roster", &[ADD_SAM, ADD_PAT]);
+    for args in [
+        // The same ids: no change, no retriage.
+        &["work", "team", "add", "sam lee", "--chat", "U0SAM"][..],
+        // New ids for a known name.
+        &["work", "team", "add", "SAM LEE", "--login", "samlee"],
+        &[
+            "work",
+            "team",
+            "add",
+            "Alex Kim",
+            "--email",
+            "alex@example.com",
+        ],
+    ] {
+        assert_same(&roster, args, true, "work.team.add roster");
+    }
+    // `TeamError` lines, before any lock is taken.
+    let long = "N".repeat(81);
+    let chat = format!("U{}", "A".repeat(120));
+    for args in [
+        &["work", "team", "add", ""][..],
+        &["work", "team", "add", "   "],
+        &["work", "team", "add", long.as_str()],
+        &["work", "team", "add", "X", "--chat", "bad"],
+        &["work", "team", "add", "X", "--chat", chat.as_str()],
+        &["work", "team", "add", "X", "--email", "Nope.Example"],
+    ] {
+        assert_same(&fresh, args, true, "work.team.add error");
+    }
+    // Errors are served in a sealed home too: they write nothing sealed.
+    let sealed = empty("add-sealed");
+    assert_same(
+        &sealed,
+        &["work", "team", "add", "X", "--chat", "bad"],
+        true,
+        "work.team.add sealed error",
+    );
+    // An unchanged teammate in a sealed home: no write.
+    let sealed_roster = prepare_setup(&Setup {
+        id: "add-sealed-roster",
+        cli: &[ADD_SAM],
+        files: &[],
+    });
+    assert_same(
+        &sealed_roster,
+        &["work", "team", "add", "Sam Lee", "--chat", "U0SAM"],
+        true,
+        "work.team.add sealed no change",
+    );
+}
+
+#[test]
+fn team_add_refuses_what_it_cannot_repeat() {
+    strict(NOW);
+    // A sealed write differs on every run.
+    let sealed = empty("add-refuse-sealed");
+    assert!(!assert_same(
+        &sealed,
+        &["work", "team", "add", "Sam Lee"],
+        false,
+        "work.team.add sealed write"
+    ));
+    // Feed events: the retriage after a change reads them.
+    let events = prepare_setup(&Setup {
+        id: "add-refuse-events",
+        cli: &[],
+        files: &[PLAIN, ("work/feed/events.jsonl", "")],
+    });
+    assert!(!assert_same(
+        &events,
+        &["work", "team", "add", "Sam Lee"],
+        false,
+        "work.team.add feed events"
+    ));
+    // A quote in the email: its repr is not plain single quotes.
+    let fresh = plain("add-refuse-quote", &[]);
+    assert!(!assert_same(
+        &fresh,
+        &["work", "team", "add", "X", "--email", "o'x"],
+        false,
+        "work.team.add quoted email"
+    ));
+    // A number in the roster: Python's `str(value)` is not repeated.
+    let number = prepare_setup(&Setup {
+        id: "add-refuse-number",
+        cli: &[],
+        files: &[
+            PLAIN,
+            ("work/team.yaml", "team:\n  - {name: Sam Lee, chat: 1234}\n"),
+        ],
+    });
+    assert!(!assert_same(
+        &number,
+        &["work", "team", "add", "Pat"],
+        false,
+        "work.team.add number field"
+    ));
+}
+
+#[test]
+fn team_remove_matches_python() {
+    strict(NOW);
+    let roster = plain("remove-roster", &[ADD_SAM, ADD_ALEX, ADD_PAT]);
+    for args in [
+        &["work", "team", "remove", "sam   LEE"][..],
+        &["work", "team", "remove", "Pat Doe"],
+        &["work", "team", "remove", "Nobody"],
+    ] {
+        assert_same(&roster, args, true, "work.team.remove roster");
+    }
+    let fresh = empty("remove-empty");
+    assert_same(
+        &fresh,
+        &["work", "team", "remove", "Sam"],
+        true,
+        "work.team.remove empty",
+    );
+    // A sealed roster: the error reads it with the key and writes nothing.
+    let sealed = prepare_setup(&Setup {
+        id: "remove-sealed",
+        cli: &[ADD_SAM],
+        files: &[],
+    });
+    assert_same(
+        &sealed,
+        &["work", "team", "remove", "Nobody"],
+        true,
+        "work.team.remove sealed error",
+    );
+    assert!(!assert_same(
+        &sealed,
+        &["work", "team", "remove", "Sam Lee"],
+        false,
+        "work.team.remove sealed write"
+    ));
+}
+
+#[test]
+fn team_feed_and_feed_retriage_match_python() {
+    strict(NOW);
+    let fresh = empty("team-feed-empty");
+    for args in [
+        &["work", "team", "feed"][..],
+        &["work", "team", "feed", "--days", "3"],
+        &["work", "team", "feed", "--days", "0", "--top", "2"],
+    ] {
+        assert_same(&fresh, args, true, "work.team.feed empty");
+    }
+    assert_same(
+        &fresh,
+        &["work", "feed", "retriage"],
+        true,
+        "work.feed.retriage empty",
+    );
+    let roster = plain("retriage-roster", &[ADD_SAM, ADD_PAT]);
+    assert_same(
+        &roster,
+        &["work", "feed", "retriage"],
+        true,
+        "work.feed.retriage roster",
+    );
+    // Refusals: a settings file, stored events, the owner's rules.
+    let settings = prepare_setup(&Setup {
+        id: "team-feed-settings",
+        cli: &[],
+        files: &[("settings.yaml", "project_priority: [alpha]\n")],
+    });
+    assert!(!assert_same(
+        &settings,
+        &["work", "team", "feed"],
+        false,
+        "work.team.feed settings"
+    ));
+    let events = prepare_setup(&Setup {
+        id: "team-feed-events",
+        cli: &[],
+        files: &[("work/feed/events.jsonl", "")],
+    });
+    for (label, args) in [
+        ("work.team.feed events", ["work", "team", "feed"]),
+        ("work.feed.retriage events", ["work", "feed", "retriage"]),
+    ] {
+        assert!(!assert_same(&events, &args, false, label));
+    }
+    let rules = prepare_setup(&Setup {
+        id: "retriage-rules",
+        cli: &[],
+        files: &[(
+            "work/feed-rules.yaml",
+            "rules: [{name: alerts, when: {source: slack}, triage: noise}]\n",
+        )],
+    });
+    assert!(!assert_same(
+        &rules,
+        &["work", "feed", "retriage"],
+        false,
+        "work.feed.retriage rules"
+    ));
+}
+
+#[test]
+fn feed_mark_and_research_match_python() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "mark-research",
+        cli: &[],
+        files: &[
+            (
+                "in/list.json",
+                "[{\"url\": \"https://example.com/a\", \"summary\": \"A page.\"}]\n",
+            ),
+            ("in/object.json", "{\"url\": \"https://example.com/a\"}\n"),
+            ("in/empty.json", "[]\n"),
+            ("in/text.json", "not json\n"),
+        ],
+    });
+    for value in ["done", "not-ask", "ask", "personal", "work"] {
+        assert_same(
+            &home,
+            &["work", "feed", "mark", "ev-1", value],
+            true,
+            "work.feed.mark no events",
+        );
+    }
+    let file = |name: &str| home.data.join("in").join(name).display().to_string();
+    for name in ["list.json", "object.json", "empty.json"] {
+        let path = file(name);
+        assert_same(
+            &home,
+            &["work", "feed", "research", "ev-1", path.as_str()],
+            true,
+            "work.feed.research no events",
+        );
+    }
+    // Python prints its own "not JSON" line, and its own error for a
+    // missing file.
+    let text = file("text.json");
+    let missing = file("missing.json");
+    for path in [&text, &missing] {
+        assert!(!assert_same(
+            &home,
+            &["work", "feed", "research", "ev-1", path.as_str()],
+            false,
+            "work.feed.research refused"
+        ));
+    }
+    let events = prepare_setup(&Setup {
+        id: "mark-events",
+        cli: &[],
+        files: &[("work/feed/events.jsonl", "")],
+    });
+    assert!(!assert_same(
+        &events,
+        &["work", "feed", "mark", "ev-1", "done"],
+        false,
+        "work.feed.mark events"
+    ));
+}
+
+/// Negative control for the wave 4 handlers: a home with a teammate and one
+/// without give different observations, natively and in Python.
+#[test]
+fn a_different_roster_gives_a_different_removal() {
+    strict(NOW);
+    let none = plain("control-remove-empty", &[]);
+    let roster = plain("control-remove-roster", &[ADD_SAM]);
+    let args = ["work", "team", "remove", "Sam Lee"];
+    let got = observe(&none, &args, &Side::Native);
+    let want = observe(&roster, &args, &Side::Python);
+    assert_ne!(got, want);
 }

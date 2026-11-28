@@ -1,7 +1,7 @@
 //! rust-19 native handlers: parity with the Python CLI in synthetic homes
 //! for "jobs.choose", "jobs.unchoose", "jobs.log", "jobs.preset",
-//! "prep.story", "interview", "interview-patterns", "research.stale" and
-//! "jobs.interview-gaps".
+//! "prep.story", "interview", "interview-patterns", "research.stale",
+//! "jobs.interview-gaps", "jobs.list", "jobs.rate" and "jobs.learn".
 mod common;
 
 use common::*;
@@ -431,6 +431,132 @@ fn jobs_interview_gaps_matches_python() {
         &corporate("gaps-corporate"),
         &["jobs", "interview-gaps"],
         "jobs.interview-gaps corporate",
+    );
+}
+
+/// Four ratings of known postings and one of a posting no longer stored.
+const RATINGS: (&str, &str) = (
+    "jobs/ratings.jsonl",
+    "{\"at\": \"2026-11-01T00:00:00+00:00\", \"id\": \"p1\", \"origin\": \"user\", \"rating\": 4, \"tags\": []}\n{\"at\": \"2026-11-02T00:00:00+00:00\", \"id\": \"p1\", \"origin\": \"user\", \"rating\": 5, \"tags\": [\"remote\"]}\n{\"at\": \"2026-11-03T00:00:00+00:00\", \"id\": \"gone\", \"origin\": \"user\", \"rating\": 2, \"tags\": []}\n",
+);
+
+const ODD_RATINGS: (&str, &str) = (
+    "jobs/ratings.jsonl",
+    "{\"id\": \"p1\", \"rating\": \"4\"}\n",
+);
+
+#[test]
+fn jobs_list_matches_python() {
+    strict(NOW);
+    let empty = prepare_setup(&Setup {
+        id: "list-empty",
+        cli: &[],
+        files: &[],
+    });
+    same(&empty, &["jobs", "list"], "jobs.list empty home");
+    same(&empty, &["jobs", "list", "--json"], "jobs.list empty json");
+    let rated = prepare_setup(&Setup {
+        id: "list-rated",
+        cli: &[],
+        files: &[RATINGS, ("jobs/weights.yaml", "comp: 2\ngrowth: 1.5\n")],
+    });
+    same(
+        &rated,
+        &["jobs", "list", "--top", "3"],
+        "jobs.list ratings only",
+    );
+    let postings = prepare_setup(&Setup {
+        id: "list-postings",
+        cli: &[],
+        files: &[POSTINGS],
+    });
+    refused(&postings, &["jobs", "list"], "jobs.list scored postings");
+    refused(
+        &corporate("list-corporate"),
+        &["jobs", "list"],
+        "jobs.list corporate",
+    );
+}
+
+#[test]
+fn jobs_learn_matches_python() {
+    strict(NOW);
+    let empty = prepare_setup(&Setup {
+        id: "learn-empty",
+        cli: &[],
+        files: &[],
+    });
+    same(&empty, &["jobs", "learn"], "jobs.learn empty home");
+    let some = prepare_setup(&Setup {
+        id: "learn-some",
+        cli: &[],
+        files: &[POSTINGS, RATINGS],
+    });
+    same(&some, &["jobs", "learn"], "jobs.learn need more ratings");
+    let odd = prepare_setup(&Setup {
+        id: "learn-odd",
+        cli: &[],
+        files: &[POSTINGS, ODD_RATINGS],
+    });
+    refused(&odd, &["jobs", "learn"], "jobs.learn text rating");
+}
+
+#[test]
+fn jobs_rate_matches_python() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "rate",
+        cli: &[],
+        files: &[(".plaintext", ""), POSTINGS, RATINGS],
+    });
+    same(&home, &["jobs", "rate", "p2", "3"], "jobs.rate new posting");
+    same(
+        &home,
+        &["jobs", "rate", "p1", "2", "--tags", "remote,python"],
+        "jobs.rate again with tags",
+    );
+    same(
+        &home,
+        &["jobs", "rate", "nope", "4"],
+        "jobs.rate unknown posting",
+    );
+    refused(
+        &home,
+        &["jobs", "rate", "p2", "6"],
+        "jobs.rate out of range",
+    );
+    let fifth = prepare_setup(&Setup {
+        id: "rate-fifth",
+        cli: &[],
+        files: &[
+            (".plaintext", ""),
+            POSTINGS,
+            (
+                "jobs/ratings.jsonl",
+                "{\"id\": \"a\", \"rating\": 1}\n{\"id\": \"b\", \"rating\": 2}\n{\"id\": \"c\", \"rating\": 3}\n{\"id\": \"d\", \"rating\": 4}\n",
+            ),
+        ],
+    });
+    refused(
+        &fifth,
+        &["jobs", "rate", "p1", "5"],
+        "jobs.rate fifth rating refits",
+    );
+    let sealed = prepare_setup(&Setup {
+        id: "rate-sealed",
+        cli: &[],
+        files: &[POSTINGS],
+    });
+    assert_same(
+        &sealed,
+        &["jobs", "rate", "p1", "4"],
+        false,
+        "jobs.rate sealed home",
+    );
+    refused(
+        &corporate("rate-corporate"),
+        &["jobs", "rate", "p1", "4"],
+        "jobs.rate corporate",
     );
 }
 

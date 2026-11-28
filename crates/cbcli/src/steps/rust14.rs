@@ -1,7 +1,10 @@
 //! Native CLI handlers owned by `rust-14` (see `steps/mod.rs`): the live
 //! feed's `work live stop`, `notify list`, `notify status` and `notify act`
 //! over `careerbrew_live`, and the project sessions' `work session list`
-//! and the argument error of `work session end`.
+//! and the argument error of `work session end`. Wave 4 adds the narrow
+//! cases of `work live start` (no source anywhere: its error), `work live
+//! cycle` (the feed is stopped: its error), `work live status` (no source
+//! anywhere) and `notify check` (notifications off).
 //!
 //! Each handler checks, before any write, that the Python code would read
 //! the same inputs the same way; any doubt refuses (exit 64) and Python runs
@@ -26,6 +29,10 @@ pub const COMMANDS: &[&str] = &[
     "notify.act",
     "work.session.list",
     "work.session.end",
+    "work.live.start",
+    "work.live.cycle",
+    "work.live.status",
+    "notify.check",
 ];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
@@ -41,6 +48,10 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "notify.act" => notify_act(args, ctx, started),
         "work.session.list" => session_list(args, ctx),
         "work.session.end" => session_end(args),
+        "work.live.start" => live_start(args, ctx),
+        "work.live.cycle" => live_cycle(ctx),
+        "work.live.status" => live_status(args, ctx),
+        "notify.check" => notify_check(ctx),
         _ => None,
     }
 }
@@ -637,7 +648,7 @@ fn plain(value: &Canon) -> bool {
     }
 }
 
-fn printable(text: &str) -> bool {
+pub(super) fn printable(text: &str) -> bool {
     !text.is_empty() && text.chars().all(|c| (' '..='~').contains(&c))
 }
 
@@ -736,6 +747,283 @@ fn notify_act(args: &Parsed, ctx: &Ctx, started: Instant) -> Option<Outcome> {
     }
     line.push('\n');
     Some(written(ctx, "notify.act", started, line))
+}
+
+// ---------- wave 4: work live start, cycle, status; notify check ----------
+
+/// `cli.main` on a caught `ValueError`: one `cli.error` row, `error: <message>`,
+/// exit 2, and no `cli.run` row. `command` is Python's two-word name and
+/// `class` the lowercase class name; the message is fixed text.
+pub(super) fn cli_error(ctx: &Ctx, command: &str, class: &str, message: &str) -> Outcome {
+    let _ = careerbrew_feed::emit(
+        &ctx.root,
+        "cli.error",
+        vec![
+            ("command", Canon::Str(command.into())),
+            ("error", Canon::Str(class.into())),
+            ("via", Canon::Str(ctx.env.caps.via.into())),
+        ],
+    );
+    Outcome {
+        stdout: format!("error: {message}\n"),
+        stderr: String::new(),
+        code: 2,
+        emit_event: false,
+    }
+}
+
+/// True when nothing (a file, a folder or a link) is at `rel`.
+fn absent(root: &Path, rel: &str) -> bool {
+    matches!(
+        std::fs::symlink_metadata(root.join(rel)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound
+    )
+}
+
+/// No live source can exist: no owner config and no plugin (a plugin's
+/// lock file is also a redaction input, refused before this).
+fn no_live_sources(root: &Path) -> bool {
+    absent(root, "work/live-sources.yaml") && absent(root, "plugins.lock.json")
+}
+
+/// `work live start` with no `--sources` and no source anywhere: Python's
+/// `live.start` raises `LiveError` before it writes anything.
+fn live_start(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    if !event_version_ok() {
+        return None;
+    }
+    // `if a.sources:` reads a given config (or stdin): Python.
+    if args.text("sources").is_some_and(|text| !text.is_empty()) {
+        return None;
+    }
+    if !no_live_sources(&ctx.root) {
+        return None;
+    }
+    Some(cli_error(
+        ctx,
+        "work.live",
+        "liveerror",
+        "no live sources (fix: careerbrew work live start --sources <file.yaml>, or install a plugin with live sources)",
+    ))
+}
+
+/// `work live cycle` while the feed is stopped: Python takes the cycle lock
+/// (creating `work/live/.cycle.lock`), reads the state and raises
+/// `LiveError`. A running feed stays with Python.
+fn live_cycle(ctx: &Ctx) -> Option<Outcome> {
+    if !event_version_ok() {
+        return None;
+    }
+    let root = &ctx.root;
+    let state = read_json(root, "work/live/state.json")?;
+    match &state {
+        Canon::Null => {}
+        Canon::Map(_) => {
+            if !matches!(
+                get(&state, "running"),
+                None | Some(Canon::Null) | Some(Canon::Bool(false))
+            ) {
+                return None;
+            }
+        }
+        _ => return None,
+    }
+    let dir = root.join("work/live");
+    std::fs::create_dir_all(&dir).ok()?;
+    let lock = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .read(true)
+        .open(dir.join(".cycle.lock"))
+        .ok()?;
+    let message = match lock.try_lock() {
+        Ok(()) => "the live feed is stopped (fix: careerbrew work live start)",
+        Err(std::fs::TryLockError::WouldBlock) => {
+            "another live cycle is running (wait for it to finish, then run the next one)"
+        }
+        Err(_) => return None,
+    };
+    let out = cli_error(ctx, "work.live", "liveerror", message);
+    drop(lock);
+    Some(out)
+}
+
+/// What `work live status` prints from the state file when no source exists.
+struct LiveState {
+    running: bool,
+    cycles: i64,
+    started_at: String,
+}
+
+/// The state and settings `live.status` and `health.snapshot` read, in the
+/// shapes whose output this handler copies: no source, no cycle record, no
+/// direct-cycle receipt and no saved standup (whose age is a float).
+fn live_status_inputs(root: &Path) -> Option<LiveState> {
+    if !no_live_sources(root)
+        || ![
+            "work/live/cycles.jsonl",
+            "work/feed/direct-cycle.json",
+            "work/standup.json",
+        ]
+        .iter()
+        .all(|rel| absent(root, rel))
+    {
+        return None;
+    }
+    let settings = read_yaml(root, "settings.yaml")?;
+    match get(&settings, "feed_tool_sources") {
+        None => {}
+        Some(Canon::List(items)) if items.is_empty() => {}
+        Some(_) => return None,
+    }
+    if get(&settings, "live_source_max_age_minutes").is_some()
+        && int(get(&settings, "live_source_max_age_minutes")).is_none()
+    {
+        return None;
+    }
+    let state = read_json(root, "work/live/state.json")?;
+    let state = match state {
+        Canon::Null => Canon::Map(Vec::new()),
+        Canon::Map(_) => state,
+        _ => return None,
+    };
+    let running = match get(&state, "running") {
+        None => false,
+        Some(Canon::Bool(value)) => *value,
+        Some(_) => return None,
+    };
+    let cycles = match get(&state, "cycles") {
+        None => 0,
+        value => int(value)?,
+    };
+    let started_at = match get(&state, "started_at") {
+        None => String::new(),
+        Some(Canon::Str(text)) => text.clone(),
+        Some(_) => return None,
+    };
+    match get(&state, "last") {
+        None | Some(Canon::Null) => {}
+        Some(Canon::Map(pairs)) if pairs.is_empty() => {}
+        Some(_) => return None,
+    }
+    Some(LiveState {
+        running,
+        cycles,
+        started_at,
+    })
+}
+
+/// `calendar.now_utc().isoformat()` for a pinned clock with whole seconds;
+/// None for the wall clock (its microseconds differ on every run).
+fn pinned_utc_iso() -> Option<String> {
+    let pinned = std::env::var("CAREERBREW_NOW").ok()?;
+    if pinned.contains('.') || iso(&pinned).is_none() {
+        return None;
+    }
+    Some(
+        careerbrew_feed::now_utc()
+            .format("%Y-%m-%dT%H:%M:%S+00:00")
+            .to_string(),
+    )
+}
+
+const START_FIX: &str = "careerbrew work live start --sources <file.yaml>";
+
+fn live_status(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let root = &ctx.root;
+    let state = live_status_inputs(root)?;
+    let stdout = if args.flag("json") {
+        let as_of = pinned_utc_iso()?;
+        let running = if state.running { "true" } else { "false" };
+        let mut out = String::from("{\n  \"actions\": [],\n  \"cycles\": ");
+        out.push_str(&state.cycles.to_string());
+        out.push_str(",\n  \"health\": {\n    \"as_of\": ");
+        crate::render::py_string(&as_of, &mut out);
+        out.push_str(",\n    \"commands\": [\n      ");
+        crate::render::py_string(START_FIX, &mut out);
+        out.push_str(concat!(
+            "\n    ],\n    \"healthy\": 0,\n    \"mode\": \"none\",\n",
+            "    \"next_expiry\": null,\n    \"reason\": \"no-sources\",\n",
+            "    \"required\": 0,\n    \"row_review\": {\n",
+            "      \"age_seconds\": null,\n      \"checked_at\": null,\n",
+            "      \"max_age_minutes\": 60,\n      \"status\": \"unknown\"\n",
+            "    },\n    \"running\": ",
+        ));
+        out.push_str(running);
+        out.push_str(concat!(
+            ",\n    \"sources\": [],\n    \"status\": \"missing\",\n",
+            "    \"version\": 1\n  },\n  \"last\": {},\n  \"running\": ",
+        ));
+        out.push_str(running);
+        out.push_str(",\n  \"sources\": [],\n  \"started_at\": ");
+        crate::render::py_string(&state.started_at, &mut out);
+        out.push_str("\n}\n");
+        out
+    } else {
+        format!(
+            concat!(
+                "live feed: {}; {} cycle(s)\n",
+                "source health: missing; 0 of 0 required source(s); none coverage\n",
+                "  fix: {fix}\n",
+                "no live sources: {fix} (or a plugin with live sources)\n",
+            ),
+            if state.running { "running" } else { "stopped" },
+            state.cycles,
+            fix = START_FIX,
+        )
+    };
+    // `live._dir()` makes the state folder on every call.
+    std::fs::create_dir_all(root.join("work/live")).ok()?;
+    Some(Outcome {
+        stdout,
+        stderr: String::new(),
+        code: 0,
+        emit_event: true,
+    })
+}
+
+/// `notify check` with notifications off: `notify.process` returns before
+/// it reads the feed or writes the list; `run` logs one `notify.check` row.
+fn notify_check(ctx: &Ctx) -> Option<Outcome> {
+    if !event_version_ok() || !notifier_path_ok() {
+        return None;
+    }
+    let root = &ctx.root;
+    let settings = read_yaml(root, "settings.yaml")?;
+    if !notify_settings_ok(&settings) {
+        return None;
+    }
+    if !matches!(
+        get(&settings, "notify_events"),
+        None | Some(Canon::Bool(false))
+    ) {
+        return None;
+    }
+    let (kind, _, _) = careerbrew_live::notify::backend(root).ok()?;
+    if !["none", "osascript", "alerter", "terminal-notifier"].contains(&kind.as_str()) {
+        return None;
+    }
+    let zero = || Canon::Int(0.into());
+    careerbrew_feed::emit(
+        root,
+        "notify.check",
+        vec![
+            ("status", Canon::Str("off".into())),
+            ("source_kind", Canon::Str(kind)),
+            ("new", zero()),
+            ("sent", zero()),
+            ("batched", zero()),
+            ("held", zero()),
+            ("capped", zero()),
+        ],
+    )
+    .ok()?;
+    Some(Outcome {
+        stdout: "notifications are off: turn them on with careerbrew config set notify_events true (careerbrew notify status shows the rules)\n".to_owned(),
+        stderr: String::new(),
+        code: 0,
+        emit_event: true,
+    })
 }
 
 // ---------- work session list ----------

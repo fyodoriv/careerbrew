@@ -30,6 +30,10 @@ pub const COMMANDS: &[&str] = &[
     "work.agent.event",
     "work.claim.take",
     "work.claim.release",
+    "work.claim.list",
+    "work.agent.show",
+    "draft.show",
+    "draft.replace",
 ];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
@@ -43,6 +47,10 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "work.agent.event" => work::agent_event(args, ctx),
         "work.claim.take" => work::claim_take(args, ctx),
         "work.claim.release" => work::claim_release(args, ctx),
+        "work.claim.list" => work::claim_list(args, ctx),
+        "work.agent.show" => work::agent_show(args, ctx),
+        "draft.show" => work::draft_show(args, ctx),
+        "draft.replace" => work::draft_replace(args, ctx),
         _ => None,
     }
 }
@@ -351,7 +359,7 @@ fn draft_fit(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
 /// Every refusal comes before any write. A store that changed between the
 /// first read and the read under its lock refuses after the lock file is
 /// made, a file Python makes too.
-mod work {
+pub(crate) mod work {
     use super::super::Ctx;
     use crate::args::Parsed;
     use crate::Outcome;
@@ -361,13 +369,13 @@ mod work {
     use std::io::Write;
     use std::path::Path;
 
-    type Pairs = Vec<(Canon, Canon)>;
+    pub(crate) type Pairs = Vec<(Canon, Canon)>;
 
     const SESSIONS: &str = "work/sessions.json";
     const AGENT_LOG: &str = "work/agents/events.jsonl";
     const USE_KINDS: &[&str] = &["browser", "slack-draft", "file", "checkout"];
 
-    fn served(stdout: String, code: i32) -> Option<Outcome> {
+    pub(crate) fn served(stdout: String, code: i32) -> Option<Outcome> {
         Some(Outcome {
             stdout,
             stderr: String::new(),
@@ -377,7 +385,7 @@ mod work {
     }
 
     /// Printable ASCII: no character Python and Rust classify differently.
-    fn plain(text: &str) -> bool {
+    pub(crate) fn plain(text: &str) -> bool {
         text.bytes().all(|b| (b' '..=b'~').contains(&b))
     }
 
@@ -397,7 +405,7 @@ mod work {
     // ---- stored values ----
 
     /// Every key is text and none is given twice (Python keeps the last).
-    fn keys_unique(pairs: &Pairs) -> bool {
+    pub(crate) fn keys_unique(pairs: &Pairs) -> bool {
         pairs.iter().enumerate().all(|(i, (key, _))| {
             matches!(key, Canon::Str(_)) && pairs[..i].iter().all(|(other, _)| other != key)
         })
@@ -410,7 +418,7 @@ mod work {
         }
     }
 
-    fn get<'a>(pairs: &'a [(Canon, Canon)], key: &str) -> Option<&'a Canon> {
+    pub(crate) fn get<'a>(pairs: &'a [(Canon, Canon)], key: &str) -> Option<&'a Canon> {
         pairs
             .iter()
             .find(|(k, _)| matches!(k, Canon::Str(k) if k == key))
@@ -464,7 +472,7 @@ mod work {
 
     /// The file's text, `Some(None)` when it does not exist, None on any read
     /// error (a sealed file is read without making a key).
-    fn read_text(store: &Store, path: &Path) -> Option<Option<String>> {
+    pub(crate) fn read_text(store: &Store, path: &Path) -> Option<Option<String>> {
         if !path.exists() {
             return Some(None);
         }
@@ -472,7 +480,7 @@ mod work {
     }
 
     /// `store.read_yaml(path, {}) or {}` as a mapping with text keys.
-    fn read_map_yaml(store: &Store, path: &Path) -> Option<Pairs> {
+    pub(crate) fn read_map_yaml(store: &Store, path: &Path) -> Option<Pairs> {
         match store.read_yaml(path, Canon::Map(Vec::new()), false).ok()? {
             Canon::Map(pairs) if keys_unique(&pairs) => Some(pairs),
             other if !truthy(&other) => Some(Vec::new()),
@@ -520,12 +528,12 @@ mod work {
 
     /// `calendar.now()`, and the zone it carries (None for a pinned clock
     /// with its own offset, which Python keeps as a fixed zone).
-    struct Clock {
-        at: when::At,
+    pub(crate) struct Clock {
+        pub(crate) at: when::At,
         zone: Option<String>,
     }
 
-    fn clock(settings: &Pairs) -> Option<Clock> {
+    pub(crate) fn clock(settings: &Pairs) -> Option<Clock> {
         let pinned = std::env::var("CAREERBREW_NOW")
             .ok()
             .filter(|value| !value.is_empty());
@@ -677,7 +685,7 @@ mod work {
 
     // ---- events and locks ----
 
-    fn quote(text: &str) -> String {
+    pub(crate) fn quote(text: &str) -> String {
         let mut out = String::new();
         crate::render::py_string(text, &mut out);
         out
@@ -685,7 +693,7 @@ mod work {
 
     /// One `events.emit(event, **fields)` row; each value is already a JSON
     /// token (a quoted lowercase id, or a number).
-    fn emit(ctx: &Ctx, event: &str, fields: &[(&str, String)]) {
+    pub(crate) fn emit(ctx: &Ctx, event: &str, fields: &[(&str, String)]) {
         if !ctx.env.caps.events_on {
             return;
         }
@@ -959,7 +967,7 @@ mod work {
         })
     }
 
-    fn vault() -> Option<careerbrew_vault::transfer::Context> {
+    pub(crate) fn vault() -> Option<careerbrew_vault::transfer::Context> {
         careerbrew_vault::transfer::Context::from_env().ok()
     }
 
@@ -1289,6 +1297,408 @@ mod work {
         };
         served(
             format!("event stored: {agent} {status}{shown_run}; Agent activity on Work shows it within seconds\n"),
+            0,
+        )
+    }
+    // ---------- work claim list ----------
+
+    /// `cmd_work_claim` with no action: the claims that hold now, their
+    /// resources hidden (the hidden branch only: a terminal goes to Python).
+    pub(super) fn claim_list(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+        if ctx.env.stdout_is_terminal {
+            return None;
+        }
+        let vault = vault()?;
+        let store = vault.store();
+        let b = base(&store, ctx)?;
+        let (_, mut st) = load_sessions(&store, &ctx.root.join(SESSIONS))?;
+        let keep = keep_date(&b.today, b.keep_days)?;
+        prune(&mut st, b.clock.at.timestamp(), &keep)?;
+        // (session, at, until, kind) per claim, all printable ASCII.
+        let mut rows: Vec<[&str; 4]> = Vec::new();
+        for claim in list(&st, "claims") {
+            let c = map(claim)?;
+            let (res, session, at, until) = (
+                text(c, "resource")?,
+                text(c, "session")?,
+                text(c, "at")?,
+                text(c, "until")?,
+            );
+            if ![res, session, at, until].iter().all(|t| plain(t)) {
+                return None;
+            }
+            let kind = res.split(':').next().unwrap_or(res);
+            rows.push([session, at, until, kind]);
+        }
+        let mut out = String::new();
+        if args.flag("json") {
+            out.push_str("{\"claims\": [");
+            for (i, [session, at, until, kind]) in rows.iter().enumerate() {
+                if i > 0 {
+                    out.push_str(", ");
+                }
+                out.push_str(&format!(
+                    "{{\"session\": {}, \"at\": {}, \"until\": {}, \"kind\": {}}}",
+                    quote(session),
+                    quote(at),
+                    quote(until),
+                    quote(kind)
+                ));
+            }
+            out.push_str("]}\n");
+            return served(out, 0);
+        }
+        for [session, _, until, kind] in &rows {
+            let hhmm = until.get(11..16).unwrap_or("");
+            out.push_str(&format!(
+                "  {kind}:(hidden)  session {session}  until {hhmm}\n"
+            ));
+        }
+        out.push_str(&format!("claims: {} held\n", rows.len()));
+        served(out, 0)
+    }
+
+    // ---------- work agent show ----------
+
+    /// One run as `agents.runs` builds it.
+    struct Run {
+        agent: String,
+        run: String,
+        project: String,
+        status: String,
+        at: String,
+        started_at: String,
+        events: u64,
+    }
+
+    /// A stored text field: absent reads as `default`, a non-text value
+    /// (whose `str()` this module does not port) refuses.
+    fn field_text(row: &Pairs, key: &str, default: &str) -> Option<String> {
+        match get(row, key) {
+            None => Some(default.to_owned()),
+            Some(Canon::Str(value)) => Some(value.clone()),
+            Some(_) => None,
+        }
+    }
+
+    /// `agents.runs(now)` for rows read by `agent_rows`.
+    fn agent_runs(
+        mut rows: Vec<(String, Canon)>,
+        now: i64,
+        keep_days: i64,
+        quiet_minutes: i64,
+    ) -> Option<Vec<Run>> {
+        let cutoff = utc_iso(now - keep_days * 86_400)?;
+        let quiet = utc_iso(now - quiet_minutes * 60)?;
+        // `sorted(load(), key=at)`: stable, by code point.
+        rows.sort_by(|a, b| a.0.cmp(&b.0));
+        let mut out: Vec<Run> = Vec::new();
+        for (at, row) in rows {
+            let r = map(&row)?;
+            let agent = field_text(r, "agent", "")?;
+            let run = field_text(r, "run", "")?;
+            let status = field_text(r, "status", "running")?;
+            let project = match get(r, "project") {
+                None | Some(Canon::Null) => String::new(),
+                Some(Canon::Str(value)) => value.clone(),
+                Some(_) => return None,
+            };
+            if at.as_str() < cutoff.as_str() {
+                continue;
+            }
+            if ![&agent, &run, &status, &project, &at]
+                .iter()
+                .all(|t| plain(t))
+            {
+                return None;
+            }
+            let index = out.iter().position(|p| p.agent == agent && p.run == run);
+            let prev = index.map(|i| &out[i]);
+            let restart = prev.is_none_or(|p| {
+                matches!(p.status.as_str(), "done" | "failed") && status == "running"
+            });
+            let kept = match (prev, restart) {
+                (Some(p), false) => Some(p),
+                _ => None,
+            };
+            let project = if !project.is_empty() {
+                project
+            } else {
+                kept.map(|p| p.project.clone()).unwrap_or_default()
+            };
+            let (started_at, events) = match kept {
+                Some(p) => (p.started_at.clone(), p.events + 1),
+                None => (at.clone(), 1),
+            };
+            let next = Run {
+                agent,
+                run,
+                project,
+                status,
+                at,
+                started_at,
+                events,
+            };
+            match index {
+                Some(i) => out[i] = next,
+                None => out.push(next),
+            }
+        }
+        out.sort_by(|a, b| {
+            (b.at.as_str(), b.agent.as_str(), b.run.as_str()).cmp(&(
+                a.at.as_str(),
+                a.agent.as_str(),
+                a.run.as_str(),
+            ))
+        });
+        for r in &mut out {
+            if r.status == "running" && r.at.as_str() < quiet.as_str() {
+                r.status = "quiet".into();
+            }
+        }
+        Some(out)
+    }
+
+    /// `cmd_work_agent` show with titles and links hidden (a terminal goes
+    /// to Python).
+    pub(super) fn agent_show(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+        if ctx.env.stdout_is_terminal {
+            return None;
+        }
+        let vault = vault()?;
+        let store = vault.store();
+        let b = base(&store, ctx)?;
+        let quiet = setting_int(&b.settings, "agent_quiet_minutes", 60)?;
+        if !(0..=1_000_000).contains(&quiet) {
+            return None;
+        }
+        let (_, rows) = agent_rows(&store, &ctx.root.join(AGENT_LOG))?;
+        let runs = agent_runs(rows, b.clock.at.timestamp(), b.keep_days, quiet)?;
+        let count = |s: &str| runs.iter().filter(|r| r.status == s).count();
+        let (running, quiet_n, done, failed) = (
+            count("running"),
+            count("quiet"),
+            count("done"),
+            count("failed"),
+        );
+        if args.flag("json") {
+            let mut out = format!("{{\"counts\": {{\"running\": {running}, \"quiet\": {quiet_n}, \"done\": {done}, \"failed\": {failed}}}, \"runs\": [");
+            for (i, r) in runs.iter().enumerate() {
+                if i > 0 {
+                    out.push_str(", ");
+                }
+                out.push_str(&format!(
+                    "{{\"agent\": {}, \"run\": {}, \"project\": {}, \"status\": {}, \"at\": {}, \"started_at\": {}, \"events\": {}}}",
+                    quote(&r.agent),
+                    quote(&r.run),
+                    quote(&r.project),
+                    quote(&r.status),
+                    quote(&r.at),
+                    quote(&r.started_at),
+                    r.events
+                ));
+            }
+            out.push_str("]}\n");
+            return served(out, 0);
+        }
+        if runs.is_empty() {
+            return served("no agent activity yet: an agent reports each step with careerbrew work agent event <agent> \"<what it did>\" [--project <name>] [--url <link>]; --status done ends the run\n".into(), 0);
+        }
+        let mut out = format!(
+            "{} run(s): {running} running, {quiet_n} quiet, {done} done, {failed} failed\n",
+            runs.len()
+        );
+        for r in &runs {
+            let run = if r.run != r.agent {
+                format!(" ({})", r.run)
+            } else {
+                String::new()
+            };
+            let project = if r.project.is_empty() {
+                "(no project)"
+            } else {
+                &r.project
+            };
+            out.push_str(&format!(
+                "  {:<8} {}{run}  {project}  {} event(s), last {}\n",
+                r.status, r.agent, r.events, r.at
+            ));
+        }
+        out.push_str("titles and links hidden: stdout is not a terminal and no plugin policy allows agents to read business data\n");
+        served(out, 0)
+    }
+
+    // ---------- draft show, draft replace ----------
+
+    fn draft_fail(message: &str, code: i32) -> Option<Outcome> {
+        served(format!("error: {message} (breaks US-98)\n"), code)
+    }
+
+    /// `drafts.TARGET` and its `..` rule, for printable ASCII.
+    fn target_ok(target: &str) -> bool {
+        let b = target.as_bytes();
+        !b.is_empty()
+            && b.len() <= 128
+            && b[0].is_ascii_alphanumeric()
+            && b.iter()
+                .all(|c| c.is_ascii_alphanumeric() || b"._:/#@-".contains(c))
+            && !target.contains("..")
+    }
+
+    enum Target {
+        Ok(String),
+        /// The error Python prints for a bad target.
+        Bad(Option<Outcome>),
+    }
+
+    /// `drafts.check_target(raw)`: the stripped target, or its error. None
+    /// when the error's `repr` could differ (a quote or a backslash).
+    fn check_target(raw: &str) -> Option<Target> {
+        if !plain(raw) {
+            return None;
+        }
+        let target = strip(raw);
+        if target_ok(target) {
+            return Some(Target::Ok(target.to_owned()));
+        }
+        if target.contains('\'') || target.contains('\\') {
+            return None;
+        }
+        let shown = target.get(..target.len().min(40))?;
+        Some(Target::Bad(draft_fail(
+            &format!("draft target '{shown}': use a short id such as C123/1700000000.000100 (letters, digits, . _ : / # @ -)"),
+            2,
+        )))
+    }
+
+    /// `LocalBackend().path(target)`: the file name is a digest.
+    fn draft_path(root: &Path, target: &str) -> std::path::PathBuf {
+        let digest = careerbrew_sessions::digest(target);
+        root.join("drafts").join(format!("{}.txt", &digest[..24]))
+    }
+
+    /// `cmd_draft_show` where business data is hidden (a terminal goes to
+    /// Python, which prints the text).
+    pub(super) fn draft_show(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+        if ctx.env.stdout_is_terminal {
+            return None;
+        }
+        let raw = args.text("target")?;
+        let target = match check_target(raw)? {
+            Target::Ok(target) => target,
+            Target::Bad(outcome) => return outcome,
+        };
+        let vault = vault()?;
+        let store = vault.store();
+        let text = read_text(&store, &draft_path(&ctx.root, &target))?;
+        if text.as_deref().is_some_and(|t| !super::comparable(t)) {
+            return None;
+        }
+        let shown = careerbrew_sessions::drafts::normalize(text.as_deref());
+        if shown.is_empty() {
+            return draft_fail(&format!("no draft saved for {raw} (the live cycle lists each target it saved: careerbrew work live cycle)"), 1);
+        }
+        served(
+            format!("draft {raw}: {} characters, never sent (text hidden: stdout is not a terminal and no plugin policy allows agents to read business data)\n", shown.chars().count()),
+            0,
+        )
+    }
+
+    /// `cmd_draft_replace` without `--session`, in a plaintext data root,
+    /// for a draft file of printable ASCII lines.
+    pub(super) fn draft_replace(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+        let file = args.text("file")?;
+        if !super::plain_path(file) || !args.text("session").unwrap_or("").is_empty() {
+            return None;
+        }
+        // `_draft_text(a.file)` runs before `drafts.replace` checks the target.
+        let body = match super::read(file)? {
+            super::Read::Text(body) if super::plain_text(&body) => body,
+            super::Read::Text(_) => return None,
+            super::Read::Missing => {
+                let name = super::file_name(file)?;
+                return draft_fail(&format!("could not read {name}: FileNotFoundError"), 2);
+            }
+        };
+        let target = match check_target(args.text("target")?)? {
+            Target::Ok(target) => target,
+            Target::Bad(outcome) => return outcome,
+        };
+        if careerbrew_sessions::drafts::normalize(Some(&body)).is_empty() {
+            return draft_fail(
+                "the draft is empty: write the reply first (an emoji suggestion is not saved as a draft)",
+                2,
+            );
+        }
+        let vault = vault()?;
+        let store = vault.store();
+        // A sealed write differs on every run: Python writes it.
+        if store.encryption_enabled() {
+            return None;
+        }
+        // `drafts._claim(target, "")`: `sessions.holder(res)`.
+        let res = resource(&format!("slack-draft:{target}"))?;
+        let b = base(&store, ctx)?;
+        let (_, st) = load_sessions(&store, &ctx.root.join(SESSIONS))?;
+        let now = b.clock.at.timestamp();
+        let open = open_ids(&st);
+        let held = list(&st, "claims").iter().find(|c| {
+            matches!(c, Canon::Map(c) if text(c, "resource") == Some(res.as_str()))
+                && holds(c, now, &open)
+        });
+        if let Some(Canon::Map(c)) = held {
+            let session = text(c, "session")?;
+            let hhmm = text(c, "until")?.get(11..16)?;
+            if !plain(session) {
+                return None;
+            }
+            emit(ctx, "draft.replace", &[("status", quote("claimed"))]);
+            return draft_fail(&format!("slack-draft:(hidden) is claimed by session {session} until {hhmm}: skip it, or pass that session's --session"), 1);
+        }
+        let path = draft_path(&ctx.root, &target);
+        let lock = careerbrew_sessions::drafts::locked(
+            &target,
+            std::time::Duration::from_secs(10),
+            &ctx.root.join("drafts"),
+        )
+        .ok()?;
+        match std::fs::remove_file(&path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(_) => return None,
+        }
+        if path.exists() {
+            return None;
+        }
+        store.write_text(&path, &body).ok()?;
+        let back = store.read_text(&path, None, false).ok()?;
+        drop(lock);
+        let row = careerbrew_sessions::drafts::compare(&body, back.as_deref());
+        let sent = row["sent_chars"].as_u64()?;
+        if !row["same"].as_bool()? {
+            let line = row["line"].as_u64()?;
+            let read = row["read_chars"].as_u64()?;
+            emit(
+                ctx,
+                "draft.replace",
+                &[("line", line.to_string()), ("status", quote("mismatch"))],
+            );
+            return draft_fail(&format!("the saved draft differs from the text you wrote at line {line} ({read} vs {sent} characters); check the local draft store before anyone sends it"), 1);
+        }
+        emit(
+            ctx,
+            "draft.replace",
+            &[("chars", sent.to_string()), ("status", quote("ok"))],
+        );
+        let uses = format!("slack-draft:{target}");
+        if args.flag("json") {
+            return served(
+                format!("{{\"same\": true, \"sent_chars\": {sent}, \"uses\": {}, \"storage\": \"local\", \"chat_tool_saved\": false}}\n", quote(&uses)),
+                0,
+            );
+        }
+        served(
+            format!("draft saved and read back: {sent} characters match; stored locally, not saved in the chat tool; save it there separately when needed; a step that writes it declares `uses: {uses}`\n"),
             0,
         )
     }
