@@ -15,9 +15,15 @@
 //! - `cards.stats`: Python orders tied topics by first card in deck-file
 //!   order, and keeps microseconds in its 30-day bound; the domain crate
 //!   orders by topic name and cuts to seconds (gaps 8 and 9).
-//! - `drill.next` and `drill.answer`: they need `jobs.strategy.CORE_TOPICS`,
-//!   the rubric layout and the attempt writers, which have no parity cases
-//!   in this step yet.
+//! - `drill.next` is served only while no item has a card or an attempt
+//!   (no `tutor/cards.json` or `tutor/attempts.jsonl`): then every mastery
+//!   is 0 and no FSRS state is read. Any other state goes to Python.
+//! - `drill.answer`: it writes FSRS cards through py-fsrs's scheduler, and
+//!   `drill.speak` runs speech tools; no parity cases in this step yet.
+//! - `cards.add`: PyYAML deck output (see `COMMANDS`).
+//! - `cards.explain-queue`: it reads the flags, skips, private cards and
+//!   lapse counts; no parity cases in this step yet.
+//! - `import.notion`: it writes many files and the sensitive terms list.
 use super::Ctx;
 use crate::args::Parsed;
 use crate::Outcome;
@@ -35,6 +41,7 @@ pub const COMMANDS: &[&str] = &[
     "library.list",
     "library.show",
     "drill.list",
+    "drill.next",
 ];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
@@ -83,6 +90,10 @@ fn serve(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "drill.list" => {
             files.personal()?;
             drill_list(&files)
+        }
+        "drill.next" => {
+            files.personal()?;
+            drill_next(args, &files)
         }
         _ => None,
     }
@@ -799,4 +810,363 @@ fn drill_list(files: &Files) -> Option<Outcome> {
         ));
     }
     ok(out, 0)
+}
+
+// ---------- drill next ----------
+
+/// `jobs.strategy.CORE_TOPICS`.
+const CORE_TOPICS: &[&str] = &["data structures", "system design", "behavioral"];
+
+/// Python's truth value for a plain value.
+fn falsy(value: &Canon) -> bool {
+    match value {
+        Canon::Null => true,
+        Canon::Bool(value) => !value,
+        Canon::Int(value) => value.to_string() == "0",
+        Canon::Float(value) => *value == 0.0,
+        Canon::Str(text) => text.is_empty(),
+        Canon::List(items) => items.is_empty(),
+        Canon::Map(pairs) => pairs.is_empty(),
+        Canon::Date(_) | Canon::DateTime(_) => false,
+    }
+}
+
+/// `YYYY-MM-DDTHH:MM[:SS]`, with `Z` or `+HH:MM` only after seconds: the
+/// pinned clock forms Python and the domain crate read the same way.
+/// Returns whether it carries an offset (then Python reads no zone).
+fn pin_shape(pin: &str) -> Option<bool> {
+    let b = pin.as_bytes();
+    let digits = |range: std::ops::Range<usize>| b[range].iter().all(u8::is_ascii_digit);
+    if b.len() < 16
+        || !(digits(0..4)
+            && b[4] == b'-'
+            && digits(5..7)
+            && b[7] == b'-'
+            && digits(8..10)
+            && b[10] == b'T'
+            && digits(11..13)
+            && b[13] == b':'
+            && digits(14..16))
+    {
+        return None;
+    }
+    let seconds = b.len() >= 19 && b[16] == b':' && digits(17..19);
+    let tail = &b[if seconds { 19 } else { 16 }..];
+    match tail {
+        [] => Some(false),
+        _ if !seconds => None,
+        [b'Z'] => Some(true),
+        [sign, h1, h2, b':', m1, m2]
+            if matches!(sign, b'+' | b'-')
+                && [h1, h2, m1, m2].iter().all(|d| d.is_ascii_digit()) =>
+        {
+            Some(true)
+        }
+        _ => None,
+    }
+}
+
+/// A zone name that Python's `ZoneInfo` (the system zone files) and the
+/// domain crate both resolve to the same zone.
+fn zone_ok(name: &str, resolved: &str) -> bool {
+    let plain = !name.is_empty()
+        && !name.starts_with('/')
+        && name.split('/').all(|part| {
+            !part.is_empty()
+                && part != "."
+                && part != ".."
+                && part
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || "_-+".contains(ch))
+        });
+    plain && resolved == name && Path::new("/usr/share/zoneinfo").join(name).is_file()
+}
+
+/// `calendar.now()` reads without an error: a pinned clock in a form both
+/// sides read, and a zone setting Python's `ZoneInfo` loads. None refuses.
+fn clock_ok(files: &Files) -> Option<()> {
+    let zone_read = match std::env::var("CAREERBREW_NOW") {
+        Err(std::env::VarError::NotPresent) => true,
+        Ok(pin) => !pin_shape(&pin)?,
+        Err(_) => return None,
+    };
+    if zone_read {
+        let settings = files.yaml("settings.yaml")?;
+        let configured = if falsy(&settings) {
+            None
+        } else if plain_map(&settings) {
+            match get(&settings, "timezone") {
+                None | Some(Canon::Null) => None,
+                Some(Canon::Str(name)) if name.is_empty() => None,
+                Some(Canon::Str(name)) => Some(name.clone()),
+                Some(_) => return None,
+            }
+        } else {
+            return None;
+        };
+        match configured {
+            Some(name) => {
+                if !zone_ok(&name, careerbrew_tutor::local_zone(&files.root).name()) {
+                    return None;
+                }
+            }
+            None => {
+                let tz = std::env::var("TZ").unwrap_or_default();
+                let name = tz.trim_start_matches(':');
+                // An empty `TZ` reads `/etc/localtime` on both sides.
+                if !name.is_empty() && !zone_ok(name, careerbrew_tutor::system_zone().name()) {
+                    return None;
+                }
+            }
+        }
+    }
+    // A pin the domain crate cannot read panics: `run` makes it a refusal.
+    let _ = careerbrew_teacher::now_local(&files.root);
+    Some(())
+}
+
+/// A value `json.dumps` writes the way `dump` does: text, whole numbers,
+/// booleans, null, and lists and text-keyed maps of them.
+fn dumpable(value: &Canon) -> bool {
+    match value {
+        // `render::py_string` escapes DEL, which `json.dumps` keeps.
+        Canon::Str(text) => !text.contains('\u{7f}'),
+        Canon::Null | Canon::Bool(_) | Canon::Int(_) => true,
+        Canon::List(items) => items.iter().all(dumpable),
+        Canon::Map(pairs) => {
+            plain_map(value)
+                && pairs.iter().all(|(key, item)| {
+                    matches!(key, Canon::Str(key) if !key.contains('\u{7f}')) && dumpable(item)
+                })
+        }
+        Canon::Float(_) | Canon::Date(_) | Canon::DateTime(_) => false,
+    }
+}
+
+/// `json.dumps(value, indent=2)` (ASCII only) for a `dumpable` value.
+fn dump(value: &Canon, level: usize, out: &mut String) {
+    let pad = |level: usize| "  ".repeat(level);
+    match value {
+        Canon::Null => out.push_str("null"),
+        Canon::Bool(true) => out.push_str("true"),
+        Canon::Bool(false) => out.push_str("false"),
+        Canon::Int(value) => out.push_str(&value.to_string()),
+        Canon::Str(text) => crate::render::py_string(text, out),
+        Canon::List(items) if items.is_empty() => out.push_str("[]"),
+        Canon::List(items) => {
+            out.push_str("[\n");
+            for (at, item) in items.iter().enumerate() {
+                out.push_str(&pad(level + 1));
+                dump(item, level + 1, out);
+                out.push_str(if at + 1 < items.len() { ",\n" } else { "\n" });
+            }
+            out.push_str(&pad(level));
+            out.push(']');
+        }
+        Canon::Map(pairs) if pairs.is_empty() => out.push_str("{}"),
+        Canon::Map(pairs) => {
+            out.push_str("{\n");
+            for (at, (key, item)) in pairs.iter().enumerate() {
+                out.push_str(&pad(level + 1));
+                if let Canon::Str(key) = key {
+                    crate::render::py_string(key, out);
+                }
+                out.push_str(": ");
+                dump(item, level + 1, out);
+                out.push_str(if at + 1 < pairs.len() { ",\n" } else { "\n" });
+            }
+            out.push_str(&pad(level));
+            out.push('}');
+        }
+        Canon::Float(_) | Canon::Date(_) | Canon::DateTime(_) => {}
+    }
+}
+
+/// `tutor.rubrics()` from the checkout's `knowledge/rubrics/` (plugins are
+/// a redaction input, refused earlier): id to rubric, the last file wins.
+fn rubrics(repo: &Path) -> Option<Vec<(String, Canon)>> {
+    let dir = repo.join("knowledge/rubrics");
+    let mut out: Vec<(String, Canon)> = Vec::new();
+    if !dir.is_dir() {
+        return Some(out);
+    }
+    let mut names = Vec::new();
+    for entry in std::fs::read_dir(&dir).ok()? {
+        let entry = entry.ok()?;
+        let name = entry.file_name().into_string().ok()?;
+        if !(name.ends_with(".yaml") || name.ends_with(".yml")) {
+            continue;
+        }
+        // A hidden name's suffix differs in `pathlib`; such a file goes to
+        // Python.
+        if name.starts_with('.') {
+            return None;
+        }
+        if entry.path().is_file() {
+            names.push(name);
+        }
+    }
+    names.sort();
+    for name in names {
+        let data = repo_yaml(&dir.join(&name))?;
+        let data = if falsy(&data) {
+            Canon::Map(Vec::new())
+        } else if plain_map(&data) {
+            data
+        } else {
+            return None;
+        };
+        let stem = name
+            .rsplit_once('.')
+            .map_or(name.as_str(), |(stem, _)| stem);
+        let id = match get(&data, "id") {
+            None => stem.to_owned(),
+            Some(Canon::Str(id)) => id.clone(),
+            Some(_) => return None,
+        };
+        match out.iter_mut().find(|(known, _)| *known == id) {
+            Some((_, old)) => *old = data,
+            None => out.push((id, data)),
+        }
+    }
+    Some(out)
+}
+
+/// `careerbrew drill next` while no item has a card yet (no
+/// `tutor/cards.json` and no `tutor/attempts.jsonl`): every mastery is 0,
+/// so the next item is the new focus item with the smallest id.
+fn drill_next(args: &Parsed, files: &Files) -> Option<Outcome> {
+    clock_ok(files)?;
+    let repo = repo()?;
+    if repo.join("knowledge/knowledge").exists() {
+        return None;
+    }
+    for name in ["tutor/cards.json", "tutor/attempts.jsonl"] {
+        if files.root.join(name).symlink_metadata().is_ok() {
+            return None;
+        }
+    }
+    let plan = files.json("jobs/strategy.json")?;
+    let mut focus: Vec<String> = CORE_TOPICS.iter().map(|t| (*t).to_owned()).collect();
+    if !falsy(&plan) {
+        if !plain_map(&plan) {
+            return None;
+        }
+        match get(&plan, "skill_gaps") {
+            None => {}
+            Some(Canon::List(gaps)) => {
+                for gap in gaps {
+                    match gap {
+                        Canon::List(pair) if pair.len() == 2 => match &pair[0] {
+                            Canon::Str(skill) => focus.push(skill.clone()),
+                            _ => return None,
+                        },
+                        _ => return None,
+                    }
+                }
+            }
+            Some(_) => return None,
+        }
+    }
+    // `tutor.items()`: base items, then generated gap items; a later item
+    // with a known id replaces the value in place.
+    let mut items: Vec<(String, Canon)> = Vec::new();
+    let sources = [
+        (
+            rows_of(&repo_yaml(&repo.join("knowledge/topics.yaml"))?, "items")?,
+            "base",
+        ),
+        (
+            rows_of(&files.yaml("tutor/gap-items.yaml")?, "items")?,
+            "generated",
+        ),
+    ];
+    for (rows, origin) in sources {
+        for item in rows {
+            let id = text(&item, "id")?.to_owned();
+            text(&item, "topic")?;
+            let Canon::Map(mut pairs) = item else {
+                return None;
+            };
+            set(&mut pairs, "origin", Canon::Str(origin.into()));
+            let item = Canon::Map(pairs);
+            match items.iter_mut().find(|(known, _)| *known == id) {
+                Some((_, old)) => *old = item,
+                None => items.push((id, item)),
+            }
+        }
+    }
+    let in_focus = |item: &Canon| text(item, "topic").is_some_and(|t| focus.iter().any(|f| f == t));
+    let pool: Vec<&(String, Canon)> = if items.iter().any(|(_, item)| in_focus(item)) {
+        items.iter().filter(|(_, item)| in_focus(item)).collect()
+    } else {
+        items.iter().collect()
+    };
+    let out = match pool.into_iter().min_by(|a, b| a.0.cmp(&b.0)) {
+        None => "nothing due and no new items. Come back when reviews are due.\n".to_owned(),
+        Some((id, item)) => drill_item(args, &repo, id, item)?,
+    };
+    // `paths.sub` makes the parents of the files Python reads; after every
+    // check, so a refusal never follows it.
+    for dir in ["jobs", "tutor"] {
+        std::fs::create_dir_all(files.root.join(dir)).ok()?;
+    }
+    ok(out, 0)
+}
+
+/// The printed next item: `json.dumps` with `--json`, else `_print_item`
+/// and the grading hint.
+fn drill_item(args: &Parsed, repo: &Path, id: &str, item: &Canon) -> Option<String> {
+    let Canon::Map(mut pairs) = item.clone() else {
+        return None;
+    };
+    set(&mut pairs, "mode", Canon::Str("learn".into()));
+    let item = Canon::Map(pairs);
+    let mut out = String::new();
+    if args.flag("json") {
+        if !dumpable(&item) {
+            return None;
+        }
+        dump(&item, 0, &mut out);
+        out.push('\n');
+        return Some(out);
+    }
+    let topic = text(&item, "topic")?;
+    let round = text(&item, "round")?;
+    let prompt = text(&item, "prompt")?;
+    let teach = match get(&item, "teach") {
+        None | Some(Canon::Null) => None,
+        Some(Canon::Str(teach)) if teach.is_empty() => None,
+        Some(Canon::Str(teach)) => Some(teach.as_str()),
+        Some(_) => return None,
+    };
+    let rubric_id = text(&item, "rubric")?;
+    let rubrics = rubrics(repo)?;
+    let (_, rubric) = rubrics.iter().find(|(known, _)| known == rubric_id)?;
+    let Some(Canon::List(criteria)) = get(rubric, "criteria") else {
+        return None;
+    };
+    let mut parts = Vec::new();
+    for criterion in criteria {
+        if !plain_map(criterion) {
+            return None;
+        }
+        parts.push(format!(
+            "{}: {}",
+            text(criterion, "id")?,
+            text(criterion, "text")?
+        ));
+    }
+    out.push_str(&format!(
+        "[learn] {id} \u{b7} topic: {topic} \u{b7} round: {round}\n"
+    ));
+    if let Some(teach) = teach {
+        out.push_str(&format!("Lesson: {teach}\n"));
+    }
+    out.push_str(&format!("Question: {prompt}\n"));
+    out.push_str(&format!("Rubric (binary): {}\n", parts.join("; ")));
+    out.push_str(&format!(
+        "grade with: careerbrew drill answer {id} --met <criterion,ids>\n"
+    ));
+    Some(out)
 }
