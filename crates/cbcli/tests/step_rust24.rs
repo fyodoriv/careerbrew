@@ -4,8 +4,8 @@
 //! "work.project.archive", "work.project.unarchive", "work.project.quiz",
 //! "work.project.gate", "work.project.update", "work.project.source",
 //! "work.project.check", "work.project.prd", "work.project.next",
-//! "work.project.reference", "work.project.memory", "work.project.set" and
-//! "work.project.explain".
+//! "work.project.reference", "work.project.memory", "work.project.set",
+//! "work.project.explain", "metrics.time-saved" and "cards.publish".
 mod common;
 
 use common::*;
@@ -837,4 +837,314 @@ fn the_writers_comparison_detects_a_planted_difference() {
     assert_eq!(on.code, Some(0));
     assert_ne!(on.files, off.files);
     assert_ne!(on.stdout, off.stdout);
+}
+
+/// Writes one data-root file into the live home and its snapshot, after
+/// `prepare` (which deletes the event log).
+fn plant(home: &Home, rel: &str, text: &str) {
+    let live = home.home.parent().unwrap();
+    for root in [live.to_path_buf(), live.with_file_name("snap")] {
+        let path = root.join("data").join(rel);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, text).unwrap();
+    }
+}
+
+/// Timed rows over two ISO weeks, a measured baseline's action included,
+/// and a row the reader skips unparsed.
+const TIMED_LOG: &str = concat!(
+    "{\"event\": \"cli.run\", \"status\": \"ok\", \"saves\": \"day_log\", \"ms\": 30000, \"ts\": \"2026-11-10T10:00:00Z\"}\n",
+    "{\"event\": \"api.read\", \"route\": \"today\", \"ts\": \"2026-11-17T09:00:00Z\"}\n",
+    "{\"event\": \"cli.run\", \"status\": \"ok\", \"saves\": \"pm_update\", \"ms\": 90000, \"ts\": \"2026-11-17T10:00:00Z\"}\n",
+    "{\"event\": \"cli.run\", \"status\": \"fail\", \"saves\": \"pm_update\", \"ms\": 1000, \"ts\": \"2026-11-17T10:05:00Z\"}\n",
+    "{\"event\": \"web.timing\", \"saves\": \"standup\", \"step\": \"open\", \"seconds\": 0, \"ts\": \"2026-11-18T10:00:00Z\"}\n",
+    "{\"event\": \"web.timing\", \"saves\": \"standup\", \"step\": \"copy\", \"seconds\": 15, \"ts\": \"2026-11-18T10:00:15Z\"}\n",
+    "{\"event\": \"web.timing\", \"saves\": \"inbox\", \"step\": \"open\", \"seconds\": 0, \"ts\": \"2026-11-19T10:00:00Z\"}\n",
+);
+
+fn time_home(id: &'static str) -> Home {
+    prepare_setup(&Setup {
+        id,
+        cli: &[],
+        files: &[
+            (
+                "settings.yaml",
+                "timezone: Etc/UTC\ntime_baseline_pm_update: 12\n",
+            ),
+            PLAIN,
+        ],
+    })
+}
+
+#[test]
+fn metrics_time_saved_matches_python() {
+    strict(NOW);
+    // Route key: "metrics.time-saved".
+    let empty = prepare_setup(&Setup {
+        id: "time-saved-empty",
+        cli: &[],
+        files: &[ZONE, PLAIN],
+    });
+    same(
+        &empty,
+        &["metrics", "time-saved"],
+        "metrics.time-saved empty",
+    );
+    same(
+        &empty,
+        &["metrics", "time-saved", "--json"],
+        "metrics.time-saved empty json",
+    );
+    let home = time_home("time-saved-log");
+    plant(&home, "logs/events.jsonl", TIMED_LOG);
+    same(&home, &["metrics", "time-saved"], "metrics.time-saved log");
+    same(
+        &home,
+        &["metrics", "time-saved", "--json"],
+        "metrics.time-saved log json",
+    );
+    // An earlier report is rewritten in place.
+    let stale = time_home("time-saved-stale");
+    plant(&stale, "logs/events.jsonl", TIMED_LOG);
+    plant(&stale, "out/time-saved.json", "{}\n");
+    same(
+        &stale,
+        &["metrics", "time-saved"],
+        "metrics.time-saved stale",
+    );
+}
+
+#[test]
+fn metrics_time_saved_refuses_what_it_cannot_prove() {
+    strict(NOW);
+    refused(
+        &redact_home("time-saved-redact"),
+        &["metrics", "time-saved"],
+        "metrics.time-saved redact inputs",
+    );
+    // A NaN run time: Python sums it; the native reader never guesses.
+    let home = time_home("time-saved-nan");
+    plant(
+        &home,
+        "logs/events.jsonl",
+        "{\"event\": \"cli.run\", \"status\": \"ok\", \"saves\": \"pm_update\", \"ms\": NaN, \"ts\": \"2026-11-17T10:00:00Z\"}\n",
+    );
+    let native = observe(&home, &["metrics", "time-saved"], &Side::Native);
+    assert_eq!(native.code, Some(64), "NaN row served");
+    assert!(native.stdout.is_empty());
+    // A stamp outside the one strict shape.
+    let home = time_home("time-saved-stamp");
+    plant(
+        &home,
+        "logs/events.jsonl",
+        "{\"event\": \"cli.run\", \"status\": \"ok\", \"saves\": \"pm_update\", \"ms\": 1, \"ts\": \"2026-11-17 10:00:00\"}\n",
+    );
+    let native = observe(&home, &["metrics", "time-saved"], &Side::Native);
+    assert_eq!(native.code, Some(64), "odd stamp served");
+}
+
+/// Negative control: an empty log and a timed log differ in what is written.
+#[test]
+fn the_time_saved_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let empty = time_home("time-saved-control-empty");
+    let full = time_home("time-saved-control-full");
+    plant(&full, "logs/events.jsonl", TIMED_LOG);
+    let a = observe(&empty, &["metrics", "time-saved"], &Side::Native);
+    let b = observe(&full, &["metrics", "time-saved"], &Side::Native);
+    assert_eq!(a.code, Some(0));
+    assert_eq!(b.code, Some(0));
+    assert_ne!(a.stdout, b.stdout);
+    assert_ne!(a.files, b.files);
+}
+
+/// An explanation that meets the bar: five sections in order, 150+ words.
+fn explanation() -> String {
+    let words = "a synthetic queue keeps each job in order so that workers take the oldest job first and every result comes back to the caller with its own id and a short status line that names the step";
+    let mut out = String::new();
+    for section in [
+        "## In plain words",
+        "## How it works",
+        "## Example",
+        "## Common mistakes",
+        "## In the interview",
+    ] {
+        out.push_str(&format!("    {section}\n    {words}\n"));
+    }
+    out
+}
+
+fn card(question: &str, extra: &str) -> String {
+    format!(
+        "- question: \"{question}\"\n  answer: \"A synthetic queue hands out the oldest job first.\"\n  topic: Synthetic Queues\n{extra}  explanation: |\n{}",
+        explanation()
+    )
+}
+
+const CARDS_FILE: &str = "cards-in.yaml";
+
+fn cards_home(id: &'static str, text: &str) -> Home {
+    let home = prepare_setup(&Setup {
+        id,
+        cli: &[],
+        files: &[ZONE, PLAIN],
+    });
+    plant(&home, CARDS_FILE, text);
+    home
+}
+
+fn cards_path(home: &Home) -> String {
+    home.data.join(CARDS_FILE).display().to_string()
+}
+
+#[test]
+fn cards_publish_dry_run_matches_python() {
+    strict(NOW);
+    // Route key: "cards.publish".
+    let one = cards_home(
+        "cards-one",
+        &card("What does a synthetic queue widget do?", ""),
+    );
+    let path = cards_path(&one);
+    same(
+        &one,
+        &["cards", "publish", &path, "--dry-run"],
+        "cards.publish dry run one card",
+    );
+    let mixed = format!(
+        "{}{}- skip: true\n  source_id: synth01\n  reason: personal\n- skip: true\n{}",
+        card("What does a synthetic queue widget do?", ""),
+        card(
+            "How would you explain a synthetic retry loop?",
+            "  private: true\n  source_id: synth02\n  tags: [queues]\n"
+        ),
+        card(
+            "What does a synthetic queue widget do?",
+            "  source_id: synth03\n"
+        ),
+    );
+    let mixed = cards_home("cards-mixed", &mixed);
+    let path = cards_path(&mixed);
+    same(
+        &mixed,
+        &["cards", "publish", &path, "--dry-run"],
+        "cards.publish dry run skips and private",
+    );
+    let wrapped = format!(
+        "cards:\n{}",
+        card("What does a synthetic stack widget do?", "")
+            .lines()
+            .map(|line| format!("  {line}\n"))
+            .collect::<String>()
+    );
+    let wrapped = cards_home("cards-wrapped", &wrapped);
+    let path = cards_path(&wrapped);
+    same(
+        &wrapped,
+        &["cards", "publish", &path, "--dry-run"],
+        "cards.publish dry run cards map",
+    );
+    let empty = cards_home("cards-missing", "");
+    let missing = empty.data.join("no-such.yaml").display().to_string();
+    same(
+        &empty,
+        &["cards", "publish", &missing, "--dry-run"],
+        "cards.publish dry run missing file",
+    );
+}
+
+#[test]
+fn cards_publish_failing_cards_match_python() {
+    strict(NOW);
+    let text = format!(
+        "{}- question: \"Too short?\"\n  answer: \"short\"\n  explanation: \"## In plain words only\"\n- answer: \"no question here at all, synthetic\"\n",
+        card("What does a synthetic queue widget do?", "")
+    );
+    let home = cards_home("cards-failing", &text);
+    let path = cards_path(&home);
+    same(
+        &home,
+        &["cards", "publish", &path, "--dry-run"],
+        "cards.publish dry run failing cards",
+    );
+    // A failing card raises before any write, publish or not.
+    same(
+        &home,
+        &["cards", "publish", &path],
+        "cards.publish failing cards",
+    );
+}
+
+#[test]
+fn cards_publish_refuses_what_it_cannot_prove() {
+    strict(NOW);
+    let text = card("What does a synthetic queue widget do?", "");
+    let redact = prepare_setup(&Setup {
+        id: "cards-redact",
+        cli: &[],
+        files: &[ZONE, PLAIN, ("sensitive-terms.txt", "synthetic\n")],
+    });
+    plant(&redact, CARDS_FILE, &text);
+    let path = cards_path(&redact);
+    refused(
+        &redact,
+        &["cards", "publish", &path, "--dry-run"],
+        "cards.publish redact inputs",
+    );
+    let corporate = prepare_setup(&Setup {
+        id: "cards-corporate",
+        cli: &[],
+        files: &[ZONE, PLAIN, ("machine.yaml", "role: corporate\n")],
+    });
+    plant(&corporate, CARDS_FILE, &text);
+    let path = cards_path(&corporate);
+    refused(
+        &corporate,
+        &["cards", "publish", &path, "--dry-run"],
+        "cards.publish corporate role",
+    );
+    // A YAML anchor: the reader is not checked on it.
+    let anchored = cards_home(
+        "cards-anchor",
+        "- question: &q \"What is a synthetic anchor?\"\n  answer: *q\n",
+    );
+    let path = cards_path(&anchored);
+    refused(
+        &anchored,
+        &["cards", "publish", &path, "--dry-run"],
+        "cards.publish yaml anchor",
+    );
+    // A real publish writes the repo deck: never served natively, and never
+    // run here on the Python side.
+    let one = cards_home("cards-real", &text);
+    let path = cards_path(&one);
+    let native = observe(&one, &["cards", "publish", &path], &Side::Native);
+    assert_eq!(native.code, Some(64), "a real publish served");
+}
+
+/// Negative control: a passing and a failing card differ.
+#[test]
+fn the_cards_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let good = cards_home(
+        "cards-control-good",
+        &card("What does a synthetic queue widget do?", ""),
+    );
+    let bad = cards_home(
+        "cards-control-bad",
+        "- question: \"Too short?\"\n  answer: \"short\"\n",
+    );
+    let a = observe(
+        &good,
+        &["cards", "publish", &cards_path(&good), "--dry-run"],
+        &Side::Native,
+    );
+    let b = observe(
+        &bad,
+        &["cards", "publish", &cards_path(&bad), "--dry-run"],
+        &Side::Native,
+    );
+    assert_eq!(a.code, Some(0));
+    assert_eq!(b.code, Some(1));
+    assert_ne!(a.stdout, b.stdout);
 }
