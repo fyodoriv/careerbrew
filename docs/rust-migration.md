@@ -3351,6 +3351,22 @@ the crate until the rust-05 and rust-07 closure is native, so
     decision 2026-11-27). This is ahead of the activation rule above, which
     asks for a measured activation closure before a switch: the rollback
     stays the guard until then.
+  - Where the remaining handlers go (2026-11-27): one module per step in
+    `crates/cbcli/src/steps/` (`rust02.rs` to `rust25.rs`, `unowned.rs` for
+    `indie.*` and `peer.*`), with its parity cases in
+    `crates/cbcli/tests/step_<module>.rs` on the shared harness
+    `crates/cbcli/tests/common/mod.rs` (`strict` pins the clock and compares
+    plaintext file content; `assert_same` checks native and console runs
+    against Python). Arguments arrive parsed by `crates/cbcli/src/args.rs`
+    from the registry spec: exact `--flag` names, plain decimals and listed
+    choices only, so an abbreviation, a `--flag=value` or a bad value
+    refuses with exit 64 and Python prints its own error. Three-word keys
+    (`work.priority.set`) route natively too (`cli._native_action`). The
+    crate links every domain crate up front, so a step pull request edits
+    only its own module, its test file, its inventory fragment and its
+    route lines. `every_step_command_has_a_parity_test` fails on a served
+    command with no case, and `every_native_route_has_a_native_handler` on
+    a native route with no handler.
   - Remaining commands by the step that owns their handler (count of actions;
     the domain crate is on `main` for rust-02 to rust-14):
 

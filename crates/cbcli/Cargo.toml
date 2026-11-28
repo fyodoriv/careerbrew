@@ -16,6 +16,28 @@ path = "src/main.rs"
 [dependencies]
 careerbrew-setup = { path = "../setup" }
 careerbrew-vault = { path = "../vault" }
+# Every domain crate a step module in `src/steps/` may call, listed up front
+# so that parallel step pull requests never edit this file.
+careerbrew-purevec = { path = "../purevec" }
+careerbrew-policy = { path = "../policy" }
+careerbrew-sources = { path = "../sources" }
+careerbrew-projects = { path = "../projects" }
+careerbrew-sessions = { path = "../sessions" }
+careerbrew-memory = { path = "../memory" }
+careerbrew-learn = { path = "../learn" }
+careerbrew-feed = { path = "../feed" }
+careerbrew-live = { path = "../live" }
+careerbrew-workday = { path = "../workday" }
+careerbrew-workexec = { path = "../workexec" }
+careerbrew-day = { path = "../day" }
+careerbrew-career = { path = "../career" }
+careerbrew-jobs = { path = "../jobs" }
+careerbrew-tutor = { path = "../tutor" }
+careerbrew-teacher = { path = "../teacher" }
+careerbrew-exercises = { path = "../exercises" }
+careerbrew-voice = { path = "../voice" }
+careerbrew-reports = { path = "../reports" }
+careerbrew-web = { path = "../web" }
 
 [dev-dependencies]
 tempfile = "=3.23.0"

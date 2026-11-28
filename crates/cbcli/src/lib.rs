@@ -2,13 +2,15 @@
 //! `careerbrew actions [name] [--json]` and static `-h/--help` from the
 //! generated registry, byte-equal to Python's argparse at 80 columns.
 //! rust-26 adds the parity-tested read-only commands of merged domain crates
-//! (`routed`). Anything else exits 64 (`UNSUPPORTED`), and the console
+//! (`routed`), and each later step adds its handlers in `steps`. Anything else exits 64 (`UNSUPPORTED`), and the console
 //! script runs it in Python and logs `cli.native_unsupported`.
+pub mod args;
 pub mod events;
 pub mod help;
 pub mod registry;
 pub mod render;
 pub mod routed;
+pub mod steps;
 
 /// The exit code for argv outside the pilot.
 pub const UNSUPPORTED: i32 = 64;
@@ -184,5 +186,14 @@ pub fn run(args: &[String], env: &Env) -> Outcome {
     if let Some(outcome) = routed::run(args, env) {
         return outcome;
     }
+    if let Some(outcome) = steps::run(args, env, &reg) {
+        return outcome;
+    }
     unsupported(args, &reg)
+}
+
+/// The route key a served argv names (a `routed` command or a step
+/// command), for its `cli.run` event row; None for `actions`.
+pub fn command_name(args: &[String]) -> Option<&'static str> {
+    routed::command_of(args).or_else(|| steps::command_of(args).map(|(name, _)| name))
 }

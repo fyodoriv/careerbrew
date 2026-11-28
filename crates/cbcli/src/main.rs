@@ -35,7 +35,7 @@ fn main() {
     let _ = std::io::stderr().write_all(outcome.stderr.as_bytes());
     if outcome.emit_event {
         let ms = started.elapsed().as_millis() as u64;
-        match careerbrew_cli::routed::command_of(&args) {
+        match careerbrew_cli::command_name(&args) {
             Some(command) => events::emit_command(&env.caps, command, outcome.code == 0, ms),
             None => events::emit(&env.caps, ms),
         }

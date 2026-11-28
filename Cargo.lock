@@ -177,8 +177,28 @@ dependencies = [
 name = "careerbrew-cli"
 version = "0.1.0"
 dependencies = [
+ "careerbrew-career",
+ "careerbrew-day",
+ "careerbrew-exercises",
+ "careerbrew-feed",
+ "careerbrew-jobs",
+ "careerbrew-learn",
+ "careerbrew-live",
+ "careerbrew-memory",
+ "careerbrew-policy",
+ "careerbrew-projects",
+ "careerbrew-purevec",
+ "careerbrew-reports",
+ "careerbrew-sessions",
  "careerbrew-setup",
+ "careerbrew-sources",
+ "careerbrew-teacher",
+ "careerbrew-tutor",
  "careerbrew-vault",
+ "careerbrew-voice",
+ "careerbrew-web",
+ "careerbrew-workday",
+ "careerbrew-workexec",
  "tempfile",
 ]
 

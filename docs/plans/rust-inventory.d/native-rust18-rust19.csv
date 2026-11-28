@@ -1,0 +1,2 @@
+crates/cbcli/tests/step_rust18.rs,keep-native,rust-00,native CLI: rust18 handler parity cases (work note and gaps and ladder list and levels) against the Python CLI in synthetic homes
+crates/cbcli/tests/step_rust19.rs,keep-native,rust-00,native CLI: rust19 handler parity cases (jobs choose and unchoose and log and preset and prep story) against the Python CLI in synthetic homes

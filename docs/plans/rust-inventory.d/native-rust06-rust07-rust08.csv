@@ -1,0 +1,2 @@
+crates/cbcli/tests/step_rust06.rs,keep-native,rust-00,native CLI parity cases for sync export: paired plain and sealed homes; refused error cases; bundle plaintext compare; negative controls
+crates/cbcli/tests/step_rust07.rs,keep-native,rust-00,native CLI parity cases for init: empty; partial; corporate; sealed and plaintext homes; refused redaction inputs; negative controls

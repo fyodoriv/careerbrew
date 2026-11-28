@@ -1,0 +1,26 @@
+crates/cbcli/src/args.rs,keep-native,rust-00,native CLI: conservative argparse reader built from the registry argument spec; uncertain forms refuse with exit 64
+crates/cbcli/src/steps/mod.rs,keep-native,rust-00,native CLI: per-step handler dispatch with longest-key command match and exit 64 refusals
+crates/cbcli/src/steps/rust02.rs,keep-native,rust-00,native CLI handlers owned by step rust02
+crates/cbcli/src/steps/rust04.rs,keep-native,rust-00,native CLI handlers owned by step rust04
+crates/cbcli/src/steps/rust05.rs,keep-native,rust-00,native CLI handlers owned by step rust05
+crates/cbcli/src/steps/rust06.rs,keep-native,rust-00,native CLI handlers owned by step rust06
+crates/cbcli/src/steps/rust07.rs,keep-native,rust-00,native CLI handlers owned by step rust07
+crates/cbcli/src/steps/rust08.rs,keep-native,rust-00,native CLI handlers owned by step rust08
+crates/cbcli/src/steps/rust09.rs,keep-native,rust-00,native CLI handlers owned by step rust09
+crates/cbcli/src/steps/rust10.rs,keep-native,rust-00,native CLI handlers owned by step rust10
+crates/cbcli/src/steps/rust12.rs,keep-native,rust-00,native CLI handlers owned by step rust12
+crates/cbcli/src/steps/rust13.rs,keep-native,rust-00,native CLI handlers owned by step rust13
+crates/cbcli/src/steps/rust14.rs,keep-native,rust-00,native CLI handlers owned by step rust14
+crates/cbcli/src/steps/rust15.rs,keep-native,rust-00,native CLI handlers owned by step rust15
+crates/cbcli/src/steps/rust16.rs,keep-native,rust-00,native CLI handlers owned by step rust16
+crates/cbcli/src/steps/rust17.rs,keep-native,rust-00,native CLI handlers owned by step rust17
+crates/cbcli/src/steps/rust18.rs,keep-native,rust-00,native CLI handlers owned by step rust18
+crates/cbcli/src/steps/rust19.rs,keep-native,rust-00,native CLI handlers owned by step rust19
+crates/cbcli/src/steps/rust20.rs,keep-native,rust-00,native CLI handlers owned by step rust20
+crates/cbcli/src/steps/rust21.rs,keep-native,rust-00,native CLI handlers owned by step rust21
+crates/cbcli/src/steps/rust22.rs,keep-native,rust-00,native CLI handlers owned by step rust22
+crates/cbcli/src/steps/rust23.rs,keep-native,rust-00,native CLI handlers owned by step rust23
+crates/cbcli/src/steps/rust24.rs,keep-native,rust-00,native CLI handlers owned by step rust24
+crates/cbcli/src/steps/rust25.rs,keep-native,rust-00,native CLI handlers owned by step rust25
+crates/cbcli/src/steps/unowned.rs,keep-native,rust-00,native CLI handlers owned by step unowned
+crates/cbcli/tests/common/mod.rs,keep-native,rust-00,native CLI: shared parity harness (synthetic homes and per-side observations) for parity.rs and step tests

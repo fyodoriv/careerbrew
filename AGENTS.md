@@ -100,6 +100,7 @@ Run every command from the repo root.
 | I want to… | Change | Update this doc too |
 |---|---|---|
 | Add or change a CLI command, an argument, its help, or an action note (`TERMINAL_ONLY`, `CONFIRM`, `AGENT_NOTES`) | `src/careerbrew/cli.py` or `actions.py`, then `uv run python scripts/gen-registry.py` to rewrite `crates/cbcli/registry/registry.json` and `config/native-routes.txt` (`tests/unit/test_action_registry.py`; a changed `actions --json` also needs a successor reference pair, see Gotchas 2026-11-15) | `docs/rust-migration.md` (rust-03) if the registry shape changes |
+| Make a CLI command run natively (Rust) | its step module in `crates/cbcli/src/steps/`, parity cases in `crates/cbcli/tests/step_<module>.rs` (shared harness `tests/common/mod.rs`), its line in `config/native-routes.txt` set to `native`, and an inventory fragment in `docs/plans/rust-inventory.d/` | `docs/rust-migration.md` (rust-26, "Where the remaining handlers go") |
 | Add a feature | the code, a story in `docs/user-stories.md`, and its tests in `tests/e2e/` | `README.md` if users see it |
 | Add a career workflow (a report, an update, a standup) | a CLI action, a skill in `skills/`, or a command in `commands/` here; never agentbrew config (see `## What careerbrew owns`) | `README.md` if users see it |
 | Add a log event or metric | the code | `docs/observability.md` event or metric table |

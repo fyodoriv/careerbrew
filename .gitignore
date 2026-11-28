@@ -163,10 +163,14 @@ __pycache__/
 !/crates/cbcli/src/help.rs
 !/crates/cbcli/src/events.rs
 !/crates/cbcli/src/routed.rs
+!/crates/cbcli/src/args.rs
+!/crates/cbcli/src/steps/
 !/crates/cbcli/tests/
 /crates/cbcli/tests/*
 !/crates/cbcli/tests/cli.rs
 !/crates/cbcli/tests/parity.rs
+!/crates/cbcli/tests/common/
+!/crates/cbcli/tests/step_*.rs
 !/crates/cbcli/registry/
 /crates/cbcli/registry/*
 !/crates/cbcli/registry/registry.json

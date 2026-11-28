@@ -1,0 +1,2 @@
+crates/cbcli/tests/step_rust16.rs,keep-native,rust-00,native CLI parity cases for the rust16 step handlers (day wrap and day question list and close)
+crates/cbcli/tests/step_rust17.rs,keep-native,rust-00,native CLI parity cases for the rust17 step handlers (day results and work promise list)
