@@ -679,3 +679,155 @@ fn data_set_matches_python() {
         "data.set tab",
     );
 }
+
+// ---------- review ----------
+
+const PAGES_OFF: (&str, &str) = ("settings.yaml", "run_pages: false\n");
+const UTC_ZONE: (&str, &str) = ("settings.yaml", "timezone: Etc/UTC\nrun_pages: true\n");
+
+#[test]
+fn review_matches_python_in_a_folder_with_no_outcome_data() {
+    strict(NOW);
+    // Route key: "review".
+    let fresh = prepare_setup(&Setup {
+        id: "review-fresh",
+        cli: &[],
+        files: &[PLAIN],
+    });
+    assert_same(&fresh, &["review"], true, "review fresh, pages on");
+    let off = prepare_setup(&Setup {
+        id: "review-pages-off",
+        cli: &[],
+        files: &[PLAIN, PAGES_OFF],
+    });
+    assert_same(&off, &["review"], true, "review fresh, pages off");
+    let zone = prepare_setup(&Setup {
+        id: "review-utc",
+        cli: &[],
+        files: &[PLAIN, UTC_ZONE],
+    });
+    assert_same(&zone, &["review"], true, "review fresh, UTC zone");
+    // A second run appends to the review log Python wrote.
+    let again = prepare_setup(&Setup {
+        id: "review-again",
+        cli: &[&["review"]],
+        files: &[PLAIN, PAGES_OFF],
+    });
+    assert_same(&again, &["review"], true, "review again, pages off");
+}
+
+#[test]
+fn review_refuses_what_it_cannot_prove() {
+    strict(NOW);
+    let fresh: &[(&str, &str)] = &[PLAIN];
+    refuses(
+        &Setup {
+            id: "review-html",
+            cli: &[],
+            files: fresh,
+        },
+        &["review", "--html"],
+        "review --html",
+    );
+    refuses(
+        &Setup {
+            id: "review-encrypted",
+            cli: &[],
+            files: &[("settings.yaml", "run_pages: false\n")],
+        },
+        &["review"],
+        "review encrypted folder",
+    );
+    refuses(
+        &Setup {
+            id: "review-data",
+            cli: &[],
+            files: &[
+                PLAIN,
+                (
+                    "metrics.jsonl",
+                    "{\"metric\": \"promo_coverage\", \"value\": 0.5, \"at\": \"2026-11-19T08:00:00+00:00\"}\n",
+                ),
+            ],
+        },
+        &["review"],
+        "review with outcome data",
+    );
+    refuses(
+        &Setup {
+            id: "review-pages",
+            cli: &[&["review"]],
+            files: fresh,
+        },
+        &["review"],
+        "review with earlier pages",
+    );
+    refuses(
+        &Setup {
+            id: "review-setting",
+            cli: &[],
+            files: &[
+                PLAIN,
+                ("settings.yaml", "run_pages: false\nwork_start: '09:00'\n"),
+            ],
+        },
+        &["review"],
+        "review other setting",
+    );
+    refuses(
+        &Setup {
+            id: "review-goals",
+            cli: &[],
+            files: &[
+                PLAIN,
+                ("goals.yaml", "metrics:\n  readiness:\n    success: 0.9\n"),
+            ],
+        },
+        &["review"],
+        "review own goals",
+    );
+    refuses(
+        &Setup {
+            id: "review-terms",
+            cli: &[],
+            files: &[PLAIN, PAGES_OFF, TERMS],
+        },
+        &["review"],
+        "review redaction input",
+    );
+}
+
+/// Negative control: a review in a home with outcome data differs from the
+/// fresh run the native handler serves.
+#[test]
+fn review_comparison_detects_outcome_data() {
+    strict(NOW);
+    let fresh = prepare_setup(&Setup {
+        id: "review-control-fresh",
+        cli: &[],
+        files: &[PLAIN, PAGES_OFF],
+    });
+    let data = prepare_setup(&Setup {
+        id: "review-control-data",
+        cli: &[],
+        files: &[
+            PLAIN,
+            PAGES_OFF,
+            (
+                "metrics.jsonl",
+                "{\"metric\": \"promo_coverage\", \"value\": 0.5, \"at\": \"2026-11-19T08:00:00+00:00\"}\n",
+            ),
+        ],
+    });
+    let native = observe(&fresh, &["review"], &Side::Native);
+    let python = observe(&data, &["review"], &Side::Python);
+    assert_ne!(native, python);
+    assert!(native
+        .stdout
+        .contains("no-data  promo_coverage           None"));
+    assert!(
+        python.stdout.contains("promo_coverage           0.5"),
+        "{}",
+        python.stdout
+    );
+}
