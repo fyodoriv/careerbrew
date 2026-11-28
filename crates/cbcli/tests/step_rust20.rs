@@ -645,3 +645,210 @@ fn drill_next_output_follows_the_items() {
     assert!(a.stdout.starts_with("[learn] arrays-two-pointers-1 "));
     assert!(b.stdout.starts_with("[learn] aaa-gap-kafka-1 "));
 }
+
+const QUEUE_DECK: (&str, &str) = (
+    "tutor/decks/mine.yaml",
+    "cards:\n- id: c1\n  question: What is a heap?\n  answer: A tree with order\n  topic: cs\n- id: c2\n  question: Tell me about a conflict\n  answer: My own story\n  topic: Behavioural\n- id: c3\n  question: How can AI solve customer problems?\n  answer: Ask them\n  topic: ai\n- id: c4\n  question: What is a heap!\n  answer: The same hash\n  topic: cs\n- id: c5\n  question: Skipped one\n  answer: Skip\n  topic: cs\n- id: c6\n  question: \"Unicode \\u00ab \\u00e9 \\u00bb \\t \\\"q\\\"\"\n  answer: \"line\\nbreak \\u00fc\"\n  topic: \"\\u00fcn\\u00ef\"\n- id: c7\n  question: No answer here\n  topic: cs\n",
+);
+const QUEUE_DECK_B: (&str, &str) = (
+    "tutor/decks/zz.yaml",
+    "cards:\n- id: c1\n  question: Replaced heap question\n  answer: Later deck wins\n  topic: CS\n",
+);
+const QUEUE_DECK_PUBLIC: (&str, &str) = (
+    "tutor/decks/public.yaml",
+    "cards:\n- id: p1\n  question: A deck named public is skipped\n  answer: x\n  topic: cs\n",
+);
+const QUEUE_REVIEWS: (&str, &str) = (
+    "tutor/card-reviews.jsonl",
+    "{\"card\": \"c3\", \"rating\": \"again\"}\n{\"card\": \"c3\", \"rating\": \"again\"}\n{\"card\": \"c3\", \"rating\": \"good\"}\n{\"card\": \"c3\", \"rating\": \"again\"}\n{\"rating\": \"good\"}\n",
+);
+const QUEUE_SKIP: (&str, &str) = (
+    "tutor/public-skipped.json",
+    "{\"983302043bf9\": \"personal\", \"c11a02003cca\": \"personal\"}",
+);
+const QUEUE_FLAGS: (&str, &str) = (
+    "tutor/explanation-flags.json",
+    "{\"kb-5a98eb35e5ae\": {\"note\": \"unclear \\u00e9\", \"at\": \"2026-11-19T09:00:00+00:00\"}, \"me-x\": {\"note\": \"wrong\"}, \"kb-b34d21ae5816\": {\"note\": \"also lapsed\"}}",
+);
+const QUEUE_PRIVATE: (&str, &str) = (
+    "tutor/private-explanations.yaml",
+    "cards:\n- id: me-x\n  question: Tell me about a conflict\n  topic: behavioural\n  match:\n  - c11a02003cca\n- id: me-y\n  question: Never flagged\n  topic: cs\n",
+);
+const QUEUE_FILES: &[(&str, &str)] = &[
+    PLAIN,
+    QUEUE_DECK,
+    QUEUE_DECK_B,
+    QUEUE_DECK_PUBLIC,
+    QUEUE_REVIEWS,
+    QUEUE_SKIP,
+    QUEUE_FLAGS,
+    QUEUE_PRIVATE,
+];
+
+#[test]
+fn cards_explain_queue_matches_python() {
+    strict(NOW);
+    // Route key: "cards.explain-queue".
+    let home = prepare_setup(&Setup {
+        id: "explain-queue",
+        cli: &[],
+        files: QUEUE_FILES,
+    });
+    let cases: &[(&[&str], &str)] = &[
+        (&["cards", "explain-queue"], "cards.explain-queue text"),
+        (
+            &["cards", "explain-queue", "--json"],
+            "cards.explain-queue json",
+        ),
+        (
+            &["cards", "explain-queue", "--json", "--topic", "CS"],
+            "cards.explain-queue topic",
+        ),
+        (
+            &[
+                "cards",
+                "explain-queue",
+                "--json",
+                "--offset",
+                "1",
+                "--count",
+                "2",
+            ],
+            "cards.explain-queue offset",
+        ),
+        (
+            &["cards", "explain-queue", "--json", "--offset", "99"],
+            "cards.explain-queue past the end",
+        ),
+        (
+            &["cards", "explain-queue", "--json", "--count", "0"],
+            "cards.explain-queue count 0",
+        ),
+        (
+            &["cards", "explain-queue", "--topic", "nothing"],
+            "cards.explain-queue text ignores topic",
+        ),
+    ];
+    for (args, label) in cases {
+        assert_same(&home, args, true, label);
+    }
+    let sealed = prepare_setup(&Setup {
+        id: "explain-queue-sealed",
+        cli: SEED,
+        files: &[],
+    });
+    assert_same(
+        &sealed,
+        &["cards", "explain-queue", "--json"],
+        true,
+        "cards.explain-queue sealed deck",
+    );
+    let empty = prepare_setup(&Setup {
+        id: "explain-queue-empty",
+        cli: &[],
+        files: &[],
+    });
+    assert_same(
+        &empty,
+        &["cards", "explain-queue"],
+        true,
+        "cards.explain-queue empty",
+    );
+    assert_same(
+        &empty,
+        &["cards", "explain-queue", "--json"],
+        true,
+        "cards.explain-queue empty json",
+    );
+    // Shapes Python reads differently or crashes on: refused natively.
+    type Case = (
+        &'static str,
+        &'static [(&'static str, &'static str)],
+        &'static [&'static str],
+    );
+    let refused: &[Case] = &[
+        ("eq-corp", &[CORPORATE], &["cards", "explain-queue"]),
+        ("eq-terms", &[TERMS], &["cards", "explain-queue"]),
+        (
+            "eq-negative",
+            &[PLAIN, QUEUE_DECK],
+            &["cards", "explain-queue", "--json", "--offset", "-1"],
+        ),
+        (
+            "eq-flag-text",
+            &[
+                PLAIN,
+                (
+                    "tutor/explanation-flags.json",
+                    "{\"kb-5a98eb35e5ae\": \"bad\"}",
+                ),
+            ],
+            &["cards", "explain-queue"],
+        ),
+        (
+            "eq-review-card",
+            &[
+                PLAIN,
+                QUEUE_DECK,
+                (
+                    "tutor/card-reviews.jsonl",
+                    "{\"card\": 3, \"rating\": \"again\"}\n",
+                ),
+            ],
+            &["cards", "explain-queue"],
+        ),
+        (
+            "eq-skip-list",
+            &[
+                PLAIN,
+                QUEUE_DECK,
+                ("tutor/public-skipped.json", "[\"983302043bf9\"]"),
+            ],
+            &["cards", "explain-queue", "--json"],
+        ),
+        (
+            "eq-answer-int",
+            &[
+                PLAIN,
+                (
+                    "tutor/decks/mine.yaml",
+                    "cards:\n- id: c1\n  question: Q\n  answer: 12\n  topic: cs\n",
+                ),
+            ],
+            &["cards", "explain-queue", "--json"],
+        ),
+    ];
+    for (id, files, args) in refused {
+        refuses(
+            &Setup {
+                id,
+                cli: &[],
+                files,
+            },
+            args,
+            id,
+        );
+    }
+}
+
+/// Negative control: the native queue follows the data root's cards.
+#[test]
+fn cards_explain_queue_output_follows_the_decks() {
+    strict(NOW);
+    let empty = prepare_setup(&Setup {
+        id: "eq-control-empty",
+        cli: &[],
+        files: &[PLAIN],
+    });
+    let full = prepare_setup(&Setup {
+        id: "eq-control-full",
+        cli: &[],
+        files: QUEUE_FILES,
+    });
+    let args = ["cards", "explain-queue"];
+    let a = common::observe(&empty, &args, &common::Side::Native);
+    let b = common::observe(&full, &args, &common::Side::Native);
+    assert_ne!(a, b);
+    assert!(a.stdout.starts_with("explain queue: 0 card(s)  · prompt "));
+    assert!(b.stdout.contains("new: "));
+}
