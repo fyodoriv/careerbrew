@@ -164,6 +164,11 @@ drawn on the same runner image, so the same fonts draw and compare.
   "Linux pictures". The workflow uploads no artifact: it prints each new or
   changed picture in its log as base64 with a SHA-256. The pictures show
   synthetic test data only. All 204 pictures make a log of about 20 MB.
+- **A failed comparison in the gate**: the Linux e2e part then runs
+  `scripts/visual-pictures.sh failures`, which prints each failed test's
+  actual, expected and diff picture (base64, with a SHA-256) and its page
+  text (`error-context.md`) in the log, as `visual-failure-begin` blocks.
+  No artifact, no trace. Decode a block with `base64 --decode`.
 - **Noise floor of a migration step**: the manual workflow
   [`noise-floor.yml`](../.github/workflows/noise-floor.yml) baselines one
   step twice on each hosted OS and prints the proposed floors to the log:

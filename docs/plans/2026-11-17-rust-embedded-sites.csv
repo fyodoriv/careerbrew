@@ -180,6 +180,7 @@ workflow-run,.github/workflows/gate-part.yml,"run: git show-ref --verify --quiet
 workflow-run,.github/workflows/gate-part.yml,"run: npx playwright install --with-deps chromium",rust-27
 workflow-run,.github/workflows/gate-part.yml,"run: npx playwright install --with-deps chromium #2",rust-27
 workflow-run,.github/workflows/gate-part.yml,"run: scripts/check.sh",rust-27
+workflow-run,.github/workflows/gate-part.yml,"run: scripts/visual-pictures.sh failures",rust-27
 workflow-run,.github/workflows/gate-part.yml,"run: |",rust-27
 workflow-run,.github/workflows/gate-part.yml,"run: | #2",rust-27
 workflow-run,.github/workflows/gate-part.yml,"run: | #3",rust-27
