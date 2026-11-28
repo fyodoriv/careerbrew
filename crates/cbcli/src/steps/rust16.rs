@@ -9,7 +9,10 @@
 //! `safe_dump` writes for the value read back), a promise scan that tracks
 //! nothing new (`work promise scan`), and the errors of `work promise add`
 //! (a new promise record holds a random `incarnation_id`, so every add
-//! that would write one goes to Python).
+//! that would write one goes to Python), and (wave 8) the next-day
+//! handoff (`day handoff show`, with text hidden and the live promise
+//! items; `add` and `done` in a plaintext data folder, and their errors;
+//! `done promise-<name>` closes the promise as `work promise done` does).
 //!
 //! Each handler calls the `careerbrew_workexec` / `careerbrew_workday`
 //! component and prints what `cli.py` prints. It refuses (exit 64, Python
@@ -50,6 +53,7 @@ pub const COMMANDS: &[&str] = &[
     "day.suggestions",
     "day.accept-all",
     "day.dismiss-all",
+    "day.handoff",
 ];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
@@ -83,6 +87,7 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "day.suggest" => inbox_suggest(args, ctx),
         "day.suggestions" => inbox_suggestions(args, ctx),
         "day.accept-all" | "day.dismiss-all" => inbox_group(args, ctx),
+        "day.handoff" => handoff(args, ctx),
         _ => None,
     }
 }
@@ -2347,4 +2352,551 @@ fn inbox_group(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         format!("no open group {group} (see: careerbrew day inbox)\n"),
         1,
     ))
+}
+
+// ---------- day handoff (wave 8) ----------
+
+/// `handoff.SECTIONS` with `handoff.TITLES`, in Python's order.
+const HANDOFF_SECTIONS: [(&str, &str); 9] = [
+    ("calendar", "Tomorrow's calendar"),
+    ("prs", "Open PRs"),
+    ("waiting", "Waiting on others"),
+    ("questions", "Open questions"),
+    ("promises", "Promises you made"),
+    ("unverified", "Claims not verified yet"),
+    ("lessons", "Rules and lessons learned"),
+    ("gotchas", "Gotchas"),
+    ("projects", "Project sessions"),
+];
+
+/// `handoff.MAX_TEXT`.
+const HANDOFF_MAX_TEXT: usize = 200;
+
+/// `handoff.path_for(day)`.
+fn handoff_path(root: &Path, day: &str) -> std::path::PathBuf {
+    root.join(format!("day/handoff-{day}.json"))
+}
+
+/// `handoff.load(day)`: the day file's items, each a map with distinct
+/// text keys, a text `id` and `section`, a text `link` (or none), and only
+/// values `canon_json` spells as `json.dumps` does. None (refuse) for any
+/// other shape, a read error, or a path that is not a plain file.
+fn handoff_load(store: &careerbrew_vault::store::Store, path: &Path) -> Option<Vec<Canon>> {
+    if std::fs::symlink_metadata(path).is_ok_and(|meta| !meta.is_file()) {
+        return None;
+    }
+    let data = store.read_json(path, Canon::Null, true).ok()?;
+    if !plain_canon(&data) {
+        return None;
+    }
+    let items = match &data {
+        Canon::Map(pairs) => match pget(pairs, "items").ok()? {
+            None => return Some(Vec::new()),
+            Some(Canon::List(items)) => items.clone(),
+            Some(_) => return None,
+        },
+        // `read_json(...) or {}`: a falsy value reads as no items.
+        other if !ptruthy(Some(other))? => return Some(Vec::new()),
+        _ => return None,
+    };
+    for item in &items {
+        let Canon::Map(pairs) = item else {
+            return None;
+        };
+        if !matches!(pget(pairs, "id").ok()?, Some(Canon::Str(_)))
+            || !matches!(pget(pairs, "section").ok()?, Some(Canon::Str(_)))
+            || !matches!(pget(pairs, "link").ok()?, None | Some(Canon::Str(_)))
+        {
+            return None;
+        }
+    }
+    Some(items)
+}
+
+fn item_text<'a>(item: &'a Canon, key: &str) -> &'a str {
+    match get(item, key) {
+        Some(Canon::Str(text)) => text,
+        _ => "",
+    }
+}
+
+/// `handoff.latest_before(day)`: the newest non-empty handoff of an
+/// earlier day. None (refuse) for a file name `date.fromisoformat` could
+/// read another way (or fail on), or a file `handoff_load` refuses.
+fn handoff_latest_before(
+    store: &careerbrew_vault::store::Store,
+    root: &Path,
+    today: &str,
+) -> Option<(Option<String>, Vec<Canon>)> {
+    let mut found = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(root.join("day")) {
+        for entry in entries {
+            let name = entry.ok()?.file_name().into_string().ok()?;
+            let Some(stem) = name
+                .strip_prefix("handoff-")
+                .and_then(|rest| rest.strip_suffix(".json"))
+            else {
+                continue;
+            };
+            if !real_day(stem) {
+                return None;
+            }
+            found.push(stem.to_owned());
+        }
+    }
+    found.sort_by(|a, b| b.cmp(a));
+    for day in found {
+        if day.as_str() < today {
+            let items = handoff_load(store, &handoff_path(root, &day))?;
+            if !items.is_empty() {
+                return Some((Some(day), items));
+            }
+        }
+    }
+    Some((None, Vec::new()))
+}
+
+/// One promise record as `promises.view` reads it, for the handoff.
+struct LivePromise {
+    name: String,
+    due: String,
+    made_at: String,
+    url: String,
+    archived: bool,
+}
+
+/// A stored text field: absent is "", anything but text refuses.
+fn text_or_empty(value: Option<&Canon>) -> Option<String> {
+    match value {
+        None => Some(String::new()),
+        Some(Canon::Str(text)) => Some(text.clone()),
+        Some(_) => None,
+    }
+}
+
+/// `value or {}` read as a dict of distinct text keys; None refuses.
+fn falsy_or_map(value: Option<&Canon>) -> Option<&[(Canon, Canon)]> {
+    match value {
+        Some(Canon::Map(pairs)) => {
+            pget(pairs, "").ok()?;
+            let mut seen: Vec<&Canon> = Vec::new();
+            for (k, _) in pairs {
+                if seen.contains(&k) {
+                    return None;
+                }
+                seen.push(k);
+            }
+            Some(pairs)
+        }
+        other if !ptruthy(other)? => Some(&[]),
+        _ => None,
+    }
+}
+
+/// A dict Python then calls `.get` on: a map of distinct text keys.
+fn dict_of(value: &Canon) -> Option<&[(Canon, Canon)]> {
+    match value {
+        Canon::Map(_) => falsy_or_map(Some(value)),
+        _ => None,
+    }
+}
+
+/// Every promise record (`kind: promise`) as `promises.open_list(
+/// business=True, include_closed=True)` reads it. None (refuse) for a
+/// project file that is not exactly `safe_dump` of what it parses to, or a
+/// record Python would read differently or fail on (`handoff_items` adds a
+/// text title).
+fn live_promises(root: &Path) -> Option<Vec<LivePromise>> {
+    let context = careerbrew_vault::transfer::Context::from_env().ok()?;
+    let store = context.store();
+    let path = root.join("work/projects.yaml");
+    if std::fs::symlink_metadata(&path).is_ok_and(|meta| !meta.is_file()) {
+        return None;
+    }
+    let Some(text) = store.read_text(&path, None, true).ok()? else {
+        return Some(Vec::new());
+    };
+    if odd_projects_yaml(&text) {
+        return None;
+    }
+    let data = careerbrew_vault::json_yaml::yaml_read(&text).ok()?;
+    if crate::pyyaml::safe_dump(&data)? != text {
+        return None;
+    }
+    let top = falsy_or_map(Some(&data))?;
+    let projects = falsy_or_map(pget(top, "projects").ok()?)?;
+    let mut rows = Vec::new();
+    for (name, project) in projects {
+        let Canon::Str(name) = name else {
+            return None;
+        };
+        let p = dict_of(project)?;
+        if !matches!(pget(p, "kind").ok()?, Some(Canon::Str(kind)) if kind == "promise") {
+            continue;
+        }
+        let archived = ptruthy(pget(p, "archived_at").ok()?)?;
+        let promise = falsy_or_map(pget(p, "promise").ok()?)?;
+        let due = match pget(promise, "due").ok()? {
+            Some(Canon::Str(text)) => text.clone(),
+            other if !ptruthy(other)? => String::new(),
+            _ => return None,
+        };
+        let mut url = String::new();
+        match pget(p, "sources").ok()? {
+            Some(Canon::List(sources)) => {
+                for source in sources {
+                    let s = dict_of(source)?;
+                    let kind = pget(s, "kind").ok()?;
+                    if matches!(kind, Some(Canon::Str(k)) if k == "chat" || k == "url") {
+                        url = text_or_empty(Some(pget(s, "ref").ok()??))?;
+                        break;
+                    }
+                    if !matches!(kind, None | Some(Canon::Str(_) | Canon::Null)) {
+                        return None;
+                    }
+                }
+            }
+            other if !ptruthy(other)? => {}
+            _ => return None,
+        }
+        // `next_step`: `steps` must be a dict (or falsy) for `in`.
+        falsy_or_map(pget(promise, "steps").ok()?)?;
+        // `r["title"] + ...` in `handoff_items` needs text.
+        text_or_empty(pget(p, "title").ok()?)?;
+        text_or_empty(pget(p, "parent").ok()?)?;
+        ptruthy(pget(promise, "to").ok()?)?;
+        ptruthy(pget(promise, "closed").ok()?)?;
+        rows.push(LivePromise {
+            name: name.clone(),
+            due,
+            made_at: text_or_empty(pget(promise, "made_at").ok()?)?,
+            url,
+            archived,
+        });
+    }
+    Some(rows)
+}
+
+/// `with_promises(items)`: the stored items without a hand-added promises
+/// item whose link a tracked promise holds, then each open promise (as
+/// its handoff item, text hidden) in `open_list` order.
+fn with_live_promises(items: Vec<Canon>, promises: &[LivePromise]) -> Vec<Canon> {
+    let tracked: Vec<&str> = promises
+        .iter()
+        .filter(|p| !p.url.is_empty())
+        .map(|p| p.url.as_str())
+        .collect();
+    let mut out: Vec<Canon> = items
+        .into_iter()
+        .filter(|i| {
+            let link = item_text(i, "link");
+            !(item_text(i, "section") == "promises" && !link.is_empty() && tracked.contains(&link))
+        })
+        .collect();
+    let mut open: Vec<&LivePromise> = promises.iter().filter(|p| !p.archived).collect();
+    open.sort_by(|a, b| {
+        let key = |p: &LivePromise| {
+            (
+                p.due.is_empty(),
+                p.due.clone(),
+                p.made_at.clone(),
+                p.name.clone(),
+            )
+        };
+        key(a).cmp(&key(b))
+    });
+    for p in open {
+        let mut pairs = vec![
+            (ckey("id"), ckey(&p.name)),
+            (ckey("section"), ckey("promises")),
+            (ckey("live"), Canon::Bool(true)),
+        ];
+        if !p.url.is_empty() {
+            pairs.push((ckey("link"), ckey(&p.url)));
+        }
+        out.push(Canon::Map(pairs));
+    }
+    out
+}
+
+fn handoff(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    // Every line goes through `say` (redaction), and `show` hides text
+    // only when `may_show_business()` is false.
+    if !business_hidden(ctx) {
+        return None;
+    }
+    let action = args.text("action")?;
+    let section = args.text("section").unwrap_or("");
+    match action {
+        "add" => handoff_add(args, ctx, section),
+        "done" => handoff_done(ctx, section),
+        "show" => handoff_show(args, ctx),
+        _ => None,
+    }
+}
+
+fn handoff_fail(message: &str) -> Option<Outcome> {
+    Some(fail(message, "US-85"))
+}
+
+/// `handoff.item(section, text, link)` as pairs, or Err(the ValueError
+/// text). None refuses a section whose `repr` this does not spell.
+fn handoff_item(section: &str, text: &str, link: &str) -> Option<Result<Canon, String>> {
+    if !HANDOFF_SECTIONS.iter().any(|(s, _)| *s == section) {
+        let names: Vec<&str> = HANDOFF_SECTIONS.iter().map(|(s, _)| *s).collect();
+        return Some(Err(format!(
+            "unknown section {}; use one of: {}",
+            simple_repr(section)?,
+            names.join(", ")
+        )));
+    }
+    let text = careerbrew_day::words(text).join(" ");
+    if text.is_empty() {
+        return Some(Err("the item text is empty".to_owned()));
+    }
+    let length = text.chars().count();
+    if length > HANDOFF_MAX_TEXT {
+        return Some(Err(format!(
+            "keep an item short: {length} characters, at most {HANDOFF_MAX_TEXT} (put the detail behind a link)"
+        )));
+    }
+    let id = format!(
+        "h-{}",
+        &careerbrew_day::sha256_hex(&format!("{section}\n{text}"))[..8]
+    );
+    let mut pairs = vec![
+        (ckey("id"), ckey(&id)),
+        (ckey("section"), ckey(section)),
+        (ckey("text"), ckey(&text)),
+    ];
+    if !link.is_empty() {
+        pairs.push((ckey("link"), ckey(link)));
+    }
+    Some(Ok(Canon::Map(pairs)))
+}
+
+/// `handoff._save(items, day)`: `store.write_json_if_changed` of
+/// `{"day": day, "items": items}`.
+fn handoff_save(
+    store: &careerbrew_vault::store::Store,
+    path: &Path,
+    day: &str,
+    items: Vec<Canon>,
+) -> Option<()> {
+    let value = Canon::Map(vec![
+        (ckey("day"), ckey(day)),
+        (ckey("items"), Canon::List(items)),
+    ]);
+    store.write_json_if_changed(path, &value).ok()?;
+    Some(())
+}
+
+fn handoff_add(args: &Parsed, ctx: &Ctx, section: &str) -> Option<Outcome> {
+    let text = args.text("text").unwrap_or("");
+    if section.is_empty() || text.is_empty() {
+        return handoff_fail("usage: careerbrew day handoff add <section> <text> [--link URL]");
+    }
+    let link = args.text("link").unwrap_or("");
+    let new = match handoff_item(section, text, link)? {
+        Ok(new) => new,
+        Err(message) => return handoff_fail(&message),
+    };
+    let root = ctx.root.as_path();
+    pin_clock(root)?;
+    let day = careerbrew_workday::today().to_string();
+    let context = careerbrew_vault::transfer::Context::from_env().ok()?;
+    let store = context.store();
+    // An encrypted write differs on every run.
+    if store.encryption_enabled() {
+        return None;
+    }
+    let path = handoff_path(root, &day);
+    let id = item_text(&new, "id").to_owned();
+    // Read and check first, so a refusal never follows the lock file.
+    if handoff_load(&store, &path)?.iter().any(has_float) {
+        return None;
+    }
+    careerbrew_vault::lock::with_lock(&path, || -> Option<()> {
+        let mut items: Vec<Canon> = handoff_load(&store, &path)?
+            .into_iter()
+            .filter(|i| item_text(i, "id") != id)
+            .collect();
+        items.push(new);
+        handoff_save(&store, &path, &day, items)
+    })
+    .ok()??;
+    Some(out(
+        format!("handoff: added {id} to {section} for tomorrow\n"),
+        0,
+    ))
+}
+
+fn handoff_done(ctx: &Ctx, id: &str) -> Option<Outcome> {
+    if id.is_empty() {
+        return handoff_fail("usage: careerbrew day handoff done <id>");
+    }
+    let root = ctx.root.as_path();
+    pin_clock(root)?;
+    let day = careerbrew_workday::today().to_string();
+    let context = careerbrew_vault::transfer::Context::from_env().ok()?;
+    let store = context.store();
+    let path = handoff_path(root, &day);
+    let items = handoff_load(&store, &path)?;
+    let found = items.iter().any(|i| item_text(i, "id") == id);
+    // Dropping an item rewrites the file: refuse what would differ.
+    if found && (store.encryption_enabled() || items.iter().any(has_float)) {
+        return None;
+    }
+    if !found && id.starts_with("promise-") {
+        return handoff_promise_done(ctx, &store, &path, id);
+    }
+    let dropped = careerbrew_vault::lock::with_lock(&path, || -> Option<bool> {
+        let items = handoff_load(&store, &path)?;
+        let before = items.len();
+        let kept: Vec<Canon> = items
+            .into_iter()
+            .filter(|i| item_text(i, "id") != id)
+            .collect();
+        if kept.len() == before {
+            return Some(false);
+        }
+        handoff_save(&store, &path, &day, kept)?;
+        Some(true)
+    })
+    .ok()??;
+    if !dropped {
+        return handoff_fail(&format!(
+            "no handoff item {id} today (see: careerbrew day handoff show --today)"
+        ));
+    }
+    Some(out(format!("handoff: dropped {id}\n"), 0))
+}
+
+/// `done promise-<name>` with no such handoff item: `handoff.done` takes
+/// the day's lock and drops nothing, then `promises.close(name, "done")`
+/// writes as `work promise done` does (plaintext data folder only).
+fn handoff_promise_done(
+    ctx: &Ctx,
+    store: &careerbrew_vault::store::Store,
+    path: &Path,
+    name: &str,
+) -> Option<Outcome> {
+    let files = promise_files(ctx)?;
+    let projects = match promise_record(&files.projects, name) {
+        Ok(mut p) => {
+            let mut promise = map_or_empty(pget(&p, "promise").ok()?)?;
+            promise.retain(
+                |(k, _)| !matches!(k, Canon::Str(k) if k == "pm_removed" || k == "manual_kept_day"),
+            );
+            pset(&mut promise, "closed", ckey("done"));
+            pset(&mut p, "promise", Canon::Map(promise));
+            pset(&mut p, "archived_at", Canon::Str(utc_stamp()));
+            let projects = with_project(&files.projects, name, p);
+            // `promise_save` dumps again; check it can before any write.
+            crate::pyyaml::safe_dump(&Canon::Map(vec![(
+                ckey("projects"),
+                Canon::Map(projects.clone()),
+            )]))?;
+            Some(projects)
+        }
+        Err(Some(_)) => None,
+        Err(None) => return None,
+    };
+    careerbrew_vault::lock::with_lock(path, || handoff_load(store, path)).ok()??;
+    let Some(projects) = projects else {
+        return handoff_fail(&format!(
+            "no promise {name} (see: careerbrew work promise list)"
+        ));
+    };
+    promise_save(&files, projects)?;
+    promise_event(ctx, "done");
+    Some(out(format!("handoff: promise {name} done\n"), 0))
+}
+
+fn handoff_show(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let root = ctx.root.as_path();
+    pin_clock(root)?;
+    let today = careerbrew_workday::today().to_string();
+    let context = careerbrew_vault::transfer::Context::from_env().ok()?;
+    let store = context.store();
+    let to_day = args.flag("today");
+    let (day, items) = if to_day {
+        (
+            Some(today.clone()),
+            handoff_load(&store, &handoff_path(root, &today))?,
+        )
+    } else {
+        handoff_latest_before(&store, root, &today)?
+    };
+    let promises = live_promises(root)?;
+    let items = with_live_promises(items, &promises);
+    let day = day.or_else(|| (!items.is_empty()).then(|| today.clone()));
+    checked_days(root)?;
+    let open_q = careerbrew_workday::questions::open_records(root, careerbrew_workday::today())
+        .ok()?
+        .len();
+    // `paths.sub("day", ...)` and `paths.sub("work", ...)` make the folders.
+    std::fs::create_dir_all(root.join("day")).ok()?;
+    std::fs::create_dir_all(root.join("work")).ok()?;
+    let mut stdout = String::new();
+    if args.flag("json") {
+        stdout.push_str("{\"day\": ");
+        match &day {
+            Some(day) => crate::render::py_string(day, &mut stdout),
+            None => stdout.push_str("null"),
+        }
+        stdout.push_str(", \"verify_live_before_acting\": true, \"items\": [");
+        for (n, item) in items.iter().enumerate() {
+            if n > 0 {
+                stdout.push_str(", ");
+            }
+            let Canon::Map(pairs) = item else {
+                return None;
+            };
+            let shown: Vec<(Canon, Canon)> = pairs
+                .iter()
+                .filter(|(k, _)| !matches!(k, Canon::Str(k) if k == "text"))
+                .cloned()
+                .collect();
+            canon_json(&Canon::Map(shown), &mut stdout)?;
+        }
+        stdout.push_str(&format!("], \"open_questions\": {open_q}}}\n"));
+        return Some(out(stdout, 0));
+    }
+    if open_q > 0 {
+        stdout.push_str(&format!("questions: {open_q} open from the work day; recheck them before you ask: careerbrew day question recheck\n"));
+    }
+    if items.is_empty() {
+        stdout.push_str(if to_day {
+            "handoff: none\n"
+        } else {
+            "handoff: none from an earlier day\n"
+        });
+        return Some(out(stdout, 0));
+    }
+    stdout.push_str(&format!(
+        "handoff from {}: {} item(s). Verify each one live before acting.\n",
+        day?,
+        items.len()
+    ));
+    for (section, title) in HANDOFF_SECTIONS {
+        let mine: Vec<&Canon> = items
+            .iter()
+            .filter(|i| item_text(i, "section") == section)
+            .collect();
+        if mine.is_empty() {
+            continue;
+        }
+        stdout.push_str(&format!("{title} ({}):\n", mine.len()));
+        for i in mine {
+            stdout.push_str(&format!("- [{}] (text hidden)", item_text(i, "id")));
+            let link = item_text(i, "link");
+            if !link.is_empty() {
+                stdout.push(' ');
+                stdout.push_str(link);
+            }
+            stdout.push('\n');
+        }
+    }
+    Some(out(stdout, 0))
 }

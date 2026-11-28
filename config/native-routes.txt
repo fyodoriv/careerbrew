@@ -214,7 +214,7 @@ day.watch python
 day.results native
 day.plan python
 day.next python
-day.handoff python
+day.handoff native
 day.run python
 day.update python
 day.check python
