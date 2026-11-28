@@ -696,3 +696,158 @@ fn indie_scan_matches_python() {
         "indie.scan redaction",
     );
 }
+
+// ---------- changes ----------
+
+const PLAIN: (&str, &str) = (".plaintext", "");
+
+/// A synthetic user ladder: a date, a float, non-ASCII text and an
+/// `origin` key that the hash leaves out.
+const LADDER: (&str, &str) = (
+    "ladders/synthetic.yaml",
+    "id: synthetic-ladder\nname: Synthetic ladder é\norigin: elsewhere\nsince: 2026-01-02\nlevels: [one, two]\ncompetencies:\n  - id: craft\n    name: Craft ✓\n    weight: 0.5\n    signals: {tags: [quality], keywords: [widget*]}\n    expect: {one: 1, two: 3}\n    descriptions: {two: Builds synthetic widgets}\n",
+);
+
+/// A user ladder `promo.validate_ladder` rejects (no expectation for `two`).
+const BAD_LADDER: (&str, &str) = (
+    "ladders/bad.yaml",
+    "id: bad-ladder\nlevels: [one, two]\ncompetencies:\n  - id: craft\n    name: Craft\n    weight: 1\n    signals: {}\n    expect: {one: 1}\n",
+);
+
+/// A stale snapshot: every ladder and company counts as added.
+const STALE: (&str, &str) = (
+    "changes/snapshot.json",
+    "{\"companies\": {}, \"ladders\": {}, \"pages\": {}, \"plugins\": {}}",
+);
+
+/// A snapshot that holds no section yet (`null`): a first run.
+const NULL_SNAPSHOT: (&str, &str) = ("changes/snapshot.json", "null");
+
+const BASELINE: &[&[&str]] = &[&["changes"]];
+
+#[test]
+fn changes_matches_python() {
+    strict(NOW);
+    // Route key: "changes".
+    for (id, cli, files, label) in [
+        (
+            "changes-first",
+            &[] as &[&[&str]],
+            &[PLAIN] as &[(&str, &str)],
+            "changes first run",
+        ),
+        ("changes-again", BASELINE, &[PLAIN], "changes unchanged"),
+        (
+            "changes-sealed-again",
+            BASELINE,
+            &[],
+            "changes unchanged sealed",
+        ),
+        (
+            "changes-ladder-first",
+            &[],
+            &[PLAIN, LADDER],
+            "changes user ladder first run",
+        ),
+        (
+            "changes-ladder-again",
+            BASELINE,
+            &[PLAIN, LADDER],
+            "changes user ladder unchanged",
+        ),
+        (
+            "changes-null",
+            &[],
+            &[PLAIN, NULL_SNAPSHOT],
+            "changes null snapshot",
+        ),
+    ] {
+        let home = prepare_setup(&Setup { id, cli, files });
+        assert_same(&home, &["changes"], true, label);
+    }
+}
+
+/// One refusal case: setup id, setup commands, files, argv, label.
+type Case<'a> = (
+    &'a str,
+    &'a [&'a [&'a str]],
+    &'a [(&'a str, &'a str)],
+    &'a [&'a str],
+    &'a str,
+);
+
+#[test]
+fn changes_refuses_what_python_must_run() {
+    strict(NOW);
+    // Route key: "changes".
+    let cases: &[Case] = &[
+        (
+            "changes-fetch",
+            BASELINE,
+            &[PLAIN],
+            &["changes", "--fetch"],
+            "changes --fetch",
+        ),
+        (
+            "changes-stale",
+            &[],
+            &[PLAIN, STALE],
+            &["changes"],
+            "changes found a change",
+        ),
+        (
+            "changes-sealed-first",
+            &[],
+            &[],
+            &["changes"],
+            "changes sealed first run",
+        ),
+        (
+            "changes-bad-ladder",
+            &[],
+            &[PLAIN, BAD_LADDER],
+            &["changes"],
+            "changes invalid ladder",
+        ),
+        (
+            "changes-plugin",
+            &[],
+            &[PLAIN, ("plugins.lock.json", "{\"plugins\": {}}")],
+            &["changes"],
+            "changes plugin lock",
+        ),
+        (
+            "changes-terms",
+            BASELINE,
+            &[PLAIN, TERMS],
+            &["changes"],
+            "changes redaction",
+        ),
+    ];
+    for (id, cli, files, args, label) in cases {
+        refuses(&Setup { id, cli, files }, args, label);
+    }
+}
+
+/// Negative control: a ladder added after the baseline is a change, so the
+/// native side must not answer "no changes".
+#[test]
+fn changes_negative_control_new_ladder_is_a_change() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "changes-control",
+        cli: BASELINE,
+        files: &[PLAIN],
+    });
+    // `observe` restores the home from its snapshot copy: add the ladder there.
+    let snap = home
+        .home
+        .parent()
+        .unwrap()
+        .with_file_name("snap")
+        .join("data");
+    std::fs::create_dir_all(snap.join("ladders")).unwrap();
+    std::fs::write(snap.join(LADDER.0), LADDER.1).unwrap();
+    let native = observe(&home, &["changes"], &Side::Native);
+    assert_eq!(native.code, Some(64), "a new ladder must refuse natively");
+}

@@ -1,7 +1,8 @@
 //! rust-19 native handlers: parity with the Python CLI in synthetic homes
 //! for "jobs.choose", "jobs.unchoose", "jobs.log", "jobs.preset",
 //! "prep.story", "interview", "interview-patterns", "research.stale",
-//! "jobs.interview-gaps", "jobs.list", "jobs.rate" and "jobs.learn".
+//! "jobs.interview-gaps", "jobs.list", "jobs.rate", "jobs.learn",
+//! "prep.check" and "jobs.strategy".
 mod common;
 
 use common::*;
@@ -575,4 +576,215 @@ fn the_interview_comparison_detects_a_planted_difference() {
     assert_eq!(a.code, Some(0));
     assert_ne!(a, b);
     assert!(a.stdout.starts_with("# Interview loop: Stripe\n"));
+}
+
+const PLAINTEXT: (&str, &str) = (".plaintext", "");
+
+const STORIES: (&str, &str) = (
+    "prep/stories.yaml",
+    "stories:\n- id: s01\n  title: Synthetic launch\n  competencies: [impact, ownership]\n- id: s02\n  title: Synthetic conflict\n  competencies: [conflict]\n",
+);
+
+const STALE: (&str, &str) = (
+    "prep/stale.json",
+    "{\"stripe\": {\"company\": \"Stripe\", \"reason\": \"loop changed\", \"at\": \"2026-11-01\"}}",
+);
+
+const ANSWERS: (&str, &str) = (
+    "answers.json",
+    "{\"logistics\": true, \"environment\": 1, \"questions\": false}",
+);
+
+const TUTOR: (&str, &str) = ("tutor/attempts.jsonl", "");
+
+#[test]
+fn prep_check_matches_python() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "prep-check",
+        cli: &[],
+        files: &[PLAINTEXT, STORIES, ANSWERS],
+    });
+    same(
+        &home,
+        &["prep", "check", "Stripe", "--yes", "logistics, questions,,"],
+        "prep.check known yes",
+    );
+    same(
+        &home,
+        &["prep", "check", "Stripe", "--json"],
+        "prep.check json",
+    );
+    same(
+        &home,
+        &["prep", "check", "Acme Co!", "--top", "3"],
+        "prep.check unknown",
+    );
+    same(
+        &home,
+        &["prep", "check", "Acme Co!", "--level", "5", "--json"],
+        "prep.check unknown senior",
+    );
+    let answers = home.data.join("answers.json");
+    same(
+        &home,
+        &[
+            "prep",
+            "check",
+            "gitlab",
+            "--answers",
+            answers.to_str().unwrap(),
+        ],
+        "prep.check answers file",
+    );
+    let again = prepare_setup(&Setup {
+        id: "prep-check-again",
+        cli: &[&["prep", "check", "Stripe", "--yes", "logistics"]],
+        files: &[PLAINTEXT],
+    });
+    same(
+        &again,
+        &["prep", "check", "Stripe", "--yes", "why-company"],
+        "prep.check second run",
+    );
+    same(
+        &again,
+        &["prep", "check", "Stripe", "--json"],
+        "prep.check trend json",
+    );
+    let stale = prepare_setup(&Setup {
+        id: "prep-check-stale",
+        cli: &[],
+        files: &[PLAINTEXT, STALE],
+    });
+    same(
+        &stale,
+        &["prep", "check", "Stripe"],
+        "prep.check stale mark",
+    );
+    same(
+        &stale,
+        &[
+            "prep",
+            "check",
+            "Stripe",
+            "--yes",
+            "company:changed",
+            "--json",
+        ],
+        "prep.check stale confirmed",
+    );
+    let tutor = prepare_setup(&Setup {
+        id: "prep-check-tutor",
+        cli: &[],
+        files: &[PLAINTEXT, TUTOR],
+    });
+    refused(
+        &tutor,
+        &["prep", "check", "Stripe"],
+        "prep.check tutor file",
+    );
+    let sealed = prepare_setup(&Setup {
+        id: "prep-check-sealed",
+        cli: &[],
+        files: &[],
+    });
+    refused(
+        &sealed,
+        &["prep", "check", "Stripe"],
+        "prep.check encrypted",
+    );
+    refused(
+        &home,
+        &["prep", "check", "Stripe", "--answers", "missing.json"],
+        "prep.check missing answers",
+    );
+    refused(&home, &["prep", "check", " "], "prep.check empty name");
+    refused(
+        &corporate("prep-check-corporate"),
+        &["prep", "check", "Stripe"],
+        "prep.check corporate",
+    );
+}
+
+const APPLICATIONS: (&str, &str) = (
+    "jobs/applications.jsonl",
+    "{\"company\": \"Synthetic Co\", \"tier\": \"practice\", \"stage\": \"applied\", \"at\": \"2026-10-01T00:00:00+00:00\"}\n{\"company\": \"Synthetic Co\", \"tier\": \"practice\", \"stage\": \"onsite\", \"at\": \"2026-10-10T00:00:00+00:00\"}\n{\"company\": \"Example Org\", \"tier\": \"practice\", \"stage\": \"screen\", \"at\": \"2026-10-12T00:00:00+00:00\"}\n{\"company\": \"Other Org\", \"tier\": \"practice\", \"stage\": \"rejected\", \"at\": \"2026-10-14T00:00:00+00:00\"}\n{\"company\": \"Third Org\", \"tier\": \"target\", \"stage\": \"applied\", \"at\": \"2026-10-15T00:00:00+00:00\"}\n",
+);
+
+#[test]
+fn jobs_strategy_matches_python() {
+    strict(NOW);
+    let empty = prepare_setup(&Setup {
+        id: "strategy",
+        cli: &[],
+        files: &[PLAINTEXT],
+    });
+    same(&empty, &["jobs", "strategy"], "jobs.strategy empty home");
+    same(
+        &empty,
+        &["jobs", "strategy", "--json"],
+        "jobs.strategy json",
+    );
+    let logged = prepare_setup(&Setup {
+        id: "strategy-logged",
+        cli: &[],
+        files: &[PLAINTEXT, APPLICATIONS, CHOSEN],
+    });
+    same(
+        &logged,
+        &["jobs", "strategy", "--json"],
+        "jobs.strategy pass rates",
+    );
+    same(
+        &logged,
+        &["jobs", "strategy"],
+        "jobs.strategy pass rates text",
+    );
+    let posted = prepare_setup(&Setup {
+        id: "strategy-posted",
+        cli: &[],
+        files: &[PLAINTEXT, POSTINGS],
+    });
+    refused(&posted, &["jobs", "strategy"], "jobs.strategy postings");
+    let tutor = prepare_setup(&Setup {
+        id: "strategy-tutor",
+        cli: &[],
+        files: &[PLAINTEXT, TUTOR],
+    });
+    refused(&tutor, &["jobs", "strategy"], "jobs.strategy tutor file");
+    let sealed = prepare_setup(&Setup {
+        id: "strategy-sealed",
+        cli: &[],
+        files: &[],
+    });
+    refused(&sealed, &["jobs", "strategy"], "jobs.strategy encrypted");
+    refused(
+        &corporate("strategy-corporate"),
+        &["jobs", "strategy"],
+        "jobs.strategy corporate",
+    );
+}
+
+#[test]
+fn the_prep_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "prep-control",
+        cli: &[],
+        files: &[PLAINTEXT],
+    });
+    let a = observe(
+        &home,
+        &["prep", "check", "Stripe", "--yes", "logistics"],
+        &Side::Native,
+    );
+    let b = observe(
+        &home,
+        &["prep", "check", "Stripe", "--yes", "questions"],
+        &Side::Python,
+    );
+    assert_eq!(a.code, Some(0));
+    assert_ne!(a, b);
+    assert!(a.stdout.starts_with("prep for Stripe: "));
 }

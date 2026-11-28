@@ -2,7 +2,11 @@
 //! "day.question.list", "day.question.close", "day.loop" (status, add and
 //! stop), "day.history", "work.promise.done", "work.promise.dropped",
 //! "work.promise.step", "work.promise.scan" (nothing new) and
-//! "work.promise.add" (its errors).
+//! "work.promise.add" (its errors), and the day inbox: "day.accept",
+//! "day.dismiss", "day.answer", "day.reopen", "day.suggest",
+//! "day.suggestions", "day.accept-all" and "day.dismiss-all" (the cases
+//! that touch only the inbox), and the next-day handoff: "day.handoff"
+//! (show, add and done, with live promises).
 //!
 //! Each served case runs Python and the native binary in the same fresh
 //! synthetic home and compares stdout, exit code, data-root files (with
@@ -927,18 +931,646 @@ fn the_promise_add_and_scan_comparison_detects_a_planted_difference() {
     assert_ne!(empty.stdout, tracked.stdout);
 }
 
-/// "day.handoff" stays with Python: its two optional positionals (section,
-/// text) are a form the argument reader never accepts, so every argv is
-/// refused before a handler could run.
+/// "day.handoff" with a positional word after a flag stays with Python:
+/// argparse may split that chunk another way, so the argument reader
+/// refuses it before a handler could run.
 #[test]
 fn day_handoff_is_refused_before_any_handler() {
     strict(NOW);
     let home = prepare_setup(&PLAIN);
     for args in [
-        &["day", "handoff", "show"][..],
-        &["day", "handoff", "add", "lessons", "synthetic lesson"],
+        &[
+            "day",
+            "handoff",
+            "add",
+            "--link",
+            "u",
+            "lessons",
+            "synthetic",
+        ][..],
+        &[
+            "day",
+            "handoff",
+            "add",
+            "lessons",
+            "--link",
+            "u",
+            "synthetic",
+        ],
     ] {
         let got = observe(&home, args, &Side::Native);
         assert_eq!(got.code, Some(64), "{args:?}");
     }
+}
+
+// ---------- the day inbox (wave 7) ----------
+
+/// Synthetic inbox items: an open plugin suggestion with no task, one with
+/// a task, a goal, an impact question, a free question, an accepted item,
+/// an agent's task, and one hidden as done elsewhere.
+const INBOX: &str = concat!(
+    "{\"items\": [",
+    "{\"created_at\": \"2026-11-19T10:00:00+00:00\", \"data\": {\"accept\": \"Read it\", \"link\": \"\", \"plugin\": \"demo\", \"ref\": \"r1\", \"task\": \"\", \"what\": \"Synthetic idea\"}, ",
+    "\"id\": \"plugin-b49eb357\", \"kind\": \"plugin\", \"origin\": \"plugin:demo\", \"status\": \"open\", \"text\": \"Synthetic idea (suggested by plugin demo)\", \"type\": \"proposal\", \"why\": \"synthetic reason\"}, ",
+    "{\"data\": {\"plugin\": \"demo\", \"ref\": \"r2\", \"task\": \"Synthetic task\"}, \"id\": \"plugin-73eced0d\", \"kind\": \"plugin\", \"origin\": \"plugin:demo\", \"status\": \"open\", \"type\": \"proposal\"}, ",
+    "{\"data\": {\"title\": \"Synthetic goal\"}, \"id\": \"goal-cccc0000\", \"kind\": \"goal\", \"status\": \"open\", \"type\": \"proposal\"}, ",
+    "{\"data\": {\"source\": \"pr\", \"title\": \"Synthetic PR\"}, \"id\": \"impact-dddd0000\", \"kind\": \"impact\", \"status\": \"open\", \"type\": \"question\"}, ",
+    "{\"data\": {}, \"id\": \"note-eeee0000\", \"kind\": \"note\", \"status\": \"open\", \"type\": \"question\"}, ",
+    "{\"data\": {\"task\": \"t-1\"}, \"decided_at\": \"2026-11-19T11:00:00+00:00\", \"id\": \"task-done-ffff0000\", \"kind\": \"task-done\", \"status\": \"accepted\", \"type\": \"proposal\"}, ",
+    "{\"data\": {\"task\": \"t-2\"}, \"id\": \"agent-task-gggg0000\", \"kind\": \"agent-task\", \"status\": \"open\", \"type\": \"proposal\"}, ",
+    "{\"data\": {\"project\": \"synthetic\"}, \"expired\": {\"at\": \"2026-11-19T12:00:00+00:00\"}, \"id\": \"source-hhhh0000\", \"kind\": \"source\", \"maybe_done\": true, \"status\": \"expired\", \"type\": \"proposal\"}",
+    "]}"
+);
+
+const INBOX_HOME: Setup = Setup {
+    id: "inbox",
+    cli: &[],
+    files: &[(".plaintext", ""), ("day/inbox.json", INBOX)],
+};
+
+/// The same items in a folder with no `.plaintext` marker.
+const INBOX_SEALED: Setup = Setup {
+    id: "inbox-sealed",
+    cli: &[],
+    files: &[("day/inbox.json", INBOX)],
+};
+
+const INBOX_REDACTION: Setup = Setup {
+    id: "inbox-redaction",
+    cli: &[],
+    files: &[
+        (".plaintext", ""),
+        ("profile.yaml", "name: Synthetic Person\n"),
+        ("day/inbox.json", INBOX),
+    ],
+};
+
+const INBOX_ODD: Setup = Setup {
+    id: "inbox-odd",
+    cli: &[],
+    files: &[
+        (".plaintext", ""),
+        (
+            "day/inbox.json",
+            "{\"items\": [{\"id\": \"x-1\", \"status\": \"open\", \"type\": \"question\", \"kind\": \"note\", \"data\": {}, \"score\": 0.5}]}",
+        ),
+    ],
+};
+
+/// Plugin suggestions with no decision: a repeated (origin, ref), the
+/// planner's own row, and one item hidden as done elsewhere.
+const SUGGESTIONS: &str = concat!(
+    "{\"accept\": \"Read it\", \"at\": \"2026-11-19T10:00:00+00:00\", \"link\": \"\", \"origin\": \"plugin:demo\", \"plugin\": \"demo\", \"ref\": \"r1\", \"task\": \"\", \"what\": \"Old words\", \"why\": \"w\"}\n",
+    "{\"at\": \"2026-11-19T10:01:00+00:00\", \"task\": \"t-9\"}\n",
+    "\n",
+    "{\"accept\": \"Look\", \"at\": \"2026-11-19T10:02:00+00:00\", \"link\": \"\", \"origin\": \"plugin:other\", \"plugin\": \"other\", \"ref\": \"x1\", \"task\": \"\", \"what\": \"Other idea\", \"why\": \"w\"}\n",
+    "{\"accept\": \"Read it\", \"at\": \"2026-11-19T10:03:00+00:00\", \"link\": \"\", \"origin\": \"plugin:demo\", \"plugin\": \"demo\", \"ref\": \"r1\", \"task\": \"\", \"what\": \"New words\", \"why\": \"w\"}\n",
+    "{\"accept\": \"Read it\", \"at\": \"2026-11-19T10:04:00+00:00\", \"link\": \"\", \"origin\": \"plugin:demo\", \"plugin\": \"demo\", \"ref\": \"r2\", \"task\": \"\", \"what\": \"Second\", \"why\": \"w\"}\n",
+);
+
+const SUGGESTED: Setup = Setup {
+    id: "suggested",
+    cli: &[],
+    files: &[
+        (".plaintext", ""),
+        ("day/suggestions.jsonl", SUGGESTIONS),
+        (
+            "day/inbox.json",
+            "{\"items\": [{\"data\": {}, \"id\": \"plugin-73eced0d\", \"kind\": \"plugin\", \"status\": \"expired\", \"type\": \"proposal\"}, {\"data\": {}, \"id\": \"note-1\", \"kind\": \"note\", \"status\": \"open\", \"type\": \"question\"}]}",
+        ),
+    ],
+};
+
+/// The same suggestions after one decision: the weight could change.
+const SUGGESTED_DECIDED: Setup = Setup {
+    id: "suggested-decided",
+    cli: &[],
+    files: &[
+        (".plaintext", ""),
+        ("day/suggestions.jsonl", SUGGESTIONS),
+        (
+            "day/inbox.json",
+            "{\"items\": [{\"data\": {}, \"decided_at\": \"2026-11-19T11:00:00+00:00\", \"id\": \"plugin-73eced0d\", \"kind\": \"plugin\", \"origin\": \"plugin:demo\", \"status\": \"dismissed\", \"type\": \"proposal\"}]}",
+        ),
+    ],
+};
+
+/// Only open questions: no group exists.
+const QUESTIONS_ONLY: Setup = Setup {
+    id: "questions-only",
+    cli: &[],
+    files: &[
+        (".plaintext", ""),
+        (
+            "day/inbox.json",
+            "{\"items\": [{\"data\": {}, \"id\": \"note-1\", \"kind\": \"note\", \"status\": \"open\", \"type\": \"question\"}]}",
+        ),
+    ],
+};
+
+#[test]
+fn day_accept_matches_python() {
+    strict(NOW);
+    let home = prepare_setup(&INBOX_HOME);
+    for id in [
+        "plugin-b49eb357",
+        "goal-cccc0000",
+        "impact-dddd0000",
+        "task-done-ffff0000",
+        "missing-0000",
+    ] {
+        assert_same(&home, &["day", "accept", id], true, "day.accept");
+    }
+    assert_same(
+        &prepare_setup(&PLAIN),
+        &["day", "accept", "plugin-b49eb357"],
+        true,
+        "day.accept",
+    );
+}
+
+#[test]
+fn day_accept_refuses_what_it_cannot_match() {
+    strict(NOW);
+    let home = prepare_setup(&INBOX_HOME);
+    // A task to add, or an agent's task to plan: effects outside the inbox.
+    for id in ["plugin-73eced0d", "agent-task-gggg0000"] {
+        refuses(&home, &["day", "accept", id], "day.accept");
+    }
+    for setup in [&INBOX_SEALED, &INBOX_REDACTION, &INBOX_ODD] {
+        native_refuses(
+            &prepare_setup(setup),
+            &["day", "accept", "plugin-b49eb357"],
+            "day.accept",
+        );
+    }
+}
+
+#[test]
+fn day_dismiss_matches_python() {
+    strict(NOW);
+    let home = prepare_setup(&INBOX_HOME);
+    for id in [
+        "plugin-b49eb357",
+        "plugin-73eced0d",
+        "goal-cccc0000",
+        "impact-dddd0000",
+        "task-done-ffff0000",
+        "source-hhhh0000",
+        "missing-0000",
+    ] {
+        assert_same(&home, &["day", "dismiss", id], true, "day.dismiss");
+    }
+}
+
+#[test]
+fn day_dismiss_refuses_what_it_cannot_match() {
+    strict(NOW);
+    refuses(
+        &prepare_setup(&INBOX_HOME),
+        &["day", "dismiss", "agent-task-gggg0000"],
+        "day.dismiss",
+    );
+    native_refuses(
+        &prepare_setup(&INBOX_SEALED),
+        &["day", "dismiss", "goal-cccc0000"],
+        "day.dismiss",
+    );
+}
+
+#[test]
+fn day_answer_matches_python() {
+    strict(NOW);
+    let home = prepare_setup(&INBOX_HOME);
+    for (id, text) in [
+        ("note-eeee0000", "a synthetic answer"),
+        ("plugin-b49eb357", "x"),
+        ("task-done-ffff0000", "x"),
+        ("missing-0000", "x"),
+        ("note-eeee0000", " \t "),
+    ] {
+        assert_same(&home, &["day", "answer", id, text], true, "day.answer");
+    }
+}
+
+#[test]
+fn day_answer_refuses_what_it_cannot_match() {
+    strict(NOW);
+    // An impact answer writes an evidence note.
+    refuses(
+        &prepare_setup(&INBOX_HOME),
+        &["day", "answer", "impact-dddd0000", "20% faster"],
+        "day.answer",
+    );
+    native_refuses(
+        &prepare_setup(&INBOX_SEALED),
+        &["day", "answer", "note-eeee0000", "x"],
+        "day.answer",
+    );
+}
+
+#[test]
+fn day_reopen_matches_python() {
+    strict(NOW);
+    let home = prepare_setup(&INBOX_HOME);
+    for id in ["source-hhhh0000", "plugin-b49eb357", "missing-0000"] {
+        assert_same(&home, &["day", "reopen", id], true, "day.reopen");
+    }
+}
+
+#[test]
+fn day_reopen_refuses_what_it_cannot_match() {
+    strict(NOW);
+    for setup in [&INBOX_SEALED, &INBOX_REDACTION] {
+        native_refuses(
+            &prepare_setup(setup),
+            &["day", "reopen", "source-hhhh0000"],
+            "day.reopen",
+        );
+    }
+}
+
+#[test]
+fn day_suggest_matches_python() {
+    strict(NOW);
+    assert_same(
+        &prepare_setup(&PLAIN),
+        &[
+            "day", "suggest", "--plugin", "demo", "--what", "w", "--why", "y", "--accept", "a",
+        ],
+        true,
+        "day.suggest",
+    );
+}
+
+#[test]
+fn day_suggest_refuses_what_it_cannot_match() {
+    strict(NOW);
+    native_refuses(
+        &prepare_setup(&INBOX_REDACTION),
+        &[
+            "day", "suggest", "--plugin", "demo", "--what", "w", "--why", "y", "--accept", "a",
+        ],
+        "day.suggest",
+    );
+}
+
+#[test]
+fn day_suggestions_matches_python() {
+    strict(NOW);
+    let home = prepare_setup(&SUGGESTED);
+    for args in [
+        &["day", "suggestions"][..],
+        &["day", "suggestions", "--plugin", "demo"],
+        &["day", "suggestions", "--plugin", "nobody"],
+    ] {
+        assert_same(&home, args, true, "day.suggestions");
+    }
+    assert_same(
+        &prepare_setup(&PLAIN),
+        &["day", "suggestions"],
+        true,
+        "day.suggestions",
+    );
+}
+
+#[test]
+fn day_suggestions_refuses_what_it_cannot_match() {
+    strict(NOW);
+    refuses(
+        &prepare_setup(&SUGGESTED_DECIDED),
+        &["day", "suggestions"],
+        "day.suggestions",
+    );
+    native_refuses(
+        &prepare_setup(&INBOX_REDACTION),
+        &["day", "suggestions"],
+        "day.suggestions",
+    );
+}
+
+#[test]
+fn day_accept_all_and_dismiss_all_match_python() {
+    strict(NOW);
+    for setup in [&QUESTIONS_ONLY, &PLAIN] {
+        let home = prepare_setup(setup);
+        assert_same(
+            &home,
+            &["day", "accept-all", "grp-0000000000"],
+            true,
+            "day.accept-all",
+        );
+        assert_same(
+            &home,
+            &[
+                "day",
+                "dismiss-all",
+                "grp-0000000000",
+                "--yes",
+                "--count",
+                "2",
+            ],
+            true,
+            "day.dismiss-all",
+        );
+    }
+}
+
+#[test]
+fn day_accept_all_and_dismiss_all_refuse_what_they_cannot_match() {
+    strict(NOW);
+    // Open proposals: their groups need the ranked projects and tasks.
+    let home = prepare_setup(&INBOX_HOME);
+    refuses(
+        &home,
+        &["day", "accept-all", "grp-0000000000"],
+        "day.accept-all",
+    );
+    refuses(
+        &home,
+        &["day", "dismiss-all", "grp-0000000000", "--yes"],
+        "day.dismiss-all",
+    );
+}
+
+/// Negative control: accepting, dismissing and a missing id print, exit
+/// and write differently.
+#[test]
+fn the_inbox_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let home = prepare_setup(&INBOX_HOME);
+    let accepted = observe(&home, &["day", "accept", "plugin-b49eb357"], &Side::Native);
+    let dismissed = observe(&home, &["day", "dismiss", "plugin-b49eb357"], &Side::Python);
+    let missing = observe(&home, &["day", "accept", "missing-0000"], &Side::Python);
+    assert_ne!(accepted.stdout, dismissed.stdout);
+    assert_ne!(accepted.files, dismissed.files);
+    assert_ne!(accepted.events, dismissed.events);
+    assert_ne!(accepted, missing);
+}
+
+// ---------- day handoff (wave 8) ----------
+
+/// Two items added today through Python (a fresh, sealed home).
+const HANDOFF_SEALED: Setup = Setup {
+    id: "handoff-sealed",
+    cli: &[
+        &[
+            "day",
+            "handoff",
+            "add",
+            "prs",
+            "PR one",
+            "--link",
+            "https://example.com/pr/1",
+        ],
+        &["day", "handoff", "add", "waiting", "Wait for review"],
+    ],
+    files: &[],
+};
+
+/// The same two items in a plain-text data folder.
+const HANDOFF_PLAIN: Setup = Setup {
+    id: "handoff-plain",
+    cli: &[
+        &[
+            "day",
+            "handoff",
+            "add",
+            "prs",
+            "PR one",
+            "--link",
+            "https://example.com/pr/1",
+        ],
+        &["day", "handoff", "add", "waiting", "Wait for review"],
+    ],
+    files: &[(".plaintext", "")],
+};
+
+/// Earlier days' files written by hand (keys in file order, an extra
+/// field, an empty newer day), open questions, and the promise records: a
+/// hand-added promises item with a tracked promise's link goes.
+const HANDOFF_EARLIER: Setup = Setup {
+    id: "handoff-earlier",
+    cli: &[],
+    files: &[
+        (".plaintext", ""),
+        (
+            "day/handoff-2026-11-18.json",
+            "{\"day\": \"2026-11-18\", \"items\": [{\"section\": \"gotchas\", \"id\": \"h-00000001\", \"text\": \"synthetic gotcha\", \"owner\": \"end-of-day\", \"recheck\": \"echo ok\"}, {\"id\": \"h-00000002\", \"section\": \"promises\", \"text\": \"hand promise\", \"link\": \"https://example.com/t/1\"}, {\"id\": \"h-00000003\", \"section\": \"calendar\", \"text\": \"standup\", \"link\": \"https://example.com/cal\"}, {\"id\": \"h-00000004\", \"section\": \"other\", \"text\": \"unknown section\"}]}",
+        ),
+        (
+            "day/handoff-2026-11-19.json",
+            "{\"day\": \"2026-11-19\", \"items\": []}",
+        ),
+        ("day/work-2026-11-20.json", QUESTIONS_TODAY),
+        ("work/projects.yaml", PROJECTS_YAML),
+    ],
+};
+
+#[test]
+fn day_handoff_show_matches_python() {
+    strict(NOW);
+    let label = "day.handoff";
+    for setup in [
+        &PLAIN,
+        &HANDOFF_SEALED,
+        &HANDOFF_PLAIN,
+        &HANDOFF_EARLIER,
+        &PROMISES,
+        &PROMISES_SEALED,
+    ] {
+        let home = prepare_setup(setup);
+        for args in [
+            &["day", "handoff", "show"][..],
+            &["day", "handoff", "show", "--json"],
+            &["day", "handoff", "show", "--today"],
+            &["day", "handoff", "show", "--today", "--json"],
+        ] {
+            assert_same(&home, args, true, label);
+        }
+    }
+}
+
+#[test]
+fn day_handoff_add_and_done_match_python() {
+    strict(NOW);
+    let label = "day.handoff";
+    let long = "z".repeat(201);
+    let edge = "w".repeat(200);
+    for setup in [&PLAIN, &HANDOFF_PLAIN, &HANDOFF_EARLIER] {
+        let home = prepare_setup(setup);
+        for args in [
+            &["day", "handoff", "add", "prs", "PR one"][..],
+            &[
+                "day",
+                "handoff",
+                "add",
+                "prs",
+                "PR   one",
+                "--link",
+                "https://example.com/pr/2",
+            ],
+            &[
+                "day",
+                "handoff",
+                "add",
+                "lessons",
+                "  a  synthetic\tlesson ",
+            ],
+            &["day", "handoff", "add", "gotchas", &edge],
+            &[
+                "day",
+                "handoff",
+                "add",
+                "unverified",
+                "caf\u{e9} \u{2014} na\u{ef}ve",
+            ],
+            &[
+                "day",
+                "handoff",
+                "add",
+                "projects",
+                "one\u{1f}two\u{a0}three",
+            ],
+            &["day", "handoff", "done", "h-79b62677"],
+            &["day", "handoff", "done", "h-8faff3ac"],
+            &["day", "handoff", "done", "h-zzzzzzzz"],
+        ] {
+            assert_same(&home, args, true, label);
+        }
+    }
+    // Errors print before any write, in a sealed home too.
+    for setup in [&PLAIN, &HANDOFF_SEALED] {
+        let home = prepare_setup(setup);
+        for args in [
+            &["day", "handoff", "add"][..],
+            &["day", "handoff", "add", "prs"],
+            &["day", "handoff", "add", "nowhere", "text"],
+            &["day", "handoff", "add", "prs", "   "],
+            &["day", "handoff", "add", "prs", &long],
+            &["day", "handoff", "done"],
+            &["day", "handoff", "done", "h-zzzzzzzz"],
+        ] {
+            assert_same(&home, args, true, label);
+        }
+    }
+}
+
+#[test]
+fn day_handoff_done_closes_a_promise_like_python() {
+    strict(NOW);
+    let label = "day.handoff";
+    for setup in [&PROMISES, &HANDOFF_EARLIER] {
+        let home = prepare_setup(setup);
+        for id in ["promise-aaaa1111", "promise-bbbb2222", "promise-missing"] {
+            assert_same(&home, &["day", "handoff", "done", id], true, label);
+        }
+    }
+}
+
+#[test]
+fn day_handoff_refuses_what_it_cannot_match() {
+    strict(NOW);
+    let label = "day.handoff";
+    // A sealed write differs on every run.
+    for args in [
+        &["day", "handoff", "add", "prs", "PR two"][..],
+        &["day", "handoff", "done", "h-79b62677"],
+    ] {
+        native_refuses(&prepare_setup(&HANDOFF_SEALED), args, label);
+    }
+    // A promise in a sealed project file.
+    native_refuses(
+        &prepare_setup(&PROMISES_SEALED),
+        &["day", "handoff", "done", "promise-aaaa1111"],
+        label,
+    );
+    // Redaction could change the lines.
+    native_refuses(
+        &prepare_setup(&PROMISES_REDACTION),
+        &["day", "handoff", "show"],
+        label,
+    );
+    // A project file `safe_dump` would not write back.
+    native_refuses(
+        &prepare_setup(&PROMISES_FLOW),
+        &["day", "handoff", "show"],
+        label,
+    );
+    // A file name `date.fromisoformat` reads another way, and a float.
+    let odd = Setup {
+        id: "handoff-odd",
+        cli: &[],
+        files: &[
+            (".plaintext", ""),
+            ("day/handoff-20261119.json", "{\"items\": []}"),
+        ],
+    };
+    refuses(&prepare_setup(&odd), &["day", "handoff", "show"], label);
+    let float = Setup {
+        id: "handoff-float",
+        cli: &[],
+        files: &[
+            (".plaintext", ""),
+            (
+                "day/handoff-2026-11-20.json",
+                "{\"day\": \"2026-11-20\", \"items\": [{\"id\": \"h-1\", \"section\": \"prs\", \"text\": \"x\", \"n\": 1.5}]}",
+            ),
+        ],
+    };
+    native_refuses(
+        &prepare_setup(&float),
+        &["day", "handoff", "add", "prs", "PR two"],
+        label,
+    );
+    // A non-text section in a stored item.
+    let odd_item = Setup {
+        id: "handoff-odd-item",
+        cli: &[],
+        files: &[
+            (".plaintext", ""),
+            (
+                "day/handoff-2026-11-19.json",
+                "{\"day\": \"2026-11-19\", \"items\": [{\"id\": \"h-1\", \"section\": 3, \"text\": \"x\"}]}",
+            ),
+        ],
+    };
+    native_refuses(
+        &prepare_setup(&odd_item),
+        &["day", "handoff", "show"],
+        label,
+    );
+}
+
+/// Negative control: an added item and a missing id print, exit and write
+/// differently; a show with and without `--json` print differently.
+#[test]
+fn the_handoff_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let home = prepare_setup(&HANDOFF_PLAIN);
+    let added = observe(
+        &home,
+        &["day", "handoff", "add", "prs", "PR two"],
+        &Side::Native,
+    );
+    let dropped = observe(
+        &home,
+        &["day", "handoff", "done", "h-79b62677"],
+        &Side::Python,
+    );
+    let missing = observe(
+        &home,
+        &["day", "handoff", "done", "h-zzzzzzzz"],
+        &Side::Python,
+    );
+    assert_ne!(added.stdout, dropped.stdout);
+    assert_ne!(added.files, dropped.files);
+    assert_ne!(added.code, missing.code);
+    let shown = observe(&home, &["day", "handoff", "show", "--today"], &Side::Native);
+    let json = observe(
+        &home,
+        &["day", "handoff", "show", "--today", "--json"],
+        &Side::Python,
+    );
+    assert_ne!(shown.stdout, json.stdout);
 }

@@ -156,15 +156,16 @@ fn production_route_and_shipped_inventory_stay_untouched_by_the_component() {
         .filter(|record| record[0].starts_with("learn."))
         .collect::<Vec<_>>();
     assert_eq!(learn.len(), 14);
-    // The CLI step module rust12 serves these six through careerbrew-native
+    // The CLI step module rust12 serves these seven through careerbrew-native
     // (`crates/cbcli/src/steps/rust12.rs`); every other learn command stays on Python.
-    const NATIVE: [&str; 6] = [
+    const NATIVE: [&str; 7] = [
         "learn.list",
         "learn.note",
         "learn.status",
         "learn.next",
         "learn.tour.approve",
         "learn.tour.export",
+        "learn.concepts",
     ];
     for record in &learn {
         let expected = if NATIVE.contains(&record[0]) {

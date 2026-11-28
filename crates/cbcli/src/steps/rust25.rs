@@ -23,6 +23,11 @@
 //! - `peer.experiment`: the trial list, and the errors `--start` and
 //!   `--close` raise before they measure or write.
 //! - `web.rotate-token`: the confirm line without `--yes` (exit 1).
+//! - `changes`: the run that finds no change (`changes.check`): it hashes
+//!   the ladders and company files as Python does, writes the baseline
+//!   snapshot on a first run (plaintext data folder only) and prints the
+//!   no-change line. `--fetch` (network), an installed plugin, a found
+//!   change (the pivot re-plans) and a sealed write all refuse.
 //!
 //! Every handler checks the files it reads first, in the vault's typed form
 //! (`Canon`), and refuses on any shape Python would read differently or
@@ -54,6 +59,7 @@ pub const COMMANDS: &[&str] = &[
     "indie.end",
     "indie.scan",
     "peer.experiment",
+    "changes",
 ];
 
 const INDIE_STORY: &str = "US-112";
@@ -85,6 +91,7 @@ fn serve(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
     };
     match name {
         "peer.experiment" => peer_experiment(args, &files),
+        "changes" => changes(args, &files),
         _ => {
             files.personal()?;
             match name {
@@ -1252,4 +1259,304 @@ fn peer_experiment(args: &Parsed, files: &Files) -> Option<Outcome> {
             .count()
     ));
     ok(stdout, 0)
+}
+
+// ---------- changes (changes.py) ----------
+
+/// `paths.REPO_ROOT / "knowledge"` of the checkout this binary was built from.
+fn knowledge() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../knowledge")
+}
+
+/// `paths.extra_knowledge()`.
+fn extra_knowledge() -> bool {
+    std::env::var("CAREERBREW_EXTRA_KNOWLEDGE").map_or(true, |value| value != "0")
+}
+
+/// The regular files of `dir` (`*` or `*.yaml`), in `Path` order; None on
+/// a name Python's `glob` or `Path.stem` could read differently.
+fn listed(dir: &Path, yaml_only: bool) -> Option<Vec<PathBuf>> {
+    match std::fs::metadata(dir) {
+        Ok(meta) if meta.is_dir() => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Some(Vec::new()),
+        _ => return None,
+    }
+    let mut names: Vec<String> = Vec::new();
+    for entry in std::fs::read_dir(dir).ok()? {
+        let name = entry.ok()?.file_name().into_string().ok()?;
+        if yaml_only && !name.ends_with(".yaml") {
+            continue;
+        }
+        if name.starts_with('.') {
+            return None;
+        }
+        match std::fs::metadata(dir.join(&name)) {
+            Ok(meta) if meta.is_file() => names.push(name),
+            // `glob("*")` then `is_file()` skips a folder; a `*.yaml` folder
+            // or a broken link is read by Python and fails.
+            Ok(meta) if meta.is_dir() && !yaml_only => {}
+            _ => return None,
+        }
+    }
+    names.sort();
+    Some(names.into_iter().map(|name| dir.join(name)).collect())
+}
+
+/// `store.read_yaml(path, {})` as Canon (a missing or empty file is `{}`).
+fn read_yaml_or_empty(files: &Files, path: &Path) -> Option<Canon> {
+    files
+        .vault
+        .store()
+        .read_yaml(path, Canon::Map(Vec::new()), false)
+        .ok()
+}
+
+/// The keys of a text-keyed map hold `key` (Python's `key in d`).
+fn has(value: &Canon, key: &str) -> bool {
+    get(value, key).is_some()
+}
+
+/// `promo.validate_ladder(data)` passes; None for a ladder Python refuses
+/// or reads in a way not checked here.
+fn ladder_ok(data: &Canon) -> Option<()> {
+    if !plain_map(data) {
+        return None;
+    }
+    for key in ["id", "levels", "competencies"] {
+        if falsy(get(data, key)?) {
+            return None;
+        }
+    }
+    let Some(Canon::List(levels)) = get(data, "levels") else {
+        return None;
+    };
+    let Some(Canon::List(comps)) = get(data, "competencies") else {
+        return None;
+    };
+    for c in comps {
+        if !plain_map(c) {
+            return None;
+        }
+        for key in ["id", "name", "weight", "signals", "expect"] {
+            if !has(c, key) {
+                return None;
+            }
+        }
+        let expect = get(c, "expect")?;
+        if !plain_map(expect) {
+            return None;
+        }
+        for level in levels {
+            let Canon::Str(level) = level else {
+                return None;
+            };
+            if !has(expect, level) {
+                return None;
+            }
+        }
+        for key in ["descriptions", "examples"] {
+            if let Some(value) = get(c, key) {
+                if !matches!(value, Canon::Map(_)) {
+                    return None;
+                }
+            }
+        }
+    }
+    Some(())
+}
+
+/// `changes._h(obj)`.
+fn input_hash(value: &Canon) -> Option<String> {
+    let typed = careerbrew_purevec::hash::typed(&value.to_json()).ok()?;
+    careerbrew_purevec::hash::input_hash(&typed).ok()
+}
+
+/// Sets `key` in an ordered id map as a dict assignment does.
+fn assign(out: &mut Vec<(String, String)>, key: String, value: String) {
+    match out.iter_mut().find(|(have, _)| *have == key) {
+        Some(slot) => slot.1 = value,
+        None => out.push((key, value)),
+    }
+}
+
+/// `{lid: _h(lad without origin)}` over `promo.ladders()` with no plugin:
+/// the base ladders, then the user's.
+fn ladder_hashes(files: &Files) -> Option<Vec<(String, String)>> {
+    let mut found = listed(&knowledge().join("ladders"), false)?;
+    found.extend(listed(&files.root.join("ladders"), true)?);
+    let mut out = Vec::new();
+    for path in found {
+        let data = read_yaml_or_empty(files, &path)?;
+        ladder_ok(&data)?;
+        let Some(Canon::Str(id)) = get(&data, "id") else {
+            return None;
+        };
+        let Canon::Map(pairs) = &data else {
+            return None;
+        };
+        let kept: Vec<(Canon, Canon)> = pairs
+            .iter()
+            .filter(|(k, _)| !matches!(k, Canon::Str(k) if k == "origin"))
+            .cloned()
+            .collect();
+        assign(&mut out, id.clone(), input_hash(&Canon::Map(kept))?);
+    }
+    Some(out)
+}
+
+/// `{cid: _h(...)}` over `interview.companies()` with no plugin.
+fn company_hashes() -> Option<Vec<(String, String)>> {
+    let base = knowledge();
+    // `plugins.resources("knowledge")` also lists this base folder.
+    if base.join("knowledge").symlink_metadata().is_ok() {
+        return None;
+    }
+    let dirs: &[&str] = if extra_knowledge() {
+        &["companies-extra", "companies"]
+    } else {
+        &["companies"]
+    };
+    let mut found: Vec<(String, PathBuf)> = Vec::new();
+    for dir in dirs {
+        for path in listed(&base.join(dir), true)? {
+            found.push(((*dir).to_owned(), path));
+        }
+    }
+    // `sorted(...)` over the paths of both folders: by folder, then name.
+    found.sort();
+    let mut out = Vec::new();
+    for (_, path) in found {
+        let raw = std::fs::read(&path).ok()?;
+        if raw.starts_with(b"CBV1\n") || raw.starts_with(b"gAAAAA") {
+            return None;
+        }
+        let text = String::from_utf8(raw).ok()?;
+        let data = careerbrew_vault::json_yaml::yaml_read(&text).ok()?;
+        let data = if falsy(&data) {
+            Canon::Map(Vec::new())
+        } else {
+            data
+        };
+        if !plain_map(&data) {
+            return None;
+        }
+        if get(&data, "loop").is_none_or(falsy) {
+            continue;
+        }
+        let id = match get(&data, "id") {
+            None => path
+                .file_name()?
+                .to_str()?
+                .strip_suffix(".yaml")?
+                .to_owned(),
+            Some(Canon::Str(id)) => id.clone(),
+            Some(Canon::Int(id)) => id.to_string(),
+            _ => return None,
+        };
+        if !id.is_ascii() {
+            return None;
+        }
+        let picked: Vec<(Canon, Canon)> = ["loop", "remote_policy", "ai_policy", "company_tips"]
+            .iter()
+            .map(|key| {
+                (
+                    Canon::Str((*key).to_owned()),
+                    get(&data, key).cloned().unwrap_or(Canon::Null),
+                )
+            })
+            .collect();
+        assign(
+            &mut out,
+            id.to_ascii_lowercase(),
+            input_hash(&Canon::Map(picked))?,
+        );
+    }
+    Some(out)
+}
+
+/// True when the stored snapshot section `old` equals `items` (no change).
+fn same_section(old: Option<&Canon>, items: &[(String, String)]) -> Option<bool> {
+    let old = match old {
+        None => return Some(items.is_empty()),
+        Some(old) if plain_map(old) => old,
+        Some(_) => return None,
+    };
+    let Canon::Map(pairs) = old else {
+        return None;
+    };
+    if pairs.len() != items.len() {
+        return Some(false);
+    }
+    Some(
+        items
+            .iter()
+            .all(|(key, value)| matches!(get(old, key), Some(Canon::Str(have)) if have == value)),
+    )
+}
+
+fn section(items: &[(String, String)]) -> Canon {
+    Canon::Map(
+        items
+            .iter()
+            .map(|(k, v)| (Canon::Str(k.clone()), Canon::Str(v.clone())))
+            .collect(),
+    )
+}
+
+/// `changes.check(fetch=False)` when nothing changed.
+fn changes(args: &Parsed, files: &Files) -> Option<Outcome> {
+    if args.flag("fetch") {
+        return None;
+    }
+    // An installed plugin adds ladders, companies and a tree hash.
+    match std::fs::symlink_metadata(files.root.join("plugins.lock.json")) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        _ => return None,
+    }
+    let ladders = ladder_hashes(files)?;
+    let companies = company_hashes()?;
+    let none: Vec<(String, String)> = Vec::new();
+    let now: [(&str, &[(String, String)]); 4] = [
+        ("ladders", &ladders),
+        ("plugins", &none),
+        ("companies", &companies),
+        ("pages", &none),
+    ];
+    let folder = files.root.join("changes");
+    let path = folder.join("snapshot.json");
+    let store = files.vault.store();
+    let old_text = store.read_text(&path, None, false).ok()?;
+    let prev = match &old_text {
+        None => Canon::Null,
+        Some(text) => careerbrew_vault::json_yaml::json_read(text).ok()?,
+    };
+    if prev != Canon::Null {
+        if !plain_map(&prev) {
+            return None;
+        }
+        for (kind, items) in &now {
+            if !same_section(get(&prev, kind), items)? {
+                // A change: Python pivots (re-assesses, re-plans).
+                return None;
+            }
+        }
+    }
+    let snapshot = Canon::Map(
+        now.iter()
+            .map(|(kind, items)| (Canon::Str((*kind).to_owned()), section(items)))
+            .collect(),
+    );
+    let text = careerbrew_vault::json_yaml::json_write(&snapshot).ok()?;
+    if old_text.as_deref() != Some(text.as_str()) {
+        if store.encryption_enabled() {
+            // A sealed write differs on every run.
+            return None;
+        }
+        std::fs::create_dir_all(&folder).ok()?;
+        store.write_text(&path, &text).ok()?;
+    }
+    ok(
+        "no changes since the last check (the first run only records a baseline)\n".to_owned(),
+        0,
+    )
 }

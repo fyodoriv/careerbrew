@@ -38,6 +38,8 @@ pub const COMMANDS: &[&str] = &[
     "jobs.list",
     "jobs.rate",
     "jobs.learn",
+    "prep.check",
+    "jobs.strategy",
 ];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
@@ -60,6 +62,8 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "jobs.list" => jobs_list(args, &io),
         "jobs.rate" => jobs_rate(args, ctx, &io),
         "jobs.learn" => jobs_learn(&io),
+        "prep.check" if same_repo() => prep_check(args, ctx, &io),
+        "jobs.strategy" if same_repo() => jobs_strategy(args, ctx, &io),
         _ => None,
     }
 }
@@ -76,6 +80,11 @@ struct Io<'a> {
 }
 
 impl Io<'_> {
+    /// The data store of this context.
+    fn store(&self) -> careerbrew_vault::store::Store<'_> {
+        self.ctx.store()
+    }
+
     /// `paths.sub(*parts)`: the parent folder is made even for a read.
     fn sub(&self, parts: &[&str]) -> Option<PathBuf> {
         let mut path = self.ctx.root.clone();
@@ -1516,6 +1525,918 @@ fn jobs_rate(args: &Parsed, ctx: &Ctx, io: &Io) -> Option<Outcome> {
     store.append_jsonl(&path, &[row]).ok()?;
     emit(ctx, "jobs.rate", &[("status", "ok")]);
     ok(format!("rated {id} = {rating}\n"), 0)
+}
+
+// ---------- prep check (prep.py) and jobs strategy (jobs/strategy.py) ----------
+//
+// Both are served only where the tutor readiness is certain: no tutor card,
+// attempt or gap-item file exists, so every item is unseen and
+// `tutor.readiness(...)` is 0.0. Any tutor file sends the run to Python, as
+// FSRS retrievability is a float this module does not recompute.
+
+/// The characters Python's `str.strip()` removes from ASCII text.
+const PY_ASCII_SPACE: &[char] = &[
+    ' ', '\t', '\n', '\r', '\x0b', '\x0c', '\x1c', '\x1d', '\x1e', '\x1f',
+];
+
+/// `prep.GLOBAL_ASK`: id, text, weight, action.
+const GLOBAL_ASK: &[(&str, &str, i64, &str)] = &[
+    (
+        "logistics",
+        "Date, time zone, interviewer names, and the call or onsite link are confirmed",
+        2,
+        "Reply to the recruiter to confirm the schedule and ask who you will meet.",
+    ),
+    (
+        "environment",
+        "Camera, mic, IDE or coding pad, and internet are tested in the same setup",
+        1,
+        "Do a 10-minute test call and open the coding tool they named.",
+    ),
+    (
+        "company-research",
+        "You can explain the product, the team's mission, and two recent company events",
+        2,
+        "Read the careers page, the engineering blog, and the latest company news; write 5 bullet notes.",
+    ),
+    (
+        "questions",
+        "You have at least 3 questions to ask each interviewer type",
+        1,
+        "Write 3 questions per interviewer: about the team, the work, and how success is measured.",
+    ),
+    (
+        "why-company",
+        "You have a 60-second, specific answer to 'why this company'",
+        2,
+        "Draft it from your Want score reasons and the company's mission; say it out loud twice.",
+    ),
+];
+
+/// `interview.STEP_TOPICS`.
+const STEP_TOPICS: &[(&str, &str)] = &[
+    ("technical-phone-screen", "data structures"),
+    ("coding-onsite", "data structures"),
+    ("online-assessment", "data structures"),
+    ("pair-programming", "data structures"),
+    ("system-design", "system design"),
+    ("behavioral", "behavioral"),
+    ("bar-raiser", "behavioral"),
+    ("hiring-manager", "behavioral"),
+];
+
+/// The tutor files `tutor.readiness` reads (through `items`, `cards` and
+/// `attempts`).
+const TUTOR_FILES: &[&str] = &["gap-items.yaml", "cards.json", "attempts.jsonl"];
+
+/// The key order of one checklist item as Python builds the dict.
+#[derive(Clone, Copy)]
+enum Shape {
+    /// `{**g, "step": "all", "auto": False}`, then `done`.
+    Global,
+    /// `_auto_items`: `done` before `auto`, then `step`.
+    Auto,
+    /// The other items: `step`, `auto`, `action`, then `done`.
+    Plain,
+}
+
+struct PrepItem {
+    id: String,
+    text: String,
+    weight: i64,
+    step: String,
+    auto: bool,
+    action: String,
+    done: bool,
+    shape: Shape,
+}
+
+impl PrepItem {
+    fn plain(id: &str, text: String, weight: i64, step: &str, action: String) -> PrepItem {
+        PrepItem {
+            id: id.to_owned(),
+            text,
+            weight,
+            step: step.to_owned(),
+            auto: false,
+            action,
+            done: false,
+            shape: Shape::Plain,
+        }
+    }
+
+    fn json(&self) -> J {
+        let s = |text: &str| J::Str(text.to_owned());
+        let id = ("id", s(&self.id));
+        let text = ("text", s(&self.text));
+        let weight = ("weight", J::Int(self.weight.to_string()));
+        let step = ("step", s(&self.step));
+        let auto = ("auto", J::Bool(self.auto));
+        let action = ("action", s(&self.action));
+        let done = ("done", J::Bool(self.done));
+        let fields = match self.shape {
+            Shape::Global => [id, text, weight, action, step, auto, done],
+            Shape::Auto => [id, text, weight, done, auto, action, step],
+            Shape::Plain => [id, text, weight, step, auto, action, done],
+        };
+        J::Map(
+            fields
+                .into_iter()
+                .map(|(key, value)| (key.to_owned(), value))
+                .collect(),
+        )
+    }
+}
+
+/// True when no key repeats (Python's dict holds each key once).
+fn unique(pairs: &[(Canon, Canon)]) -> bool {
+    pairs
+        .iter()
+        .enumerate()
+        .all(|(i, (key, _))| !pairs[..i].iter().any(|(have, _)| have == key))
+}
+
+/// `d[key] = value` on ordered text keys.
+fn set_answer(answers: &mut Vec<(String, bool)>, key: &str, value: bool) {
+    match answers.iter_mut().find(|(have, _)| have == key) {
+        Some(slot) => slot.1 = value,
+        None => answers.push((key.to_owned(), value)),
+    }
+}
+
+fn answer(answers: &[(String, bool)], key: &str) -> Option<bool> {
+    answers
+        .iter()
+        .find(|(have, _)| have == key)
+        .map(|(_, v)| *v)
+}
+
+/// `round(k / n, 3)` for counts, or None on a decimal tie at the fourth
+/// place (where the binary value of `k / n` decides the rounding).
+fn round3(k: usize, n: usize) -> Option<f64> {
+    let (k, n) = (k as u64, n as u64);
+    if n == 0 {
+        return None;
+    }
+    let scaled = k * 1000;
+    let (q, r) = (scaled / n, scaled % n);
+    if 2 * r == n {
+        return None;
+    }
+    let m = if 2 * r > n { q + 1 } else { q };
+    Some(m as f64 / 1000.0)
+}
+
+/// `format(x, ".0%")` for a finite value in `0..1e9`: `x * 100` in binary,
+/// then rounded half to even on its exact value, as Python formats it.
+fn pct(x: f64) -> Option<String> {
+    if !x.is_finite() || !(0.0..1e9).contains(&x) {
+        return None;
+    }
+    let p = x * 100.0;
+    let floor = p.floor();
+    let rest = p - floor;
+    let n = if rest > 0.5 || (rest == 0.5 && floor % 2.0 != 0.0) {
+        floor + 1.0
+    } else {
+        floor
+    };
+    Some(format!("{}%", n as u64))
+}
+
+/// A stored score as a number: an int Python formats as a float, or a float.
+fn score_of(value: &Canon) -> Option<(f64, J)> {
+    match value {
+        Canon::Int(n) => {
+            let n: i64 = n.to_string().parse().ok()?;
+            if !(0..1_000_000).contains(&n) {
+                return None;
+            }
+            Some((n as f64, J::Int(n.to_string())))
+        }
+        Canon::Float(f) => {
+            pct(*f)?;
+            float_repr(*f)?;
+            Some((*f, J::Float(*f)))
+        }
+        _ => None,
+    }
+}
+
+/// True when no tutor file exists (`paths.sub` makes the folder, as Python
+/// does when it reads them).
+fn tutor_blank(io: &Io) -> Option<bool> {
+    for name in TUTOR_FILES {
+        let path = io.sub(&["tutor", name])?;
+        if path.exists() || path.is_symlink() {
+            return Some(false);
+        }
+    }
+    Some(true)
+}
+
+/// One `events.emit` row whose values are already JSON text (numbers or
+/// quoted ids), keys sorted as `json.dumps(sort_keys=True)` writes them.
+fn emit_json(ctx: &Ctx, event: &str, fields: &[(&str, String)]) {
+    use std::io::Write;
+    if !ctx.env.caps.events_on {
+        return;
+    }
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    let quote = |text: &str| {
+        let mut out = String::new();
+        crate::render::py_string(text, &mut out);
+        out
+    };
+    let mut pairs: Vec<(&str, String)> = vec![
+        ("event", quote(event)),
+        ("ts", quote(&crate::events::stamp(secs))),
+        ("v", quote(crate::events::version())),
+    ];
+    pairs.extend(fields.iter().map(|(k, v)| (*k, v.clone())));
+    pairs.sort_by(|a, b| a.0.cmp(b.0));
+    let mut line = String::from("{");
+    for (i, (key, value)) in pairs.iter().enumerate() {
+        if i > 0 {
+            line.push_str(", ");
+        }
+        crate::render::py_string(key, &mut line);
+        line.push_str(": ");
+        line.push_str(value);
+    }
+    line.push_str("}\n");
+    let logs = ctx.root.join("logs");
+    if std::fs::create_dir_all(&logs).is_err() {
+        return;
+    }
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(logs.join("events.jsonl"))
+    {
+        let _ = file.write_all(line.as_bytes());
+    }
+}
+
+/// `prep.load_answers(path, yes)`. The file is read relative to the working
+/// folder, as `Path(path)` reads it; any read or parse error refuses.
+fn load_answers(args: &Parsed) -> Option<Vec<(String, bool)>> {
+    let mut out = Vec::new();
+    if let Some(path) = args.text("answers").filter(|path| !path.is_empty()) {
+        if !std::fs::metadata(path).ok()?.is_file() {
+            return None;
+        }
+        let text = String::from_utf8(std::fs::read(path).ok()?).ok()?;
+        if text.starts_with('\u{feff}') {
+            return None;
+        }
+        let Canon::Map(items) = careerbrew_vault::json_yaml::json_read(&text).ok()? else {
+            return None;
+        };
+        if !unique(&items) {
+            return None;
+        }
+        for (key, value) in &items {
+            let Canon::Str(key) = key else { return None };
+            set_answer(&mut out, key, truthy(value));
+        }
+    }
+    if let Some(yes) = args.text("yes") {
+        if !yes.is_ascii() {
+            return None;
+        }
+        for part in yes.split(',') {
+            let id = part.trim_matches(PY_ASCII_SPACE);
+            if !id.is_empty() {
+                set_answer(&mut out, id, true);
+            }
+        }
+    }
+    Some(out)
+}
+
+/// `interview.loop_for(company, seniority)`: the company name, whether its
+/// loop is known, and the merged steps.
+fn loop_for(io: &Io, company: &str, level: i64) -> Option<(String, bool, Vec<Pairs>)> {
+    let cs = companies(io)?;
+    let steps_file = yaml_map(io, &knowledge().join("interview").join("steps.yaml"))?;
+    let all = match get(&steps_file, "steps") {
+        None => Vec::new(),
+        Some(Canon::Map(all)) => all.clone(),
+        Some(_) => return None,
+    };
+    let empty = || Canon::Str(String::new());
+    match find_company(&cs, company)? {
+        Some(c) => {
+            let mut steps = Vec::new();
+            for (step, s) in loop_steps(c)? {
+                let notes = get(s, "notes").cloned().unwrap_or_else(empty);
+                let srcs = get(s, "sources")
+                    .cloned()
+                    .unwrap_or(Canon::List(Vec::new()));
+                steps.push(merged_step(&all, &step, notes, srcs)?);
+            }
+            let name = match get(c, "name") {
+                None => company.to_owned(),
+                Some(Canon::Str(name)) => name.clone(),
+                Some(_) => return None,
+            };
+            Some((name, true, steps))
+        }
+        None => {
+            let pt = patterns(io)?;
+            let steps = default_loop(&pt, level)
+                .iter()
+                .map(|id| merged_step(&all, id, empty(), Canon::List(Vec::new())))
+                .collect::<Option<Vec<_>>>()?;
+            Some((company.to_owned(), false, steps))
+        }
+    }
+}
+
+/// A list of text items by reference; missing is empty, any other shape
+/// refuses.
+fn texts_ref(value: Option<&Canon>) -> Option<Vec<&str>> {
+    match value {
+        None => Some(Vec::new()),
+        Some(Canon::List(items)) => items
+            .iter()
+            .map(|item| match item {
+                Canon::Str(s) => Some(s.as_str()),
+                _ => None,
+            })
+            .collect(),
+        _ => None,
+    }
+}
+
+/// `len(prep.stories())` and the count of their distinct competencies.
+fn story_counts(io: &Io) -> Option<(usize, usize)> {
+    let path = io.sub(&["prep", "stories.yaml"])?;
+    let data = yaml_map(io, &path)?;
+    let stories = match get(&data, "stories") {
+        None => return Some((0, 0)),
+        Some(Canon::List(items)) => items,
+        Some(_) => return None,
+    };
+    let mut comps: Vec<&str> = Vec::new();
+    for story in stories {
+        let Canon::Map(fields) = story else {
+            return None;
+        };
+        if !unique(fields) {
+            return None;
+        }
+        for c in texts_ref(get(fields, "competencies"))? {
+            if !comps.contains(&c) {
+                comps.push(c);
+            }
+        }
+    }
+    Some((stories.len(), comps.len()))
+}
+
+/// `prep.history_path(company)`'s slug for printable ASCII.
+fn prep_slug(company: &str) -> String {
+    let slug: String = company
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    let slug = slug.trim_matches('-');
+    if slug.is_empty() {
+        "company".to_owned()
+    } else {
+        slug.to_owned()
+    }
+}
+
+/// `prep check` without the terminal prompts (`--yes`, `--answers`, or a
+/// run whose stdin is not a terminal).
+fn prep_check(args: &Parsed, ctx: &Ctx, io: &Io) -> Option<Outcome> {
+    use std::io::IsTerminal;
+    let raw = args.text("company")?;
+    if !printable(raw) {
+        return None;
+    }
+    let company = raw.trim_matches(' ');
+    // An empty name raises ValueError in Python.
+    if company.is_empty() {
+        return None;
+    }
+    let level = args.int("level")?;
+    let top = args.int("top")?;
+    let json = args.flag("json");
+    if io.store().encryption_enabled() {
+        return None;
+    }
+    let mut answers = load_answers(args)?;
+    // `sys.stdin` is None when descriptor 0 is closed; a terminal with no
+    // answers asks each item with `input()`. Both stay Python.
+    if !Path::new("/dev/fd/0").exists()
+        || std::io::stdin().is_terminal() && !json && answers.is_empty()
+    {
+        return None;
+    }
+    let (name, known, steps) = loop_for(io, company, level)?;
+    let folded = ascii_fold(&name)?;
+    let stale_path = io.sub(&["prep", "stale.json"])?;
+    let marks = pairs(io.read_json(&stale_path)?)?;
+    if !unique(&marks) {
+        return None;
+    }
+    let mark = marks
+        .iter()
+        .find(|(key, _)| matches!(key, Canon::Str(k) if *k == folded))
+        .map(|(_, value)| value);
+    let mut items: Vec<PrepItem> = GLOBAL_ASK
+        .iter()
+        .map(|(id, text, weight, action)| PrepItem {
+            shape: Shape::Global,
+            ..PrepItem::plain(id, (*text).to_owned(), *weight, "all", (*action).to_owned())
+        })
+        .collect();
+    if let Some(mark) = mark.filter(|mark| truthy(mark)) {
+        let Canon::Map(fields) = mark else {
+            return None;
+        };
+        let at = py_text(get(fields, "at")?)?;
+        let reason = py_text(get(fields, "reason")?)?;
+        items.insert(
+            0,
+            PrepItem::plain(
+                "company:changed",
+                format!("{name}'s interview process or sources changed on {at} ({reason}); you re-read the loop with `careerbrew interview {name} --show`"),
+                4,
+                "all",
+                format!("Re-read the updated loop: careerbrew interview \"{name}\" --show"),
+            ),
+        );
+    }
+    let mut stories: Option<(usize, usize)> = None;
+    let mut blank: Option<bool> = None;
+    for st in &steps {
+        let Some(Canon::Str(sid)) = get(st, "id") else {
+            return None;
+        };
+        if let Some((_, topic)) = STEP_TOPICS.iter().find(|(id, _)| id == sid) {
+            let is_blank = match blank {
+                Some(b) => b,
+                None => *blank.insert(tutor_blank(io)?),
+            };
+            if !is_blank {
+                return None;
+            }
+            items.push(PrepItem {
+                id: format!("{sid}:readiness"),
+                text: format!("Drill readiness on {topic} is at least 70% (now 0%)"),
+                weight: 3,
+                step: sid.clone(),
+                auto: true,
+                action: format!(
+                    "Run `careerbrew drill session` focused on {topic} until readiness reaches 70%."
+                ),
+                done: false,
+                shape: Shape::Auto,
+            });
+        }
+        if ["behavioral", "bar-raiser", "hiring-manager"].contains(&sid.as_str()) {
+            let (n, c) = match stories {
+                Some(counts) => counts,
+                None => *stories.insert(story_counts(io)?),
+            };
+            items.push(PrepItem {
+                id: format!("{sid}:stories"),
+                text: format!("Story bank has >= 6 STAR stories over >= 4 competencies (now {n} stories, {c} competencies)"),
+                weight: 3,
+                step: sid.clone(),
+                auto: true,
+                action: "Add stories with `careerbrew prep story add` (leadership, conflict, failure, impact, ambiguity, ownership).".into(),
+                done: n >= 6 && c >= 4,
+                shape: Shape::Auto,
+            });
+        }
+        let preps: &[Canon] = match get(st, "prep") {
+            None => &[],
+            Some(value) if !truthy(value) => &[],
+            Some(Canon::List(list)) => list,
+            Some(_) => return None,
+        };
+        for (n, p) in preps.iter().enumerate() {
+            let text = match p {
+                Canon::Str(text) => text.clone(),
+                Canon::Map(fields) => match get(fields, "text") {
+                    None => String::new(),
+                    Some(Canon::Str(text)) => text.clone(),
+                    Some(_) => return None,
+                },
+                _ => return None,
+            };
+            items.push(PrepItem::plain(
+                &format!("{sid}:prep{}", n + 1),
+                text.clone(),
+                1,
+                sid,
+                text,
+            ));
+        }
+        if sid == "offer-negotiation" {
+            items.push(PrepItem::plain(
+                "offer:range",
+                "You know the market salary range for this level and city from at least two sources".into(),
+                2,
+                sid,
+                "Check levels.fyi and your country's public wage data for the role in your city; write your walk-away number.".into(),
+            ));
+        }
+    }
+    // The run history, named after the company as typed.
+    let slug = prep_slug(raw);
+    if slug == "stale" {
+        return None;
+    }
+    let hist_path = io.sub(&["prep", &format!("{slug}.json")])?;
+    let stored = io.read_json(&hist_path)?;
+    let s = |text: &str| Canon::Str(text.to_owned());
+    let mut hist = if truthy(&stored) {
+        match stored {
+            Canon::Map(fields) if unique(&fields) => fields,
+            _ => return None,
+        }
+    } else {
+        vec![(s("runs"), Canon::List(Vec::new()))]
+    };
+    let Some(Canon::List(mut runs)) = get(&hist, "runs").cloned() else {
+        return None;
+    };
+    let last: Pairs = match runs.last() {
+        None => Vec::new(),
+        Some(Canon::Map(row)) => match get(row, "answers") {
+            Some(Canon::Map(last)) if unique(last) => last.clone(),
+            _ => return None,
+        },
+        Some(_) => return None,
+    };
+    for it in items.iter_mut().filter(|it| !it.auto) {
+        let done = match answer(&answers, &it.id) {
+            Some(done) => done,
+            None => get(&last, &it.id).is_some_and(truthy),
+        };
+        it.done = done;
+        set_answer(&mut answers, &it.id, done);
+    }
+    let total: i64 = items.iter().map(|it| it.weight).sum();
+    let got: i64 = items.iter().filter(|it| it.done).map(|it| it.weight).sum();
+    let score = round3(got as usize, total.max(1) as usize)?;
+    let mut gaps: Vec<&PrepItem> = items.iter().filter(|it| !it.done).collect();
+    gaps.sort_by(|a, b| b.weight.cmp(&a.weight).then_with(|| a.id.cmp(&b.id)));
+    let mut new_marks = None;
+    if answer(&answers, "company:changed") == Some(true) {
+        if let Some(at) = marks
+            .iter()
+            .position(|(key, _)| matches!(key, Canon::Str(k) if *k == folded))
+        {
+            if marks[at].1 != Canon::Null {
+                let mut kept = marks.clone();
+                kept.remove(at);
+                new_marks = Some(kept);
+            }
+        }
+        // A new change must be confirmed again.
+        answers.retain(|(key, _)| key != "company:changed");
+    }
+    let at = careerbrew_career::when::iso_seconds(&py_now_utc(ctx)?);
+    runs.push(Canon::Map(vec![
+        (s("at"), s(&at)),
+        (s("score"), Canon::Float(score)),
+        (
+            s("answers"),
+            Canon::Map(
+                answers
+                    .iter()
+                    .map(|(key, value)| (s(key), Canon::Bool(*value)))
+                    .collect(),
+            ),
+        ),
+    ]));
+    let mut trend = Vec::new();
+    for run in &runs[runs.len().saturating_sub(5)..] {
+        let Canon::Map(fields) = run else {
+            return None;
+        };
+        trend.push(score_of(get(fields, "score")?)?);
+    }
+    let score_text = pct(score)?;
+    let score_json = float_repr(score)?;
+    let trend_text = trend
+        .iter()
+        .map(|(x, _)| pct(*x))
+        .collect::<Option<Vec<_>>>()?
+        .join(" → ");
+    if let Some(slot) = hist
+        .iter_mut()
+        .find(|(key, _)| matches!(key, Canon::Str(k) if k == "runs"))
+    {
+        slot.1 = Canon::List(runs);
+    }
+    if let Some(kept) = new_marks {
+        io.write_json(&stale_path, &Canon::Map(kept))?;
+    }
+    io.write_json(&hist_path, &Canon::Map(hist))?;
+    emit_json(
+        ctx,
+        "prep.check",
+        &[
+            ("status", "\"ok\"".to_owned()),
+            ("score", score_json),
+            ("gaps", gaps.len().to_string()),
+        ],
+    );
+    if json {
+        let value = J::Map(vec![
+            ("company".into(), J::Str(name)),
+            ("known_loop".into(), J::Bool(known)),
+            ("score".into(), J::Float(score)),
+            (
+                "trend".into(),
+                J::List(trend.into_iter().map(|(_, j)| j).collect()),
+            ),
+            (
+                "gaps".into(),
+                J::List(gaps.iter().map(|it| it.json()).collect()),
+            ),
+        ]);
+        let mut out = String::new();
+        j_write(&value, 0, &mut out)?;
+        out.push('\n');
+        return ok(out, 0);
+    }
+    let mut out = format!(
+        "prep for {name}: {score_text} ready (trend {trend_text}); {} gap(s)\n",
+        gaps.len()
+    );
+    for g in head(&gaps, top) {
+        out.push_str(&format!(
+            "  [{}] {}\n      → {}\n",
+            g.step, g.text, g.action
+        ));
+    }
+    out.push_str("answer items non-interactively: careerbrew prep check <company> --yes id,id   (ids via --json)\n");
+    ok(out, 0)
+}
+
+// ---------- jobs strategy ----------
+
+/// `strategy.pass_rates()` per tier (practice, target, dream): loops and the
+/// pass rate. Every row must hold a text company and stage and a tier, so
+/// `used_companies` and `pass_rates` cannot raise.
+fn pass_rates(io: &Io) -> Option<Vec<(&'static str, usize, f64)>> {
+    let path = io.sub(&["jobs", "applications.jsonl"])?;
+    let rows = io.store().read_jsonl(&path, true).ok()?;
+    let mut latest: Vec<(String, Canon, Vec<String>)> = Vec::new();
+    for row in rows {
+        let Canon::Map(fields) = row else {
+            return None;
+        };
+        if !unique(&fields) {
+            return None;
+        }
+        let Some(Canon::Str(company)) = get(&fields, "company") else {
+            return None;
+        };
+        let Some(Canon::Str(stage)) = get(&fields, "stage") else {
+            return None;
+        };
+        let tier = get(&fields, "tier")?.clone();
+        match latest.iter_mut().find(|(have, _, _)| have == company) {
+            Some(slot) => {
+                slot.1 = tier;
+                if !slot.2.contains(stage) {
+                    slot.2.push(stage.clone());
+                }
+            }
+            None => latest.push((company.clone(), tier, vec![stage.clone()])),
+        }
+    }
+    let mut out = Vec::new();
+    for tier in ["practice", "target", "dream"] {
+        let comps: Vec<&Vec<String>> = latest
+            .iter()
+            .filter(|(_, t, reached)| {
+                *t == Canon::Str(tier.to_owned()) && reached.iter().any(|s| s != "applied")
+            })
+            .map(|(_, _, reached)| reached)
+            .collect();
+        let passed = comps
+            .iter()
+            .filter(|reached| reached.iter().any(|s| s == "onsite" || s == "offer"))
+            .count();
+        let rate = if comps.is_empty() {
+            0.0
+        } else {
+            round3(passed, comps.len())?
+        };
+        out.push((tier, comps.len(), rate));
+    }
+    Some(out)
+}
+
+/// `want.profile()` cannot make `build` raise: a mapping (or nothing) whose
+/// `skills` are text keys with whole-number levels.
+fn profile_ok(io: &Io, root: &Path) -> Option<()> {
+    let prof = yaml_map(io, &root.join("profile.yaml"))?;
+    match get(&prof, "skills") {
+        None => Some(()),
+        Some(value) if !truthy(value) => Some(()),
+        Some(Canon::Map(skills)) => skills
+            .iter()
+            .all(|(k, v)| matches!((k, v), (Canon::Str(_), Canon::Int(_))))
+            .then_some(()),
+        Some(_) => None,
+    }
+}
+
+/// `strategy._steps` for the learn phase with no chosen job, no gap and no
+/// practice row.
+fn strategy_steps() -> Vec<String> {
+    vec![
+        "First: choose the jobs you want. careerbrew only suggests: `careerbrew jobs choose <posting id> dream|target|practice` (or Job hunt in the web app).".into(),
+        "NOW → Learn: close the top skill gaps (none) with `careerbrew drill` daily until readiness >= 50% (now 0%).".into(),
+        "Practice: apply to 0 practice companies, best skill transfer first; log each stage with `careerbrew jobs log`.".into(),
+        "Target: after >= 3 practice loops with pass rate >= 50% and readiness >= 70%, apply to target companies by expected value.".into(),
+        "Dream: only when readiness >= 80% and target pass rate >= 50%. One loop per company per season; do not spend it early.".into(),
+    ]
+}
+
+/// `strategy.render(plan)` for a plan with no tier row and no suggestion.
+fn strategy_md(generated: &str, steps: &[String]) -> String {
+    let mut lines = vec![
+        "# Job-search strategy".to_owned(),
+        String::new(),
+        format!("Phase now: **learn** · readiness 0% · generated {generated}"),
+        String::new(),
+        "## Steps".to_owned(),
+    ];
+    lines.extend(
+        steps
+            .iter()
+            .enumerate()
+            .map(|(i, s)| format!("{}. {s}", i + 1)),
+    );
+    lines.extend([
+        String::new(),
+        "## Skill gaps (weighted by Want)".to_owned(),
+        "- none".to_owned(),
+    ]);
+    for tier in ["Dream", "Target", "Practice"] {
+        lines.extend([
+            String::new(),
+            format!("## {tier} companies (your choice)"),
+            String::new(),
+            "| Company | Role | Want | P(offer) | EV |".to_owned(),
+            "|---|---|---|---|---|".to_owned(),
+            "| none chosen | | | | |".to_owned(),
+        ]);
+    }
+    lines.extend([
+        String::new(),
+        "## Suggestions (not chosen: choose with `careerbrew jobs choose <posting id> <tier>`)"
+            .to_owned(),
+        String::new(),
+        "| Suggested tier | Company | Role | Posting | Want |".to_owned(),
+        "|---|---|---|---|---|".to_owned(),
+    ]);
+    lines.join("\n") + "\n"
+}
+
+/// A plan value as insertion-ordered JSON (floats kept).
+fn plan_json(value: &Canon) -> Option<J> {
+    Some(match value {
+        Canon::Float(f) => J::Float(*f),
+        Canon::List(items) => J::List(items.iter().map(plan_json).collect::<Option<_>>()?),
+        Canon::Map(pairs) => J::Map(
+            pairs
+                .iter()
+                .map(|(k, v)| match k {
+                    Canon::Str(k) => Some((k.clone(), plan_json(v)?)),
+                    _ => None,
+                })
+                .collect::<Option<_>>()?,
+        ),
+        other => j_of(other)?,
+    })
+}
+
+/// `jobs strategy` for a home with no posting and no tutor file: every
+/// tier is empty, readiness is 0.0 and the phase is `learn`. Any posting
+/// stays Python (the Want score is float work this module does not redo).
+fn jobs_strategy(args: &Parsed, ctx: &Ctx, io: &Io) -> Option<Outcome> {
+    let json = args.flag("json");
+    if io.store().encryption_enabled() || !plain_path(ctx.root.to_str()?) {
+        return None;
+    }
+    profile_ok(io, &ctx.root)?;
+    criteria_ok(io)?;
+    if !posting_ids(io)?.is_empty() {
+        return None;
+    }
+    weights_ok(io)?;
+    ratings(io)?;
+    let rates = pass_rates(io)?;
+    let (_, picks) = chosen(io)?;
+    if !tutor_blank(io)? {
+        return None;
+    }
+    let s = |text: &str| Canon::Str(text.to_owned());
+    let int = |n: usize| Canon::Int((n as i64).into());
+    let empty_list = || Canon::List(Vec::new());
+    // `tutor.add_gap_items([])` on a missing file writes `{"items": []}`.
+    let gap_yaml = crate::pyyaml::safe_dump(&Canon::Map(vec![(s("items"), empty_list())]))?;
+    let generated = careerbrew_career::when::iso_seconds(&py_now_utc(ctx)?);
+    let steps = strategy_steps();
+    let tiers = || {
+        Canon::Map(
+            ["dream", "target", "practice"]
+                .iter()
+                .map(|t| (s(t), empty_list()))
+                .collect(),
+        )
+    };
+    let plan = Canon::Map(vec![
+        (s("generated_at"), s(&generated)),
+        (s("phase"), s("learn")),
+        (s("readiness"), Canon::Float(0.0)),
+        (
+            s("gates"),
+            Canon::Map(vec![
+                (s("practice"), Canon::Float(0.5)),
+                (s("target"), Canon::Float(0.7)),
+                (s("dream"), Canon::Float(0.8)),
+                (s("pass_rate"), Canon::Float(0.5)),
+                (s("min_practice_loops"), int(3)),
+            ]),
+        ),
+        (
+            s("pass_rates"),
+            Canon::Map(
+                rates
+                    .iter()
+                    .map(|(tier, loops, rate)| {
+                        (
+                            s(tier),
+                            Canon::Map(vec![
+                                (s("loops"), int(*loops)),
+                                (s("pass_rate"), Canon::Float(*rate)),
+                            ]),
+                        )
+                    })
+                    .collect(),
+            ),
+        ),
+        (s("filtered_out"), Canon::Map(Vec::new())),
+        (s("tiers"), tiers()),
+        (s("suggested"), tiers()),
+        (s("chosen"), int(picks.len())),
+        (s("skill_gaps"), empty_list()),
+        (s("used_this_season"), empty_list()),
+        (
+            s("steps"),
+            Canon::List(steps.iter().map(|step| s(step)).collect()),
+        ),
+    ]);
+    let stdout = if json {
+        let mut out = String::new();
+        j_write(&plan_json(&plan)?, 0, &mut out)?;
+        out.push('\n');
+        out
+    } else {
+        let mut out = String::from("phase: learn  readiness: 0%\n");
+        for step in &steps {
+            out.push_str(&format!("- {step}\n"));
+        }
+        out.push_str("tiers: dream=0, target=0, practice=0\n");
+        out.push_str("gaps: none (added as drill items)\n");
+        out.push_str(&format!(
+            "full plan: {}\n",
+            ctx.root.join("out").join("strategy.md").to_str()?
+        ));
+        out
+    };
+    let gap_path = io.sub(&["tutor", "gap-items.yaml"])?;
+    let plan_path = io.sub(&["jobs", "strategy.json"])?;
+    let md_path = io.sub(&["out", "strategy.md"])?;
+    io.write_text(&gap_path, &gap_yaml)?;
+    io.write_json(&plan_path, &plan)?;
+    std::fs::write(&md_path, strategy_md(&generated, &steps)).ok()?;
+    emit(ctx, "jobs.strategy", &[("status", "ok"), ("tier", "learn")]);
+    ok(stdout, 0)
 }
 
 #[cfg(test)]

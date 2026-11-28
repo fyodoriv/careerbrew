@@ -19,6 +19,19 @@
 //! - `work feed mark` and `work feed research` with no feed events (their
 //!   `FeedError` lines).
 //!
+//! Wave 7 adds the `FeedError` lines Python prints before it reads or
+//! writes any feed data:
+//! - `work feed add FILE` with an input that has no events, or whose first
+//!   non-blank line can never be JSON (no `--plugin`, no `--source`),
+//! - `work feed transcript` with no `feed_tool_sources`, or with a tool map
+//!   and no transcript file,
+//! - `work feed cycle` with no required source anywhere.
+//!
+//! Wave 8 adds `day inbox` (and `--group G`) when names are hidden, the
+//! data folder is plaintext, and no input but the inbox, the settings and
+//! the ladders exists: the goal proposal for the top promotion gap, the
+//! decided and expired items kept, and the `day.inbox` event row.
+//!
 //! Every case also refuses when Python's `privacy.redact` would read an
 //! input (`Ctx::redact_inputs_present`).
 use super::Ctx;
@@ -45,6 +58,10 @@ pub const COMMANDS: &[&str] = &[
     "work.feed.retriage",
     "work.feed.mark",
     "work.feed.research",
+    "work.feed.add",
+    "work.feed.transcript",
+    "work.feed.cycle",
+    "day.inbox",
 ];
 
 const HIDDEN: &str =
@@ -74,6 +91,10 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "work.feed.retriage" => feed_retriage(ctx),
         "work.feed.mark" => feed_mark(args, ctx),
         "work.feed.research" => feed_research(args, ctx),
+        "work.feed.add" => feed_add(args, ctx),
+        "work.feed.transcript" => feed_transcript(args, ctx),
+        "work.feed.cycle" => feed_cycle(args, ctx),
+        "day.inbox" => day_inbox(args, ctx),
         _ => None,
     }
 }
@@ -930,4 +951,528 @@ fn feed_research(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "feederror",
         &format!("no feed event {id} (see: careerbrew work feed links)"),
     )
+}
+
+// ---------- wave 7: the FeedError lines of work feed add, transcript and cycle ----------
+
+const NO_TOOL_MAP: &str = "no tool map (fix: careerbrew config set feed_tool_sources 'mcp__chat__*=chat, mcp__tickets__*=tickets')";
+const NO_TRANSCRIPT: &str =
+    "the transcript file does not exist (fix: pass the session's .jsonl file)";
+const NO_REQUIRED: &str =
+    "no required sources (fix: --require slack,jira,mail, or careerbrew config set feed_tool_sources)";
+const LINE_FIX: &str = "(fix: one JSON object per line with id, at, and title)";
+
+/// How many entries `config.get("feed_tool_sources")` has: 0 for no
+/// setting (the default `[]`) or an empty list, the count for a list of
+/// strings, None for any other value or a read error.
+fn tool_source_count(root: &Path) -> Option<usize> {
+    let path = root.join("settings.yaml");
+    if absent(&path) {
+        return Some(0);
+    }
+    let context = vault_context()?;
+    let data = context
+        .store()
+        .read_yaml(&path, Canon::Map(Vec::new()), false)
+        .ok()?;
+    let pairs = match &data {
+        Canon::Map(pairs) => pairs.as_slice(),
+        other if !truthy(other) => &[],
+        _ => return None,
+    };
+    match map_get(pairs, "feed_tool_sources").ok()? {
+        None => Some(0),
+        Some(Canon::List(items)) if items.iter().all(|i| matches!(i, Canon::Str(_))) => {
+            Some(items.len())
+        }
+        Some(_) => None,
+    }
+}
+
+/// `work feed transcript FILE`: `transcript.store` raises before it reads
+/// the file when no tool map is set, and before it reads anything else when
+/// the file is not there.
+fn feed_transcript(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let file = args.text("file")?;
+    let root = &ctx.root;
+    let tools = tool_source_count(root)?;
+    if tools == 0 {
+        make_dirs(root, &[])?;
+        return cli_error(ctx, "work.feed", "feederror", NO_TOOL_MAP);
+    }
+    // `Path.expanduser`, and `Path("")` (the current folder), go to Python.
+    if file.is_empty() || file.starts_with('~') || Path::new(file).is_file() {
+        return None;
+    }
+    make_dirs(root, &[])?;
+    cli_error(ctx, "work.feed", "feederror", NO_TRANSCRIPT)
+}
+
+/// `work feed cycle` when `feed.mark_cycle` finds no required source: no
+/// tool map, no owner live sources, no plugin, and a `--require` with no
+/// name in it.
+fn feed_cycle(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    // `[x.strip() for x in a.require.split(",") if x.strip()]` is empty.
+    if let Some(require) = args.text("require") {
+        if !require.chars().all(|c| matches!(c, ',' | ' ' | '\t')) {
+            return None;
+        }
+    }
+    let root = &ctx.root;
+    if !absent(&root.join("work/live-sources.yaml"))
+        || !absent(&root.join("plugins.lock.json"))
+        || !absent(&root.join("plugins"))
+    {
+        return None;
+    }
+    if tool_source_count(root)? != 0 {
+        return None;
+    }
+    make_dirs(root, &[])?;
+    cli_error(ctx, "work.feed", "feederror", NO_REQUIRED)
+}
+
+/// The first character of a text `json.loads` can read as a value (after
+/// its own whitespace): a string, an object, an array, `null`, `true`,
+/// `false`, `NaN`, `Infinity`, or a number.
+fn json_start(c: char) -> bool {
+    matches!(c, '"' | '{' | '[' | 'n' | 't' | 'f' | 'N' | 'I' | '-') || c.is_ascii_digit()
+}
+
+/// `work feed add FILE` (no `--plugin`, no `--source`): Python reads the
+/// file, `json.loads` of the whole text fails, and then either no line has
+/// an event ("no events in the input") or the first non-blank line is not
+/// JSON. Any input that could hold an event goes to Python.
+fn feed_add(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let file = args.text("file")?;
+    if args.text("plugin").is_some_and(|p| !p.is_empty())
+        || args.text("source").is_some_and(|s| !s.is_empty())
+    {
+        return None;
+    }
+    // `-` reads stdin; `~` is `expanduser`.
+    if file.is_empty() || file == "-" || file.starts_with('~') {
+        return None;
+    }
+    let meta = std::fs::metadata(file).ok()?;
+    if !meta.is_file() {
+        return None;
+    }
+    let text = String::from_utf8(std::fs::read(file).ok()?).ok()?;
+    // `read_text` turns `\r` into `\n`, and `str.splitlines` also splits
+    // on these; `str.strip` and `str.trim` differ on \x1c to \x1f.
+    if text.chars().any(|c| {
+        matches!(
+            c,
+            '\r' | '\u{0b}' | '\u{0c}' | '\u{1c}'..='\u{1f}' | '\u{85}' | '\u{2028}' | '\u{2029}'
+        )
+    }) {
+        return None;
+    }
+    let mut verdict = None;
+    for (n, line) in text.split('\n').enumerate() {
+        if line.trim().is_empty() {
+            // Blank to `str.strip`; JSON whitespace too only when it is
+            // spaces and tabs.
+            if line.chars().any(|c| c != ' ' && c != '\t') {
+                return None;
+            }
+            continue;
+        }
+        let first = line.trim_start_matches([' ', '\t']).chars().next()?;
+        if json_start(first) {
+            return None;
+        }
+        verdict = Some(n + 1);
+        break;
+    }
+    let message = match verdict {
+        Some(n) => format!("line {n}: not JSON {LINE_FIX}"),
+        None => format!("no events in the input {LINE_FIX}"),
+    };
+    make_dirs(&ctx.root, &[])?;
+    cli_error(ctx, "work.feed", "feederror", &message)
+}
+
+// ---------- wave 8: day inbox ----------
+
+/// `inbox.EXPIRED_SHOWN`: `view()` lists at most this many expired items,
+/// and the CLI counts that list.
+const EXPIRED_SHOWN: usize = 100;
+
+/// `done_elsewhere.CHECKED`: the only kinds `check()` can expire.
+const CHECKED: [&str; 3] = ["agent-task", "plugin", "new-task"];
+
+/// The files `inbox.candidates`, `done_elsewhere.signals`, `signals` and
+/// `inbox.Context` read besides the inbox, the settings and the ladders.
+/// Any of them present sends the command to Python. `{day}` is today.
+const INBOX_ABSENT: [&str; 13] = [
+    "day/{day}.jsonl",
+    "work/tasks.yaml",
+    "work/feed/events.jsonl",
+    "work/feed-rules.yaml",
+    "day/notifications.json",
+    "day/suggestions.jsonl",
+    "work/sources.yaml",
+    "work/connectors.yaml",
+    "work/projects.yaml",
+    "goals.yaml",
+    "work/evidence.jsonl",
+    "day/signal-resets.json",
+    "plugins",
+];
+
+/// The settings keys this handler reads as Python does. Any other key could
+/// change a `config.get` value (`inbox_expire_done`, `project_priority`).
+const INBOX_SETTINGS: [&str; 3] = ["ladder", "target_level", "timezone"];
+
+/// True when every value `json.loads` gives reads the same here: text keys
+/// that never repeat, integers within i64, no float.
+fn inbox_plain(value: &Canon) -> bool {
+    match value {
+        Canon::Null | Canon::Bool(_) | Canon::Str(_) => true,
+        Canon::Int(n) => n.to_string().parse::<i64>().is_ok(),
+        Canon::Float(_) | Canon::Date(_) | Canon::DateTime(_) => false,
+        Canon::List(items) => items.iter().all(inbox_plain),
+        Canon::Map(pairs) => {
+            let mut seen: Vec<&str> = Vec::new();
+            pairs.iter().all(|(k, v)| match k {
+                Canon::Str(key) if !seen.contains(&key.as_str()) => {
+                    seen.push(key);
+                    inbox_plain(v)
+                }
+                _ => false,
+            })
+        }
+    }
+}
+
+fn cstr<'a>(value: &'a Canon, key: &str) -> Option<&'a str> {
+    match super::rust14::get(value, key) {
+        Some(Canon::Str(text)) => Some(text),
+        _ => None,
+    }
+}
+
+fn ctext(text: &str) -> Canon {
+    Canon::Str(text.to_owned())
+}
+
+/// `value or {}` that Python then reads with `.get`: absent, falsy, or a
+/// map. False for a truthy value that is not a map (Python would raise).
+fn map_or_falsy(value: Option<&Canon>) -> bool {
+    match value {
+        None | Some(Canon::Map(_)) => true,
+        Some(other) => !truthy(other),
+    }
+}
+
+/// `d[key] = value`: an existing key keeps its place, a new one goes last.
+fn set_key(pairs: &mut Vec<(Canon, Canon)>, key: &str, value: Canon) {
+    match pairs
+        .iter_mut()
+        .find(|(k, _)| matches!(k, Canon::Str(k) if k == key))
+    {
+        Some((_, slot)) => *slot = value,
+        None => pairs.push((ctext(key), value)),
+    }
+}
+
+/// The text of `inbox.json` and `inbox.load()`'s items, or None when
+/// Python could read the file another way, or crash on an item in
+/// `_merge`, `signals.inbox_counts`, `done_elsewhere.check` or
+/// `expired_items`.
+type InboxFile = (Option<String>, Vec<Canon>);
+
+fn inbox_items(store: &Store, path: &Path) -> Option<InboxFile> {
+    if std::fs::symlink_metadata(path).is_ok_and(|meta| !meta.is_file()) {
+        return None;
+    }
+    let text = store.read_text(path, None, true).ok()?;
+    let items = match &text {
+        None => Vec::new(),
+        Some(body) => {
+            let data = careerbrew_vault::json_yaml::json_read(body).ok()?;
+            if !inbox_plain(&data) {
+                return None;
+            }
+            match &data {
+                Canon::Map(pairs) => match map_get(pairs, "items").ok()? {
+                    None => Vec::new(),
+                    Some(Canon::List(items)) => items.clone(),
+                    Some(_) => return None,
+                },
+                other if !truthy(other) => Vec::new(),
+                _ => return None,
+            }
+        }
+    };
+    let mut ids: Vec<&str> = Vec::new();
+    for item in &items {
+        let Canon::Map(pairs) = item else {
+            return None;
+        };
+        let id = cstr(item, "id")?;
+        let status = cstr(item, "status")?;
+        // `{i["id"]: i for i in load()}` keeps one item per id.
+        if ids.contains(&id) {
+            return None;
+        }
+        ids.push(id);
+        match map_get(pairs, "kind").ok()? {
+            None | Some(Canon::Str(_)) => {}
+            Some(_) => return None,
+        }
+        if !map_or_falsy(map_get(pairs, "data").ok()?) {
+            return None;
+        }
+        if status == "expired"
+            && (!CHECKED.contains(&cstr(item, "kind")?)
+                || !map_or_falsy(map_get(pairs, "expired").ok()?))
+        {
+            return None;
+        }
+    }
+    Some((text, items))
+}
+
+/// One gap: its id, name and coverage.
+type Gap = (String, String, f64);
+
+/// The top promotion gap as `inbox.candidates` reads it:
+/// `promo.gaps(promo.assess(ladder, level))[0]`, or Some(None) with no
+/// gap. None refuses: a setting, a ladder or a value Python could read
+/// another way, or a `LadderError`.
+fn top_gap(ctx: &Ctx, at: &careerbrew_career::when::At) -> Option<Option<Gap>> {
+    use careerbrew_career::promo;
+    let settings = super::rust18::read_map_yaml(&ctx.root.join("settings.yaml"))?;
+    if settings
+        .keys()
+        .any(|key| !INBOX_SETTINGS.contains(&key.as_str()))
+    {
+        return None;
+    }
+    let setting = |key: &str, default: &str| -> Option<String> {
+        match settings.get(key) {
+            None => Some(default.to_owned()),
+            Some(value) => value.as_str().map(str::to_owned),
+        }
+    };
+    let ladder = setting("ladder", "generic-swe")?;
+    let level = setting("target_level", "senior")?;
+    let lads = promo::ladders().ok()?;
+    let lad = lads.get(&ladder)?;
+    let levels: Vec<&str> = lad
+        .get("levels")?
+        .as_array()?
+        .iter()
+        .map(|v| v.as_str())
+        .collect::<Option<_>>()?;
+    if !levels.contains(&level.as_str()) {
+        return None;
+    }
+    if lad
+        .get("window_months")
+        .is_some_and(|value| !(value.is_i64() || value.is_u64()))
+    {
+        return None;
+    }
+    for comp in lad.get("competencies")?.as_array()? {
+        comp.get("id")?.as_str()?;
+        comp.get("name")?.as_str()?;
+        if !comp.get("weight")?.is_number() {
+            return None;
+        }
+        if comp.get("effort").is_some_and(|v| !v.is_number()) {
+            return None;
+        }
+        if !comp.get("expect")?.get(&level)?.is_number() {
+            return None;
+        }
+        if comp.get("how_to_close").is_some_and(|v| !v.is_string()) {
+            return None;
+        }
+    }
+    let assessment = promo::assess(&ladder, &level, at).ok()?;
+    let gaps = promo::gaps(&assessment);
+    if gaps
+        .iter()
+        .any(|g| !g.priority.is_finite() || !g.coverage.is_finite())
+    {
+        return None;
+    }
+    Some(
+        gaps.first()
+            .map(|g| (g.id.clone(), g.name.clone(), g.coverage)),
+    )
+}
+
+/// The fresh goal proposal: id, text, why and data.
+type Goal = (String, String, String, Canon);
+
+fn goal_item(gap: Gap, when: String) -> Option<Goal> {
+    let (gid, name, coverage) = gap;
+    let digest = careerbrew_vault::helpers::digest(&[ctext("goal"), Canon::Str(gid)]).ok()?;
+    let id = format!("goal-{}", digest.get(..8)?);
+    let pct = careerbrew_career::py::percent(coverage);
+    let text =
+        format!("New goal: close the {name} gap by {when} (top promotion gap, {pct} covered)");
+    let why = format!(
+        "{name} is your top promotion gap: your evidence covers {pct} of it, and you have no upcoming goal"
+    );
+    let data = Canon::Map(vec![
+        (ctext("kind"), ctext("promotion")),
+        (ctext("title"), Canon::Str(format!("Close the {name} gap"))),
+        (ctext("date"), Canon::Str(when)),
+        (ctext("minutes_per_day"), Canon::Int(30i64.into())),
+    ]);
+    Some((id, text, why, data))
+}
+
+/// `day inbox [--group G]` (`cmd_day_inbox`: `inbox.regenerate()`, then
+/// `_say_inbox`) when names are hidden, the data folder is plaintext, and
+/// every input but the inbox, the settings and the ladders is absent (see
+/// `INBOX_ABSENT`). Then the only fresh candidate is the goal proposal for
+/// the top promotion gap (`goals.yaml` is absent, so no goal is upcoming),
+/// no question is asked, no task is open, and `done_elsewhere.check` has
+/// no signal and no open ask to look at. At most one item is open, so the
+/// signal weights cannot reorder anything, and a goal never joins a group.
+fn day_inbox(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    if !hidden(ctx) || !super::rust18::same_repo() {
+        return None;
+    }
+    let root = ctx.root.as_path();
+    let at = super::rust18::py_now(ctx)?;
+    let day = at.date_naive();
+    let today = day.to_string();
+    for rel in INBOX_ABSENT {
+        if !absent(&root.join(rel.replace("{day}", &today))) {
+            return None;
+        }
+    }
+    let context = vault_context()?;
+    let store = context.store();
+    if store.encryption_enabled() {
+        return None;
+    }
+    if !dirs_ok(root, &["day"]) || !dirs_ok(root, &["work", "feed"]) {
+        return None;
+    }
+    let path = root.join("day/inbox.json");
+    let lock = root.join("day/inbox.lock");
+    if !plain_or_absent(&lock) {
+        return None;
+    }
+    let (before, stored) = inbox_items(&store, &path)?;
+    let mut when = day;
+    for _ in 0..90 {
+        when = when.succ_opt()?;
+    }
+    let fresh = match top_gap(ctx, &at)? {
+        None => None,
+        Some(gap) => Some(goal_item(gap, when.to_string())?),
+    };
+    // `_merge`: decided items stay, open items stay only when fresh.
+    let mut items: Vec<Canon> = Vec::new();
+    let mut known = false;
+    for item in &stored {
+        let id = cstr(item, "id")?;
+        let open = cstr(item, "status")? == "open";
+        let is_fresh = fresh.as_ref().is_some_and(|(fid, ..)| fid == id);
+        known |= is_fresh;
+        if !open {
+            items.push(item.clone());
+            continue;
+        }
+        if !is_fresh {
+            continue;
+        }
+        // Updated in place: `open_items` reads its `type`, and a stored
+        // `group` would put it in a group.
+        if cstr(item, "type") != Some("proposal")
+            || cstr(item, "kind") != Some("goal")
+            || super::rust14::get(item, "group").is_some()
+        {
+            return None;
+        }
+        let Canon::Map(mut pairs) = item.clone() else {
+            return None;
+        };
+        let (_, text, why, data) = fresh.as_ref()?;
+        set_key(&mut pairs, "text", Canon::Str(text.clone()));
+        set_key(&mut pairs, "why", Canon::Str(why.clone()));
+        set_key(&mut pairs, "data", data.clone());
+        items.push(Canon::Map(pairs));
+    }
+    if let (Some((id, text, why, data)), false) = (&fresh, known) {
+        items.push(Canon::Map(vec![
+            (ctext("id"), Canon::Str(id.clone())),
+            (ctext("type"), ctext("proposal")),
+            (ctext("kind"), ctext("goal")),
+            (ctext("text"), Canon::Str(text.clone())),
+            (ctext("why"), Canon::Str(why.clone())),
+            (ctext("data"), data.clone()),
+            (ctext("status"), ctext("open")),
+            (
+                ctext("created_at"),
+                Canon::Str(careerbrew_career::when::iso_seconds(&at)),
+            ),
+        ]));
+    }
+    let open: Vec<&str> = items
+        .iter()
+        .filter(|i| cstr(i, "status") == Some("open"))
+        .map(|i| cstr(i, "id"))
+        .collect::<Option<_>>()?;
+    let expired = items
+        .iter()
+        .filter(|i| cstr(i, "status") == Some("expired"))
+        .count()
+        .min(EXPIRED_SHOWN);
+    let body = careerbrew_vault::json_yaml::json_write(&Canon::Map(vec![(
+        ctext("items"),
+        Canon::List(items.clone()),
+    )]))
+    .ok()?;
+    // `getattr(a, "group", None) or ""`: an empty value is no group.
+    let group = args.text("group").filter(|g| !g.is_empty());
+    let mut stdout = String::new();
+    match group {
+        Some(group) => stdout.push_str(&format!(
+            "no open group {group} (see: careerbrew day inbox)\n"
+        )),
+        None => {
+            for id in &open {
+                stdout.push_str(&format!("proposal {id:<20} goal  (accept or dismiss)\n"));
+            }
+            if expired > 0 {
+                stdout.push_str(&format!(
+                    "done elsewhere: {expired} suggestion(s) hidden because their source shows them done (careerbrew day reopen <id> brings one back)\n"
+                ));
+            }
+        }
+    }
+    if open.is_empty() {
+        stdout.push_str("nothing to decide or answer\n");
+    }
+    // `paths.sub` makes each folder the reads touch.
+    make_dirs(root, &["day"])?;
+    make_dirs(root, &["work", "feed"])?;
+    careerbrew_vault::lock::with_exact_lock(&lock, || {
+        let again = store.read_text(&path, None, true).ok()?;
+        if again != before {
+            return None;
+        }
+        store.write_text(&path, &body).ok()
+    })
+    .ok()??;
+    emit(
+        ctx,
+        "day.inbox",
+        &[
+            ("items", Field::Int(open.len())),
+            ("status", Field::Id("ok")),
+        ],
+    );
+    done(stdout)
 }

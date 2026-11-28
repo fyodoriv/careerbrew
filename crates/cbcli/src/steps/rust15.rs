@@ -14,10 +14,20 @@
 //! `ValueError`s, and a first save of a question id in a plain-text data
 //! folder. Every other case (an id already saved, a command recheck, a
 //! quiet project) stays with Python.
+//!
+//! Wave 8 adds `day check`, `day update` and `day question add` over the
+//! `careerbrew_workday` and `careerbrew_workexec` components. Each one needs
+//! the steps of `workday/plan.build`; the handler builds them (careerbrew's
+//! step, the `work_steps` setting, no plugin) only in a plain-text data
+//! folder that holds nothing else the plan could read (`plan_home_ok`), and
+//! makes the two lock files `plan.build` leaves behind. A verify command, a
+//! plugin, a sign-in record, a command recheck and any form Python could read
+//! differently stay with Python.
 use super::rust14::{
     cli_error, event_version_ok, get, inputs_ok, int, iso, list, printable, read_json, read_yaml,
     string, written,
 };
+use super::rust16::{day_form, out, pin_clock, Value};
 use super::Ctx;
 use crate::args::Parsed;
 use crate::Outcome;
@@ -32,6 +42,9 @@ pub const COMMANDS: &[&str] = &[
     "work.session.handoff",
     "work.session.open",
     "work.session.ask",
+    "day.check",
+    "day.update",
+    "day.question.add",
 ];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
@@ -44,6 +57,9 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "work.session.handoff" => handoff(args, ctx, started),
         "work.session.open" => session_open(args, ctx),
         "work.session.ask" => session_ask(args, ctx, started),
+        "day.check" => day_check(args, ctx),
+        "day.update" => day_update(args, ctx),
+        "day.question.add" => question_add(args, ctx),
         _ => None,
     }
 }
@@ -664,4 +680,673 @@ fn session_ask(args: &Parsed, ctx: &Ctx, started: Instant) -> Option<Outcome> {
         "question {qid} saved for {step} ({kind} recheck); the main session asks it in the one batched ask (careerbrew day question recheck)\n"
     );
     Some(written(ctx, "work.session", started, line))
+}
+
+// ---------- wave 8: the work-day plan (`day check`, `day update`, `day question add`) ----------
+
+/// Python's `str.isspace()` for one character.
+fn py_space(c: char) -> bool {
+    c.is_whitespace() || ('\u{1c}'..='\u{1f}').contains(&c)
+}
+
+fn digit_run(bytes: &[u8]) -> bool {
+    !bytes.is_empty() && bytes.iter().all(u8::is_ascii_digit)
+}
+
+/// `HH:MM` from 00:00 to 23:59.
+fn clock_shape(text: &str) -> bool {
+    let b = text.as_bytes();
+    b.len() == 5
+        && digit_run(&b[0..2])
+        && b[2] == b':'
+        && digit_run(&b[3..5])
+        && (b[0] < b'2' || (b[0] == b'2' && b[1] <= b'3'))
+        && b[3] <= b'5'
+}
+
+/// An aware stamp `YYYY-MM-DDTHH:MM:SS` plus `Z` or `+HH:MM`, the form
+/// careerbrew writes (a private copy of part of `rust16`'s `stamp_form`).
+fn aware_stamp(text: &str) -> bool {
+    let b = text.as_bytes();
+    if b.len() < 20 || !day_form(text.get(..10).unwrap_or("")) || b[10] != b'T' {
+        return false;
+    }
+    let clock = digit_run(&b[11..13])
+        && b[13] == b':'
+        && digit_run(&b[14..16])
+        && b[16] == b':'
+        && digit_run(&b[17..19]);
+    clock
+        && match &b[19..] {
+            b"Z" => true,
+            [sign, h1, h2, b':', m1, m2] => {
+                (*sign == b'+' || *sign == b'-') && digit_run(&[*h1, *h2, *m1, *m2])
+            }
+            _ => false,
+        }
+}
+
+/// A data-root file `plan.build` and these commands may meet: anything else
+/// (a plugin, the machine record, a PM draft, a session, a project) is read
+/// by `plan.build` in ways not checked here, so the command goes to Python.
+fn plan_file_ok(rel: &str) -> bool {
+    if rel.starts_with("logs/") {
+        return true;
+    }
+    if matches!(
+        rel,
+        ".plaintext"
+            | "settings.yaml"
+            | ".settings.yaml.lock"
+            | "work/feed/.lock"
+            | "day/work-history.json"
+            | "day/.work-history.json.lock"
+    ) {
+        return true;
+    }
+    let Some(name) = rel.strip_prefix("day/") else {
+        return false;
+    };
+    let dated = |prefix: &str, suffix: &str| {
+        name.strip_prefix(prefix)
+            .and_then(|rest| rest.strip_suffix(suffix))
+            .is_some_and(day_form)
+    };
+    dated("work-", ".json") || dated(".work-", ".json.lock") || dated(".pm-sent-", ".lock")
+}
+
+/// `plan_home_ok`: every file under the data root is one `plan_file_ok`
+/// names, with no symbolic link.
+fn plan_home_ok(root: &Path, dir: &Path) -> Option<()> {
+    for entry in std::fs::read_dir(dir).ok()? {
+        let path = entry.ok()?.path();
+        let meta = std::fs::symlink_metadata(&path).ok()?;
+        if meta.file_type().is_symlink() {
+            return None;
+        }
+        if meta.is_dir() {
+            plan_home_ok(root, &path)?;
+            continue;
+        }
+        let rel = path.strip_prefix(root).ok()?.to_str()?;
+        if !plan_file_ok(rel) {
+            return None;
+        }
+    }
+    Some(())
+}
+
+/// True when `value` is a string, or a list of strings.
+fn strings_ok(value: &Value) -> bool {
+    value.is_string()
+        || value
+            .as_array()
+            .is_some_and(|items| items.iter().all(Value::is_string))
+}
+
+fn small_int(value: &Value) -> bool {
+    value.as_i64().is_some_and(|n| (0..=1_000_000).contains(&n))
+}
+
+/// One `work_steps` entry with only the fields checked here (no verify
+/// command, cycle, watch or operator turn).
+fn work_step_ok(item: &Value) -> bool {
+    if item.is_string() {
+        return true;
+    }
+    let Some(map) = item.as_object() else {
+        return false;
+    };
+    map.get("step").is_some_and(Value::is_string)
+        && map.iter().all(|(key, value)| match key.as_str() {
+            "step" | "about" => value.is_string(),
+            "timeout" => small_int(value),
+            "long_running" => value.is_boolean(),
+            "scope" | "after" | "uses" => strings_ok(value),
+            _ => false,
+        })
+}
+
+fn plan_settings_ok(settings: &Value) -> bool {
+    let Some(map) = settings.as_object() else {
+        return settings.is_null();
+    };
+    map.iter().all(|(key, value)| match key.as_str() {
+        "timezone" => true,
+        "work_step_timeout" => value.as_i64().is_some_and(|n| (1..=1440).contains(&n)),
+        "work_steps" => value
+            .as_array()
+            .is_some_and(|items| items.iter().all(work_step_ok)),
+        _ => false,
+    })
+}
+
+const ROW_TEXT: &[&str] = &[
+    "step",
+    "status",
+    "summary",
+    "needs_you",
+    "link",
+    "at",
+    "started",
+    "verify",
+    "error_class",
+    "next",
+    "ended",
+];
+
+fn row_ok(row: &Value) -> bool {
+    let Some(map) = row.as_object() else {
+        return false;
+    };
+    let step = map.get("step").and_then(Value::as_str).unwrap_or("");
+    let status = map
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or("waiting");
+    let started = map.get("started").and_then(Value::as_str).unwrap_or("");
+    let verify = map.get("verify").and_then(Value::as_str).unwrap_or("");
+    step.starts_with('/')
+        && careerbrew_workday::status::STATUSES.contains(&status)
+        && (started.is_empty() || aware_stamp(started))
+        && verify.is_empty()
+        && map.iter().all(|(key, value)| match key.as_str() {
+            k if ROW_TEXT.contains(&k) => value.is_string(),
+            "attempt" => small_int(value),
+            "retry" | "timed_out" => value.is_boolean(),
+            "seconds" => value.is_null() || small_int(value),
+            _ => false,
+        })
+}
+
+fn question_ok(question: &Value) -> bool {
+    let Some(map) = question.as_object() else {
+        return false;
+    };
+    let recheck = map.get("recheck").and_then(Value::as_str).unwrap_or("");
+    map.get("id")
+        .and_then(Value::as_str)
+        .is_some_and(|id| !id.is_empty())
+        && matches!(
+            careerbrew_workday::questions::kind(recheck).as_str(),
+            "none" | "url"
+        )
+        && map.iter().all(|(key, value)| match key.as_str() {
+            "id" | "step" | "text" | "pick" | "createdAt" | "recheck" | "source" | "closed"
+            | "closedAt" => value.is_string(),
+            "options" | "steps" => value
+                .as_array()
+                .is_some_and(|items| items.iter().all(Value::is_string)),
+            _ => false,
+        })
+}
+
+/// One `day/work-<day>.json` in the shape careerbrew writes, with no start
+/// record (a failed sign-in probe changes the stages).
+fn day_file_shape_ok(data: &Value) -> bool {
+    let Some(map) = data.as_object() else {
+        return false;
+    };
+    map.iter().all(|(key, value)| match key.as_str() {
+        "day" => value.as_str().is_some_and(day_form),
+        "rows" => value.as_array().is_some_and(|rows| {
+            let mut steps: Vec<&str> = Vec::new();
+            rows.iter().all(|row| {
+                let step = row.get("step").and_then(Value::as_str).unwrap_or("");
+                let fresh = !steps.contains(&step);
+                steps.push(step);
+                fresh && row_ok(row)
+            })
+        }),
+        "handled" => value
+            .as_object()
+            .is_some_and(|items| items.values().all(Value::is_string)),
+        "questions" => value
+            .as_array()
+            .is_some_and(|items| items.iter().all(question_ok)),
+        "start" => value.as_object().is_some_and(|start| start.is_empty()),
+        "wrap_control" => value.as_object().is_some_and(|control| {
+            control.iter().all(|(key, value)| match key.as_str() {
+                "at" => value
+                    .as_str()
+                    .is_some_and(|at| at.is_empty() || clock_shape(at)),
+                "changed_at" => value.is_string(),
+                "hold" => value.is_boolean(),
+                _ => false,
+            })
+        }),
+        _ => false,
+    })
+}
+
+fn history_entry_ok(entry: &Value) -> bool {
+    entry.as_object().is_some_and(|entry| {
+        entry.iter().all(|(key, value)| match key.as_str() {
+            "seconds" => value.is_null() || small_int(value),
+            "status" => value.is_string(),
+            _ => false,
+        })
+    })
+}
+
+fn history_ok(data: &Value) -> bool {
+    let Some(map) = data.as_object() else {
+        return false;
+    };
+    map.iter().all(|(key, value)| {
+        key == "days"
+            && value.as_object().is_some_and(|days| {
+                days.iter().all(|(day, steps)| {
+                    day_form(day)
+                        && steps
+                            .as_object()
+                            .is_some_and(|steps| steps.values().all(history_entry_ok))
+                })
+            })
+    })
+}
+
+/// The steps of `plan.build()["steps"]` (after `stages.build`), their
+/// names, and the previous workday whose sent-day lock `pm_promises.view`
+/// opens.
+struct Plan {
+    steps: Vec<Value>,
+    names: Vec<String>,
+    prior: String,
+}
+
+/// Builds the plan's steps as Python does, or None when Python could read
+/// the home differently. Writes nothing (it pins the clock variables).
+fn plan(ctx: &Ctx) -> Option<Plan> {
+    let root = ctx.root.as_path();
+    let context = careerbrew_vault::transfer::Context::from_env().ok()?;
+    if context.store().encryption_enabled() || !root.join(".plaintext").is_file() {
+        return None;
+    }
+    plan_home_ok(root, root)?;
+    let settings = pin_clock(root)?;
+    if !plan_settings_ok(&settings) {
+        return None;
+    }
+    let day = careerbrew_workday::today();
+    let mut at = day;
+    for n in 0..=CARRY_DAYS {
+        let rel = format!("day/work-{at}.json");
+        if root.join(&rel).exists() {
+            let empty = Value::Object(Default::default());
+            let data = careerbrew_workday::read_json(root, &rel, empty).ok()?;
+            if !day_file_shape_ok(&data) {
+                return None;
+            }
+        }
+        if n < CARRY_DAYS {
+            at = at.pred_opt()?;
+        }
+    }
+    let history = "day/work-history.json";
+    if root.join(history).exists() {
+        let empty = Value::Object(Default::default());
+        let data = careerbrew_workday::read_json(root, history, empty).ok()?;
+        if !history_ok(&data) {
+            return None;
+        }
+    }
+    let configured = settings
+        .get("work_steps")
+        .cloned()
+        .unwrap_or_else(|| Value::Array(Vec::new()));
+    let timeout = settings
+        .get("work_step_timeout")
+        .and_then(Value::as_i64)
+        .unwrap_or(30);
+    let found = careerbrew_workday::steps::declared(root, &configured, &[], timeout).ok()?;
+    let late = std::collections::BTreeSet::new();
+    let (steps, _) = careerbrew_workday::stages::build(&found, &late).ok()?;
+    let names = steps
+        .iter()
+        .map(|s| s.get("step").and_then(Value::as_str).map(str::to_owned))
+        .collect::<Option<Vec<_>>>()?;
+    // `pm_promises.previous_workday` with the `work_days` default, Monday
+    // to Friday (`%u` is 6 and 7 at the weekend).
+    let mut prior = day.pred_opt()?;
+    while matches!(prior.format("%u").to_string().as_str(), "6" | "7") {
+        prior = prior.pred_opt()?;
+    }
+    Some(Plan {
+        steps,
+        names,
+        prior: prior.to_string(),
+    })
+}
+
+/// The lock files `plan.build` leaves: `pm_promises.view` opens the sent-day
+/// lock of the previous workday and the feed lock (both empty).
+fn plan_locks(root: &Path, plan: &Plan) -> Option<()> {
+    for (dir, name) in [
+        ("day", format!(".pm-sent-{}.lock", plan.prior)),
+        ("work/feed", ".lock".to_owned()),
+    ] {
+        let dir = root.join(dir);
+        std::fs::create_dir_all(&dir).ok()?;
+        std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(dir.join(name))
+            .ok()?;
+    }
+    Some(())
+}
+
+/// `_workday_fail`: `error: <msg> (breaks <story>)`, exit 2.
+fn workday_fail(message: &str, story: &str) -> Outcome {
+    out(format!("error: {message} (breaks {story})\n"), 2)
+}
+
+fn json_names(names: &[String], text: &mut String) {
+    text.push('[');
+    for (i, name) in names.iter().enumerate() {
+        if i > 0 {
+            text.push_str(", ");
+        }
+        crate::render::py_string(name, text);
+    }
+    text.push(']');
+}
+
+fn value_names(value: Option<&Value>) -> Option<Vec<String>> {
+    value?
+        .as_array()?
+        .iter()
+        .map(|v| v.as_str().map(str::to_owned))
+        .collect()
+}
+
+// ---------- day check ----------
+
+fn day_check(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let root = ctx.root.as_path();
+    let plan = plan(ctx)?;
+    let day = careerbrew_workday::today();
+    let wrap = careerbrew_workexec::end::view(root, careerbrew_workday::now()).ok()?;
+    let wrap_text = |key: &str| wrap.get(key).and_then(Value::as_str).map(str::to_owned);
+    let (wrap_at, wrap_phase, wrap_command, wrap_end) = (
+        wrap_text("at")?,
+        wrap_text("phase")?,
+        wrap_text("command")?,
+        wrap_text("end_at")?,
+    );
+    let wrap_hold = wrap.get("hold").and_then(Value::as_bool)?;
+    let held = wrap_phase == "held";
+    let mut limits = Vec::new();
+    for step in &plan.steps {
+        let name = step.get("step").and_then(Value::as_str)?;
+        let minutes = step.get("timeout").and_then(Value::as_i64)?;
+        limits.push((name.to_owned(), minutes));
+    }
+    plan_locks(root, &plan)?;
+    let got = careerbrew_workexec::gate::check(root, &plan.steps, day).ok()?;
+    let checked = got.get("checked").and_then(Value::as_i64)?;
+    let retry = value_names(got.get("retry"))?;
+    let failed = value_names(got.get("failed"))?;
+    let rows = careerbrew_workday::status::rows(root, &plan.names, day).ok()?;
+    let ready = careerbrew_workday::stages::ready(&plan.steps, &rows);
+    let mut text = String::new();
+    if args.flag("json") {
+        text.push_str(&format!("{{\"checked\": {checked}, \"retry\": "));
+        json_names(&retry, &mut text);
+        text.push_str(", \"failed\": ");
+        json_names(&failed, &mut text);
+        text.push_str(", \"ready\": ");
+        json_names(&ready, &mut text);
+        if held {
+            text.push_str(", \"wrap_up\": {\"at\": ");
+            crate::render::py_string(&wrap_at, &mut text);
+            text.push_str(", \"phase\": ");
+            crate::render::py_string(&wrap_phase, &mut text);
+            text.push_str(", \"command\": ");
+            crate::render::py_string(&wrap_command, &mut text);
+            text.push_str(if wrap_hold {
+                ", \"hold\": true, \"end_at\": "
+            } else {
+                ", \"hold\": false, \"end_at\": "
+            });
+            crate::render::py_string(&wrap_end, &mut text);
+            text.push('}');
+        }
+        text.push_str("}\n");
+        return Some(out(text, 0));
+    }
+    let limit = |step: &str| {
+        limits
+            .iter()
+            .find(|(name, _)| name == step)
+            .map(|(_, n)| *n)
+    };
+    let most = careerbrew_workexec::gate::MAX_ATTEMPTS;
+    for step in &retry {
+        let n = limit(step)?;
+        text.push_str(&format!(
+            "  {step} timed out after {n} min: retry {most} of {most} (run {step} again)\n"
+        ));
+    }
+    for step in &failed {
+        let n = limit(step)?;
+        text.push_str(&format!(
+            "  {step} timed out again after {n} min: failed (tool); careerbrew day run shows its next action\n"
+        ));
+    }
+    if held {
+        text.push_str("automatic day end is paused. Resume with careerbrew day wrap --at HH:MM.\n");
+    }
+    let shown = if ready.is_empty() {
+        "none".to_owned()
+    } else {
+        ready.join(", ")
+    };
+    text.push_str(&format!("ready: {shown}\n"));
+    text.push_str(&format!(
+        "work day check: {checked} running, {} to retry, {} failed after a timeout\n",
+        retry.len(),
+        failed.len()
+    ));
+    Some(out(text, 0))
+}
+
+// ---------- day update ----------
+
+/// A `--handled` item `status.HANDLED` accepts, with no whitespace at all
+/// (Python's `$` also matches before a final line break).
+fn handled_ok(item: &str) -> bool {
+    let rest = item
+        .strip_prefix("checkout:")
+        .or_else(|| item.strip_prefix("pr:"));
+    rest.is_some_and(|rest| (1..=200).contains(&rest.chars().count()))
+        && !item.chars().any(py_space)
+}
+
+fn day_update(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let root = ctx.root.as_path();
+    let raw_step = args.text("step")?;
+    let status = args.text("status");
+    let summary = args.text("summary");
+    let needs_you = args.text("needs_you");
+    let link = args.text("link");
+    let handled = args.list("handled");
+    let class = args.text("error_class");
+    if status.is_none()
+        && summary.is_none()
+        && needs_you.is_none()
+        && link.is_none()
+        && handled.is_empty()
+        && class.is_none()
+    {
+        return Some(workday_fail(
+            "nothing to change: pass --status, --summary, --needs-you, --error-class, --link, or --handled",
+            "US-94",
+        ));
+    }
+    if [Some(raw_step), summary, needs_you, link]
+        .iter()
+        .flatten()
+        .any(|text| odd_space(text))
+        || !handled.iter().all(|item| handled_ok(item))
+    {
+        return None;
+    }
+    let plan = plan(ctx)?;
+    // `normalize` raises with a `repr` of the name: Python prints that one.
+    careerbrew_workday::steps::normalize(raw_step).ok()?;
+    if class.is_some() && !matches!(status, None | Some("failed")) {
+        plan_locks(root, &plan)?;
+        return Some(workday_fail(
+            "--error-class goes only with --status failed: a failed row says what broke (blocked rows wait on you instead)",
+            "US-100",
+        ));
+    }
+    let change = careerbrew_workday::status::Update {
+        status: status.map(str::to_owned),
+        summary: summary.map(str::to_owned),
+        needs_you: needs_you.map(str::to_owned),
+        link: link.map(str::to_owned),
+        handled_items: handled.to_vec(),
+        error_class: class.map(str::to_owned),
+        verify: None,
+    };
+    let day = careerbrew_workday::today();
+    plan_locks(root, &plan)?;
+    let row = match careerbrew_workday::status::update(root, raw_step, &plan.names, &change, day) {
+        Ok(row) => row,
+        Err(error) if error.class == "ValueError" => {
+            let us100 = [
+                "blocked needs",
+                "failed needs",
+                "error class",
+                "--error-class",
+                "--allow-exec",
+            ]
+            .iter()
+            .any(|w| error.message.contains(w));
+            let story = if us100 { "US-100" } else { "US-94" };
+            return Some(workday_fail(&error.message, story));
+        }
+        Err(_) => return None,
+    };
+    if needs_you.is_some() || status.is_some() {
+        let reopen = status == Some("blocked");
+        careerbrew_workday::questions::from_row(root, &row, day, reopen).ok()?;
+    }
+    let rows = careerbrew_workday::status::rows(root, &plan.names, day).ok()?;
+    let done = careerbrew_workday::status::counts(&rows)
+        .get("done")
+        .copied()
+        .unwrap_or(0);
+    let field = |key: &str| row.get(key).and_then(Value::as_str).unwrap_or("");
+    let state = field("status");
+    let class_note = if state == "failed" {
+        format!(" ({})", field("error_class"))
+    } else {
+        String::new()
+    };
+    let ask = if field("needs_you").is_empty() {
+        ""
+    } else {
+        "; needs you"
+    };
+    let mut text = format!(
+        "work day: {} is {state}{class_note}{ask} ({done}/{} done); the page: careerbrew day render\n",
+        field("step"),
+        plan.steps.len()
+    );
+    let next = field("next");
+    if !next.is_empty() {
+        text.push_str(&format!("  next: {next}\n"));
+    }
+    Some(out(text, 0))
+}
+
+// ---------- day question add ----------
+
+fn question_add(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let root = ctx.root.as_path();
+    let raw_step = args.text("step")?;
+    let raw = args.text("text")?;
+    let options = args.list("option");
+    let pick = args.text("pick").unwrap_or("");
+    let recheck = args.text("recheck").unwrap_or("");
+    let plugin = args.text("plugin").unwrap_or("");
+    if [raw_step, raw, pick, recheck, plugin]
+        .iter()
+        .any(|text| odd_space(text))
+        || options.iter().any(|text| odd_space(text))
+    {
+        return None;
+    }
+    // `check_recheck`: no recheck or a link here; a command (shlex), a PR
+    // or the sign-in recheck stays with Python.
+    let kind = careerbrew_workday::questions::kind(recheck.trim_matches(py_space));
+    if !matches!(kind.as_str(), "none" | "url") {
+        return None;
+    }
+    let plan = plan(ctx)?;
+    let step = careerbrew_workday::steps::normalize(raw_step).ok()?;
+    let fail = |message: String| -> Option<Outcome> {
+        plan_locks(root, &plan)?;
+        Some(workday_fail(&message, "US-104"))
+    };
+    if !plan.names.contains(&step) {
+        return fail(format!(
+            "step {step} is not in today's plan (steps: {}; see `careerbrew day run`)",
+            plan.names.join(", ")
+        ));
+    }
+    // No plugin is installed here: `plan_home_ok` allows no plugin lock.
+    if !plugin.is_empty() {
+        return fail(format!(
+            "plugin {plugin} is not installed (see `careerbrew plugin list`)"
+        ));
+    }
+    // `questions.record` checks before `save` writes: run it once first.
+    let checked = careerbrew_workday::questions::record(
+        &step,
+        raw,
+        Some(options),
+        pick,
+        recheck,
+        "agent",
+        "",
+        None,
+    );
+    match checked {
+        Ok(_) => {}
+        Err(error) if error.class == "ValueError" => return fail(error.message),
+        Err(_) => return None,
+    }
+    let day = careerbrew_workday::today();
+    plan_locks(root, &plan)?;
+    let q = careerbrew_workday::questions::add(
+        root,
+        &step,
+        raw,
+        Some(options),
+        pick,
+        recheck,
+        "agent",
+        day,
+    )
+    .ok()?;
+    let field = |key: &str| q.get(key).and_then(Value::as_str).unwrap_or("");
+    let line = if field("closed").is_empty() {
+        format!(
+            "question {} saved for {step} ({} recheck); ask it after the last step: careerbrew day question recheck\n",
+            field("id"),
+            careerbrew_workday::questions::kind(field("recheck"))
+        )
+    } else {
+        format!(
+            "question {} for {step} was already closed ({}): it is not asked again\n",
+            field("id"),
+            field("closed")
+        )
+    };
+    Some(out(line, 0))
 }

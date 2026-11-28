@@ -38,6 +38,16 @@
 //!   public deck goes to Python: it dumps YAML at width 100, which
 //!   `pyyaml::safe_dump` does not port.
 //!
+//! - wave 7: the `ProjectError` lines of `work project add` (a new record
+//!   holds a random id, so a successful add goes to Python); `work project
+//!   show` of a project that is not a prep project, whose sources have no
+//!   link (`://`) and whose ages are whole tenths of a day; `work project
+//!   sync` when no project has sources or a memory file; `drill progress`
+//!   before any card, attempt or readiness row exists.
+//! - wave 8: `signals` (text and `--json`) when stdout is no terminal and
+//!   no plugin is installed, so sources and effects are hidden; `signals
+//!   reset` of an inbox key or a PM label in a plaintext folder.
+//!
 //! Every other form refuses (exit 64, Python runs it) before any write: a
 //! redaction input, any read error, a write of project data, any text that
 //! is not printable ASCII, a clock or zone Python could read differently,
@@ -79,6 +89,11 @@ pub const COMMANDS: &[&str] = &[
     "work.project.explain",
     "metrics.time-saved",
     "cards.publish",
+    "work.project.add",
+    "work.project.show",
+    "work.project.sync",
+    "drill.progress",
+    "signals",
 ];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
@@ -114,6 +129,11 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "work.project.explain" => project_explain(args, ctx),
         "metrics.time-saved" => time_saved(args, ctx),
         "cards.publish" => cards_publish(args, ctx),
+        "work.project.add" => project_add(args, ctx),
+        "work.project.show" => project_show(args, ctx),
+        "work.project.sync" => project_sync(ctx),
+        "drill.progress" => drill_progress(ctx),
+        "signals" => signals(args, ctx),
         _ => None,
     }
 }
@@ -2349,4 +2369,1461 @@ fn cards_publish(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
     }
     make_dirs(&ctx.root, &["tutor"])?;
     said(stdout, code)
+}
+
+// ---------- wave 7: work project add errors ----------
+
+/// Python's `repr()` of printable ASCII text with no quote or backslash.
+fn py_repr(text: &str) -> Option<String> {
+    (printable(text) && !text.contains(['\'', '\\'])).then(|| format!("'{text}'"))
+}
+
+/// `projects.parse_days`: the days, or the `ProjectError` text. None when
+/// the text is not printable ASCII or too long to read for sure.
+fn parse_days(text: &str) -> Option<Result<u64, String>> {
+    let error = || -> Option<Result<u64, String>> {
+        Some(Err(format!(
+            "stale-after must look like 7d or 2w, not {}",
+            py_repr(text)?
+        )))
+    };
+    if !printable(text) {
+        return None;
+    }
+    let body = text.trim_matches(' ');
+    let digits = body.bytes().take_while(u8::is_ascii_digit).count();
+    let unit = body[digits..].trim_start_matches(' ');
+    if digits == 0 || !matches!(unit, "" | "d" | "w") {
+        return error();
+    }
+    if digits > 12 {
+        return None;
+    }
+    let value: u64 = body[..digits].parse().ok()?;
+    if value < 1 {
+        return error();
+    }
+    Some(Ok(value * if unit == "w" { 7 } else { 1 }))
+}
+
+/// What `date.fromisoformat` does with an event day.
+enum Day {
+    /// A plain `YYYY-MM-DD` day: Python keeps it as typed.
+    Valid,
+    /// Text Python surely rejects (empty, or a character no ISO form has).
+    Invalid,
+    /// Any other form (a week date, a basic form): left to Python.
+    Unsure,
+}
+
+fn iso_day(text: &str) -> Day {
+    if text.is_empty()
+        || text
+            .chars()
+            .any(|c| !(c.is_ascii_digit() || c == '-' || c == 'W'))
+    {
+        return Day::Invalid;
+    }
+    let b = text.as_bytes();
+    if b.len() != 10 || b[4] != b'-' || b[7] != b'-' {
+        return Day::Unsure;
+    }
+    let (Ok(year), Ok(month), Ok(day)) = (
+        text[..4].parse::<i32>(),
+        text[5..7].parse::<u32>(),
+        text[8..10].parse::<u32>(),
+    ) else {
+        return Day::Unsure;
+    };
+    if year >= 1 && civil_days(i64::from(year), month, day).is_some() {
+        Day::Valid
+    } else {
+        Day::Unsure
+    }
+}
+
+/// `projects.graph_problems`, as the `"; "`-joined `ProjectError` parts;
+/// None when a record holds a parent or links Python reads differently.
+fn graph_messages(every: &[(String, Canon)]) -> Option<Vec<String>> {
+    let mut names: Vec<&str> = every.iter().map(|(n, _)| n.as_str()).collect();
+    names.sort_unstable();
+    let record = |name: &str| every.iter().find(|(n, _)| n == name).map(|(_, r)| r);
+    let mut out = Vec::new();
+    for name in &names {
+        let rec = record(name)?;
+        let parent = parent_of(rec)?;
+        if parent == *name {
+            out.push(format!("{name}: a project cannot be its own parent"));
+        } else if !parent.is_empty() && !names.contains(&parent.as_str()) {
+            out.push(format!(
+                "{name}: parent {parent} is not a project (fix: add {parent} first, or leave parent empty)"
+            ));
+        }
+        for link in links_of(rec)? {
+            if link == *name {
+                out.push(format!("{name}: a project cannot link to itself"));
+            } else if !names.contains(&link.as_str()) {
+                out.push(format!(
+                    "{name}: link {link} is not a project (fix: add {link} first, or drop the link)"
+                ));
+            }
+        }
+    }
+    let mut loops: Vec<Vec<String>> = Vec::new();
+    for name in &names {
+        let mut chain = vec![(*name).to_owned()];
+        let mut cur = parent_of(record(name)?)?;
+        while names.contains(&cur.as_str()) && !chain.contains(&cur) {
+            chain.push(cur.clone());
+            cur = parent_of(record(&cur)?)?;
+        }
+        if chain.contains(&cur) && chain.last() != Some(&cur) {
+            let at = chain.iter().position(|n| *n == cur)?;
+            let ring = chain[at..].to_vec();
+            let mut key = ring.clone();
+            key.sort();
+            if !loops.contains(&key) {
+                let first = key[0].clone();
+                loops.push(key);
+                let mut shown = ring;
+                shown.push(cur.clone());
+                out.push(format!(
+                    "{first}: parents loop: {} (fix: clear one of these parents)",
+                    shown.join(" -> ")
+                ));
+            }
+        }
+    }
+    Some(out)
+}
+
+/// The `ProjectError` `projects.add` raises for these records, or None
+/// when it raises none (the add then saves a random id: Python runs it).
+#[allow(clippy::too_many_arguments)]
+fn add_error(
+    every: &[(String, Canon)],
+    name: &str,
+    stale: &str,
+    title: &str,
+    group: &str,
+    parent: &str,
+    links: &[String],
+    kind: &str,
+    event_on: &str,
+) -> Option<String> {
+    if !every.iter().all(|(n, _)| !n.is_empty() && printable(n)) {
+        return None;
+    }
+    if every.iter().any(|(n, _)| n == name) {
+        return Some(format!(
+            "project {name} already exists (see `careerbrew work project show {name}`)"
+        ));
+    }
+    if let Err(message) = parse_days(stale)? {
+        return Some(message);
+    }
+    for (value, key, limit) in [(title, "title", 200), (group, "group", 60)] {
+        if !value.is_empty() && value != "none" {
+            if let Err(message) = label(value, key, limit)? {
+                return Some(message);
+            }
+        }
+    }
+    let parent = if parent == "none" {
+        ""
+    } else {
+        parent.trim_matches(' ')
+    };
+    let mut kind_now = "";
+    if !kind.is_empty() {
+        if kind != "prep" && kind != "none" {
+            return Some(format!(
+                "unknown project kind {kind}; use prep (or none to clear it)"
+            ));
+        }
+        kind_now = if kind == "none" { "" } else { kind };
+    }
+    if !event_on.is_empty() && event_on != "none" {
+        match iso_day(event_on.trim_matches(' ')) {
+            Day::Invalid => {
+                return Some(format!(
+                    "the event day looks like 2026-11-03, not {}",
+                    py_repr(event_on)?
+                ))
+            }
+            Day::Unsure => return None,
+            Day::Valid if kind_now != "prep" => {
+                return Some("only a prep project has an event day (fix: add --kind prep)".into())
+            }
+            Day::Valid => {}
+        }
+    }
+    let mut unique: Vec<Canon> = Vec::new();
+    for link in links {
+        let link = Canon::Str(link.clone());
+        if !unique.contains(&link) {
+            unique.push(link);
+        }
+    }
+    let mut fresh: Pairs = Vec::new();
+    if !parent.is_empty() {
+        fresh.push((Canon::Str("parent".into()), Canon::Str(parent.into())));
+    }
+    if !unique.is_empty() {
+        fresh.push((Canon::Str("links".into()), Canon::List(unique)));
+    }
+    let mut with_new = every.to_vec();
+    with_new.push((name.to_owned(), Canon::Map(fresh)));
+    let problems = graph_messages(&with_new)?;
+    (!problems.is_empty()).then(|| problems.join("; "))
+}
+
+/// `work project add`: served only when `projects.add` raises
+/// `ProjectError`, which it does before any write but the lock.
+fn project_add(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let name = printable_name(args)?;
+    let text = |key: &str| args.text(key).unwrap_or("");
+    let (stale, title, group, parent, kind, event_on) = (
+        args.text("stale_after")?,
+        text("title"),
+        text("group"),
+        text("parent"),
+        text("kind"),
+        text("event_on"),
+    );
+    let links = args.list("link");
+    let every_text = [stale, title, group, parent, kind, event_on];
+    if !every_text.iter().all(|t| printable(t)) || !links.iter().all(|t| printable(t)) {
+        return None;
+    }
+    let vault = vault_context()?;
+    let store = vault.store();
+    let settings = read_map(&store, &ctx.root.join("settings.yaml"))?;
+    // `new_record` reads `calendar.now()` before it parses the days.
+    if !clock_safe(&settings) {
+        return None;
+    }
+    if !valid_name(name) {
+        return writer_early_error(
+            ctx,
+            "a project name uses lowercase letters, digits, and dashes (max 40)",
+        );
+    }
+    writer_error(ctx, |every| {
+        add_error(
+            every, name, stale, title, group, parent, links, kind, event_on,
+        )
+    })
+}
+
+// ---------- wave 7: work project show ----------
+
+/// The pinned `_now()` in UTC seconds when Python reads it for sure: a
+/// `CAREERBREW_NOW` with an offset, or one in a `UTC` zone setting.
+fn pinned_utc(settings: &Pairs) -> Option<i64> {
+    let pinned = std::env::var("CAREERBREW_NOW").ok()?;
+    if !simple_now(&pinned) {
+        return None;
+    }
+    let long = if pinned.len() == 16 || pinned.len() == 22 {
+        let (head, zone) = pinned.split_at(16);
+        format!("{head}:00{zone}")
+    } else {
+        pinned.clone()
+    };
+    if long.len() == 25 {
+        return Some(local_secs(&long[..19])? - offset_secs(&long[19..])?);
+    }
+    match get(settings, "timezone") {
+        Some(Canon::Str(zone)) if zone == "UTC" || zone == "Etc/UTC" => {}
+        _ => return None,
+    }
+    local_secs(&long)
+}
+
+/// Days since 1970-01-01 of a valid proleptic Gregorian day.
+fn civil_days(year: i64, month: u32, day: u32) -> Option<i64> {
+    let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    let size = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return None,
+    };
+    if day < 1 || day > size {
+        return None;
+    }
+    let y = if month <= 2 { year - 1 } else { year };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let m = i64::from(month);
+    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + i64::from(day) - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    Some(era * 146_097 + doe - 719_468)
+}
+
+/// `YYYY-MM-DDTHH:MM:SS` as seconds since the epoch, read as UTC.
+fn local_secs(text: &str) -> Option<i64> {
+    let b = text.as_bytes();
+    if b.len() != 19
+        || b[4] != b'-'
+        || b[7] != b'-'
+        || b[10] != b'T'
+        || b[13] != b':'
+        || b[16] != b':'
+    {
+        return None;
+    }
+    let num = |from: usize, to: usize| -> Option<u32> {
+        let part = &text[from..to];
+        if part.bytes().all(|c| c.is_ascii_digit()) {
+            part.parse().ok()
+        } else {
+            None
+        }
+    };
+    let days = civil_days(i64::from(num(0, 4)?), num(5, 7)?, num(8, 10)?)?;
+    let (hour, minute, second) = (num(11, 13)?, num(14, 16)?, num(17, 19)?);
+    if hour > 23 || minute > 59 || second > 59 {
+        return None;
+    }
+    Some(days * 86_400 + i64::from(hour * 3600 + minute * 60 + second))
+}
+
+/// `+HH:MM` or `-HH:MM` as seconds east of UTC.
+fn offset_secs(text: &str) -> Option<i64> {
+    let b = text.as_bytes();
+    if b.len() != 6 || b[3] != b':' || !b[1..3].iter().chain(&b[4..]).all(u8::is_ascii_digit) {
+        return None;
+    }
+    let (hours, minutes): (i64, i64) = (text[1..3].parse().ok()?, text[4..].parse().ok()?);
+    if hours > 23 || minutes > 59 {
+        return None;
+    }
+    match b[0] {
+        b'+' => Some(hours * 3600 + minutes * 60),
+        b'-' => Some(-(hours * 3600 + minutes * 60)),
+        _ => None,
+    }
+}
+
+/// A `checked_at` stamp as `check` writes it (`+00:00`, whole seconds).
+fn stamp_secs(text: &str) -> Option<i64> {
+    let b = text.as_bytes();
+    if b.len() != 25 || !text.ends_with("+00:00") || b[10] != b'T' {
+        return None;
+    }
+    local_secs(&text[..19])
+}
+
+/// A text field `p.get(key, "")` that prints when truthy: None for a
+/// value Python would print another way.
+fn shown_text(pairs: &Pairs, key: &str) -> Option<String> {
+    match get(pairs, key) {
+        None => Some(String::new()),
+        Some(value) if !truthy(value) => Some(String::new()),
+        Some(Canon::Str(text)) if printable(text) => Some(text.clone()),
+        Some(_) => None,
+    }
+}
+
+/// One source row of `projects.show`.
+struct Row {
+    kind: String,
+    reference: String,
+    /// Tenths of a day since the last check; None when never checked.
+    age: Option<i64>,
+    marked: bool,
+    stale: bool,
+    stale_reason: String,
+}
+
+fn show_rows(record: &Pairs, limit: i64, now: Option<i64>) -> Option<Vec<Row>> {
+    let Some(Canon::List(sources)) = get(record, "sources") else {
+        return None;
+    };
+    let mut rows = Vec::new();
+    for source in sources {
+        let s = plain_map(source)?;
+        let (Some(Canon::Str(kind)), Some(Canon::Str(reference))) = (get(s, "kind"), get(s, "ref"))
+        else {
+            return None;
+        };
+        // A link may have no reader (a sign-in host, a host outside the
+        // policy): `no_reader` is not ported.
+        if !printable(kind) || !printable(reference) || reference.contains("://") {
+            return None;
+        }
+        let age = match get(s, "checked_at") {
+            None => None,
+            Some(value) if !truthy(value) => None,
+            Some(Canon::Str(stamp)) => {
+                let secs = now? - stamp_secs(stamp)?;
+                if secs < 0 || secs % 8640 != 0 {
+                    return None;
+                }
+                Some(secs / 8640)
+            }
+            Some(_) => return None,
+        };
+        let marked = match get(s, "reference") {
+            None => false,
+            Some(Canon::Bool(flag)) => *flag,
+            Some(_) => return None,
+        };
+        let stale = !marked && age.is_none_or(|tenths| tenths > limit * 10);
+        let stale_reason = shown_text(s, "stale_reason")?;
+        rows.push(Row {
+            kind: kind.clone(),
+            reference: reference.clone(),
+            age,
+            marked,
+            stale,
+            stale_reason,
+        });
+    }
+    // Never checked first, then oldest; references last (a stable sort).
+    rows.sort_by_key(|r| (r.marked, r.age.is_some(), -r.age.unwrap_or(0)));
+    Some(rows)
+}
+
+/// The open task ids `priorities.load()` keeps, when every task has a
+/// shape it reads the same way.
+fn open_task_ids(store: &Store, root: &Path) -> Option<Vec<String>> {
+    let top = read_map(store, &root.join("work").join("tasks.yaml"))?;
+    let tasks = match get(&top, "tasks") {
+        None => return Some(Vec::new()),
+        Some(Canon::List(items)) => items,
+        Some(_) => return None,
+    };
+    let mut open = Vec::new();
+    for task in tasks {
+        let pairs = plain_map(task)?;
+        if get(pairs, "link").is_some() {
+            return None;
+        }
+        let is_open = match get(pairs, "status") {
+            None => true,
+            Some(Canon::Str(status)) => status == "open",
+            Some(_) => false,
+        };
+        if is_open {
+            let Some(Canon::Str(id)) = get(pairs, "id") else {
+                return None;
+            };
+            open.push(id.clone());
+        }
+    }
+    Some(open)
+}
+
+/// `_age(round(days, 1))` for an age in tenths of a day.
+fn age_text(age: Option<i64>) -> Option<String> {
+    match age {
+        None => Some("never checked".into()),
+        Some(tenths) => Some(format!(
+            "{}d ago",
+            fmt_g(&format!("{}.{}", tenths / 10, tenths % 10))?
+        )),
+    }
+}
+
+/// `projects.reader` with no plugin and a ref with no link.
+fn reader_of(kind: &str) -> &'static str {
+    if ["memory", "url", "tracker", "repo", "doc", "chat"].contains(&kind) {
+        "careerbrew"
+    } else {
+        "you"
+    }
+}
+
+/// `p.get("proposed", [])` as (kind, ref) pairs.
+fn proposed_of(record: &Pairs) -> Option<Vec<(String, String)>> {
+    match get(record, "proposed") {
+        None => Some(Vec::new()),
+        Some(Canon::List(items)) => items
+            .iter()
+            .map(|item| {
+                let pairs = plain_map(item)?;
+                match (get(pairs, "kind"), get(pairs, "ref")) {
+                    (Some(Canon::Str(kind)), Some(Canon::Str(reference)))
+                        if printable(kind) && printable(reference) =>
+                    {
+                        Some((kind.clone(), reference.clone()))
+                    }
+                    _ => None,
+                }
+            })
+            .collect(),
+        Some(_) => None,
+    }
+}
+
+/// `work project show <name>` when stdout is not a terminal and no plugin
+/// is installed (so `may_show_business()` is false).
+fn project_show(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    if ctx.env.stdout_is_terminal {
+        return None;
+    }
+    let name = printable_name(args)?;
+    // A plugin may hand reads to the agent or allow business text.
+    if !absent(&ctx.root.join("plugins.lock.json")) {
+        return None;
+    }
+    let vault = vault_context()?;
+    let store = vault.store();
+    let settings = read_map(&store, &ctx.root.join("settings.yaml"))?;
+    if !clock_safe(&settings) {
+        return None;
+    }
+    if !(ctx.root.join("work").is_dir() || absent(&ctx.root.join("work"))) {
+        return None;
+    }
+    let every = load_projects(&store, &ctx.root)?;
+    if !every.iter().all(|(n, _)| !n.is_empty() && printable(n)) {
+        return None;
+    }
+    if let Some(message) = unknown_text(&every, name)? {
+        make_dirs(&ctx.root, &["work"])?;
+        return project_error(ctx, &message);
+    }
+    let record = plain_map(&every.iter().find(|(n, _)| n == name)?.1)?;
+    if matches!(get(record, "kind"), Some(Canon::Str(kind)) if kind == "prep") {
+        return None;
+    }
+    let limit = match get(record, "stale_after_days") {
+        None => 7,
+        Some(Canon::Int(n)) => n.to_string().parse::<i64>().ok()?,
+        Some(_) => return None,
+    };
+    if !(-1_000_000..=1_000_000).contains(&limit) {
+        return None;
+    }
+    let rows = show_rows(record, limit, pinned_utc(&settings))?;
+    let Some(Canon::List(tasks)) = get(record, "tasks") else {
+        return None;
+    };
+    let mut linked: Vec<&str> = Vec::new();
+    for task in tasks {
+        match task {
+            Canon::Str(task) if printable(task) => linked.push(task),
+            _ => return None,
+        }
+    }
+    let proposed = proposed_of(record)?;
+    let group = shown_text(record, "group")?;
+    let parent = shown_text(record, "parent")?;
+    let links = links_of(&Canon::Map(record.clone()))?;
+    if !links.iter().all(|link| printable(link)) {
+        return None;
+    }
+    let mut children = Vec::new();
+    let mut linked_from = Vec::new();
+    for (other, rec) in &every {
+        let pairs = plain_map(rec)?;
+        if get(pairs, "parent") == Some(&Canon::Str(name.to_owned())) {
+            children.push(other.as_str());
+        }
+        if links_of(rec)?.iter().any(|link| link == name) {
+            linked_from.push(other.as_str());
+        }
+    }
+    children.sort_unstable();
+    linked_from.sort_unstable();
+    let open = open_task_ids(&store, &ctx.root)?;
+    let mut out = format!("{name}: stale after {limit}d\n");
+    for (key, value) in [("group", &group), ("parent", &parent)] {
+        if !value.is_empty() {
+            out.push_str(&format!("  {key}: {value}\n"));
+        }
+    }
+    let links: Vec<&str> = links.iter().map(String::as_str).collect();
+    for (label, items) in [
+        ("children", &children),
+        ("links", &links),
+        ("linked from", &linked_from),
+    ] {
+        if !items.is_empty() {
+            out.push_str(&format!("  {label}: {}\n", items.join(", ")));
+        }
+    }
+    for row in &rows {
+        let who = reader_of(&row.kind);
+        let mark = if row.marked {
+            "ref  "
+        } else if row.stale {
+            "STALE"
+        } else {
+            "ok   "
+        };
+        out.push_str(&format!(
+            "  {mark}  {:<8} {}  {}  read by {who}\n",
+            row.kind,
+            row.reference,
+            age_text(row.age)?
+        ));
+        if row.marked {
+            out.push_str(&format!(
+                "         reference, never stale: marked as a reference (track it: careerbrew work project reference {name} {} --off)\n",
+                row.reference
+            ));
+        } else if !row.stale_reason.is_empty() {
+            out.push_str(&format!("         why stale: {}\n", row.stale_reason));
+        }
+    }
+    for (kind, reference) in &proposed {
+        out.push_str(&format!(
+            "  proposed: {kind} {reference} (add: careerbrew work project source {name} {kind} {reference})\n"
+        ));
+    }
+    for task in linked {
+        if open.iter().any(|id| id == task) {
+            out.push_str(&format!("  next: {task}\n"));
+        }
+    }
+    said(out, 0)
+}
+
+// ---------- wave 7: work project sync ----------
+
+const SYNC_OFF: &str =
+    "project memory sync is off (turn it on: careerbrew config set project_memory_sync true)";
+
+const SYNC_IDLE: &str = concat!(
+    "memory in: 0 changed file(s): 0 new source(s), 0 proposed, 0 link(s), 0 status line(s)\n",
+    "memory out: 0 new note(s) in 0 project(s)\n",
+    "note: business reading is off here: no notes written (run it in your terminal, or a plugin sets agent_may_read_business)\n",
+);
+
+/// `work project sync` when it changes nothing: every project has no
+/// source and no memory file, no feed event exists, and stdout is not a
+/// terminal (so no note may be written).
+fn project_sync(ctx: &Ctx) -> Option<Outcome> {
+    if ctx.env.stdout_is_terminal {
+        return None;
+    }
+    if !absent(&ctx.root.join("plugins.lock.json")) {
+        return None;
+    }
+    let vault = vault_context()?;
+    let store = vault.store();
+    let settings = read_map(&store, &ctx.root.join("settings.yaml"))?;
+    let enabled = match get(&settings, "project_memory_sync") {
+        None => true,
+        Some(Canon::Bool(flag)) => *flag,
+        Some(_) => return None,
+    };
+    let work = ctx.root.join("work");
+    for path in [work.clone(), work.join("feed")] {
+        if !(path.is_dir() || absent(&path)) {
+            return None;
+        }
+    }
+    // `feed.personal_ids()` reads every feed event: none here.
+    if !absent(&work.join("feed").join("events.jsonl")) {
+        return None;
+    }
+    let every = load_projects(&store, &ctx.root)?;
+    for (_, record) in &every {
+        let pairs = plain_map(record)?;
+        // `normalize_sources` rewrites old refs; with no source it is a no-op.
+        if !matches!(get(pairs, "sources"), Some(Canon::List(items)) if items.is_empty()) {
+            return None;
+        }
+        if get(pairs, "memory").is_some_and(truthy) {
+            return None;
+        }
+    }
+    if enabled {
+        // `sync_in` reads the sync state; a non-map one would crash.
+        let state = store
+            .read_json(&work.join("memory-sync.json"), Canon::Null, false)
+            .ok()?;
+        if truthy(&state) {
+            plain_map(&state)?;
+        }
+    }
+    under_lock(ctx, || ())?;
+    if enabled {
+        let lock = work.join(".memory-sync.lock");
+        careerbrew_vault::lock::with_exact_lock(&lock, || ()).ok()?;
+    }
+    make_dirs(&ctx.root, &["work", "feed"])?;
+    if enabled {
+        said(SYNC_IDLE.to_owned(), 0)
+    } else {
+        said(format!("{SYNC_OFF}\n"), 0)
+    }
+}
+
+// ---------- wave 7: drill progress ----------
+
+/// The data root as `paths.data_root()` prints it, or None when `pathlib`
+/// could print it another way (copied from `explain_scaffold`).
+fn printed_root(ctx: &Ctx) -> Option<String> {
+    let root_text = ctx.root.to_str()?;
+    let given = std::env::var("CAREERBREW_HOME").ok()?;
+    let odd = root_text.contains("//")
+        || root_text.contains("/./")
+        || root_text.ends_with("/.")
+        || root_text.ends_with('/');
+    (given == root_text && !odd && printable(root_text)).then(|| root_text.to_owned())
+}
+
+/// The topics of `tutor.items()` in first-seen order, from the base bank
+/// alone (no plugin knowledge, no generated gap items).
+fn base_topics() -> Option<Vec<String>> {
+    let repo = cards_repo()?;
+    if !absent(&repo.join("knowledge").join("knowledge")) {
+        return None;
+    }
+    let data = repo_yaml(&repo.join("knowledge").join("topics.yaml"))?;
+    let items = match &data {
+        value if !truthy(value) => return Some(Vec::new()),
+        Canon::Map(_) => match get(plain_map(&data)?, "items") {
+            None => return Some(Vec::new()),
+            Some(Canon::List(items)) => items,
+            Some(_) => return None,
+        },
+        _ => return None,
+    };
+    // `out[it["id"]] = ...`: a later item of an id keeps the first one's place.
+    let mut by_id: Vec<(String, String)> = Vec::new();
+    for item in items {
+        let pairs = plain_map(item)?;
+        let (Some(Canon::Str(id)), Some(Canon::Str(topic))) =
+            (get(pairs, "id"), get(pairs, "topic"))
+        else {
+            return None;
+        };
+        if !printable(topic) {
+            return None;
+        }
+        match by_id.iter_mut().find(|(known, _)| known == id) {
+            Some(slot) => slot.1 = topic.clone(),
+            None => by_id.push((id.clone(), topic.clone())),
+        }
+    }
+    let mut topics: Vec<String> = Vec::new();
+    for (_, topic) in by_id {
+        if !topics.contains(&topic) {
+            topics.push(topic);
+        }
+    }
+    Some(topics)
+}
+
+/// `drill progress` before any card, attempt, readiness row or gap item:
+/// every mastery is 0, so the page and the line hold no float or clock.
+fn drill_progress(ctx: &Ctx) -> Option<Outcome> {
+    use careerbrew_reports::charts::{Fmt, Report};
+    let root = printed_root(ctx)?;
+    // A plugin may add knowledge items (`plugins.resources`).
+    if !absent(&ctx.root.join("plugins.lock.json")) {
+        return None;
+    }
+    let vault = vault_context()?;
+    if vault.root != ctx.root {
+        return None;
+    }
+    let store = vault.store();
+    personal_role(&store, &ctx.root)?;
+    let settings = read_map(&store, &ctx.root.join("settings.yaml"))?;
+    if !clock_safe(&settings) {
+        return None;
+    }
+    let tutor = ctx.root.join("tutor");
+    let out_dir = ctx.root.join("out");
+    for dir in [&tutor, &out_dir] {
+        if !(dir.is_dir() || absent(dir)) {
+            return None;
+        }
+    }
+    for file in [
+        "cards.json",
+        "attempts.jsonl",
+        "readiness.jsonl",
+        "gap-items.yaml",
+    ] {
+        if !absent(&tutor.join(file)) {
+            return None;
+        }
+    }
+    let page = out_dir.join("progress.html");
+    if !(absent(&page) || std::fs::symlink_metadata(&page).is_ok_and(|m| m.is_file())) {
+        return None;
+    }
+    let topics = base_topics()?;
+    let mut rep = Report::new(
+        "Interview readiness",
+        "Spaced repetition (FSRS) with binary rubrics. Private; stays on this machine.",
+    );
+    rep.kpis(&[
+        ("readiness (core)".into(), "0%".into()),
+        ("attempts".into(), "0".into()),
+        ("due now".into(), "0".into()),
+    ]);
+    let rows: Vec<(String, f64)> = topics.into_iter().map(|t| (t, 0.0)).collect();
+    rep.bars("Mastery by topic", &rows, 1.0, Fmt::Percent0);
+    rep.line("Rubric score per attempt", &[], 1.0, Fmt::Percent0);
+    rep.line("Readiness over time", &[], 1.0, Fmt::Percent0);
+    rep.bars("Most-missed rubric criteria (count)", &[], 1.0, Fmt::Fixed0);
+    make_dirs(&ctx.root, &["tutor"])?;
+    make_dirs(&ctx.root, &["out"])?;
+    std::fs::write(&page, rep.html()).ok()?;
+    said(
+        format!("readiness 0% over 0 attempt(s); chart: {root}/out/progress.html\n"),
+        0,
+    )
+}
+
+// ---------- wave 8: signals ----------
+//
+// `careerbrew signals` (Python `cmd_signals` and `signals.py`). Served only
+// when stdout is no terminal and no plugin is installed (no plugin lock
+// file, a redaction input checked in `run`): then `may_show_business()` is
+// false and every row's source and effect are hidden, so only kinds,
+// counts, weights and mutes print. `signals reset` is served for an inbox
+// key and for a PM label (`cut`, `rename`, `part`) in a plaintext data
+// folder, with the pinned clock. Every stamp must be in the subset of
+// `datetime.fromisoformat` that `iso_micros` reads; any other shape refuses.
+
+const SIGNAL_WINDOW_DAYS: i128 = 90;
+const SIGNAL_MUTE_AFTER: i64 = 3;
+const SIGNAL_MUTE_DAYS: i128 = 14;
+const SIGNAL_DECIDED: &[&str] = &["accepted", "dismissed", "answered"];
+const SIGNAL_PM_KINDS: &[&str] = &["cut", "rename", "part"];
+const DAY_US: i128 = 86_400 * 1_000_000;
+
+/// True when every map inside has distinct keys (`json.loads` keeps the
+/// last of a repeated key; such a file goes to Python).
+fn distinct_keys(value: &Canon) -> bool {
+    match value {
+        Canon::Map(pairs) => {
+            pairs
+                .iter()
+                .enumerate()
+                .all(|(i, (key, _))| pairs[..i].iter().all(|(other, _)| other != key))
+                && pairs.iter().all(|(_, v)| distinct_keys(v))
+        }
+        Canon::List(items) => items.iter().all(distinct_keys),
+        _ => true,
+    }
+}
+
+/// `str(value or default)`: None refuses a truthy value that is no text.
+fn text_or(value: Option<&Canon>, default: &str) -> Option<String> {
+    match value {
+        None => Some(default.to_owned()),
+        Some(Canon::Str(text)) if !text.is_empty() => Some(text.clone()),
+        Some(other) if !truthy(other) => Some(default.to_owned()),
+        Some(_) => None,
+    }
+}
+
+/// `datetime.fromisoformat(text)` as UTC microseconds (a naive time is
+/// UTC), for `YYYY-MM-DD` and `YYYY-MM-DDTHH:MM:SS[.ffffff][Z|+HH:MM]`;
+/// None for any other form.
+fn iso_micros(text: &str) -> Option<i128> {
+    if !text.is_ascii() {
+        return None;
+    }
+    let num = |part: &str| -> Option<i64> {
+        if !part.is_empty() && part.bytes().all(|c| c.is_ascii_digit()) {
+            part.parse().ok()
+        } else {
+            None
+        }
+    };
+    let b = text.as_bytes();
+    if b.len() < 10 || b[4] != b'-' || b[7] != b'-' {
+        return None;
+    }
+    let year = num(&text[..4])?;
+    if year < 1 {
+        return None;
+    }
+    let month = u32::try_from(num(&text[5..7])?).ok()?;
+    let day = u32::try_from(num(&text[8..10])?).ok()?;
+    let days = civil_days(year, month, day)?;
+    let mut micros = i128::from(days) * DAY_US;
+    if b.len() == 10 {
+        return Some(micros);
+    }
+    if b.len() < 19 || b[10] != b'T' || b[13] != b':' || b[16] != b':' {
+        return None;
+    }
+    let (hour, minute, second) = (
+        num(&text[11..13])?,
+        num(&text[14..16])?,
+        num(&text[17..19])?,
+    );
+    if hour > 23 || minute > 59 || second > 59 {
+        return None;
+    }
+    micros += i128::from(hour * 3600 + minute * 60 + second) * 1_000_000;
+    let mut rest = &text[19..];
+    if let Some(frac) = rest.strip_prefix('.') {
+        let digits = frac.get(..6)?;
+        micros += i128::from(num(digits)?);
+        rest = &frac[6..];
+    }
+    match rest {
+        "" | "Z" => Some(micros),
+        zone => Some(micros - i128::from(offset_secs(zone)?) * 1_000_000),
+    }
+}
+
+/// `_when(i.get("decided_at") or i.get("created_at"))`: the earliest time
+/// for a missing value, None for a stamp `iso_micros` cannot read for sure.
+fn decided_at(item: &Pairs) -> Option<i128> {
+    let value = match get(item, "decided_at") {
+        Some(v) if truthy(v) => Some(v),
+        _ => get(item, "created_at"),
+    };
+    match value {
+        Some(Canon::Str(text)) if !text.is_empty() => iso_micros(text),
+        Some(other) if truthy(other) => None,
+        _ => Some(i128::MIN),
+    }
+}
+
+/// `signals.key(item)`: (kind, source).
+fn signal_key(item: &Pairs) -> Option<(String, String)> {
+    let kind = text_or(get(item, "kind"), "")?;
+    let origin = text_or(get(item, "origin"), "")?;
+    if origin.starts_with("plugin:") {
+        return Some((kind, origin));
+    }
+    let data = match get(item, "data") {
+        None => Vec::new(),
+        Some(value) if !truthy(value) => Vec::new(),
+        Some(value) => plain_map(value)?.clone(),
+    };
+    let project = text_or(get(&data, "project"), "")?;
+    if !project.is_empty() {
+        return Some((kind, format!("project:{project}")));
+    }
+    if kind == "project" {
+        let what = text_or(get(&data, "kind"), "")?;
+        if !what.is_empty() {
+            return Some((kind, what));
+        }
+    }
+    let src = text_or(get(&data, "source"), "careerbrew")?;
+    let src = if src == "pr" {
+        "github".to_owned()
+    } else {
+        src
+    };
+    Some((kind, src))
+}
+
+/// One key's counts (`signals.inbox_counts`).
+struct SignalCounts {
+    accepted: i64,
+    dismissed: i64,
+    run: i64,
+    last: i128,
+    question: bool,
+}
+
+type SignalKey = (String, String);
+
+/// `store.read_json(path, {}) or {}` as a map; None for another shape.
+fn json_map(store: &Store, path: &Path) -> Option<Pairs> {
+    if std::fs::symlink_metadata(path).is_ok_and(|meta| !meta.is_file()) {
+        return None;
+    }
+    let value = store.read_json(path, Canon::Map(Vec::new()), false).ok()?;
+    if !distinct_keys(&value) {
+        return None;
+    }
+    match value {
+        Canon::Map(pairs) => Some(pairs),
+        other if !truthy(&other) => Some(Vec::new()),
+        _ => None,
+    }
+}
+
+/// `signals._resets()`: key -> stamp, every value a text.
+fn signal_resets(store: &Store, root: &Path) -> Option<Vec<(String, String)>> {
+    let top = json_map(store, &root.join("day/signal-resets.json"))?;
+    let resets = match get(&top, "resets") {
+        None => return Some(Vec::new()),
+        Some(Canon::Map(pairs)) => pairs,
+        Some(_) => return None,
+    };
+    resets
+        .iter()
+        .map(|(key, value)| match (key, value) {
+            (Canon::Str(key), Canon::Str(value)) => Some((key.clone(), value.clone())),
+            _ => None,
+        })
+        .collect()
+}
+
+fn status_is(item: &Pairs, wanted: &[&str]) -> bool {
+    matches!(get(item, "status"), Some(Canon::Str(s)) if wanted.contains(&s.as_str()))
+}
+
+/// `signals.inbox_counts()`, sorted by key. `now` is needed only when an
+/// item is decided; None refuses.
+fn inbox_counts(
+    store: &Store,
+    root: &Path,
+    now: Option<i128>,
+) -> Option<Vec<(SignalKey, SignalCounts)>> {
+    let top = json_map(store, &root.join("day/inbox.json"))?;
+    let items = match get(&top, "items") {
+        None => Vec::new(),
+        Some(Canon::List(items)) => items.clone(),
+        Some(_) => return None,
+    };
+    let resets = signal_resets(store, root)?;
+    let mut rows: Vec<(i128, SignalKey, &Pairs)> = Vec::new();
+    for item in &items {
+        let Canon::Map(item) = item else {
+            return None;
+        };
+        if !status_is(item, SIGNAL_DECIDED) {
+            continue;
+        }
+        let now = now?;
+        let at = decided_at(item)?;
+        if at < now - SIGNAL_WINDOW_DAYS * DAY_US {
+            continue;
+        }
+        let key = signal_key(item)?;
+        let joined = format!("{}|{}", key.0, key.1);
+        if let Some((_, since)) = resets.iter().find(|(k, _)| *k == joined) {
+            if !since.is_empty() && at <= iso_micros(since)? {
+                continue;
+            }
+        }
+        rows.push((at, key, item));
+    }
+    rows.sort_by_key(|row| row.0);
+    let mut out: Vec<(SignalKey, SignalCounts)> = Vec::new();
+    let mut groups: Vec<String> = Vec::new();
+    for (at, key, item) in rows {
+        match get(item, "decided_group") {
+            Some(Canon::Str(group)) if !group.is_empty() => {
+                if groups.contains(group) {
+                    continue;
+                }
+                groups.push(group.clone());
+            }
+            Some(other) if truthy(other) => return None,
+            _ => {}
+        }
+        let index = match out.iter().position(|(k, _)| *k == key) {
+            Some(index) => index,
+            None => {
+                let question = matches!(get(item, "type"), Some(Canon::Str(t)) if t == "question");
+                out.push((
+                    key,
+                    SignalCounts {
+                        accepted: 0,
+                        dismissed: 0,
+                        run: 0,
+                        last: 0,
+                        question,
+                    },
+                ));
+                out.len() - 1
+            }
+        };
+        let counts = &mut out[index].1;
+        if status_is(item, &["dismissed"]) {
+            counts.dismissed += 1;
+            counts.run += 1;
+        } else {
+            counts.accepted += 1;
+            counts.run = 0;
+        }
+        counts.last = at;
+    }
+    out.sort_by(|a, b| a.0.cmp(&b.0));
+    Some(out)
+}
+
+/// `round(x, 3)` in Python's `repr`: correctly rounded half to even on the
+/// exact binary value, then the shortest text.
+fn py_round3(x: f64) -> Option<String> {
+    if !x.is_finite() || x < 0.0 {
+        return None;
+    }
+    let exact = format!("{x:.80}");
+    let (whole, frac) = exact.split_once('.')?;
+    let head = frac.get(..3)?;
+    let tail = frac.get(3..)?;
+    let mut digits: Vec<u8> = whole.bytes().chain(head.bytes()).collect();
+    let first = *tail.as_bytes().first()?;
+    let rest_zero = tail[1..].bytes().all(|c| c == b'0');
+    let odd = (digits[digits.len() - 1] - b'0') % 2 == 1;
+    let up = first > b'5' || (first == b'5' && (!rest_zero || odd));
+    if up {
+        let mut at = digits.len();
+        loop {
+            if at == 0 {
+                digits.insert(0, b'1');
+                break;
+            }
+            at -= 1;
+            if digits[at] == b'9' {
+                digits[at] = b'0';
+            } else {
+                digits[at] += 1;
+                break;
+            }
+        }
+    }
+    let text = String::from_utf8(digits).ok()?;
+    let (int_part, frac_part) = text.split_at(text.len() - 3);
+    let frac_part = frac_part.trim_end_matches('0');
+    Some(format!(
+        "{int_part}.{}",
+        if frac_part.is_empty() { "0" } else { frac_part }
+    ))
+}
+
+/// `signals.weight_of(counts)` as (value, Python text).
+fn signal_weight(counts: &SignalCounts) -> Option<(f64, String)> {
+    let (a, d) = (counts.accepted, counts.dismissed);
+    if a + d > (1 << 50) {
+        return None;
+    }
+    let raw = (2 * (a + 1)) as f64 / (a + d + 2) as f64;
+    let clamped = raw.clamp(0.1, 1.0);
+    let text = py_round3(clamped)?;
+    Some((text.parse().ok()?, text))
+}
+
+fn signal_muted(counts: &SignalCounts, now: Option<i128>) -> Option<bool> {
+    if !counts.question || counts.run < SIGNAL_MUTE_AFTER {
+        return Some(false);
+    }
+    Some(now? - counts.last < SIGNAL_MUTE_DAYS * DAY_US)
+}
+
+/// A character Python's `splitlines` or `strip` reads another way than
+/// this port does.
+fn odd_char(c: char) -> bool {
+    (c.is_control() && c != '\n' && c != '\t') || matches!(c, '\u{2028}' | '\u{2029}' | '\u{85}')
+}
+
+/// A PM edit row's text field: absent, null or a text.
+fn pm_text_ok(value: Option<&Canon>) -> bool {
+    match value {
+        None | Some(Canon::Null) => true,
+        Some(Canon::Str(text)) => !text.chars().any(odd_char),
+        Some(_) => false,
+    }
+}
+
+/// `store.read_jsonl(pm_learn.path())` when every row is a map whose text
+/// fields read the same in both ports; None refuses.
+fn pm_rows(store: &Store, root: &Path) -> Option<Vec<Pairs>> {
+    let path = root.join("day/pm-edits.jsonl");
+    if std::fs::symlink_metadata(&path).is_ok_and(|meta| !meta.is_file()) {
+        return None;
+    }
+    let text = store
+        .read_text(&path, None, false)
+        .ok()?
+        .unwrap_or_default();
+    if text.chars().any(odd_char) {
+        return None;
+    }
+    let mut out = Vec::new();
+    for line in text.split('\n') {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let value = careerbrew_vault::json_yaml::json_read(line).ok()?;
+        if !distinct_keys(&value) {
+            return None;
+        }
+        let Canon::Map(row) = value else {
+            return None;
+        };
+        for key in ["draft", "shown", "body", "saved"] {
+            if !pm_text_ok(get(&row, key)) {
+                return None;
+            }
+        }
+        if !matches!(get(&row, "day"), None | Some(Canon::Str(_))) {
+            return None;
+        }
+        out.push(row);
+    }
+    Some(out)
+}
+
+/// `store.read_json(pm_learn.resets_path(), {}) or {}`: a map of texts.
+fn pm_resets(store: &Store, root: &Path) -> Option<Pairs> {
+    let resets = json_map(store, &root.join("day/pm-resets.json"))?;
+    resets
+        .iter()
+        .all(|(_, value)| matches!(value, Canon::Str(_)))
+        .then_some(resets)
+}
+
+/// `signals.pm_summary()` as the number of rows per kind: cut, rename,
+/// part, added (their sources and effects are hidden).
+fn pm_counts(store: &Store, root: &Path) -> Option<[usize; 4]> {
+    pm_rows(store, root)?;
+    pm_resets(store, root)?;
+    let learned = careerbrew_day::pm_learn::rules(root, None).ok()?;
+    let len = |key: &str| -> Option<usize> {
+        let value = &learned[key];
+        value
+            .as_array()
+            .map(Vec::len)
+            .or_else(|| value.as_object().map(|map| map.len()))
+    };
+    Some([len("cut")?, len("rename")?, len("parts")?, len("added")?])
+}
+
+/// The pinned `calendar.now_utc()` in microseconds, when Python reads it
+/// for sure; None otherwise.
+fn signal_now(store: &Store) -> Option<i128> {
+    let settings = careerbrew_vault::settings::read_settings(store).ok()?;
+    let settings = plain_map(&settings)?;
+    if !clock_safe(settings) {
+        return None;
+    }
+    pinned_utc(settings).map(|secs| i128::from(secs) * 1_000_000)
+}
+
+/// `isoformat(timespec="seconds")` of a UTC time.
+fn utc_iso_seconds(micros: i128) -> Option<String> {
+    let secs = i64::try_from(micros.div_euclid(1_000_000)).ok()?;
+    let days = secs.div_euclid(86_400);
+    let rem = secs.rem_euclid(86_400);
+    // The civil date of a day count since the epoch.
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    if !(1..=9999).contains(&year) {
+        return None;
+    }
+    Some(format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}+00:00",
+        rem / 3600,
+        rem % 3600 / 60,
+        rem % 60
+    ))
+}
+
+/// One inbox row as printed: kind, accepted, dismissed, weight text, and
+/// whether it changes what careerbrew does now.
+struct InboxRow {
+    kind: String,
+    accepted: i64,
+    dismissed: i64,
+    weight: String,
+    muted: bool,
+    changes: bool,
+}
+
+const HIDDEN_EFFECT: &str = "(hidden: run it in your terminal)";
+
+fn signals(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    // A terminal shows business text (`may_show_business`): Python runs it.
+    if ctx.env.stdout_is_terminal {
+        return None;
+    }
+    let action = args.text("action");
+    if !matches!(action, None | Some("reset")) {
+        return None;
+    }
+    let vault = vault_context()?;
+    if vault.root != ctx.root {
+        return None;
+    }
+    let store = vault.store();
+    if action == Some("reset") {
+        let kind = args.text("kind").filter(|k| !k.is_empty());
+        let source = args.text("source").filter(|s| !s.is_empty());
+        let (Some(kind), Some(source)) = (kind, source) else {
+            return said(
+                "reset needs a kind and a source, as `careerbrew signals` names them: careerbrew signals reset plugin plugin:acme\n".to_owned(),
+                2,
+            );
+        };
+        return signals_reset(ctx, &store, kind, source);
+    }
+    let now = signal_now(&store);
+    let counts = inbox_counts(&store, &ctx.root, now)?;
+    let pm = pm_counts(&store, &ctx.root)?;
+    let mut inbox = Vec::new();
+    for ((kind, _), c) in &counts {
+        if !printable(kind) {
+            return None;
+        }
+        let (value, weight) = signal_weight(c)?;
+        let muted = signal_muted(c, now)?;
+        inbox.push(InboxRow {
+            kind: kind.clone(),
+            accepted: c.accepted,
+            dismissed: c.dismissed,
+            weight,
+            muted,
+            changes: value < 1.0 || muted,
+        });
+    }
+    let pm_kinds: Vec<&str> = ["cut", "rename", "part", "added"]
+        .iter()
+        .zip(pm)
+        .flat_map(|(kind, n)| std::iter::repeat_n(*kind, n))
+        .collect();
+    make_dirs(&ctx.root, &["day"])?;
+    let total = inbox.len() + pm_kinds.len();
+    let mut out = String::new();
+    if args.flag("json") {
+        if total == 0 {
+            return said("[]\n".to_owned(), 0);
+        }
+        let mut blocks: Vec<String> = Vec::new();
+        for row in &inbox {
+            blocks.push(format!(
+                "  {{\n    \"signal\": \"inbox\",\n    \"kind\": {},\n    \"accepted\": {},\n    \"dismissed\": {},\n    \"weight\": {},\n    \"muted\": {},\n    \"source\": \"(hidden)\",\n    \"effect\": \"{HIDDEN_EFFECT}\"\n  }}",
+                quoted(&row.kind),
+                row.accepted,
+                row.dismissed,
+                row.weight,
+                row.muted
+            ));
+        }
+        for kind in &pm_kinds {
+            blocks.push(format!(
+                "  {{\n    \"signal\": \"pm\",\n    \"kind\": \"{kind}\",\n    \"source\": \"(hidden)\",\n    \"effect\": \"{HIDDEN_EFFECT}\"\n  }}"
+            ));
+        }
+        out.push_str("[\n");
+        out.push_str(&blocks.join(",\n"));
+        out.push_str("\n]\n");
+        return said(out, 0);
+    }
+    if total == 0 {
+        return said("no decisions yet: accept, dismiss, or answer items in the inbox (careerbrew day inbox, or Today in the web app)\n".to_owned(), 0);
+    }
+    let changing = inbox.iter().filter(|row| row.changes).count() + pm_kinds.len();
+    out.push_str(&format!(
+        "{total} signal(s) from your decisions; {changing} change what careerbrew does now\n"
+    ));
+    for row in &inbox {
+        out.push_str(&format!(
+            "- {:<12} from (hidden): {} accepted, {} dismissed -> {HIDDEN_EFFECT}\n",
+            row.kind, row.accepted, row.dismissed
+        ));
+    }
+    for _ in &pm_kinds {
+        out.push_str(&format!("- PM update  {HIDDEN_EFFECT}\n"));
+    }
+    said(out, 0)
+}
+
+/// How many edit rows have a draft line with this label (`pm_learn.reset`).
+fn pm_label_days(rows: &[Pairs], key: &str) -> usize {
+    rows.iter()
+        .filter(|row| {
+            let draft = match get(row, "draft") {
+                Some(Canon::Str(text)) => text.as_str(),
+                _ => "",
+            };
+            draft
+                .split('\n')
+                .filter(|line| !line.trim().is_empty())
+                .any(|line| {
+                    let (label, _) = careerbrew_day::pm_learn::split(line);
+                    careerbrew_day::pm_learn::norm(&label) == key
+                })
+        })
+        .count()
+}
+
+/// `signals.reset(kind, source)` and its line, in a plaintext data folder.
+fn signals_reset(ctx: &Ctx, store: &Store, kind: &str, source: &str) -> Option<Outcome> {
+    if !printable(kind) || !printable(source) || store.encryption_enabled() {
+        return None;
+    }
+    let now = signal_now(store)?;
+    let stamp = utc_iso_seconds(now)?;
+    if SIGNAL_PM_KINDS.contains(&kind) {
+        let rows = pm_rows(store, &ctx.root)?;
+        let mut data = pm_resets(store, &ctx.root)?;
+        let key = careerbrew_day::pm_learn::norm(source);
+        if !printable(&key) {
+            return None;
+        }
+        let had = pm_label_days(&rows, &key);
+        make_dirs(&ctx.root, &["day"])?;
+        if had == 0 {
+            return cli_error(
+                ctx,
+                "signals",
+                "valueerror",
+                &format!("no PM lesson for {source} (see: careerbrew signals)"),
+            );
+        }
+        data.retain(|(k, _)| !matches!(k, Canon::Str(k) if *k == key));
+        data.push((Canon::Str(key), Canon::Str(stamp)));
+        store
+            .write_json(&ctx.root.join("day/pm-resets.json"), &Canon::Map(data))
+            .ok()?;
+        return signals_reset_done(ctx, kind, source, i64::try_from(had).ok()?, true);
+    }
+    let counts = inbox_counts(store, &ctx.root, Some(now))?;
+    let mut resets = signal_resets(store, &ctx.root)?;
+    make_dirs(&ctx.root, &["day"])?;
+    let Some((_, had)) = counts.iter().find(|((k, s), _)| k == kind && s == source) else {
+        return cli_error(
+            ctx,
+            "signals",
+            "valueerror",
+            &format!("no signal for {kind} from {source} (see: careerbrew signals)"),
+        );
+    };
+    let n = had.accepted + had.dismissed;
+    let joined = format!("{kind}|{source}");
+    resets.retain(|(k, _)| *k != joined);
+    resets.push((joined, stamp));
+    let map = Canon::Map(
+        resets
+            .into_iter()
+            .map(|(k, v)| (Canon::Str(k), Canon::Str(v)))
+            .collect(),
+    );
+    let top = Canon::Map(vec![(Canon::Str("resets".to_owned()), map)]);
+    store
+        .write_json(&ctx.root.join("day/signal-resets.json"), &top)
+        .ok()?;
+    signals_reset_done(ctx, kind, source, n, false)
+}
+
+fn signals_reset_done(ctx: &Ctx, kind: &str, source: &str, n: i64, pm: bool) -> Option<Outcome> {
+    emit_json(
+        ctx,
+        "signals.reset",
+        &[("count", n.to_string()), ("status", quoted("ok"))],
+    );
+    let tail = if pm {
+        "the PM update writes that line as generated again"
+    } else {
+        "its weight is 1.0 again and its questions come back"
+    };
+    said(
+        format!("{kind} {source}: {n} decision(s) forgotten; {tail}\n"),
+        0,
+    )
 }
