@@ -123,9 +123,9 @@ work.promise.add python
 work.promise.outcomes python
 work.promise.accept python
 work.promise.stats python
-work.promise.done python
-work.promise.dropped python
-work.promise.step python
+work.promise.done native
+work.promise.dropped native
+work.promise.step native
 work.agent.event native
 work.agent.show native
 work.session.open native

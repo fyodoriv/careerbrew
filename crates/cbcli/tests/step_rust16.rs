@@ -1,6 +1,7 @@
 //! Parity cases for the `rust-16` native handlers: "day.wrap",
 //! "day.question.list", "day.question.close", "day.loop" (status, add and
-//! stop) and "day.history".
+//! stop), "day.history", "work.promise.done", "work.promise.dropped" and
+//! "work.promise.step".
 //!
 //! Each served case runs Python and the native binary in the same fresh
 //! synthetic home and compares stdout, exit code, data-root files (with
@@ -518,4 +519,172 @@ fn the_loop_comparison_detects_a_planted_difference() {
     );
     let long = observe(&prepare_setup(&HISTORY), &["day", "history"], &Side::Python);
     assert_ne!(short.stdout, long.stdout);
+}
+
+// ---------- work promise done, dropped and step ----------
+
+/// `work/projects.yaml` as `store.write_yaml` writes it: an open promise
+/// with a link, one with a step, a removal mark and an old `closed` key, a
+/// closed one, and a plain project.
+const PROJECTS_YAML: &str = "projects:\n  promise-aaaa1111:\n    incarnation_id: '00000000000000000000000000000000'\n    created_at: '2026-11-19T10:00:00+00:00'\n    memory: ''\n    stale_after_days: 14\n    sources:\n    - kind: url\n      ref: https://example.com/t/1\n      checked_at: null\n      status: ''\n      reference: true\n    tasks: []\n    kind: promise\n    title: Send the synthetic report\n    promise:\n      event: ''\n      to: Sam\n      due: '2026-11-21'\n      made_at: '2026-11-19T10:00:00+00:00'\n      steps: {}\n  promise-bbbb2222:\n    incarnation_id: '11111111111111111111111111111111'\n    created_at: '2026-11-18T10:00:00+00:00'\n    memory: ''\n    stale_after_days: 14\n    sources: []\n    tasks: []\n    kind: promise\n    title: Review the synthetic plan\n    promise:\n      event: ev1\n      to: ''\n      due: ''\n      made_at: '2026-11-18T10:00:00+00:00'\n      steps:\n        research: '2026-11-18T11:00:00+00:00'\n      pm_removed: '2026-11-19'\n      closed: x\n    updates:\n    - at: '2026-11-18T11:00:00+00:00'\n      kind: project\n      text: 'research: looked'\n  promise-cccc3333:\n    incarnation_id: '22222222222222222222222222222222'\n    created_at: '2026-11-17T10:00:00+00:00'\n    memory: ''\n    stale_after_days: 14\n    sources: []\n    tasks: []\n    kind: promise\n    title: Closed one\n    promise:\n      event: ''\n      to: ''\n      due: ''\n      made_at: '2026-11-17T10:00:00+00:00'\n      steps: {}\n      closed: done\n    archived_at: '2026-11-18T10:00:00+00:00'\n  synthetic-proj:\n    incarnation_id: '33333333333333333333333333333333'\n    created_at: '2026-11-17T10:00:00+00:00'\n    memory: ''\n    stale_after_days: 14\n    sources: []\n    tasks: []\n";
+
+const PROMISES: Setup = Setup {
+    id: "promises",
+    cli: &[],
+    files: &[(".plaintext", ""), ("work/projects.yaml", PROJECTS_YAML)],
+};
+
+const PROMISES_REDACTION: Setup = Setup {
+    id: "promises-redaction",
+    cli: &[],
+    files: &[
+        (".plaintext", ""),
+        ("profile.yaml", "name: Synthetic Person\n"),
+        ("work/projects.yaml", PROJECTS_YAML),
+    ],
+};
+
+/// Records in flow style: not what `safe_dump` writes back.
+const PROMISES_FLOW: Setup = Setup {
+    id: "promises-flow",
+    cli: &[],
+    files: &[
+        (".plaintext", ""),
+        (
+            "work/projects.yaml",
+            "{projects: {promise-aaaa1111: {kind: promise, title: x, promise: {steps: {}}}}}\n",
+        ),
+    ],
+};
+
+/// No `.plaintext` marker: every write is sealed and differs.
+const PROMISES_SEALED: Setup = Setup {
+    id: "promises-sealed",
+    cli: &[],
+    files: &[("work/projects.yaml", PROJECTS_YAML)],
+};
+
+#[test]
+fn work_promise_done_and_dropped_match_python() {
+    strict(NOW);
+    for label in ["work.promise.done", "work.promise.dropped"] {
+        let verb = label.rsplit('.').next().unwrap();
+        let home = prepare_setup(&PROMISES);
+        for name in [
+            "promise-aaaa1111",
+            "promise-bbbb2222",
+            "promise-cccc3333",
+            "promise-missing",
+            "synthetic-proj",
+        ] {
+            assert_same(&home, &["work", "promise", verb, name], true, label);
+        }
+        let empty = prepare_setup(&PLAIN);
+        assert_same(
+            &empty,
+            &["work", "promise", verb, "promise-aaaa1111"],
+            true,
+            label,
+        );
+    }
+}
+
+#[test]
+fn work_promise_step_matches_python() {
+    strict(NOW);
+    let label = "work.promise.step";
+    let home = prepare_setup(&PROMISES);
+    let long = "x".repeat(201);
+    let edge = "y".repeat(200);
+    let cases: Vec<(&str, &str, &str)> = vec![
+        ("promise-aaaa1111", "research", "read the synthetic thread"),
+        ("promise-aaaa1111", "status", "  told the owner  "),
+        ("promise-bbbb2222", "draft", "drafted a reply"),
+        ("promise-bbbb2222", "research", "looked again"),
+        ("promise-cccc3333", "research", "too late"),
+        ("promise-missing", "research", "nothing"),
+        ("synthetic-proj", "draft", "not a promise"),
+        ("promise-aaaa1111", "draft", "   "),
+        ("promise-aaaa1111", "draft", "two\nlines"),
+        ("promise-aaaa1111", "draft", &long),
+        ("promise-aaaa1111", "draft", &edge),
+    ];
+    for (name, which, text) in cases {
+        assert_same(
+            &home,
+            &["work", "promise", "step", name, which, text],
+            true,
+            label,
+        );
+    }
+    let empty = prepare_setup(&PLAIN);
+    assert_same(
+        &empty,
+        &["work", "promise", "step", "promise-aaaa1111", "draft", "x"],
+        true,
+        label,
+    );
+}
+
+#[test]
+fn work_promise_writers_refuse_what_they_cannot_match() {
+    strict(NOW);
+    let cases: [(&str, &[&str]); 3] = [
+        (
+            "work.promise.done",
+            &["work", "promise", "done", "promise-aaaa1111"],
+        ),
+        (
+            "work.promise.dropped",
+            &["work", "promise", "dropped", "promise-aaaa1111"],
+        ),
+        (
+            "work.promise.step",
+            &[
+                "work",
+                "promise",
+                "step",
+                "promise-aaaa1111",
+                "research",
+                "x",
+            ],
+        ),
+    ];
+    for (label, args) in cases {
+        refuses(&prepare_setup(&PROMISES_REDACTION), args, label);
+        refuses(&prepare_setup(&PROMISES_FLOW), args, label);
+        refuses(&prepare_setup(&PROMISES_SEALED), args, label);
+    }
+    // argparse's choices.
+    refuses(
+        &prepare_setup(&PROMISES),
+        &["work", "promise", "step", "promise-aaaa1111", "review", "x"],
+        "work.promise.step",
+    );
+}
+
+/// Negative control: closing a promise and closing a missing one print,
+/// exit and write differently, and done and dropped write different files.
+#[test]
+fn the_promise_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let home = prepare_setup(&PROMISES);
+    let done = observe(
+        &home,
+        &["work", "promise", "done", "promise-aaaa1111"],
+        &Side::Native,
+    );
+    let missing = observe(
+        &home,
+        &["work", "promise", "done", "promise-missing"],
+        &Side::Python,
+    );
+    assert_ne!(done, missing);
+    assert_ne!(done.files, missing.files);
+    let dropped = observe(
+        &home,
+        &["work", "promise", "dropped", "promise-aaaa1111"],
+        &Side::Python,
+    );
+    assert_ne!(done.files, dropped.files);
 }

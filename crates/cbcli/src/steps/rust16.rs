@@ -3,7 +3,10 @@
 //! question list`, `day question close`), the watch loop's records (`day
 //! loop status`, `add` and `stop`; every other action goes to Python) and
 //! the step history (`day history`, only in a home that holds nothing else
-//! its plan could read).
+//! its plan could read), and closing a promise or recording one of its
+//! steps (`work promise done`, `dropped` and `step`, only in a plaintext
+//! data folder whose `work/projects.yaml` is exactly what PyYAML's
+//! `safe_dump` writes for the value read back).
 //!
 //! Each handler calls the `careerbrew_workexec` / `careerbrew_workday`
 //! component and prints what `cli.py` prints. It refuses (exit 64, Python
@@ -31,6 +34,9 @@ pub const COMMANDS: &[&str] = &[
     "day.question.close",
     "day.loop",
     "day.history",
+    "work.promise.done",
+    "work.promise.dropped",
+    "work.promise.step",
 ];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
@@ -42,6 +48,19 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "day.question.close" => logged("day.question", question_close(args, ctx)?, ctx, started),
         "day.loop" => day_loop(args, ctx),
         "day.history" => history(args, ctx),
+        "work.promise.done" => logged(
+            "work.promise",
+            promise_close(args, ctx, "done")?,
+            ctx,
+            started,
+        ),
+        "work.promise.dropped" => logged(
+            "work.promise",
+            promise_close(args, ctx, "dropped")?,
+            ctx,
+            started,
+        ),
+        "work.promise.step" => logged("work.promise", promise_step(args, ctx)?, ctx, started),
         _ => None,
     }
 }
@@ -1247,4 +1266,359 @@ fn history(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
             .ok()?;
     }
     Some(out(stdout, 0))
+}
+
+// ---------- work promise done, dropped and step (wave 4) ----------
+
+const PROMISE_STEPS: [&str; 3] = ["research", "draft", "status"];
+
+/// `projects.UPDATES_KEPT` and `projects.UPDATE_MAX`.
+const UPDATES_KEPT: usize = 20;
+const UPDATE_MAX: usize = 200;
+
+fn ckey(name: &str) -> Canon {
+    Canon::Str(name.to_owned())
+}
+
+/// The value under a text key; Err for a map whose keys are not distinct
+/// text (Python and this module could then pick another entry).
+fn pget<'a>(pairs: &'a [(Canon, Canon)], key: &str) -> Result<Option<&'a Canon>, ()> {
+    let mut found = None;
+    for (k, v) in pairs {
+        let Canon::Str(name) = k else {
+            return Err(());
+        };
+        if name == key {
+            if found.is_some() {
+                return Err(());
+            }
+            found = Some(v);
+        }
+    }
+    Ok(found)
+}
+
+/// `d[key] = value`: an existing key keeps its place, a new one goes last.
+fn pset(pairs: &mut Vec<(Canon, Canon)>, key: &str, value: Canon) {
+    match pairs
+        .iter_mut()
+        .find(|(k, _)| matches!(k, Canon::Str(k) if k == key))
+    {
+        Some((_, slot)) => *slot = value,
+        None => pairs.push((ckey(key), value)),
+    }
+}
+
+/// Python's truth value, or None for a float (not modelled here).
+fn ptruthy(value: Option<&Canon>) -> Option<bool> {
+    Some(match value {
+        None | Some(Canon::Null) => false,
+        Some(Canon::Bool(b)) => *b,
+        Some(Canon::Int(n)) => n.to_string() != "0",
+        Some(Canon::Float(_)) => return None,
+        Some(Canon::Str(s) | Canon::Date(s) | Canon::DateTime(s)) => !s.is_empty(),
+        Some(Canon::List(items)) => !items.is_empty(),
+        Some(Canon::Map(pairs)) => !pairs.is_empty(),
+    })
+}
+
+/// `value or {}` for a value Python then reads as a dict: the pairs, or
+/// None when a truthy value is not a map (Python would raise), or when a
+/// key is not text.
+fn map_or_empty(value: Option<&Canon>) -> Option<Vec<(Canon, Canon)>> {
+    match value {
+        Some(Canon::Map(pairs)) => {
+            if pairs.iter().any(|(k, _)| !matches!(k, Canon::Str(_))) {
+                return None;
+            }
+            Some(pairs.clone())
+        }
+        other if !ptruthy(other)? => Some(Vec::new()),
+        _ => None,
+    }
+}
+
+/// True when PyYAML could read `text` in a way this module does not model:
+/// anchors, aliases, tags, merge keys, directives, complex keys, a BOM or a
+/// carriage return.
+fn odd_projects_yaml(text: &str) -> bool {
+    text.contains(['&', '*', '!', '\r', '\u{feff}'])
+        || text.contains("<<")
+        || text.lines().any(|line| {
+            let line = line.trim_start();
+            line.starts_with('%') || line.starts_with('?')
+        })
+}
+
+/// What `projects._load()` returns, as pairs, read from a plaintext data
+/// folder; None (refuse) for an encrypted folder, a file that is not
+/// exactly `safe_dump` of what it parses to, or any shape Python would read
+/// differently or fail on.
+fn projects_load(
+    store: &careerbrew_vault::store::Store,
+    path: &Path,
+) -> Option<Vec<(Canon, Canon)>> {
+    if store.encryption_enabled() {
+        return None;
+    }
+    if std::fs::symlink_metadata(path).is_ok_and(|meta| !meta.is_file()) {
+        return None;
+    }
+    let Some(text) = store.read_text(path, None, true).ok()? else {
+        return Some(Vec::new());
+    };
+    if odd_projects_yaml(&text) {
+        return None;
+    }
+    let data = careerbrew_vault::json_yaml::yaml_read(&text).ok()?;
+    // The parse is trusted only when it dumps back to the same bytes.
+    if crate::pyyaml::safe_dump(&data)? != text {
+        return None;
+    }
+    let top = map_or_empty(Some(&data))?;
+    let projects = map_or_empty(pget(&top, "projects").ok()?)?;
+    // Distinct text names: `records().get(name)` then finds the one entry.
+    pget(&projects, "").ok()?;
+    let mut seen: Vec<&Canon> = Vec::new();
+    for (name, _) in &projects {
+        if seen.contains(&name) {
+            return None;
+        }
+        seen.push(name);
+    }
+    Some(projects)
+}
+
+/// `promises._get(name)`: Ok(the record's pairs), Err(Some(outcome)) for
+/// Python's "no promise" error, Err(None) to refuse.
+fn promise_record(
+    projects: &[(Canon, Canon)],
+    name: &str,
+) -> Result<Vec<(Canon, Canon)>, Option<Outcome>> {
+    let missing = || {
+        Err(Some(fail(
+            &format!("no promise {name} (see: careerbrew work promise list)"),
+            "US-99",
+        )))
+    };
+    match pget(projects, name).map_err(|_| None)? {
+        None => missing(),
+        Some(Canon::Map(pairs)) => {
+            if pairs.is_empty() {
+                return missing();
+            }
+            if pairs.iter().any(|(k, _)| !matches!(k, Canon::Str(_))) {
+                return Err(None);
+            }
+            match pget(pairs, "kind").map_err(|_| None)? {
+                Some(Canon::Str(kind)) if kind == "promise" => Ok(pairs.clone()),
+                // Only plain values are sure to compare unequal to "promise".
+                Some(Canon::Str(_) | Canon::Null | Canon::Bool(_) | Canon::Int(_)) | None => {
+                    missing()
+                }
+                Some(_) => Err(None),
+            }
+        }
+        Some(other) => match ptruthy(Some(other)) {
+            Some(false) => missing(),
+            _ => Err(None),
+        },
+    }
+}
+
+/// `projects._now().isoformat(timespec="seconds")`: the instant in UTC.
+fn utc_stamp() -> String {
+    let now = careerbrew_workday::now();
+    format!("{}+00:00", now.naive_utc().format("%Y-%m-%dT%H:%M:%S"))
+}
+
+/// Holds `.projects.yaml.lock` as `projects.locked()` does (created in
+/// append mode, then an exclusive lock), so a Python writer waits for us.
+fn projects_lock(path: &Path) -> Option<std::fs::File> {
+    let dir = path.parent()?;
+    std::fs::create_dir_all(dir).ok()?;
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(dir.join(".projects.yaml.lock"))
+        .ok()?;
+    file.lock().ok()?;
+    Some(file)
+}
+
+/// Appends one row as `events.emit("work.promise", status="ok",
+/// action=<action>, count=1)` writes it (keys sorted).
+fn promise_event(ctx: &Ctx, action: &str) {
+    use std::io::Write;
+    if !ctx.env.caps.events_on {
+        return;
+    }
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    let mut line = String::from("{\"action\": ");
+    crate::render::py_string(action, &mut line);
+    line.push_str(", \"count\": 1, \"event\": \"work.promise\", \"status\": \"ok\", \"ts\": ");
+    crate::render::py_string(&crate::events::stamp(secs), &mut line);
+    line.push_str(", \"v\": ");
+    crate::render::py_string(crate::events::version(), &mut line);
+    line.push_str("}\n");
+    let logs = ctx.root.join("logs");
+    if std::fs::create_dir_all(&logs).is_err() {
+        return;
+    }
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(logs.join("events.jsonl"))
+    {
+        let _ = file.write_all(line.as_bytes());
+    }
+}
+
+/// What a promise writer reads before it may write: the store, the file's
+/// path and its projects.
+struct PromiseFiles {
+    context: careerbrew_vault::transfer::Context,
+    path: std::path::PathBuf,
+    projects: Vec<(Canon, Canon)>,
+}
+
+fn promise_files(ctx: &Ctx) -> Option<PromiseFiles> {
+    // The lines name the promise the caller typed; `say` redacts them.
+    if !business_hidden(ctx) {
+        return None;
+    }
+    let root = ctx.root.as_path();
+    pin_clock(root)?;
+    let context = careerbrew_vault::transfer::Context::from_env().ok()?;
+    let path = root.join("work/projects.yaml");
+    let projects = projects_load(&context.store(), &path)?;
+    Some(PromiseFiles {
+        context,
+        path,
+        projects,
+    })
+}
+
+/// Saves `{"projects": projects}` as `projects._save` does. The text is
+/// built before the lock is taken, so a refusal never follows a write.
+fn promise_save(files: &PromiseFiles, projects: Vec<(Canon, Canon)>) -> Option<()> {
+    let text =
+        crate::pyyaml::safe_dump(&Canon::Map(vec![(ckey("projects"), Canon::Map(projects))]))?;
+    let _lock = projects_lock(&files.path)?;
+    files.context.store().write_text(&files.path, &text).ok()
+}
+
+fn with_project(
+    projects: &[(Canon, Canon)],
+    name: &str,
+    record: Vec<(Canon, Canon)>,
+) -> Vec<(Canon, Canon)> {
+    let mut projects = projects.to_vec();
+    if let Some((_, slot)) = projects
+        .iter_mut()
+        .find(|(k, _)| matches!(k, Canon::Str(k) if k == name))
+    {
+        *slot = Canon::Map(record);
+    }
+    projects
+}
+
+fn promise_close(args: &Parsed, ctx: &Ctx, how: &str) -> Option<Outcome> {
+    let name = args.text("name")?;
+    let files = promise_files(ctx)?;
+    let mut p = match promise_record(&files.projects, name) {
+        Ok(p) => p,
+        Err(outcome) => return outcome,
+    };
+    // `{**{k: v for k, v in promise.items() if k not in (...)}, "closed": how}`.
+    let mut promise = map_or_empty(pget(&p, "promise").ok()?)?;
+    promise.retain(
+        |(k, _)| !matches!(k, Canon::Str(k) if k == "pm_removed" || k == "manual_kept_day"),
+    );
+    pset(&mut promise, "closed", ckey(how));
+    pset(&mut p, "promise", Canon::Map(promise));
+    pset(&mut p, "archived_at", Canon::Str(utc_stamp()));
+    promise_save(&files, with_project(&files.projects, name, p))?;
+    promise_event(ctx, how);
+    Some(out(
+        format!("promise {name} {how}: it left Commitments and the handoff\n"),
+        0,
+    ))
+}
+
+/// The characters `str.split()` and `str.strip()` treat as whitespace.
+fn py_space(c: char) -> bool {
+    c.is_whitespace() || ('\u{1c}'..='\u{1f}').contains(&c)
+}
+
+fn promise_step(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let name = args.text("name")?;
+    let which = args.text("step")?;
+    let text = args.text("text")?;
+    // argparse's choices print usage and exit 2.
+    if !PROMISE_STEPS.contains(&which) {
+        return None;
+    }
+    let files = promise_files(ctx)?;
+    let mut p = match promise_record(&files.projects, name) {
+        Ok(p) => p,
+        Err(outcome) => return outcome,
+    };
+    if ptruthy(pget(&p, "archived_at").ok()?)? {
+        return Some(fail(
+            &format!("{name} is closed (open it again: careerbrew work project unarchive {name})"),
+            "US-99",
+        ));
+    }
+    // `projects.label(text, "a step note", UPDATE_MAX)`, then the empty
+    // check: both raise inside `locked()`, which has made the lock file.
+    let note = text.trim_matches(py_space);
+    let problem = if note.contains('\n') || note.chars().count() > UPDATE_MAX {
+        Some(format!(
+            "a step note is one line of at most {UPDATE_MAX} characters"
+        ))
+    } else if note.is_empty() {
+        Some("a step needs one line of text: what was done".to_owned())
+    } else {
+        None
+    };
+    let at = utc_stamp();
+    let mut promise = map_or_empty(pget(&p, "promise").ok()?)?;
+    let mut steps = map_or_empty(pget(&promise, "steps").ok()?)?;
+    let mut updates = match pget(&p, "updates").ok()? {
+        Some(Canon::List(items)) => items.clone(),
+        other if !ptruthy(other)? => Vec::new(),
+        _ => return None,
+    };
+    if let Some(problem) = problem {
+        projects_lock(&files.path)?;
+        return Some(fail(&problem, "US-99"));
+    }
+    pset(&mut steps, which, Canon::Str(at.clone()));
+    let next = PROMISE_STEPS
+        .into_iter()
+        .find(|s| {
+            !steps
+                .iter()
+                .any(|(k, _)| matches!(k, Canon::Str(k) if k == s))
+        })
+        .unwrap_or("status");
+    pset(&mut promise, "steps", Canon::Map(steps));
+    pset(&mut p, "promise", Canon::Map(promise));
+    updates.push(Canon::Map(vec![
+        (ckey("at"), Canon::Str(at)),
+        (ckey("kind"), ckey("project")),
+        (ckey("text"), Canon::Str(format!("{which}: {note}"))),
+    ]));
+    let keep = updates.len().saturating_sub(UPDATES_KEPT);
+    updates.drain(..keep);
+    pset(&mut p, "updates", Canon::List(updates));
+    promise_save(&files, with_project(&files.projects, name, p))?;
+    promise_event(ctx, which);
+    Some(out(
+        format!("promise {name}: {which} recorded; next: {next}\n"),
+        0,
+    ))
 }
