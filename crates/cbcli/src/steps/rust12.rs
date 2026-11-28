@@ -7,17 +7,29 @@
 //! and refuses (Python then runs the command) on any form whose Python
 //! result it cannot repeat exactly: a malformed record, an unknown clock
 //! form, a missing key, a symlink on the note path, or any read error.
+//!
+//! Wave 4 adds `learn tour approve` and `learn tour export` for a tour that
+//! does not exist (or a name that is not a tour name): Python's `ValueError`
+//! and `KeyError` lines.
 use super::Ctx;
 use crate::args::Parsed;
-use crate::Outcome;
+use crate::{events, Outcome};
 use careerbrew_learn::project as lp;
+use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 /// The route keys this module serves. Each one must be routed `native` in
 /// `config/native-routes.txt` and have a parity case in
 /// `crates/cbcli/tests/step_rust12.rs`.
-pub const COMMANDS: &[&str] = &["learn.list", "learn.note", "learn.status", "learn.next"];
+pub const COMMANDS: &[&str] = &[
+    "learn.list",
+    "learn.note",
+    "learn.status",
+    "learn.next",
+    "learn.tour.approve",
+    "learn.tour.export",
+];
 
 const BLOOM: &[&str] = &[
     "remember",
@@ -40,6 +52,8 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "learn.note" => note(args, ctx),
         "learn.status" => status(args, ctx),
         "learn.next" => next(args, ctx),
+        "learn.tour.approve" => no_tour(args, ctx, true),
+        "learn.tour.export" => no_tour(args, ctx, false),
         _ => None,
     }
 }
@@ -631,4 +645,125 @@ fn next(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
     }
     touch_dirs(root, &dirs)?;
     done(out.stdout)
+}
+
+// ---------- learn tour approve and export, for a tour that is not there ----------
+
+/// Appends one `cli.error` row as `events.emit` writes it (keys sorted).
+fn emit_error(ctx: &Ctx, command: &str, class: &str) {
+    if !ctx.env.caps.events_on {
+        return;
+    }
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    let stamp = events::stamp(secs);
+    let pairs = [
+        ("command", command),
+        ("error", class),
+        ("event", "cli.error"),
+        ("ts", stamp.as_str()),
+        ("v", events::version()),
+        ("via", ctx.env.caps.via),
+    ];
+    let mut line = String::from("{");
+    for (i, (key, value)) in pairs.iter().enumerate() {
+        if i > 0 {
+            line.push_str(", ");
+        }
+        crate::render::py_string(key, &mut line);
+        line.push_str(": ");
+        crate::render::py_string(value, &mut line);
+    }
+    line.push_str("}\n");
+    let logs = ctx.root.join("logs");
+    if std::fs::create_dir_all(&logs).is_err() {
+        return;
+    }
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(logs.join("events.jsonl"))
+    {
+        let _ = file.write_all(line.as_bytes());
+    }
+}
+
+/// `cli.main` on a caught error: the `cli.error` row, `error: <message>`,
+/// exit 2, and no `cli.run` row.
+fn cli_error(ctx: &Ctx, class: &str, message: &str) -> Option<Outcome> {
+    emit_error(ctx, "learn.tour", class);
+    Some(Outcome {
+        stdout: format!("error: {message}\n"),
+        stderr: String::new(),
+        code: 2,
+        emit_event: false,
+    })
+}
+
+/// `re.fullmatch(r"[a-z0-9][a-z0-9-]*", name)`.
+fn tour_name(name: &str) -> bool {
+    let b = name.as_bytes();
+    !b.is_empty()
+        && (b[0].is_ascii_lowercase() || b[0].is_ascii_digit())
+        && b.iter()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == b'-')
+}
+
+/// True when every part of `root/parts` is absent or a plain folder.
+fn dirs_ok(root: &Path, parts: &[&str]) -> bool {
+    let mut at = root.to_path_buf();
+    for part in parts {
+        at = at.join(part);
+        if let Ok(meta) = std::fs::symlink_metadata(&at) {
+            if !meta.is_dir() {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+/// `tour.approve` and `tour.export` both start with `_load`: a bad tour
+/// name is a `ValueError` before any folder is made; otherwise `lp.folder`
+/// makes `learn/<slug>/`, and a missing tour file is a `KeyError` (printed
+/// as its repr). A tour file that exists, and any project text whose repr
+/// is not plain single quotes, go to Python.
+fn no_tour(args: &Parsed, ctx: &Ctx, approve: bool) -> Option<Outcome> {
+    let project = args.text("project")?;
+    let name = args.text("name")?;
+    if approve {
+        args.text("by")?;
+    }
+    if !tour_name(name) {
+        return cli_error(
+            ctx,
+            "valueerror",
+            "a tour name is lowercase letters, digits, and hyphens",
+        );
+    }
+    if !project.chars().all(|c| (' '..='~').contains(&c)) || project.contains(['\'', '"', '\\']) {
+        return None;
+    }
+    let slug = lp::slug(project);
+    let root = &ctx.root;
+    if !dirs_ok(root, &["learn", &slug, "tours"]) {
+        return None;
+    }
+    let file = root
+        .join("learn")
+        .join(&slug)
+        .join("tours")
+        .join(format!("{name}.json"));
+    if std::fs::symlink_metadata(&file).is_ok() {
+        return None;
+    }
+    touch_dirs(root, &[root.join("learn").join(&slug)])?;
+    cli_error(
+        ctx,
+        "keyerror",
+        &format!(
+            "'no tour {name} in {project}; add one with `careerbrew learn tour add {project} {name} FILE`'"
+        ),
+    )
 }
