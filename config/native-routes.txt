@@ -13,8 +13,8 @@ telemetry.record-install python
 actions native
 start python
 checklist python
-config.show python
-config.set python
+config.show native
+config.set native
 config.unset native
 signals python
 checkup python
@@ -250,5 +250,5 @@ draft.fit native
 draft.replace python
 draft.show python
 draft.check native
-draft.route python
-draft.judge python
+draft.route native
+draft.judge native
