@@ -89,12 +89,7 @@ def test_forwarded_routes_reach_the_python_handler_unchanged(candidate: Path, tm
 
 
 def test_every_changes_case_is_asked_again_when_the_two_reads_race() -> None:
-    import importlib.util
-
-    spec = importlib.util.spec_from_file_location("rust25_oracle", ORACLE)
-    assert spec is not None and spec.loader is not None
-    oracle = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(oracle)
+    oracle = _oracle_module()
     changes = [c for c in FIXTURE["cases"] if c["path"].startswith("/api/changes")]
     assert {c["id"] for c in changes} >= {"changes-ok", "changes-localhost-host", "changes-bad-days-setting"}
     assert all(oracle.is_racy(c) for c in changes)
@@ -171,7 +166,7 @@ def test_a_change_version_that_moves_between_the_two_reads_is_asked_again(monkey
     monkeypatch.setattr(oracle, "request_bytes", lambda case, port, token: b"")
     monkeypatch.setattr(oracle, "normalize", lambda case_id, raw, port: {"body": {"version": next(versions)}})
     monkeypatch.setattr(oracle.time, "sleep", lambda seconds: None)
-    answers = oracle._ask_both({"id": "changes-ok"}, "t", 1, 2)
+    answers = oracle._ask_both({"id": "changes-ok", "path": "/api/changes"}, "t", 1, 2)
     assert answers["python"] == answers["native"] == {"body": {"version": "a9e03c8d06456a02"}}
 
 
@@ -181,6 +176,6 @@ def test_a_stable_case_is_asked_once_so_a_real_difference_still_fails(monkeypatc
     monkeypatch.setattr(oracle, "send_raw", lambda port, data: b"")
     monkeypatch.setattr(oracle, "request_bytes", lambda case, port, token: b"")
     monkeypatch.setattr(oracle, "normalize", lambda case_id, raw, port: calls.append(port) or {"port": port})
-    answers = oracle._ask_both({"id": "today-ok"}, "t", 1, 2)
+    answers = oracle._ask_both({"id": "today-ok", "path": "/api/today"}, "t", 1, 2)
     assert calls == [1, 2]
     assert answers["python"] != answers["native"]
