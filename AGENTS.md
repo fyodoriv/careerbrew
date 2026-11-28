@@ -264,6 +264,7 @@ A trap that cost time gets a dated row here, or becomes a check.
 
 | Date | Symptom | Fix |
 |---|---|---|
+| 2026-11-27 | the rust-25 forward test failed only on hosted macOS: `changes-ok` versions differed between the Python and native reads | both servers share one data root and a cache warmer may write between the two reads; the oracle asks a racy case again until both reads see one state (`RACY_CASES` in `tests/oracles/rust25.py`), every other case once (`test_rust25_component.py`) |
 | 2026-11-26 | a planted duplicate-write phase could not read an earlier phase's sealed tutor records | scope `CAREERBREW_HOME` and `CAREERBREW_KEY_FILE` to that phase's own synthetic workspace; an outer data root makes the sibling key invalid (`xtask/tests/rust20.rs`) |
 | 2026-11-25 | a migration plant used the previous step's environment key, and UUID normalization rejected digits | bind each plant to its step's exact environment key and normalize with ASCII hex, not lowercase-only checks (`xtask/tests/rust14.rs`) |
 | 2026-11-21 | a valid `+ Other:` Markdown bullet left a false cut warning | strip `+` with the other list markers in both backend and browser scanners; retain backend/browser controls (`test_issue_373.py`, `pm-cut.spec.ts`) |
