@@ -71,6 +71,13 @@ step_key() { # step_key <name>: set k to one step's cache key, from its inputs (
 # must not inherit it (export -n keeps the value here, hides it from children).
 steps_filter="${CHECK_STEPS:-}" only=" ${steps_filter//,/ } " seen=" "
 export -n CHECK_STEPS
+# RUST_TEST_SHARD=i/n makes rust-test run one weighted share of the Rust test
+# targets (scripts/rust-test-shard.py; docs/ci.md, "Parallel parts"). Children never see it.
+rust_shard="${RUST_TEST_SHARD:-}"
+export -n RUST_TEST_SHARD
+rust_test() { # all Rust tests, or the share that RUST_TEST_SHARD names
+  if [ -n "$rust_shard" ]; then RUST_TEST_SHARD="$rust_shard" uv run --quiet python -I scripts/rust-test-shard.py; else cargo test --all; fi
+}
 step() {
   # step <name> <command...>: run, time, and log one gate step; skip it on a cache hit.
   name="$1"; shift
@@ -137,7 +144,7 @@ fi
 if [ -f Cargo.toml ]; then
   step rust-fmt cargo fmt --all --check
   step rust-clippy cargo clippy --all-targets -- -D warnings
-  step rust-test cargo test --all
+  step rust-test rust_test
   step rust-inventory cargo xtask migration inventory --check
   # The policy crate's library does no IO (rust-04d; docs/rust-migration.md, rust-04 "Ownership split").
   step rust-policy-io uv run --quiet python -I scripts/policy-no-io.py

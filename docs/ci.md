@@ -15,7 +15,7 @@ they are green. Nobody waits for a full gate on their own machine.
 
 ## Parallel parts
 
-Each OS runs the gate as four parts at the same time
+Each OS runs the gate as five parts at the same time
 ([`gate-part.yml`](../.github/workflows/gate-part.yml), called by `ci.yml`).
 Each part runs `scripts/setup.sh`, then `scripts/check.sh` with
 `CHECK_STEPS`, the list of gate steps it runs:
@@ -23,7 +23,8 @@ Each part runs `scripts/setup.sh`, then `scripts/check.sh` with
 | Part | `CHECK_STEPS` | Usual time (macOS) |
 |---|---|---|
 | `checks` | `docs` to `tasks`, `format`, `lint`, `types`, `unit`, `registry`, `public-cards`, `card-code`, the four `web-*` steps | about 10 min |
-| `native` | `exercises` and the four Rust steps | about 10 min |
+| `native` | `exercises`, the Rust steps, and share 1 of `rust-test` (`RUST_TEST_SHARD=1/2`) | measured in task `ci-rust-test-parallel` |
+| `native-2` | share 2 of `rust-test` (`RUST_TEST_SHARD=2/2`) | measured in task `ci-rust-test-parallel` |
 | `e2e-1` | `e2e` with `E2E_SHARD=1/2` | about 13 min |
 | `e2e-2` | `e2e` with `E2E_SHARD=2/2` | about 9 min |
 
@@ -34,8 +35,23 @@ Each part runs `scripts/setup.sh`, then `scripts/check.sh` with
   means 10). The heaviest story goes first, each to the share with the least
   weight so far. US-72 (the whole browser suite, about 12 minutes) is the
   longest part, so it has a share almost to itself.
+- `RUST_TEST_SHARD=i/n` makes `rust-test` run one share of the Rust
+  integration-test targets ([`scripts/rust-test-shard.py`](../scripts/rust-test-shard.py)).
+  `cargo test --all` runs its test binaries one after another, and they were
+  79 to 85% of the old `native` part's gate step on macOS (see "Remote build cache"). The script
+  reads each target's usual seconds from `config/rust-test-weights.txt` and
+  gives the heaviest target first to the share with the least weight so far.
+  `@share-1-extra` counts the other steps of the `native` part. A target with
+  no weight line weighs 60, so a new test file always runs in one share.
+  Targets with one name in several crates run together. Share 1 also runs the
+  lib, bin and doc tests. Without `RUST_TEST_SHARD`, `rust-test` is still
+  `cargo test --all`. A third share would be a sixth macOS job, and GitHub's
+  free plan runs at most five macOS jobs at a time.
+- When a Rust test target becomes much slower or faster, change its line in
+  `config/rust-test-weights.txt` to the time its `test result:` line shows on
+  `macos-15`.
 - `tests/unit/test_gate_parts.py` fails when the parts do not run every gate
-  step exactly once, when a share is missing, or when the two OSes run
+  step exactly once, when an e2e or Rust test share is missing, or when the two OSes run
   different parts. Add a new gate step to one part in `ci.yml` (both lists).
 - The required checks `gate (ubuntu-24.04)` and `gate (macos-15)` are small
   jobs that wait for their OS's parts (`if: always()`), so the branch rule on

@@ -1,7 +1,7 @@
 name: Gate part
 
 # One part of the hosted gate: `scripts/setup.sh`, then `scripts/check.sh` with
-# CHECK_STEPS (and E2E_SHARD for an e2e share). ci.yml runs the parts in
+# CHECK_STEPS (and E2E_SHARD for an e2e share, RUST_TEST_SHARD for a Rust test share). ci.yml runs the parts in
 # parallel. Read docs/ci.md before you change it. The safety rules of ci.yml
 # apply here too: no secrets, no artifact, read-only token, pinned actions.
 
@@ -17,6 +17,10 @@ on:
         required: true
       shard:
         description: the e2e share i/n (E2E_SHARD), empty when the part runs no e2e
+        type: string
+        default: ""
+      rust_shard:
+        description: the Rust test share i/n (RUST_TEST_SHARD), empty when the part runs no rust-test or all of it
         type: string
         default: ""
       gitleaks_asset:
@@ -129,6 +133,7 @@ jobs:
         env:
           CHECK_STEPS: ${{ inputs.steps }}
           E2E_SHARD: ${{ inputs.shard }}
+          RUST_TEST_SHARD: ${{ inputs.rust_shard }}
           # xtask/tests/resources.rs appends its calibration lines here (docs/rust-migration.md).
           CAREERBREW_RESOURCES_RECORD: ${{ runner.temp }}/resources-calibration.txt
         run: scripts/check.sh

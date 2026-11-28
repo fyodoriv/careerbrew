@@ -6,10 +6,12 @@ These tests prove that the parts of the workflow together run every gate step
 and every story file exactly once, so a split can never drop a check.
 """
 
+import json
 import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -52,8 +54,12 @@ def test_the_parts_run_every_gate_step_exactly_once():
         if "e2e" in names:
             assert names == ["e2e"], "an e2e part runs only e2e, or its other steps would run once per shard"
             continue  # e2e runs in every e2e shard; the shards split its story files
+        if "rust_shard" in part:
+            # rust-test runs in every Rust share; the shares split its test targets (scripts/rust-test-shard.py).
+            assert "rust-test" in names, part
+            names = [n for n in names if n != "rust-test"]
         seen += names
-    seen += ["e2e"]
+    seen += ["e2e", "rust-test"]
     assert sorted(seen) == sorted(set(seen)), "a step runs in two parts"
     assert set(seen) == set(expected), {"missing": set(expected) - set(seen), "extra": set(seen) - set(expected)}
 
@@ -63,6 +69,16 @@ def test_the_e2e_parts_name_every_shard_once():
     total = {s.split("/")[1] for s in shards}
     assert len(total) == 1, shards
     n = int(total.pop())
+    assert sorted(shards) == [f"{i}/{n}" for i in range(1, n + 1)]
+
+
+def test_the_rust_test_parts_name_every_share_once():
+    parts = [p for p in _parts() if "rust-test" in p["steps"].split()]
+    shards = [p.get("rust_shard", "") for p in parts]
+    if shards == [""]:
+        return  # one part runs all of rust-test
+    assert "" not in shards, "every part that runs rust-test names its share, or a share would run all of it"
+    n = int(shards[0].split("/")[1])
     assert sorted(shards) == [f"{i}/{n}" for i in range(1, n + 1)]
 
 
@@ -203,3 +219,120 @@ def test_a_shard_run_does_not_write_the_whole_suite_results(tmp_path):
     root = _e2e_repo(tmp_path, STORIES)
     assert _e2e(root, "1/2").returncode == 0
     assert not (root / ".metrics/e2e-results.json").exists()
+
+
+# ---- RUST_TEST_SHARD with a fake cargo ----
+
+SHARD_SCRIPT = ROOT / "scripts/rust-test-shard.py"
+FAKE_TARGETS = {"pkg-a": ["component", "heavy", "a1"], "pkg-b": ["component", "b1", "new_one"], "pkg-c": []}
+
+
+def _shard_repo(tmp_path: Path, weights: str) -> Path:
+    root = tmp_path / "rust"
+    (root / "scripts").mkdir(parents=True)
+    (root / "config").mkdir()
+    (root / "bin").mkdir()
+    shutil.copy(SHARD_SCRIPT, root / "scripts/rust-test-shard.py")
+    (root / "config/rust-test-weights.txt").write_text(weights)
+    packages = [
+        {
+            "id": f"{name} 0.1.0",
+            "targets": [{"name": "lib", "kind": ["lib"]}] + [{"name": t, "kind": ["test"]} for t in tests],
+        }
+        for name, tests in FAKE_TARGETS.items()
+    ]
+    # A path dependency outside the workspace: its test targets are not ours to run.
+    packages.append({"id": "outside 0.1.0", "targets": [{"name": "outside_test", "kind": ["test"]}]})
+    meta = {"packages": packages, "workspace_members": [f"{n} 0.1.0" for n in FAKE_TARGETS]}
+    (root / "meta.json").write_text(json.dumps(meta))
+    cargo = root / "bin/cargo"
+    cargo.write_text('#!/usr/bin/env bash\nif [ "$1" = metadata ]; then cat "$(dirname "$0")/../meta.json"; exit 0; fi\necho "${RUST_TEST_SHARD-unset} $*" >> "$(dirname "$0")/../ran"\nexit "${FAKE_CARGO_EXIT:-0}"\n')
+    cargo.chmod(0o755)
+    return root
+
+
+def _shard(root: Path, shard: str, *args: str, **env: str) -> subprocess.CompletedProcess[str]:
+    full = {**os.environ, "PATH": f"{root / 'bin'}:{os.environ['PATH']}", "RUST_TEST_SHARD": shard, **env}
+    return subprocess.run([sys.executable, "-I", str(root / "scripts/rust-test-shard.py"), *args], env=full, capture_output=True, text=True, timeout=60, check=False)
+
+
+WEIGHTS_TEXT = "# test weights\n@share-1-extra 50\nheavy 100\ncomponent 40\na1 5\nb1 5\n"
+
+
+@pytest.mark.parametrize("n", [1, 2, 3])
+def test_the_rust_shares_run_every_test_target_exactly_once(tmp_path, n):
+    root = _shard_repo(tmp_path, WEIGHTS_TEXT)
+    ran: list[str] = []
+    for i in range(1, n + 1):
+        r = _shard(root, f"{i}/{n}")
+        assert r.returncode == 0, r.stdout + r.stderr
+    lines = (root / "ran").read_text().splitlines()
+    for line in lines:
+        ran += [a.removeprefix("--test=") for a in line.split() if a.startswith("--test=")]
+    # Same-name targets of two crates are one entry; the outside package's target never runs.
+    assert sorted(ran) == ["a1", "b1", "component", "heavy", "new_one"]
+    assert sum("--lib --bins" in line for line in lines) == 1, "lib and bin unit tests run in share 1 only"
+    assert sum(line.endswith("test --workspace --doc") for line in lines) == 1, "doc tests run in share 1 only"
+    assert all(line.startswith("unset ") for line in lines), "cargo must not inherit the share"
+    # Tests run the workspace's executables from target/debug, which plain `cargo test --all` built as a side effect.
+    builds = [k for k, line in enumerate(lines) if line == "unset build --workspace --bins"]
+    assert len(builds) == n and all(lines[k + 1].startswith("unset test ") for k in builds), lines
+
+
+def test_the_heaviest_target_goes_first_and_a_new_target_still_runs(tmp_path):
+    root = _shard_repo(tmp_path, WEIGHTS_TEXT)
+    r = _shard(root, "1/2", "--plan")
+    assert r.returncode == 0, r.stderr
+    shares = json.loads(r.stdout)["shares"]
+    # Share 1 starts at 50 (its part's other steps), so heavy (100) goes to share 2.
+    # new_one has no weight line, weighs 60, and goes to share 1; component (40) then joins heavy.
+    assert shares == [["a1", "b1", "new_one"], ["component", "heavy"]]
+
+
+@pytest.mark.parametrize(
+    "odd",
+    [{"name": "demo", "kind": ["example"]}, {"name": "speed", "kind": ["bench"]}, {"name": "skipped", "kind": ["test"], "test": False}],
+)
+def test_a_target_the_split_does_not_handle_fails_the_share(tmp_path, odd):
+    root = _shard_repo(tmp_path, WEIGHTS_TEXT)
+    meta = json.loads((root / "meta.json").read_text())
+    meta["packages"][0]["targets"].append(odd)
+    (root / "meta.json").write_text(json.dumps(meta))
+    r = _shard(root, "1/2")
+    assert r.returncode == 1 and odd["name"] in r.stderr
+    assert not (root / "ran").exists(), "nothing runs when the split could drop a target"
+
+
+def test_a_failed_cargo_fails_the_share(tmp_path):
+    root = _shard_repo(tmp_path, WEIGHTS_TEXT)
+    r = _shard(root, "1/2", FAKE_CARGO_EXIT="101")
+    assert r.returncode == 101
+    assert len((root / "ran").read_text().splitlines()) == 1, "a failed first command stops the share"
+
+
+@pytest.mark.parametrize("bad", ["", "0/2", "3/2", "2", "a/b", "1/0"])
+def test_a_wrong_rust_shard_fails_with_the_format(tmp_path, bad):
+    root = _shard_repo(tmp_path, WEIGHTS_TEXT)
+    r = _shard(root, bad)
+    assert r.returncode == 2
+    assert "RUST_TEST_SHARD" in r.stderr and "i/n" in r.stderr
+
+
+def test_a_bad_weight_line_fails_and_names_its_line(tmp_path):
+    root = _shard_repo(tmp_path, "heavy lots\n")
+    r = _shard(root, "1/2")
+    assert r.returncode != 0 and "rust-test-weights.txt:1" in r.stderr
+
+
+def test_the_real_weights_file_parses():
+    for number, line in enumerate((ROOT / "config/rust-test-weights.txt").read_text().splitlines(), 1):
+        line = line.split("#", 1)[0].strip()
+        assert not line or re.fullmatch(r"@?[a-z0-9_-]+ [0-9]+", line), f"line {number}: {line!r}"
+
+
+def test_check_sh_passes_the_share_to_the_script_and_hides_it_from_other_steps():
+    text = CHECK.read_text()
+    assert "export -n RUST_TEST_SHARD" in text
+    assert "step rust-test rust_test" in text
+    # With no share, rust-test is unchanged: the frozen tool contract in test_gate_cache.py.
+    assert "else cargo test --all; fi" in text
