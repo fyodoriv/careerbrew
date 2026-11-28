@@ -74,10 +74,10 @@ drill.next native
 drill.answer python
 drill.speak python
 drill.session python
-drill.progress python
+drill.progress native
 drill.list native
 work.collect python
-work.project.add python
+work.project.add native
 work.project.set native
 work.project.import python
 work.project.source native
@@ -87,7 +87,7 @@ work.project.absorb python
 work.project.memory native
 work.project.rules native
 work.project.rules-set native
-work.project.sync python
+work.project.sync native
 work.project.next native
 work.project.list native
 work.project.archive native
@@ -98,7 +98,7 @@ work.project.remove native
 work.project.update native
 work.project.explain native
 work.project.prd native
-work.project.show python
+work.project.show native
 work.priority.show native
 work.priority.set native
 work.priority.remove native
