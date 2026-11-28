@@ -398,3 +398,244 @@ fn priority_comparison_detects_a_planted_difference() {
     assert_ne!(first.files, second.files);
     assert_eq!(first.code, Some(0));
 }
+
+// ---------- work impact ----------
+
+/// Tasks with competencies, a stored impact (seven links, a "Not sure:"
+/// result) and none, in the exact text `store.write_yaml` writes.
+const IMPACT_TASKS: &str = "tasks:\n- id: t001\n  title: Write the parser\n  impact: 3\n  urgency: 3\n  estimate_h: 1.0\n  competencies:\n  - delivery\n  - design\n- id: t002\n  title: 'fix: latency in review'\n  impact: 2\n  urgency: 4\n  estimate_h: 2.5\n  expected_impact:\n    who: the team\n    hypothesis: fewer pages\n  measured_impact:\n    result: 'Not sure: maybe'\n    evidence:\n    - https://example.com/a\n    - https://example.com/b\n    - https://example.com/c\n    - https://example.com/d\n    - https://example.com/e\n    - https://example.com/f\n    - https://example.com/g\n    at: '2026-11-19T10:00:00+00:00'\n- id: t003\n  title: Plan the tests\n  impact: 4\n  urgency: 2\n  estimate_h: 0.5\n";
+
+fn impact_home(id: &'static str, extra: &[(&'static str, &'static str)]) -> Home {
+    let mut files: Vec<(&'static str, &'static str)> =
+        vec![(".plaintext", ""), ("work/tasks.yaml", IMPACT_TASKS)];
+    files.extend_from_slice(extra);
+    let files: &'static [(&'static str, &'static str)] = Box::leak(files.into_boxed_slice());
+    prepare_setup(&Setup {
+        id,
+        cli: &[],
+        files,
+    })
+}
+
+#[test]
+fn work_impact_matches_python() {
+    strict(NOW);
+    let home = impact_home("impact-tasks", &[]);
+    let zoned = impact_home(
+        "impact-zoned",
+        &[
+            ("settings.yaml", "timezone: Asia/Tokyo\n"),
+            (
+                "work/evidence.jsonl",
+                "{\"at\": \"2026-11-01T09:00:00+00:00\", \"id\": \"note:x\", \"impact\": \"\", \"kind\": \"note\", \"origin\": \"user\", \"tags\": [], \"title\": \"Old\"}\n",
+            ),
+        ],
+    );
+    // "work.impact": the plan, a result with links, merges, the cap, the
+    // "Not sure:" prefix, whitespace, the cut, and each error.
+    let long = "word ".repeat(80);
+    let cases: Vec<(Vec<&str>, &str)> = vec![
+        (
+            vec![
+                "work",
+                "impact",
+                "t001",
+                "--expect",
+                "  fewer   bugs ",
+                "--who",
+                "the users",
+                "--metric",
+                "bug count",
+            ],
+            "expect, who, metric",
+        ),
+        (vec!["work", "impact", "t003", "--who", "ops"], "who only"),
+        (
+            vec![
+                "work",
+                "impact",
+                "t001",
+                "--result",
+                "bugs  down 40%",
+                "--evidence",
+                "https://example.com/pr/1",
+                "--evidence",
+                " https://example.com/dash ",
+                "--evidence",
+                "https://example.com/pr/1",
+                "--evidence",
+                "  ",
+            ],
+            "result with links, deduped",
+        ),
+        (
+            vec![
+                "work",
+                "impact",
+                "t002",
+                "--result",
+                "pages down",
+                "--evidence",
+                "https://example.com/h",
+                "--evidence",
+                "https://example.com/i",
+                "--evidence",
+                "https://example.com/a",
+            ],
+            "merged links, capped at 8",
+        ),
+        (
+            vec![
+                "work",
+                "impact",
+                "t003",
+                "--result",
+                "unclear",
+                "--not-sure",
+            ],
+            "not sure",
+        ),
+        (
+            vec![
+                "work",
+                "impact",
+                "t003",
+                "--result",
+                "Not sure: maybe",
+                "--not-sure",
+            ],
+            "not sure, prefix kept",
+        ),
+        (
+            vec!["work", "impact", "t003", "--result", "   "],
+            "a blank result",
+        ),
+        (
+            vec![
+                "work",
+                "impact",
+                "t002",
+                "--evidence",
+                "https://example.com/z",
+            ],
+            "evidence only",
+        ),
+        (
+            vec!["work", "impact", "t003", "--expect", long.as_str()],
+            "the 300-character cut",
+        ),
+        (vec!["work", "impact", "t001"], "nothing to record"),
+        (
+            vec!["work", "impact", "t001", "--evidence", "  "],
+            "nothing to record: blank link",
+        ),
+        (
+            vec!["work", "impact", "t009", "--who", "ops"],
+            "unknown task",
+        ),
+    ];
+    for (words, label) in cases.iter() {
+        check(&home, words, true, label);
+    }
+    check(
+        &zoned,
+        &[
+            "work",
+            "impact",
+            "t001",
+            "--result",
+            "faster",
+            "--evidence",
+            "https://example.com/q",
+        ],
+        true,
+        "a zone setting and an existing evidence file",
+    );
+    let dupes = prepare_setup(&Setup {
+        id: "impact-dupes",
+        cli: &[],
+        files: &[
+            (".plaintext", ""),
+            (
+                "work/tasks.yaml",
+                "tasks:\n- id: t001\n  title: A\n  measured_impact:\n    evidence:\n    - https://example.com/a\n    - https://example.com/a\n",
+            ),
+        ],
+    });
+    check(
+        &dupes,
+        &[
+            "work",
+            "impact",
+            "t001",
+            "--evidence",
+            "https://example.com/b",
+        ],
+        true,
+        "stored duplicate links collapse",
+    );
+}
+
+#[test]
+fn work_impact_refuses_what_it_does_not_port() {
+    strict(NOW);
+    let sealed = prepare_setup(&Setup {
+        id: "impact-sealed",
+        cli: &[],
+        files: &[("work/tasks.yaml", IMPACT_TASKS)],
+    });
+    let odd = prepare_setup(&Setup {
+        id: "impact-odd",
+        cli: &[],
+        files: &[
+            (".plaintext", ""),
+            (
+                "work/tasks.yaml",
+                "tasks:\n- id: t001\n  title: A\n  measured_impact: done\n",
+            ),
+        ],
+    });
+    let redacted = impact_home(
+        "impact-redaction",
+        &[("profile.yaml", "name: Synthetic Person\n")],
+    );
+    for home in [&sealed, &odd, &redacted] {
+        assert!(
+            !check(
+                home,
+                &["work", "impact", "t001", "--result", "ok"],
+                false,
+                "work.impact: refused"
+            ),
+            "work.impact: served"
+        );
+    }
+    let home = impact_home("impact-unicode", &[]);
+    assert!(!check(
+        &home,
+        &["work", "impact", "t001", "--result", "caf\u{e9}"],
+        false,
+        "work.impact: non-ASCII text refused"
+    ));
+}
+
+/// Negative control: two results print the same line but store different
+/// files (the task and the note), so a wrong write could not pass as equal.
+#[test]
+fn impact_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let home = impact_home("impact-control", &[]);
+    let first = observe(
+        &home,
+        &["work", "impact", "t001", "--result", "one"],
+        &Side::Native,
+    );
+    let second = observe(
+        &home,
+        &["work", "impact", "t001", "--result", "two"],
+        &Side::Python,
+    );
+    assert_eq!(first.code, Some(0));
+    assert_eq!(first.stdout, second.stdout);
+    assert_ne!(first.files, second.files);
+}

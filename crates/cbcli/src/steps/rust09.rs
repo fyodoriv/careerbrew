@@ -35,6 +35,7 @@ pub const COMMANDS: &[&str] = &[
     "work.priority.show",
     "work.priority.set",
     "work.priority.remove",
+    "work.impact",
 ];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
@@ -46,6 +47,7 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
     match name {
         "work.task-set" => task_set(args, ctx),
         "work.done" => done(args, ctx),
+        "work.impact" => impact::run(args, ctx),
         "work.priority.show" | "work.priority.set" | "work.priority.remove" => {
             priority::run(name, args, ctx)
         }
@@ -361,6 +363,227 @@ fn done(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
 /// `store.append_jsonl` for a plaintext file: under its `.<name>.lock`.
 fn append(path: &Path, row: &str) -> Option<()> {
     careerbrew_vault::lock::append_jsonl_text(path, None, false, row).ok()
+}
+
+/// `work impact` (`cmd_work_impact` over `priorities.record_impact`, and
+/// `evidence.note` for a result).
+///
+/// It serves only these inputs, and refuses the rest before any write:
+/// - every argument is printable ASCII (so `str.split()` and `[:300]` work
+///   on spaces and bytes), and the task id is a `plain_id`;
+/// - `work/tasks.yaml` is in the form `load` reads, and the matched task's
+///   `expected_impact` and `measured_impact` are absent, null, or mappings
+///   with printable text keys; the stored `evidence` is a list of printable
+///   texts and the stored `result` a printable text;
+/// - with a result: the task's `title` and its `competencies` are printable
+///   ASCII texts (the note's id hashes the title).
+///
+/// One clock read gives both the measured `at` and the note's `at`; Python
+/// reads the clock twice, microseconds apart (the same second unless the
+/// run crosses a second boundary, which a pinned clock never does).
+mod impact {
+    use super::super::rust10::work::{self, get, keys_unique, plain, quote, served, Pairs};
+    use super::super::Ctx;
+    use super::{dump, is_task, load, plain_id, set, write};
+    use crate::args::Parsed;
+    use crate::Outcome;
+    use careerbrew_career::{evidence, when};
+    use careerbrew_vault::canon::Canon;
+
+    const MAX_LINKS: usize = 8;
+
+    /// `" ".join(text.split())[:300]` for printable ASCII.
+    fn squeeze(text: &str) -> String {
+        let joined = text
+            .split(' ')
+            .filter(|w| !w.is_empty())
+            .collect::<Vec<_>>()
+            .join(" ");
+        joined.chars().take(300).collect()
+    }
+
+    /// `dict(value or {})` for a stored impact mapping with printable keys.
+    fn as_dict(value: Option<&Canon>) -> Option<Pairs> {
+        match value {
+            None | Some(Canon::Null) => Some(Vec::new()),
+            Some(Canon::Map(pairs))
+                if keys_unique(pairs)
+                    && pairs
+                        .iter()
+                        .all(|(k, _)| matches!(k, Canon::Str(k) if plain(k))) =>
+            {
+                Some(pairs.clone())
+            }
+            _ => None,
+        }
+    }
+
+    /// The stored evidence links, when they are printable ASCII texts.
+    fn links_of(got: &Pairs) -> Option<Vec<String>> {
+        match get(got, "evidence") {
+            None => Some(Vec::new()),
+            Some(Canon::List(items)) => items
+                .iter()
+                .map(|item| match item {
+                    Canon::Str(s) if plain(s) => Some(s.clone()),
+                    _ => None,
+                })
+                .collect(),
+            Some(_) => None,
+        }
+    }
+
+    /// The stored result as text ("" when absent).
+    fn result_of(got: &Pairs) -> Option<String> {
+        match get(got, "result") {
+            None => Some(String::new()),
+            Some(Canon::Str(s)) if plain(s) => Some(s.clone()),
+            Some(_) => None,
+        }
+    }
+
+    /// The `ValueError` or `KeyError` that `cmd_work_impact` catches.
+    fn fail(message: &str) -> Option<Outcome> {
+        served(format!("error: {message} (breaks US-87)\n"), 2)
+    }
+
+    /// `list(t.get("competencies") or [])` as printable texts.
+    fn competencies(t: &Pairs) -> Option<Vec<String>> {
+        match get(t, "competencies") {
+            None | Some(Canon::Null) => Some(Vec::new()),
+            Some(Canon::List(items)) => items
+                .iter()
+                .map(|c| match c {
+                    Canon::Str(s) if plain(s) => Some(s.clone()),
+                    _ => None,
+                })
+                .collect(),
+            Some(_) => None,
+        }
+    }
+
+    pub(super) fn run(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+        let id = args.text("task")?;
+        let expected = args.text("expect")?;
+        let who = args.text("who")?;
+        let metric = args.text("metric")?;
+        let result = args.text("result")?;
+        let raw_links = args.list("evidence");
+        let unsure = args.flag("not_sure");
+        if !plain_id(id)
+            || ![expected, who, metric, result].iter().all(|t| plain(t))
+            || !raw_links.iter().all(|t| plain(t))
+        {
+            return None;
+        }
+        let links_in: Vec<String> = raw_links
+            .iter()
+            .map(|x| x.trim_matches(' ').to_owned())
+            .filter(|x| !x.is_empty())
+            .collect();
+        if [expected, who, metric, result].iter().all(|t| t.is_empty()) && links_in.is_empty() {
+            return fail(
+                "nothing to record: pass --expect, --who, --metric, --result, or --evidence",
+            );
+        }
+        let mut tasks = load(ctx)?;
+        let Some(at) = tasks.tasks.iter().position(|t| is_task(t, id)) else {
+            return fail(&format!("unknown task {id} (see `careerbrew work plan`)"));
+        };
+        let settings = work::read_map_yaml(&tasks.vault.store(), &ctx.root.join("settings.yaml"))?;
+        let t = &mut tasks.tasks[at];
+        let mut plan = as_dict(get(t, "expected_impact"))?;
+        let mut got = as_dict(get(t, "measured_impact"))?;
+        let mut links = links_of(&got)?;
+        let mut shown_result = result_of(&got)?;
+        // The note's inputs, checked before any write.
+        let note = if result.is_empty() {
+            None
+        } else {
+            let Some(Canon::Str(title)) = get(t, "title") else {
+                return None;
+            };
+            if !plain(title) {
+                return None;
+            }
+            Some((title.clone(), competencies(t)?))
+        };
+        if !(expected.is_empty() && who.is_empty() && metric.is_empty()) {
+            for (key, value) in [("hypothesis", expected), ("who", who), ("metric", metric)] {
+                if !value.is_empty() {
+                    set(&mut plan, key, Canon::Str(squeeze(value)));
+                }
+            }
+            set(t, "expected_impact", Canon::Map(plan.clone()));
+        }
+        let mut stamp = String::new();
+        if !result.is_empty() || !links_in.is_empty() {
+            if !result.is_empty() {
+                let prefix = if unsure && !result.starts_with("Not sure:") {
+                    "Not sure: "
+                } else {
+                    ""
+                };
+                shown_result = format!("{prefix}{}", squeeze(result));
+                set(&mut got, "result", Canon::Str(shown_result.clone()));
+            }
+            // `dict.fromkeys([*stored, *new])`: stored duplicates go too.
+            let mut merged: Vec<String> = Vec::new();
+            for link in links.drain(..).chain(links_in) {
+                if !merged.contains(&link) {
+                    merged.push(link);
+                }
+            }
+            merged.truncate(MAX_LINKS);
+            links = merged;
+            set(
+                &mut got,
+                "evidence",
+                Canon::List(links.iter().cloned().map(Canon::Str).collect()),
+            );
+            stamp = when::iso_seconds(&work::clock(&settings)?.at);
+            set(&mut got, "at", Canon::Str(stamp.clone()));
+            set(t, "measured_impact", Canon::Map(got));
+        }
+        let mut keys: Vec<&str> = plan
+            .iter()
+            .filter_map(|(k, _)| match k {
+                Canon::Str(k) => Some(k.as_str()),
+                _ => None,
+            })
+            .collect();
+        keys.sort_unstable();
+        let names = if keys.is_empty() {
+            "none".to_owned()
+        } else {
+            keys.join(", ")
+        };
+        let mut out = format!(
+            "{id}: expected impact {} ({names}); measured {}, {} evidence link(s)\n",
+            if plan.is_empty() { "not set" } else { "set" },
+            if shown_result.is_empty() {
+                "not yet"
+            } else {
+                "yes"
+            },
+            links.len()
+        );
+        if !shown_result.is_empty() {
+            out.push_str("the daily update and promo evidence use the result now\n");
+        }
+        let text = dump(&tasks.tasks)?;
+        write(&tasks, &text)?;
+        if let Some((title, tags)) = note {
+            evidence::note(&title, &tags, &shown_result, Some(&stamp), &links).ok()?;
+            work::emit(ctx, "work.note", &[("status", quote("ok"))]);
+        }
+        work::emit(
+            ctx,
+            "work.task",
+            &[("action", quote("impact")), ("status", quote("ok"))],
+        );
+        served(out, 0)
+    }
 }
 
 /// `work priority show`, `set` and `remove`: `cmd_work_priority` over
