@@ -507,6 +507,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P2
 
+- [ ] xtask observer test flake: the fake docker script cannot start
+  - **ID**: flake-observer-fake-docker-exec
+  - **Details**: PR 264 run 46118985093 (job 140899067936, ubuntu-24.04, 2026-11-28) failed `observer_probe::repair_controls::transport_t01_empty_cp_is_not_complete_evidence` at `xtask/src/observer_probe.rs:1020` with `cannot execute capture child` (`capture_actions.rs:750`, a spawn error); 110 of 111 tests passed and the PR changed only `TASKS.md`. The likely cause is Linux `ETXTBSY`: a test writes its fake docker script and runs it while a parallel test thread still holds a write handle from its own fork.
+  - **Files**: xtask/src/observer_probe.rs; xtask/src/capture_actions.rs
+  - **Hypothesis**: the spawn fails with `ETXTBSY` from a write handle leaked across a parallel fork; writing the script to a temp name, closing it, then renaming it into place drops spawn failures to 0.
+  - **Measurement**: log the spawn `io::Error` kind in the error, then run `cargo test -p careerbrew-xtask --bin careerbrew-xtask observer_probe` 50 times on a hosted Linux runner.
+  - **Success**: 0 of 50 runs fail to spawn the fake script.
+  - **Pivot**: if the error kind is not `ExecutableFileBusy`, retry the spawn once on that kind only and record the real cause here.
+  - **Anchor**: Luo et al. 2014, "An Empirical Analysis of Flaky Tests" (FSE; concurrency causes).
+
 - [ ] US-59 paint run: the PM page sends a draft save with no edit
   - **ID**: pm-draft-autosave-race
   - **Details**: Main run 46118046006 (job 140896166001, 2026-11-28) failed `tests/e2e/us-59-pm-update.sh` at "crowded disabled-control and gradient paint evidence" while all 4 Playwright paint tests passed. The read-only fixture `tests/safety/issue373_server.py` saw one `POST /api/pm/draft` (plus the allowed `/api/session` and `/api/timing`), recorded `forbidden business POST`, and the runner exited 2 with `server-boundary-or-close:crowded`. The same story passed on PR 263 and on the main run before it, with no web change between them, so the save is a timing race: the PM report saves its draft once although nobody typed.
