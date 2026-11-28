@@ -1,6 +1,7 @@
 //! Native CLI handlers owned by `rust-18` (see `steps/mod.rs`): career
-//! evidence notes, ladder listings and promotion gaps, through the
-//! `careerbrew-career` component crate.
+//! evidence notes, ladder listings, ladder import, promotion gaps and the
+//! day's work plan, through the `careerbrew-career` component crate. The
+//! imported ladder is written with `crate::pyyaml::safe_dump`.
 //!
 //! Every handler refuses (exit 64, Python runs it) before any write when:
 //! - Python's `privacy.redact` would read an input (`Ctx::redact_inputs_present`),
@@ -13,6 +14,7 @@ use super::Ctx;
 use crate::args::Parsed;
 use crate::Outcome;
 use careerbrew_career::{evidence, ladder_grade, promo, py, when};
+use careerbrew_vault::canon::Canon;
 use std::io::Write;
 use std::path::Path;
 
@@ -25,7 +27,14 @@ pub(super) type Value = <Map as std::ops::Index<&'static str>>::Output;
 /// The route keys this module serves. Each one must be routed `native` in
 /// `config/native-routes.txt` and have a parity case in
 /// `crates/cbcli/tests/step_rust18.rs`.
-pub const COMMANDS: &[&str] = &["work.note", "work.gaps", "ladder.list", "ladder.levels"];
+pub const COMMANDS: &[&str] = &[
+    "work.note",
+    "work.gaps",
+    "ladder.list",
+    "ladder.levels",
+    "ladder.import",
+    "work.plan",
+];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
 pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
@@ -37,6 +46,8 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "work.gaps" => work_gaps(args, ctx),
         "ladder.list" => ladder_list(ctx),
         "ladder.levels" => ladder_levels(args, ctx),
+        "ladder.import" => ladder_import(args, ctx),
+        "work.plan" => work_plan(args, ctx),
         _ => None,
     }
 }
@@ -374,6 +385,24 @@ fn aware_stamp(text: &str) -> bool {
 }
 
 fn work_gaps(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let assessment = assessment(args, ctx)?;
+    let mut out = String::new();
+    for (i, g) in promo::gaps(&assessment).iter().enumerate() {
+        out.push_str(&format!(
+            "{}. {:<14} coverage {}  priority {}  -> {}\n",
+            i + 1,
+            g.id,
+            py::percent(g.coverage),
+            py::float_repr(g.priority),
+            g.how_to_close
+        ));
+    }
+    ok(out, 0)
+}
+
+/// `cli._assessment(a)`, when every value it reads has a shape Rust reads
+/// as Python does.
+fn assessment(args: &Parsed, ctx: &Ctx) -> Option<promo::Assessment> {
     // Long-term goal words come from `goals.load()`; that reader stays Python.
     if ctx.root.join("goals.yaml").exists() {
         return None;
@@ -437,17 +466,444 @@ fn work_gaps(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         }
     }
     let at = py_now(ctx)?;
-    let assessment = promo::assess(&ladder, &level, &at).ok()?;
-    let mut out = String::new();
-    for (i, g) in promo::gaps(&assessment).iter().enumerate() {
+    promo::assess(&ladder, &level, &at).ok()
+}
+
+// ---------- ladder import ----------
+
+/// True when `text` (a loaded ladder id) names one plain file in `ladders/`.
+fn plain_id(text: &str) -> bool {
+    !text.is_empty()
+        && !text.starts_with('.')
+        && text
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b == b'.')
+}
+
+/// The text of a `Canon` string.
+fn canon_str(value: &Canon) -> Option<&str> {
+    match value {
+        Canon::Str(text) => Some(text),
+        _ => None,
+    }
+}
+
+/// The value under the text key `key` of a mapping (the first one: a
+/// mapping with a repeated key never reaches the dump, which refuses it).
+fn canon_get<'a>(pairs: &'a [(Canon, Canon)], key: &str) -> Option<&'a Canon> {
+    pairs
+        .iter()
+        .find(|(k, _)| canon_str(k) == Some(key))
+        .map(|(_, v)| v)
+}
+
+/// `promo.validate_ladder(data)` passes, for the shapes Rust checks the way
+/// Python does: a mapping with a text id, a list of text levels, and a list
+/// of competency mappings, each with every key and an expectation per level.
+/// Any other shape (one Python could read another way, or rejects with a
+/// `LadderError`) returns None.
+fn valid_ladder(data: &Canon) -> Option<String> {
+    let Canon::Map(top) = data else { return None };
+    let id = canon_str(canon_get(top, "id")?)?;
+    if !plain_id(id) {
+        return None;
+    }
+    let Canon::List(levels) = canon_get(top, "levels")? else {
+        return None;
+    };
+    let Canon::List(comps) = canon_get(top, "competencies")? else {
+        return None;
+    };
+    if levels.is_empty() || comps.is_empty() {
+        return None;
+    }
+    let levels: Vec<&str> = levels.iter().map(canon_str).collect::<Option<_>>()?;
+    for comp in comps {
+        let Canon::Map(c) = comp else { return None };
+        for key in ["id", "name", "weight", "signals", "expect"] {
+            canon_get(c, key)?;
+        }
+        let Canon::Map(expect) = canon_get(c, "expect")? else {
+            return None;
+        };
+        if levels.iter().any(|lvl| canon_get(expect, lvl).is_none()) {
+            return None;
+        }
+        for key in ["descriptions", "examples"] {
+            if let Some(value) = canon_get(c, key) {
+                if !matches!(value, Canon::Map(_)) {
+                    return None;
+                }
+            }
+        }
+    }
+    Some(id.to_owned())
+}
+
+/// True when PyYAML could read `text` in a way this module does not model:
+/// anchors and aliases (shared objects dump with `&id001`), tags, merge
+/// keys, directives, complex keys, a BOM or a carriage return.
+fn odd_yaml(text: &str) -> bool {
+    text.contains(['&', '*', '!', '\r', '\u{feff}'])
+        || text.contains("<<")
+        || text.lines().any(|line| {
+            let line = line.trim_start();
+            line.starts_with('%') || line.starts_with('?')
+        })
+}
+
+fn ladder_import(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let file = args.text("file")?;
+    if file.is_empty() {
+        return None;
+    }
+    let context = careerbrew_vault::transfer::Context::from_env().ok()?;
+    let store = context.store();
+    // A sealed write differs on every run.
+    if store.encryption_enabled() {
+        return None;
+    }
+    let src = Path::new(file);
+    if !std::fs::symlink_metadata(src).ok()?.is_file() {
+        return None;
+    }
+    let raw = std::fs::read(src).ok()?;
+    if raw.starts_with(careerbrew_vault::MAGIC) || raw.starts_with(b"gAAAAA") {
+        return None;
+    }
+    let text = String::from_utf8(raw).ok()?;
+    if odd_yaml(&text) {
+        return None;
+    }
+    let data = careerbrew_vault::json_yaml::yaml_read(&text).ok()?;
+    let id = valid_ladder(&data)?;
+    let dump = crate::pyyaml::safe_dump(&data)?;
+    let dir = ctx.root.join("ladders");
+    if std::fs::symlink_metadata(&dir).is_ok_and(|meta| !meta.is_dir()) {
+        return None;
+    }
+    let path = dir.join(format!("{id}.yaml"));
+    if std::fs::symlink_metadata(&path).is_ok_and(|meta| !meta.is_file()) {
+        return None;
+    }
+    std::fs::create_dir_all(&dir).ok()?;
+    store.write_text(&path, &dump).ok()?;
+    ok(format!("imported ladder {id}\n"), 0)
+}
+
+// ---------- work plan ----------
+
+/// `f"{value:g}"`: six significant digits, trailing zeros dropped, and the
+/// exponent form outside 1e-4 to 1e6.
+fn py_g(value: f64) -> Option<String> {
+    if !value.is_finite() {
+        return None;
+    }
+    if value == 0.0 {
+        return Some(if value.is_sign_negative() { "-0" } else { "0" }.into());
+    }
+    let sci = format!("{value:.5e}");
+    let (mantissa, exp) = sci.split_once('e')?;
+    let exp: i32 = exp.parse().ok()?;
+    let trim = |text: &str| -> String {
+        if text.contains('.') {
+            text.trim_end_matches('0').trim_end_matches('.').to_owned()
+        } else {
+            text.to_owned()
+        }
+    };
+    if (-4..6).contains(&exp) {
+        let precision = (5 - exp) as usize;
+        Some(trim(&format!("{value:.precision$}")))
+    } else {
+        let sign = if exp < 0 { '-' } else { '+' };
+        Some(format!("{}e{sign}{:02}", trim(mantissa), exp.abs()))
+    }
+}
+
+/// `float(value)` for a stored task field, or `default` where Python's
+/// `_num` falls back. None for a value whose `float()` this does not model
+/// (text, a huge int).
+fn py_num(value: Option<&Value>, default: f64) -> Option<f64> {
+    let Some(value) = value else {
+        return Some(default);
+    };
+    if let Some(b) = value.as_bool() {
+        return Some(if b { 1.0 } else { 0.0 });
+    }
+    if value.is_null() || value.is_array() || value.is_object() {
+        return Some(default);
+    }
+    if value.is_string() {
+        return None;
+    }
+    if (value.is_i64() || value.is_u64()) && value.as_f64()?.abs() > 1e15 {
+        return None;
+    }
+    let number = value.as_f64()?;
+    Some(if number.is_finite() { number } else { default })
+}
+
+/// `priorities.estimate(t)`.
+fn py_estimate(task: &Map) -> Option<f64> {
+    let hours = py_num(task.get("estimate_h"), 1.0)?;
+    Some(if hours.is_finite() && hours > 0.0 && hours <= 200.0 {
+        hours
+    } else {
+        1.0
+    })
+}
+
+/// Days since 1970-01-01 for a strict `YYYY-MM-DD`, or Some(None) for a date
+/// of that shape that does not exist (`date.fromisoformat` raises, which
+/// `rank` reads as no due date). None for another shape.
+fn civil_days(text: &str) -> Option<Option<i64>> {
+    let b = text.as_bytes();
+    if b.len() != 10
+        || b[4] != b'-'
+        || b[7] != b'-'
+        || ![0, 1, 2, 3, 5, 6, 8, 9]
+            .iter()
+            .all(|&i| b[i].is_ascii_digit())
+    {
+        return None;
+    }
+    let year: i64 = text[0..4].parse().ok()?;
+    let month: i64 = text[5..7].parse().ok()?;
+    let day: i64 = text[8..10].parse().ok()?;
+    let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    let last = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return Some(None),
+    };
+    if year < 1 || day < 1 || day > last {
+        return Some(None);
+    }
+    // Howard Hinnant's days_from_civil.
+    let y = if month <= 2 { year - 1 } else { year };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let mp = (month + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    Some(Some(era * 146_097 + doe - 719_468))
+}
+
+/// One ranked task: its id, score, promotion bonus and estimate.
+struct Ranked {
+    id: String,
+    score: f64,
+    bonus: f64,
+    estimate: f64,
+}
+
+/// Python's `max(values, default=0.0)` for finite floats.
+fn py_max(values: impl Iterator<Item = f64>) -> f64 {
+    values
+        .fold(None, |acc: Option<f64>, p| {
+            Some(acc.map_or(p, |a| if p > a { p } else { a }))
+        })
+        .unwrap_or(0.0)
+}
+
+/// `priorities.rank(gap_priorities)` for tasks whose fields Rust reads as
+/// Python does, with no `project_priority` setting (so no project bonus).
+fn rank(ctx: &Ctx, gaps: &[(String, f64)]) -> Option<Vec<Ranked>> {
+    let settings = read_map_yaml(&ctx.root.join("settings.yaml"))?;
+    if careerbrew_career::truthy(settings.get("project_priority")) {
+        return None;
+    }
+    let lid = target(ctx)?.0;
+    let today = civil_days(&when::strftime(&py_now(ctx)?, "%Y-%m-%d"))??;
+    let top = py_max(gaps.iter().map(|(_, p)| *p));
+    let top = if top == 0.0 { 1.0 } else { top };
+    let file = read_map_yaml(&ctx.root.join("work").join("tasks.yaml"))?;
+    let tasks = match file.get("tasks") {
+        None => Vec::new(),
+        Some(value) => value.as_array()?.clone(),
+    };
+    let mut out = Vec::new();
+    for task in &tasks {
+        let task = task.as_object()?;
+        // `_migrate` rewrites an old `link`; that path stays Python.
+        if task.contains_key("link") {
+            return None;
+        }
+        let open = match task.get("status") {
+            None => true,
+            Some(value) => value.as_str() == Some("open"),
+        };
+        if !open {
+            continue;
+        }
+        let id = task.get("id")?.as_str()?.to_owned();
+        let title = match task.get("title") {
+            None => String::new(),
+            Some(value) => value.as_str()?.to_owned(),
+        };
+        // `project_priority.of_task` reads the links even with no projects.
+        if let Some(links) = task.get("links") {
+            if careerbrew_career::truthy(Some(links))
+                && !links
+                    .as_array()?
+                    .iter()
+                    .all(|link| link.is_string() || link.is_object())
+            {
+                return None;
+            }
+        }
+        let mut urgency = py_num(task.get("urgency"), 3.0)?;
+        if let Some(due) = task.get("due") {
+            if careerbrew_career::truthy(Some(due)) {
+                let days = match due.as_str() {
+                    Some(text) => civil_days(text)?,
+                    // `str(True)` never parses; a number may (`20261120`).
+                    None if due.is_boolean() => None,
+                    None => return None,
+                };
+                if days.is_some_and(|d| d - today <= 2) {
+                    urgency += 3.0;
+                }
+            }
+        }
+        let dims: Vec<String> = match task.get("competencies") {
+            Some(value) if careerbrew_career::truthy(Some(value)) => value
+                .as_array()?
+                .iter()
+                .map(|c| c.as_str().map(str::to_owned))
+                .collect::<Option<_>>()?,
+            _ => ladder_grade::dims_of(&title, Some(&lid))
+                .ok()?
+                .iter()
+                .map(|c| c.as_str().map(str::to_owned))
+                .collect::<Option<_>>()?,
+        };
+        let best = py_max(dims.iter().map(|c| {
+            gaps.iter()
+                .rev()
+                .find(|(id, _)| id == c)
+                .map_or(0.0, |(_, p)| *p)
+        }));
+        let bonus = 3.0 * best / top;
+        let impact = py_num(task.get("impact"), 3.0)?;
+        let estimate = py_estimate(task)?;
+        let size = if estimate > 0.25 { estimate } else { 0.25 };
+        let score = (impact + urgency + bonus + 0.0) / size.sqrt();
+        if !score.is_finite() || !bonus.is_finite() {
+            return None;
+        }
+        out.push(Ranked {
+            id,
+            score: py::round(score, 2),
+            bonus: py::round(bonus, 2),
+            estimate,
+        });
+    }
+    out.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.id.cmp(&b.id))
+    });
+    Some(out)
+}
+
+/// `repr(value)` for a value Rust prints as Python does (no exponent).
+fn plain_repr(value: f64) -> Option<String> {
+    (value == 0.0 || (value.abs() >= 1e-4 && value.abs() < 1e15)).then(|| py::float_repr(value))
+}
+
+fn work_plan(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    // A terminal shows each title; that output stays Python.
+    if ctx.env.stdout_is_terminal {
+        return None;
+    }
+    let crate::args::Value::Number(hours) = args.get("hours") else {
+        return None;
+    };
+    let capacity: f64 = hours.parse().ok()?;
+    if !capacity.is_finite() {
+        return None;
+    }
+    let assessment = assessment(args, ctx)?;
+    let gaps: Vec<(String, f64)> = promo::gaps(&assessment)
+        .iter()
+        .map(|g| (g.id.clone(), g.priority))
+        .collect();
+    if gaps.iter().any(|(_, p)| !p.is_finite()) {
+        return None;
+    }
+    let ranked = rank(ctx, &gaps)?;
+    let mut chosen = Vec::new();
+    let mut used = 0.0;
+    for task in &ranked {
+        if used + task.estimate <= capacity {
+            chosen.push(task);
+            used += task.estimate;
+        }
+    }
+    let mut out = format!("plan: {}h of {}h\n", py_g(used)?, py_g(capacity)?);
+    for task in &chosen {
         out.push_str(&format!(
-            "{}. {:<14} coverage {}  priority {}  -> {}\n",
-            i + 1,
-            g.id,
-            py::percent(g.coverage),
-            py::float_repr(g.priority),
-            g.how_to_close
+            "- {} score {} promo+{} est {}h  (title hidden; run in your terminal)\n",
+            task.id,
+            plain_repr(task.score)?,
+            plain_repr(task.bonus)?,
+            py_g(task.estimate)?
         ));
     }
+    emit_counts(
+        ctx,
+        "work.plan",
+        &[("status", "ok")],
+        &[("tasks", chosen.len())],
+    );
     ok(out, 0)
+}
+
+/// `emit` with whole-number fields as well as text ones.
+fn emit_counts(ctx: &Ctx, event: &str, texts: &[(&str, &str)], counts: &[(&str, usize)]) {
+    if !ctx.env.caps.events_on {
+        return;
+    }
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    let stamp = crate::events::stamp(secs);
+    let quote = |text: &str| {
+        let mut out = String::new();
+        crate::render::py_string(text, &mut out);
+        out
+    };
+    let mut pairs: Vec<(&str, String)> = vec![
+        ("event", quote(event)),
+        ("ts", quote(&stamp)),
+        ("v", quote(crate::events::version())),
+    ];
+    for (key, value) in texts {
+        pairs.push((key, quote(value)));
+    }
+    for (key, value) in counts {
+        pairs.push((key, value.to_string()));
+    }
+    pairs.sort_by(|a, b| a.0.cmp(b.0));
+    let body: Vec<String> = pairs
+        .iter()
+        .map(|(key, value)| format!("{}: {value}", quote(key)))
+        .collect();
+    let line = format!("{{{}}}\n", body.join(", "));
+    let logs = ctx.root.join("logs");
+    if std::fs::create_dir_all(&logs).is_err() {
+        return;
+    }
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(logs.join("events.jsonl"))
+    {
+        let _ = file.write_all(line.as_bytes());
+    }
 }
