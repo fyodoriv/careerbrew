@@ -167,9 +167,14 @@ fn production_route_and_shipped_inventory_stay_untouched_by_the_component() {
         };
         assert_eq!(record[1], expected, "{}", record[0]);
     }
-    for action in ["work.project.explain", "work.project.prd"] {
+    // rust24 serves the slot-range error of `work project prd` natively
+    // (`crates/cbcli/src/steps/rust24.rs`); this crate still has no route.
+    for (action, expected) in [
+        ("work.project.explain", "python"),
+        ("work.project.prd", "native"),
+    ] {
         let route = records.iter().find(|record| record[0] == action).unwrap();
-        assert_eq!(route[1], "python");
+        assert_eq!(route[1], expected);
     }
     let shipped = std::fs::read_to_string(root.join("scripts/rust-shipped-crates.txt")).unwrap();
     assert!(!shipped.lines().any(|line| line.trim() == "crates/learn"));
