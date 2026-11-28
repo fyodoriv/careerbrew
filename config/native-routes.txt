@@ -16,7 +16,7 @@ checklist native
 config.show native
 config.set native
 config.unset native
-signals python
+signals native
 checkup python
 jobs.scan python
 jobs.choose native

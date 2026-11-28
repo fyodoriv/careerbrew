@@ -44,6 +44,9 @@
 //!   link (`://`) and whose ages are whole tenths of a day; `work project
 //!   sync` when no project has sources or a memory file; `drill progress`
 //!   before any card, attempt or readiness row exists.
+//! - wave 8: `signals` (text and `--json`) when stdout is no terminal and
+//!   no plugin is installed, so sources and effects are hidden; `signals
+//!   reset` of an inbox key or a PM label in a plaintext folder.
 //!
 //! Every other form refuses (exit 64, Python runs it) before any write: a
 //! redaction input, any read error, a write of project data, any text that
@@ -90,6 +93,7 @@ pub const COMMANDS: &[&str] = &[
     "work.project.show",
     "work.project.sync",
     "drill.progress",
+    "signals",
 ];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
@@ -129,6 +133,7 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "work.project.show" => project_show(args, ctx),
         "work.project.sync" => project_sync(ctx),
         "drill.progress" => drill_progress(ctx),
+        "signals" => signals(args, ctx),
         _ => None,
     }
 }
@@ -3169,6 +3174,656 @@ fn drill_progress(ctx: &Ctx) -> Option<Outcome> {
     std::fs::write(&page, rep.html()).ok()?;
     said(
         format!("readiness 0% over 0 attempt(s); chart: {root}/out/progress.html\n"),
+        0,
+    )
+}
+
+// ---------- wave 8: signals ----------
+//
+// `careerbrew signals` (Python `cmd_signals` and `signals.py`). Served only
+// when stdout is no terminal and no plugin is installed (no plugin lock
+// file, a redaction input checked in `run`): then `may_show_business()` is
+// false and every row's source and effect are hidden, so only kinds,
+// counts, weights and mutes print. `signals reset` is served for an inbox
+// key and for a PM label (`cut`, `rename`, `part`) in a plaintext data
+// folder, with the pinned clock. Every stamp must be in the subset of
+// `datetime.fromisoformat` that `iso_micros` reads; any other shape refuses.
+
+const SIGNAL_WINDOW_DAYS: i128 = 90;
+const SIGNAL_MUTE_AFTER: i64 = 3;
+const SIGNAL_MUTE_DAYS: i128 = 14;
+const SIGNAL_DECIDED: &[&str] = &["accepted", "dismissed", "answered"];
+const SIGNAL_PM_KINDS: &[&str] = &["cut", "rename", "part"];
+const DAY_US: i128 = 86_400 * 1_000_000;
+
+/// True when every map inside has distinct keys (`json.loads` keeps the
+/// last of a repeated key; such a file goes to Python).
+fn distinct_keys(value: &Canon) -> bool {
+    match value {
+        Canon::Map(pairs) => {
+            pairs
+                .iter()
+                .enumerate()
+                .all(|(i, (key, _))| pairs[..i].iter().all(|(other, _)| other != key))
+                && pairs.iter().all(|(_, v)| distinct_keys(v))
+        }
+        Canon::List(items) => items.iter().all(distinct_keys),
+        _ => true,
+    }
+}
+
+/// `str(value or default)`: None refuses a truthy value that is no text.
+fn text_or(value: Option<&Canon>, default: &str) -> Option<String> {
+    match value {
+        None => Some(default.to_owned()),
+        Some(Canon::Str(text)) if !text.is_empty() => Some(text.clone()),
+        Some(other) if !truthy(other) => Some(default.to_owned()),
+        Some(_) => None,
+    }
+}
+
+/// `datetime.fromisoformat(text)` as UTC microseconds (a naive time is
+/// UTC), for `YYYY-MM-DD` and `YYYY-MM-DDTHH:MM:SS[.ffffff][Z|+HH:MM]`;
+/// None for any other form.
+fn iso_micros(text: &str) -> Option<i128> {
+    if !text.is_ascii() {
+        return None;
+    }
+    let num = |part: &str| -> Option<i64> {
+        if !part.is_empty() && part.bytes().all(|c| c.is_ascii_digit()) {
+            part.parse().ok()
+        } else {
+            None
+        }
+    };
+    let b = text.as_bytes();
+    if b.len() < 10 || b[4] != b'-' || b[7] != b'-' {
+        return None;
+    }
+    let year = num(&text[..4])?;
+    if year < 1 {
+        return None;
+    }
+    let month = u32::try_from(num(&text[5..7])?).ok()?;
+    let day = u32::try_from(num(&text[8..10])?).ok()?;
+    let days = civil_days(year, month, day)?;
+    let mut micros = i128::from(days) * DAY_US;
+    if b.len() == 10 {
+        return Some(micros);
+    }
+    if b.len() < 19 || b[10] != b'T' || b[13] != b':' || b[16] != b':' {
+        return None;
+    }
+    let (hour, minute, second) = (
+        num(&text[11..13])?,
+        num(&text[14..16])?,
+        num(&text[17..19])?,
+    );
+    if hour > 23 || minute > 59 || second > 59 {
+        return None;
+    }
+    micros += i128::from(hour * 3600 + minute * 60 + second) * 1_000_000;
+    let mut rest = &text[19..];
+    if let Some(frac) = rest.strip_prefix('.') {
+        let digits = frac.get(..6)?;
+        micros += i128::from(num(digits)?);
+        rest = &frac[6..];
+    }
+    match rest {
+        "" | "Z" => Some(micros),
+        zone => Some(micros - i128::from(offset_secs(zone)?) * 1_000_000),
+    }
+}
+
+/// `_when(i.get("decided_at") or i.get("created_at"))`: the earliest time
+/// for a missing value, None for a stamp `iso_micros` cannot read for sure.
+fn decided_at(item: &Pairs) -> Option<i128> {
+    let value = match get(item, "decided_at") {
+        Some(v) if truthy(v) => Some(v),
+        _ => get(item, "created_at"),
+    };
+    match value {
+        Some(Canon::Str(text)) if !text.is_empty() => iso_micros(text),
+        Some(other) if truthy(other) => None,
+        _ => Some(i128::MIN),
+    }
+}
+
+/// `signals.key(item)`: (kind, source).
+fn signal_key(item: &Pairs) -> Option<(String, String)> {
+    let kind = text_or(get(item, "kind"), "")?;
+    let origin = text_or(get(item, "origin"), "")?;
+    if origin.starts_with("plugin:") {
+        return Some((kind, origin));
+    }
+    let data = match get(item, "data") {
+        None => Vec::new(),
+        Some(value) if !truthy(value) => Vec::new(),
+        Some(value) => plain_map(value)?.clone(),
+    };
+    let project = text_or(get(&data, "project"), "")?;
+    if !project.is_empty() {
+        return Some((kind, format!("project:{project}")));
+    }
+    if kind == "project" {
+        let what = text_or(get(&data, "kind"), "")?;
+        if !what.is_empty() {
+            return Some((kind, what));
+        }
+    }
+    let src = text_or(get(&data, "source"), "careerbrew")?;
+    let src = if src == "pr" {
+        "github".to_owned()
+    } else {
+        src
+    };
+    Some((kind, src))
+}
+
+/// One key's counts (`signals.inbox_counts`).
+struct SignalCounts {
+    accepted: i64,
+    dismissed: i64,
+    run: i64,
+    last: i128,
+    question: bool,
+}
+
+type SignalKey = (String, String);
+
+/// `store.read_json(path, {}) or {}` as a map; None for another shape.
+fn json_map(store: &Store, path: &Path) -> Option<Pairs> {
+    if std::fs::symlink_metadata(path).is_ok_and(|meta| !meta.is_file()) {
+        return None;
+    }
+    let value = store.read_json(path, Canon::Map(Vec::new()), false).ok()?;
+    if !distinct_keys(&value) {
+        return None;
+    }
+    match value {
+        Canon::Map(pairs) => Some(pairs),
+        other if !truthy(&other) => Some(Vec::new()),
+        _ => None,
+    }
+}
+
+/// `signals._resets()`: key -> stamp, every value a text.
+fn signal_resets(store: &Store, root: &Path) -> Option<Vec<(String, String)>> {
+    let top = json_map(store, &root.join("day/signal-resets.json"))?;
+    let resets = match get(&top, "resets") {
+        None => return Some(Vec::new()),
+        Some(Canon::Map(pairs)) => pairs,
+        Some(_) => return None,
+    };
+    resets
+        .iter()
+        .map(|(key, value)| match (key, value) {
+            (Canon::Str(key), Canon::Str(value)) => Some((key.clone(), value.clone())),
+            _ => None,
+        })
+        .collect()
+}
+
+fn status_is(item: &Pairs, wanted: &[&str]) -> bool {
+    matches!(get(item, "status"), Some(Canon::Str(s)) if wanted.contains(&s.as_str()))
+}
+
+/// `signals.inbox_counts()`, sorted by key. `now` is needed only when an
+/// item is decided; None refuses.
+fn inbox_counts(
+    store: &Store,
+    root: &Path,
+    now: Option<i128>,
+) -> Option<Vec<(SignalKey, SignalCounts)>> {
+    let top = json_map(store, &root.join("day/inbox.json"))?;
+    let items = match get(&top, "items") {
+        None => Vec::new(),
+        Some(Canon::List(items)) => items.clone(),
+        Some(_) => return None,
+    };
+    let resets = signal_resets(store, root)?;
+    let mut rows: Vec<(i128, SignalKey, &Pairs)> = Vec::new();
+    for item in &items {
+        let Canon::Map(item) = item else {
+            return None;
+        };
+        if !status_is(item, SIGNAL_DECIDED) {
+            continue;
+        }
+        let now = now?;
+        let at = decided_at(item)?;
+        if at < now - SIGNAL_WINDOW_DAYS * DAY_US {
+            continue;
+        }
+        let key = signal_key(item)?;
+        let joined = format!("{}|{}", key.0, key.1);
+        if let Some((_, since)) = resets.iter().find(|(k, _)| *k == joined) {
+            if !since.is_empty() && at <= iso_micros(since)? {
+                continue;
+            }
+        }
+        rows.push((at, key, item));
+    }
+    rows.sort_by_key(|row| row.0);
+    let mut out: Vec<(SignalKey, SignalCounts)> = Vec::new();
+    let mut groups: Vec<String> = Vec::new();
+    for (at, key, item) in rows {
+        match get(item, "decided_group") {
+            Some(Canon::Str(group)) if !group.is_empty() => {
+                if groups.contains(group) {
+                    continue;
+                }
+                groups.push(group.clone());
+            }
+            Some(other) if truthy(other) => return None,
+            _ => {}
+        }
+        let index = match out.iter().position(|(k, _)| *k == key) {
+            Some(index) => index,
+            None => {
+                let question = matches!(get(item, "type"), Some(Canon::Str(t)) if t == "question");
+                out.push((
+                    key,
+                    SignalCounts {
+                        accepted: 0,
+                        dismissed: 0,
+                        run: 0,
+                        last: 0,
+                        question,
+                    },
+                ));
+                out.len() - 1
+            }
+        };
+        let counts = &mut out[index].1;
+        if status_is(item, &["dismissed"]) {
+            counts.dismissed += 1;
+            counts.run += 1;
+        } else {
+            counts.accepted += 1;
+            counts.run = 0;
+        }
+        counts.last = at;
+    }
+    out.sort_by(|a, b| a.0.cmp(&b.0));
+    Some(out)
+}
+
+/// `round(x, 3)` in Python's `repr`: correctly rounded half to even on the
+/// exact binary value, then the shortest text.
+fn py_round3(x: f64) -> Option<String> {
+    if !x.is_finite() || x < 0.0 {
+        return None;
+    }
+    let exact = format!("{x:.80}");
+    let (whole, frac) = exact.split_once('.')?;
+    let head = frac.get(..3)?;
+    let tail = frac.get(3..)?;
+    let mut digits: Vec<u8> = whole.bytes().chain(head.bytes()).collect();
+    let first = *tail.as_bytes().first()?;
+    let rest_zero = tail[1..].bytes().all(|c| c == b'0');
+    let odd = (digits[digits.len() - 1] - b'0') % 2 == 1;
+    let up = first > b'5' || (first == b'5' && (!rest_zero || odd));
+    if up {
+        let mut at = digits.len();
+        loop {
+            if at == 0 {
+                digits.insert(0, b'1');
+                break;
+            }
+            at -= 1;
+            if digits[at] == b'9' {
+                digits[at] = b'0';
+            } else {
+                digits[at] += 1;
+                break;
+            }
+        }
+    }
+    let text = String::from_utf8(digits).ok()?;
+    let (int_part, frac_part) = text.split_at(text.len() - 3);
+    let frac_part = frac_part.trim_end_matches('0');
+    Some(format!(
+        "{int_part}.{}",
+        if frac_part.is_empty() { "0" } else { frac_part }
+    ))
+}
+
+/// `signals.weight_of(counts)` as (value, Python text).
+fn signal_weight(counts: &SignalCounts) -> Option<(f64, String)> {
+    let (a, d) = (counts.accepted, counts.dismissed);
+    if a + d > (1 << 50) {
+        return None;
+    }
+    let raw = (2 * (a + 1)) as f64 / (a + d + 2) as f64;
+    let clamped = raw.clamp(0.1, 1.0);
+    let text = py_round3(clamped)?;
+    Some((text.parse().ok()?, text))
+}
+
+fn signal_muted(counts: &SignalCounts, now: Option<i128>) -> Option<bool> {
+    if !counts.question || counts.run < SIGNAL_MUTE_AFTER {
+        return Some(false);
+    }
+    Some(now? - counts.last < SIGNAL_MUTE_DAYS * DAY_US)
+}
+
+/// A character Python's `splitlines` or `strip` reads another way than
+/// this port does.
+fn odd_char(c: char) -> bool {
+    (c.is_control() && c != '\n' && c != '\t') || matches!(c, '\u{2028}' | '\u{2029}' | '\u{85}')
+}
+
+/// A PM edit row's text field: absent, null or a text.
+fn pm_text_ok(value: Option<&Canon>) -> bool {
+    match value {
+        None | Some(Canon::Null) => true,
+        Some(Canon::Str(text)) => !text.chars().any(odd_char),
+        Some(_) => false,
+    }
+}
+
+/// `store.read_jsonl(pm_learn.path())` when every row is a map whose text
+/// fields read the same in both ports; None refuses.
+fn pm_rows(store: &Store, root: &Path) -> Option<Vec<Pairs>> {
+    let path = root.join("day/pm-edits.jsonl");
+    if std::fs::symlink_metadata(&path).is_ok_and(|meta| !meta.is_file()) {
+        return None;
+    }
+    let text = store
+        .read_text(&path, None, false)
+        .ok()?
+        .unwrap_or_default();
+    if text.chars().any(odd_char) {
+        return None;
+    }
+    let mut out = Vec::new();
+    for line in text.split('\n') {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let value = careerbrew_vault::json_yaml::json_read(line).ok()?;
+        if !distinct_keys(&value) {
+            return None;
+        }
+        let Canon::Map(row) = value else {
+            return None;
+        };
+        for key in ["draft", "shown", "body", "saved"] {
+            if !pm_text_ok(get(&row, key)) {
+                return None;
+            }
+        }
+        if !matches!(get(&row, "day"), None | Some(Canon::Str(_))) {
+            return None;
+        }
+        out.push(row);
+    }
+    Some(out)
+}
+
+/// `store.read_json(pm_learn.resets_path(), {}) or {}`: a map of texts.
+fn pm_resets(store: &Store, root: &Path) -> Option<Pairs> {
+    let resets = json_map(store, &root.join("day/pm-resets.json"))?;
+    resets
+        .iter()
+        .all(|(_, value)| matches!(value, Canon::Str(_)))
+        .then_some(resets)
+}
+
+/// `signals.pm_summary()` as the number of rows per kind: cut, rename,
+/// part, added (their sources and effects are hidden).
+fn pm_counts(store: &Store, root: &Path) -> Option<[usize; 4]> {
+    pm_rows(store, root)?;
+    pm_resets(store, root)?;
+    let learned = careerbrew_day::pm_learn::rules(root, None).ok()?;
+    let len = |key: &str| -> Option<usize> {
+        let value = &learned[key];
+        value
+            .as_array()
+            .map(Vec::len)
+            .or_else(|| value.as_object().map(|map| map.len()))
+    };
+    Some([len("cut")?, len("rename")?, len("parts")?, len("added")?])
+}
+
+/// The pinned `calendar.now_utc()` in microseconds, when Python reads it
+/// for sure; None otherwise.
+fn signal_now(store: &Store) -> Option<i128> {
+    let settings = careerbrew_vault::settings::read_settings(store).ok()?;
+    let settings = plain_map(&settings)?;
+    if !clock_safe(settings) {
+        return None;
+    }
+    pinned_utc(settings).map(|secs| i128::from(secs) * 1_000_000)
+}
+
+/// `isoformat(timespec="seconds")` of a UTC time.
+fn utc_iso_seconds(micros: i128) -> Option<String> {
+    let secs = i64::try_from(micros.div_euclid(1_000_000)).ok()?;
+    let days = secs.div_euclid(86_400);
+    let rem = secs.rem_euclid(86_400);
+    // The civil date of a day count since the epoch.
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    if !(1..=9999).contains(&year) {
+        return None;
+    }
+    Some(format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}+00:00",
+        rem / 3600,
+        rem % 3600 / 60,
+        rem % 60
+    ))
+}
+
+/// One inbox row as printed: kind, accepted, dismissed, weight text, and
+/// whether it changes what careerbrew does now.
+struct InboxRow {
+    kind: String,
+    accepted: i64,
+    dismissed: i64,
+    weight: String,
+    muted: bool,
+    changes: bool,
+}
+
+const HIDDEN_EFFECT: &str = "(hidden: run it in your terminal)";
+
+fn signals(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    // A terminal shows business text (`may_show_business`): Python runs it.
+    if ctx.env.stdout_is_terminal {
+        return None;
+    }
+    let action = args.text("action");
+    if !matches!(action, None | Some("reset")) {
+        return None;
+    }
+    let vault = vault_context()?;
+    if vault.root != ctx.root {
+        return None;
+    }
+    let store = vault.store();
+    if action == Some("reset") {
+        let kind = args.text("kind").filter(|k| !k.is_empty());
+        let source = args.text("source").filter(|s| !s.is_empty());
+        let (Some(kind), Some(source)) = (kind, source) else {
+            return said(
+                "reset needs a kind and a source, as `careerbrew signals` names them: careerbrew signals reset plugin plugin:acme\n".to_owned(),
+                2,
+            );
+        };
+        return signals_reset(ctx, &store, kind, source);
+    }
+    let now = signal_now(&store);
+    let counts = inbox_counts(&store, &ctx.root, now)?;
+    let pm = pm_counts(&store, &ctx.root)?;
+    let mut inbox = Vec::new();
+    for ((kind, _), c) in &counts {
+        if !printable(kind) {
+            return None;
+        }
+        let (value, weight) = signal_weight(c)?;
+        let muted = signal_muted(c, now)?;
+        inbox.push(InboxRow {
+            kind: kind.clone(),
+            accepted: c.accepted,
+            dismissed: c.dismissed,
+            weight,
+            muted,
+            changes: value < 1.0 || muted,
+        });
+    }
+    let pm_kinds: Vec<&str> = ["cut", "rename", "part", "added"]
+        .iter()
+        .zip(pm)
+        .flat_map(|(kind, n)| std::iter::repeat_n(*kind, n))
+        .collect();
+    make_dirs(&ctx.root, &["day"])?;
+    let total = inbox.len() + pm_kinds.len();
+    let mut out = String::new();
+    if args.flag("json") {
+        if total == 0 {
+            return said("[]\n".to_owned(), 0);
+        }
+        let mut blocks: Vec<String> = Vec::new();
+        for row in &inbox {
+            blocks.push(format!(
+                "  {{\n    \"signal\": \"inbox\",\n    \"kind\": {},\n    \"accepted\": {},\n    \"dismissed\": {},\n    \"weight\": {},\n    \"muted\": {},\n    \"source\": \"(hidden)\",\n    \"effect\": \"{HIDDEN_EFFECT}\"\n  }}",
+                quoted(&row.kind),
+                row.accepted,
+                row.dismissed,
+                row.weight,
+                row.muted
+            ));
+        }
+        for kind in &pm_kinds {
+            blocks.push(format!(
+                "  {{\n    \"signal\": \"pm\",\n    \"kind\": \"{kind}\",\n    \"source\": \"(hidden)\",\n    \"effect\": \"{HIDDEN_EFFECT}\"\n  }}"
+            ));
+        }
+        out.push_str("[\n");
+        out.push_str(&blocks.join(",\n"));
+        out.push_str("\n]\n");
+        return said(out, 0);
+    }
+    if total == 0 {
+        return said("no decisions yet: accept, dismiss, or answer items in the inbox (careerbrew day inbox, or Today in the web app)\n".to_owned(), 0);
+    }
+    let changing = inbox.iter().filter(|row| row.changes).count() + pm_kinds.len();
+    out.push_str(&format!(
+        "{total} signal(s) from your decisions; {changing} change what careerbrew does now\n"
+    ));
+    for row in &inbox {
+        out.push_str(&format!(
+            "- {:<12} from (hidden): {} accepted, {} dismissed -> {HIDDEN_EFFECT}\n",
+            row.kind, row.accepted, row.dismissed
+        ));
+    }
+    for _ in &pm_kinds {
+        out.push_str(&format!("- PM update  {HIDDEN_EFFECT}\n"));
+    }
+    said(out, 0)
+}
+
+/// How many edit rows have a draft line with this label (`pm_learn.reset`).
+fn pm_label_days(rows: &[Pairs], key: &str) -> usize {
+    rows.iter()
+        .filter(|row| {
+            let draft = match get(row, "draft") {
+                Some(Canon::Str(text)) => text.as_str(),
+                _ => "",
+            };
+            draft
+                .split('\n')
+                .filter(|line| !line.trim().is_empty())
+                .any(|line| {
+                    let (label, _) = careerbrew_day::pm_learn::split(line);
+                    careerbrew_day::pm_learn::norm(&label) == key
+                })
+        })
+        .count()
+}
+
+/// `signals.reset(kind, source)` and its line, in a plaintext data folder.
+fn signals_reset(ctx: &Ctx, store: &Store, kind: &str, source: &str) -> Option<Outcome> {
+    if !printable(kind) || !printable(source) || store.encryption_enabled() {
+        return None;
+    }
+    let now = signal_now(store)?;
+    let stamp = utc_iso_seconds(now)?;
+    if SIGNAL_PM_KINDS.contains(&kind) {
+        let rows = pm_rows(store, &ctx.root)?;
+        let mut data = pm_resets(store, &ctx.root)?;
+        let key = careerbrew_day::pm_learn::norm(source);
+        if !printable(&key) {
+            return None;
+        }
+        let had = pm_label_days(&rows, &key);
+        make_dirs(&ctx.root, &["day"])?;
+        if had == 0 {
+            return cli_error(
+                ctx,
+                "signals",
+                "valueerror",
+                &format!("no PM lesson for {source} (see: careerbrew signals)"),
+            );
+        }
+        data.retain(|(k, _)| !matches!(k, Canon::Str(k) if *k == key));
+        data.push((Canon::Str(key), Canon::Str(stamp)));
+        store
+            .write_json(&ctx.root.join("day/pm-resets.json"), &Canon::Map(data))
+            .ok()?;
+        return signals_reset_done(ctx, kind, source, i64::try_from(had).ok()?, true);
+    }
+    let counts = inbox_counts(store, &ctx.root, Some(now))?;
+    let mut resets = signal_resets(store, &ctx.root)?;
+    make_dirs(&ctx.root, &["day"])?;
+    let Some((_, had)) = counts.iter().find(|((k, s), _)| k == kind && s == source) else {
+        return cli_error(
+            ctx,
+            "signals",
+            "valueerror",
+            &format!("no signal for {kind} from {source} (see: careerbrew signals)"),
+        );
+    };
+    let n = had.accepted + had.dismissed;
+    let joined = format!("{kind}|{source}");
+    resets.retain(|(k, _)| *k != joined);
+    resets.push((joined, stamp));
+    let map = Canon::Map(
+        resets
+            .into_iter()
+            .map(|(k, v)| (Canon::Str(k), Canon::Str(v)))
+            .collect(),
+    );
+    let top = Canon::Map(vec![(Canon::Str("resets".to_owned()), map)]);
+    store
+        .write_json(&ctx.root.join("day/signal-resets.json"), &top)
+        .ok()?;
+    signals_reset_done(ctx, kind, source, n, false)
+}
+
+fn signals_reset_done(ctx: &Ctx, kind: &str, source: &str, n: i64, pm: bool) -> Option<Outcome> {
+    emit_json(
+        ctx,
+        "signals.reset",
+        &[("count", n.to_string()), ("status", quoted("ok"))],
+    );
+    let tail = if pm {
+        "the PM update writes that line as generated again"
+    } else {
+        "its weight is 1.0 again and its questions come back"
+    };
+    said(
+        format!("{kind} {source}: {n} decision(s) forgotten; {tail}\n"),
         0,
     )
 }
