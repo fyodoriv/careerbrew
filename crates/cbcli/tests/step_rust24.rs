@@ -12,6 +12,8 @@ use common::*;
 const NOW: &str = "2026-11-20T09:00:00";
 
 const ZONE: (&str, &str) = ("settings.yaml", "timezone: Etc/UTC\n");
+/// The marker that keeps a data folder plaintext (`Store::encryption_enabled`).
+const PLAIN: (&str, &str) = (".plaintext", "");
 
 /// Two plain projects (one with standing rules) and one prep project.
 const PROJECTS: &[&[&str]] = &[
@@ -76,7 +78,9 @@ fn time_baseline_matches_python() {
     let home = prepare_setup(&Setup {
         id: "time-plain",
         cli: &[],
-        files: &[],
+        // Without the marker the data folder may be sealed (the hosted
+        // Linux runner), and a sealed write is left to Python.
+        files: &[PLAIN],
     });
     for (args, label) in [
         (
@@ -105,7 +109,7 @@ fn time_baseline_matches_python() {
     let set = prepare_setup(&Setup {
         id: "time-set",
         cli: &[&["config", "set", "work_start", "08:30"]],
-        files: &[],
+        files: &[PLAIN],
     });
     same(
         &set,
