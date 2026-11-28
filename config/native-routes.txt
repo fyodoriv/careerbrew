@@ -32,7 +32,7 @@ jobs.log native
 cards.review python
 cards.next native
 cards.grade python
-cards.add native
+cards.add python
 cards.stats python
 cards.unsuspend native
 cards.explain-queue python

@@ -29,7 +29,7 @@ use std::path::{Path, PathBuf};
 /// `crates/cbcli/tests/step_rust20.rs`.
 pub const COMMANDS: &[&str] = &[
     "cards.next",
-    "cards.add",
+    // `cards.add` stays on Python until the deck YAML matches PyYAML byte for byte (TASKS.md).
     "cards.unsuspend",
     "cards.public-check",
     "library.list",

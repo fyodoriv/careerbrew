@@ -689,6 +689,15 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: if a name check gives more than 2 false matches on the current public deck, replace it with an explicit `public: false` field on cards and check that field.
   - **Anchor**: Basili, Caldiera & Rombach 1994 (GQM); Saltzer & Schroeder 1975 (fail-safe defaults).
 
+- [ ] Rust migration follow-up: make native `cards.add` write the deck YAML exactly like PyYAML
+  - **ID**: rust-followup-cards-add
+  - **Details**: In batch PR 262 the hosted test `cards_add_matches_python` (`crates/cbcli/tests/step_rust20.rs`) failed: for the case with a padded question and tags `Search,,arrays`, Python wrote `tutor/decks/mine.yaml` at 445 bytes and native at 401 bytes; stdout, exit code and events matched. The card fields match `cards.add` in `src/careerbrew/tutor/cards.py`, so the gap is most likely the YAML emitter (key order, quoting or line width against `yaml.safe_dump`). `cards.add` is routed to `python` in `config/native-routes.txt` and the test is `#[ignore]` until this is fixed. (1) Compare the decrypted plaintext of both files in a synthetic home. (2) Fix the emitter in the shared store code, not in `cards.add`. (3) Route `cards.add` native again and remove the `#[ignore]`.
+  - **Hypothesis**: one emitter fix makes the deck file byte-identical, so the parity test passes on both hosted OSes.
+  - **Measurement**: the hosted `native` parts of the PR (`cargo test -p careerbrew-cli --test step_rust20`).
+  - **Success**: `cards_add_matches_python` passes on ubuntu-24.04 and macos-15.
+  - **Pivot**: if more than one difference shows in the plaintext, port PyYAML's emitter rules for scalars as a tested module first.
+  - **Anchor**: Fowler 2004, "StranglerFigApplication" (route one command at a time behind a switch).
+
 - [ ] Rust migration follow-up: confirm or revert the rust-26 activation of six read-only commands
   - **ID**: rust-followup-26
   - **Details**: Batch PR 248 routes `data.status`, `backup.verify`, `plugin.list`, `plugin.verify`, `connectors.list` and `machine.show` to native code (`config/native-routes.txt`). Its evidence is the byte-for-byte parity test `crates/cbcli/tests/parity.rs`. The speed records that the activation rule needs (baseline, measure, decide) are still missing. The PR 241 review asked to block on this, and the lead kept the activation to finish the migration on 2026-11-27. (1) Run the batched measurement job for these commands and run `decide`. (2) If `decide` says `keep-python`, revert the six lines and restore the old guard in `tests/unit/test_native_route.py`. (3) Record the outcome in `docs/rust-migration.md`.
