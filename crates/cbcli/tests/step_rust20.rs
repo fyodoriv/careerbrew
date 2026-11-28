@@ -309,3 +309,149 @@ fn drill_list_matches_python() {
     };
     refuses(&terms, &["drill", "list"], "drill.list redaction");
 }
+
+/// The files a `Setup` writes.
+type Files = &'static [(&'static str, &'static str)];
+
+const GAPS: (&str, &str) = (
+    "jobs/strategy.json",
+    "{\"skill_gaps\": [[\"kafka\", 2], [\"queues\", 1]]}",
+);
+const GAP_ITEMS: (&str, &str) = (
+    "tutor/gap-items.yaml",
+    "items:
+- id: aaa-gap-kafka-1
+  topic: kafka
+  round: skill
+  rubric: skill
+  teach: \"Study K\u{e4}fka \u{2014} a log\"
+  prompt: Explain kafka
+  extra: [1, true, null, {a: b}]
+- id: arrays-two-pointers-1
+  topic: data structures
+  round: coding
+  rubric: coding
+  origin: hand
+  prompt: A replaced synthetic prompt
+",
+);
+const OFF_FOCUS: (&str, &str) = (
+    "tutor/gap-items.yaml",
+    "items:\n- id: aaa-off-1\n  topic: gardening\n  round: skill\n  rubric: skill\n  prompt: Off focus\n",
+);
+
+#[test]
+fn drill_next_matches_python() {
+    strict(NOW);
+    // Route key: "drill.next".
+    let empty = prepare_setup(&Setup {
+        id: "next-empty",
+        cli: &[],
+        files: &[],
+    });
+    assert_same(&empty, &["drill", "next"], true, "drill.next empty");
+    assert_same(
+        &empty,
+        &["drill", "next", "--json"],
+        true,
+        "drill.next empty json",
+    );
+    let gaps = prepare_setup(&Setup {
+        id: "next-gaps",
+        cli: &[],
+        files: &[GAPS, GAP_ITEMS],
+    });
+    assert_same(&gaps, &["drill", "next"], true, "drill.next gaps");
+    assert_same(
+        &gaps,
+        &["drill", "next", "--json"],
+        true,
+        "drill.next gaps json",
+    );
+    // A generated item that replaces a base one keeps its place and wins.
+    let replaced = prepare_setup(&Setup {
+        id: "next-replaced",
+        cli: &[],
+        files: &[GAP_ITEMS],
+    });
+    assert_same(
+        &replaced,
+        &["drill", "next", "--json"],
+        true,
+        "drill.next replaced json",
+    );
+    let off = prepare_setup(&Setup {
+        id: "next-off-focus",
+        cli: &[],
+        files: &[OFF_FOCUS],
+    });
+    assert_same(&off, &["drill", "next"], true, "drill.next off focus");
+    let encrypted = prepare_setup(&Setup {
+        id: "next-encrypted",
+        cli: &[&["machine", "set", "personal"], &["data", "encrypt"]],
+        files: &[GAPS, GAP_ITEMS],
+    });
+    assert_same(&encrypted, &["drill", "next"], true, "drill.next encrypted");
+    let refused: [(&str, Files, &[&str]); 6] = [
+        (
+            "next-cards",
+            &[("tutor/cards.json", "{}")],
+            &["drill", "next"],
+        ),
+        (
+            "next-attempts",
+            &[("tutor/attempts.jsonl", "")],
+            &["drill", "next"],
+        ),
+        ("next-corp", &[CORPORATE], &["drill", "next"]),
+        ("next-terms", &[TERMS], &["drill", "next"]),
+        (
+            "next-float",
+            &[(
+                "tutor/gap-items.yaml",
+                "items:\n- id: aaa-f-1\n  topic: behavioral\n  round: x\n  weight: 1.5\n",
+            )],
+            &["drill", "next", "--json"],
+        ),
+        (
+            "next-no-rubric",
+            &[(
+                "tutor/gap-items.yaml",
+                "items:\n- id: aaa-r-1\n  topic: behavioral\n  round: x\n  prompt: P\n",
+            )],
+            &["drill", "next"],
+        ),
+    ];
+    for (id, files, args) in refused {
+        refuses(
+            &Setup {
+                id,
+                cli: &[],
+                files,
+            },
+            args,
+            id,
+        );
+    }
+}
+
+/// Negative control: the comparison sees the generated items.
+#[test]
+fn drill_next_output_follows_the_items() {
+    strict(NOW);
+    let empty = prepare_setup(&Setup {
+        id: "control-empty",
+        cli: &[],
+        files: &[],
+    });
+    let gaps = prepare_setup(&Setup {
+        id: "control-gaps",
+        cli: &[],
+        files: &[GAPS, GAP_ITEMS],
+    });
+    let a = common::observe(&empty, &["drill", "next"], &common::Side::Native);
+    let b = common::observe(&gaps, &["drill", "next"], &common::Side::Native);
+    assert_ne!(a, b);
+    assert!(a.stdout.starts_with("[learn] arrays-two-pointers-1 "));
+    assert!(b.stdout.starts_with("[learn] aaa-gap-kafka-1 "));
+}

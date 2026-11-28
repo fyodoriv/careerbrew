@@ -52,7 +52,7 @@ learn.replay.measure python
 learn.tour.add python
 learn.tour.approve python
 learn.tour.export python
-goals.show python
+goals.show native
 goals.set python
 goals.add-long-term native
 approvals.request python
@@ -70,7 +70,7 @@ exercises.submit python
 import.notion python
 library.list native
 library.show native
-drill.next python
+drill.next native
 drill.answer python
 drill.speak python
 drill.session python
