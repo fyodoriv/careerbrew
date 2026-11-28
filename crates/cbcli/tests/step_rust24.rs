@@ -6,8 +6,8 @@
 //! "work.project.check", "work.project.prd", "work.project.next",
 //! "work.project.reference", "work.project.memory", "work.project.set",
 //! "work.project.explain", "metrics.time-saved", "cards.publish",
-//! "work.project.add", "work.project.show", "work.project.sync" and
-//! "drill.progress".
+//! "work.project.add", "work.project.show", "work.project.sync",
+//! "drill.progress" and "signals".
 mod common;
 
 use common::*;
@@ -1498,4 +1498,264 @@ fn the_wave_seven_comparison_detects_a_planted_difference() {
         .files
         .iter()
         .any(|f| f.starts_with("out/progress.html ")));
+}
+
+// ---------- wave 8: signals ----------
+
+/// One synthetic inbox item as JSON.
+fn signal_item(id: &str, kind: &str, status: &str, at: &str, extra: &str) -> String {
+    let stamp = if at.is_empty() {
+        String::new()
+    } else {
+        format!(", \"decided_at\": \"{at}\"")
+    };
+    format!("{{\"id\": \"{id}\", \"kind\": \"{kind}\", \"status\": \"{status}\"{stamp}{extra}}}")
+}
+
+/// Decisions of several kinds: a plugin key (weight 0.667), a muted
+/// question run (a `pr` source reads as `github`), one Dismiss all group,
+/// an old and an open item, a project question stamped only by
+/// `created_at` with microseconds, a reset key, and 2 accepts against 28
+/// dismissals (weight 0.1875, a tie Python rounds to even).
+fn signal_inbox() -> String {
+    let mut items = vec![
+        signal_item(
+            "p1",
+            "plugin",
+            "accepted",
+            "2026-11-10T10:00:00+00:00",
+            ", \"origin\": \"plugin:acme\", \"type\": \"proposal\"",
+        ),
+        signal_item(
+            "p2",
+            "plugin",
+            "dismissed",
+            "2026-11-11T10:00:00Z",
+            ", \"origin\": \"plugin:acme\"",
+        ),
+        signal_item(
+            "q1",
+            "impact",
+            "dismissed",
+            "2026-11-15T10:00:00",
+            ", \"type\": \"question\", \"data\": {\"source\": \"pr\"}",
+        ),
+        signal_item(
+            "q2",
+            "impact",
+            "dismissed",
+            "2026-11-16T12:00:00+02:00",
+            ", \"type\": \"question\", \"data\": {\"source\": \"github\"}",
+        ),
+        signal_item(
+            "q3",
+            "impact",
+            "dismissed",
+            "2026-11-17T10:00:00",
+            ", \"type\": \"question\", \"data\": {\"source\": \"pr\"}",
+        ),
+        signal_item(
+            "g1",
+            "task",
+            "dismissed",
+            "2026-11-14T10:00:00",
+            ", \"decided_group\": \"grp-1\"",
+        ),
+        signal_item(
+            "g2",
+            "task",
+            "dismissed",
+            "2026-11-14T10:00:00",
+            ", \"decided_group\": \"grp-1\"",
+        ),
+        signal_item("old", "task", "dismissed", "2026-06-01T10:00:00", ""),
+        signal_item("open", "task", "open", "", ""),
+        signal_item(
+            "pr1",
+            "project",
+            "accepted",
+            "",
+            ", \"created_at\": \"2026-11-19T08:00:00.123456Z\", \"data\": {\"kind\": \"repo\"}",
+        ),
+        signal_item(
+            "c1",
+            "competency",
+            "answered",
+            "2026-11-18",
+            ", \"data\": {\"project\": \"billing\"}",
+        ),
+    ];
+    for n in 0..30 {
+        let status = if n < 2 { "accepted" } else { "dismissed" };
+        items.push(signal_item(
+            &format!("t{n}"),
+            "label",
+            status,
+            &format!("2026-11-0{}T{:02}:00:00", 1 + n % 9, n % 24),
+            ", \"origin\": \"plugin:beta\"",
+        ));
+    }
+    format!("{{\"items\": [{}]}}", items.join(", "))
+}
+
+const SIGNAL_RESETS: &str =
+    "{\"resets\": {\"competency|project:billing\": \"2026-11-18T12:00:00+00:00\"}}";
+
+/// Two edited days that cut the synthetic `Alpha` line.
+const PM_EDITS: &str = concat!(
+    "{\"day\": \"2026-11-17\", \"draft\": \"Alpha: did a thing.\\nBeta: other work.\", \"shown\": \"Alpha: did a thing.\\nBeta: other work.\", \"body\": \"Beta: other work.\"}\n",
+    "{\"day\": \"2026-11-18\", \"draft\": \"Alpha: did more.\\nBeta: more work.\", \"shown\": \"Alpha: did more.\\nBeta: more work.\", \"body\": \"Beta: more work.\"}\n",
+);
+
+fn signals_home(id: &'static str, inbox: bool, pm: bool) -> Home {
+    let home = prepare_setup(&Setup {
+        id,
+        cli: &[],
+        files: &[ZONE, PLAIN],
+    });
+    if inbox {
+        plant(&home, "day/inbox.json", &signal_inbox());
+        plant(&home, "day/signal-resets.json", SIGNAL_RESETS);
+    }
+    if pm {
+        plant(&home, "day/pm-edits.jsonl", PM_EDITS);
+    }
+    home
+}
+
+#[test]
+fn signals_matches_python() {
+    strict(NOW);
+    let empty = signals_home("signals-empty", false, false);
+    same(&empty, &["signals"], "signals with no decision");
+    same(
+        &empty,
+        &["signals", "--json"],
+        "signals --json with no decision",
+    );
+    same(
+        &empty,
+        &["signals", "reset"],
+        "signals reset without a kind",
+    );
+    same(
+        &empty,
+        &["signals", "reset", "plugin"],
+        "signals reset without a source",
+    );
+    let inbox = signals_home("signals-inbox", true, false);
+    same(&inbox, &["signals"], "signals over inbox decisions");
+    same(
+        &inbox,
+        &["signals", "--json"],
+        "signals --json over inbox decisions",
+    );
+    same(
+        &inbox,
+        &["signals", "reset", "plugin", "plugin:acme"],
+        "signals reset of a plugin key",
+    );
+    same(
+        &inbox,
+        &["signals", "reset", "impact", "github"],
+        "signals reset of a muted question key",
+    );
+    same(
+        &inbox,
+        &["signals", "reset", "competency", "project:billing"],
+        "signals reset of a key already reset",
+    );
+    same(
+        &inbox,
+        &["signals", "reset", "plugin", "plugin:none"],
+        "signals reset of an unknown key",
+    );
+    let pm = signals_home("signals-pm", true, true);
+    same(&pm, &["signals"], "signals with PM lessons");
+    same(
+        &pm,
+        &["signals", "--json"],
+        "signals --json with PM lessons",
+    );
+    same(
+        &pm,
+        &["signals", "reset", "cut", "Alpha"],
+        "signals reset of a PM label",
+    );
+    same(
+        &pm,
+        &["signals", "reset", "cut", "Nowhere"],
+        "signals reset of an unknown PM label",
+    );
+}
+
+#[test]
+fn signals_refuses_what_it_cannot_prove() {
+    strict(NOW);
+    let redact = prepare_setup(&Setup {
+        id: "signals-redact",
+        cli: &[],
+        files: &[ZONE, PLAIN, ("sensitive-terms.txt", "synthetic\n")],
+    });
+    refused(&redact, &["signals"], "signals with a redaction input");
+    let sealed = prepare_setup(&Setup {
+        id: "signals-sealed",
+        cli: &[],
+        files: &[ZONE],
+    });
+    plant(&sealed, "day/inbox.json", &signal_inbox());
+    refused(
+        &sealed,
+        &["signals", "reset", "plugin", "plugin:acme"],
+        "signals reset into an encrypted folder",
+    );
+    let odd = signals_home("signals-odd-stamp", false, false);
+    plant(
+        &odd,
+        "day/inbox.json",
+        &format!(
+            "{{\"items\": [{}]}}",
+            signal_item(
+                "x",
+                "plugin",
+                "dismissed",
+                "2026-11-18 10:00",
+                ", \"origin\": \"plugin:acme\""
+            )
+        ),
+    );
+    refused(
+        &odd,
+        &["signals"],
+        "signals with a stamp outside the subset",
+    );
+    let unpinned = prepare_setup(&Setup {
+        id: "signals-unpinned",
+        cli: &[],
+        files: &[PLAIN],
+    });
+    plant(&unpinned, "day/inbox.json", &signal_inbox());
+    refused(&unpinned, &["signals"], "signals with no pinned zone");
+}
+
+/// Negative control: decisions and no decisions differ, and a reset
+/// writes the resets file.
+#[test]
+fn the_signals_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let empty = signals_home("signals-control-empty", false, false);
+    let inbox = signals_home("signals-control-inbox", true, false);
+    let none = observe(&empty, &["signals"], &Side::Native);
+    let some = observe(&inbox, &["signals"], &Side::Native);
+    assert_eq!(none.code, Some(0));
+    assert_eq!(some.code, Some(0));
+    assert_ne!(none.stdout, some.stdout);
+    let before = observe(&inbox, &["signals", "--json"], &Side::Native);
+    let reset = observe(
+        &inbox,
+        &["signals", "reset", "plugin", "plugin:acme"],
+        &Side::Native,
+    );
+    assert_eq!(reset.code, Some(0));
+    assert_ne!(before.files, reset.files);
 }
