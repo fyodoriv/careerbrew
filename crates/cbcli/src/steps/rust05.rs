@@ -35,6 +35,7 @@ pub const COMMANDS: &[&str] = &[
     "config.show",
     "config.set",
     "config.unset",
+    "telemetry.off",
     "approvals.list",
     "approvals.guidance",
     "approvals.show",
@@ -53,6 +54,7 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "config.show" => config_show(ctx, &store),
         "config.set" => config_set(args, ctx, &store),
         "config.unset" => config_unset(args, ctx, &store),
+        "telemetry.off" => telemetry_off(ctx, &store),
         "approvals.list" => approvals_list(&store),
         "approvals.guidance" => approvals_guidance(&store),
         "approvals.show" => approvals_show(args, ctx, &store),
@@ -217,6 +219,12 @@ fn hhmm(text: &str) -> bool {
         && b[4].is_ascii_digit()
 }
 
+/// The exact spellings PyYAML's YAML 1.1 bool and null resolvers match.
+const RESOLVED_WORDS: &[&str] = &[
+    "yes", "Yes", "YES", "no", "No", "NO", "true", "True", "TRUE", "false", "False", "FALSE", "on",
+    "On", "ON", "off", "Off", "OFF", "null", "Null", "NULL",
+];
+
 fn scalar(value: &Canon) -> Option<String> {
     match value {
         // PyYAML quotes a time YAML 1.1 reads as a base-60 integer
@@ -224,6 +232,9 @@ fn scalar(value: &Canon) -> Option<String> {
         // plain (checked for all 1440 times).
         Canon::Str(s) if hhmm(s) && s.starts_with(['1', '2']) => Some(format!("'{s}'")),
         Canon::Str(s) if hhmm(s) => Some(s.clone()),
+        // PyYAML single-quotes a string its bool or null resolver would read
+        // back as another type (`'no'`, `'Yes'`, `'NULL'`).
+        Canon::Str(s) if RESOLVED_WORDS.contains(&s.as_str()) => Some(format!("'{s}'")),
         Canon::Null => Some("null".into()),
         Canon::Bool(b) => Some(if *b { "true" } else { "false" }.into()),
         Canon::Int(_) => int_text(value),
@@ -556,6 +567,42 @@ fn config_set(args: &Parsed, ctx: &Ctx, store: &Store) -> Option<Outcome> {
     events::emit_command(&ctx.env.caps, "config", true, ms);
     Some(Outcome {
         stdout: line,
+        stderr: String::new(),
+        code: 0,
+        emit_event: false,
+    })
+}
+
+/// `telemetry off`: `telemetry.set_consent("no")`, which is
+/// `config.set_value("telemetry_consent", "no")` and nothing else, then the
+/// fixed line. Same refusals as `config.set`: a sealed store, a settings
+/// file outside the YAML subset, or a validator answer other than a write.
+fn telemetry_off(ctx: &Ctx, store: &Store) -> Option<Outcome> {
+    let started = std::time::Instant::now();
+    if store.encryption_enabled() {
+        return None;
+    }
+    let plan = |store: &Store| -> Option<String> {
+        let settings = stored_settings(store)?;
+        match set_plan(&settings, "telemetry_consent", "no")? {
+            SetPlan::Write(_, written) => written_yaml(&written),
+            SetPlan::Raised(..) => None,
+        }
+    };
+    plan(store)?;
+    let lock = ctx.root.join(".settings.yaml.lock");
+    careerbrew_vault::lock::with_exact_lock(&lock, || -> Option<()> {
+        let text = plan(store)?;
+        store
+            .write_text(&ctx.root.join("settings.yaml"), &text)
+            .ok()
+    })
+    .ok()??;
+    append_row(ctx, &row(&[("event", "config.set"), ("status", "ok")], &[]));
+    let ms = started.elapsed().as_millis() as u64;
+    events::emit_command(&ctx.env.caps, "telemetry.off", true, ms);
+    Some(Outcome {
+        stdout: "telemetry off: nothing is sent\n".to_owned(),
         stderr: String::new(),
         code: 0,
         emit_event: false,

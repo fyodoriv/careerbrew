@@ -440,19 +440,17 @@ fn config_show_refuses_what_it_cannot_match() {
         assert!(refused(&home, &["config", "show"], &[]), "{id} must refuse");
         assert_same(&home, &["config", "show"], false, "config.show");
     }
-    // `--help` and an extra word are argparse's.
+    // `--help` is the compiled-in help page, served for a native command;
+    // an extra word is argparse's.
     let empty = prepare_setup(&Setup {
         id: "empty",
         cli: &[],
         files: &[],
     });
-    for args in [
-        &["config", "show", "--help"][..],
-        &["config", "show", "extra"],
-    ] {
-        assert!(refused(&empty, args, &[]), "{args:?} must refuse");
-        assert_same(&empty, args, false, "config.show");
-    }
+    assert_same(&empty, &["config", "show", "--help"], true, "config.show");
+    let extra = &["config", "show", "extra"][..];
+    assert!(refused(&empty, extra, &[]), "{extra:?} must refuse");
+    assert_same(&empty, extra, false, "config.show");
 }
 
 #[test]
@@ -566,6 +564,60 @@ fn config_set_refuses_before_any_write() {
             assert_same(home, args, false, "config.set");
         }
     }
+}
+
+#[test]
+fn telemetry_off_matches_python() {
+    strict(NOW);
+    let plain = prepare_setup(&Setup {
+        id: "plain-settings",
+        cli: &[],
+        files: files(vec![PLAIN, ("settings.yaml", SETTINGS)]),
+    });
+    let consented = prepare_setup(&Setup {
+        id: "consent-yes",
+        cli: &[],
+        files: files(vec![PLAIN, ("settings.yaml", "telemetry_consent: 'yes'\n")]),
+    });
+    let bare = prepare_setup(&Setup {
+        id: "plain-no-file",
+        cli: &[],
+        files: files(vec![PLAIN]),
+    });
+    for home in [&plain, &consented, &bare] {
+        assert_same(home, &["telemetry", "off"], true, "telemetry.off");
+    }
+}
+
+#[test]
+fn telemetry_off_refuses_before_any_write() {
+    strict(NOW);
+    let spaced = prepare_setup(&Setup {
+        id: "spaced-value",
+        cli: &[],
+        files: files(vec![
+            PLAIN,
+            ("settings.yaml", "pm_report_title: Synthetic update\n"),
+        ]),
+    });
+    let sealed = prepare_setup(&Setup {
+        id: "sealed-settings",
+        cli: &[
+            &["machine", "set", "personal"],
+            &["config", "set", "serve_port", "9001"],
+            &["data", "encrypt"],
+        ],
+        files: &[],
+    });
+    for home in [&spaced, &sealed] {
+        let args = ["telemetry", "off"];
+        let before = observe_env(home, &["approvals", "list"], &Side::Python, &[]).files;
+        let direct = observe_env(home, &args, &Side::Native, &[]);
+        assert_eq!(direct.code, Some(64), "telemetry off must refuse");
+        assert_eq!(direct.files, before, "telemetry off wrote before refusing");
+        assert!(direct.stdout.is_empty() && direct.events.is_empty());
+    }
+    assert_same(&spaced, &["telemetry", "off"], false, "telemetry.off");
 }
 
 /// Negative control for the config commands: two different values give a

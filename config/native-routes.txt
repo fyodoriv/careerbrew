@@ -7,7 +7,7 @@ metrics.field python
 time.baseline python
 telemetry.status python
 telemetry.on python
-telemetry.off python
+telemetry.off native
 telemetry.send python
 telemetry.record-install python
 actions native
