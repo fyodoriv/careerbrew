@@ -156,7 +156,17 @@ fn production_route_and_shipped_inventory_stay_untouched_by_the_component() {
         .filter(|record| record[0].starts_with("learn."))
         .collect::<Vec<_>>();
     assert_eq!(learn.len(), 14);
-    assert!(learn.iter().all(|record| record[1] == "python"));
+    // The CLI step module rust12 serves these two through careerbrew-native
+    // (`crates/cbcli/src/steps/rust12.rs`); every other learn command stays on Python.
+    const NATIVE: [&str; 2] = ["learn.list", "learn.note"];
+    for record in &learn {
+        let expected = if NATIVE.contains(&record[0]) {
+            "native"
+        } else {
+            "python"
+        };
+        assert_eq!(record[1], expected, "{}", record[0]);
+    }
     for action in ["work.project.explain", "work.project.prd"] {
         let route = records.iter().find(|record| record[0] == action).unwrap();
         assert_eq!(route[1], "python");
