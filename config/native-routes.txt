@@ -27,7 +27,7 @@ jobs.preset native
 jobs.list native
 jobs.rate native
 jobs.learn native
-jobs.strategy python
+jobs.strategy native
 jobs.log native
 cards.review python
 cards.next native
@@ -183,7 +183,7 @@ changes python
 research.page python
 research.stale native
 interview-patterns native
-prep.check python
+prep.check native
 prep.story native
 mail.scan python
 secret.set python
