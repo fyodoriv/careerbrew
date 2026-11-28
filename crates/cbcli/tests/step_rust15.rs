@@ -227,3 +227,273 @@ fn work_session_open_refuses_a_known_project() {
     assert_eq!(control.code, Some(2));
     assert!(control.stdout.starts_with("error: unknown project"));
 }
+
+// ---------- wave 6: work session ask ----------
+
+const ASK: &str = "work.session.ask";
+
+/// A plain-text data folder: a sealed write differs on every run, so the
+/// handler refuses it (the hosted Linux runner seals homes without this).
+const PLAIN: &[(&str, &str)] = &[(".plaintext", "")];
+
+const ASKED_ONCE: &[&[&str]] = &[
+    &["work", "project", "add", "synth-proj"],
+    &["work", "session", "open", "synth-proj", "--id", "sess-1"],
+    &["work", "session", "ask", "sess-1", "an earlier question"],
+];
+
+const QUIET: &[&[&str]] = &[
+    &["work", "project", "add", "synth-proj"],
+    &["work", "session", "open", "synth-proj", "--id", "sess-1"],
+    &[
+        "work",
+        "project",
+        "set",
+        "synth-proj",
+        "--quiet-until",
+        "2026-12-01",
+    ],
+];
+
+/// A session opened on an earlier day, written as `sessions._load` reads it.
+const STALE: &[(&str, &str)] = &[
+    (".plaintext", ""),
+    (
+        "work/sessions.json",
+        "{\"claims\": [], \"sessions\": [{\"day\": \"2026-11-19\", \"ended\": \"\", \"id\": \"sess-old\", \"project\": \"synth-proj\", \"started\": \"2026-11-19T09:00:00+00:00\"}]}",
+    ),
+];
+
+#[test]
+fn work_session_ask_saves_a_new_question_like_python() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "ask-open",
+        cli: OPEN,
+        files: PLAIN,
+    });
+    for argv in [
+        &[
+            "work",
+            "session",
+            "ask",
+            "sess-1",
+            "Which branch should I use?",
+        ][..],
+        &["work", "session", "ask", "synth-proj", "Merge now?"][..],
+        &[
+            "work",
+            "session",
+            "ask",
+            "sess-1",
+            "Pick a base",
+            "--option",
+            "main",
+            "--option",
+            "dev",
+            "--option",
+            " main ",
+            "--pick",
+            "dev",
+        ][..],
+        &[
+            "work",
+            "session",
+            "ask",
+            "sess-1",
+            "  spaced   question\tfolds  ",
+            "--recheck",
+            "https://example.com/pr/1",
+        ][..],
+        &[
+            "work",
+            "session",
+            "ask",
+            "sess-1",
+            "Sign in again?",
+            "--recheck",
+            "careerbrew:signin",
+        ][..],
+        &["work", "session", "ask", "sess-1", "caf\u{e9} \u{2014} ok?"][..],
+    ] {
+        assert_same(&home, argv, true, &format!("{ASK} new"));
+    }
+    let again = prepare_setup(&Setup {
+        id: "ask-second",
+        cli: ASKED_ONCE,
+        files: PLAIN,
+    });
+    assert_same(
+        &again,
+        &["work", "session", "ask", "sess-1", "a second question"],
+        true,
+        &format!("{ASK} second"),
+    );
+}
+
+#[test]
+fn work_session_ask_errors_match_python() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "ask-errors",
+        cli: OPEN,
+        files: PLAIN,
+    });
+    let long = "x".repeat(201);
+    let long_option = "y".repeat(81);
+    for (label, argv) in [
+        (
+            "empty question",
+            &["work", "session", "ask", "sess-1", "   "][..],
+        ),
+        (
+            "long question",
+            &["work", "session", "ask", "sess-1", long.as_str()][..],
+        ),
+        (
+            "long option",
+            &[
+                "work",
+                "session",
+                "ask",
+                "sess-1",
+                "q",
+                "--option",
+                long_option.as_str(),
+            ][..],
+        ),
+        (
+            "seven options",
+            &[
+                "work", "session", "ask", "sess-1", "q", "--option", "a", "--option", "b",
+                "--option", "c", "--option", "d", "--option", "e", "--option", "f", "--option",
+                "g",
+            ][..],
+        ),
+        (
+            "pick not an option",
+            &[
+                "work", "session", "ask", "sess-1", "q", "--option", "a", "--pick", "b",
+            ][..],
+        ),
+        (
+            "unknown session",
+            &["work", "session", "ask", "sess-9", "q"][..],
+        ),
+    ] {
+        assert_same(&home, argv, true, &format!("{ASK} {label}"));
+    }
+    let none = prepare_setup(&Setup {
+        id: "ask-no-store",
+        cli: &[],
+        files: PLAIN,
+    });
+    assert_same(
+        &none,
+        &["work", "session", "ask", "sess-1", "q"],
+        true,
+        &format!("{ASK} no store"),
+    );
+    let stale = prepare_setup(&Setup {
+        id: "ask-stale",
+        cli: PROJECT,
+        files: STALE,
+    });
+    assert_same(
+        &stale,
+        &["work", "session", "ask", "sess-old", "q"],
+        true,
+        &format!("{ASK} stale"),
+    );
+}
+
+#[test]
+fn work_session_ask_refuses_what_it_cannot_copy() {
+    strict(NOW);
+    let again = prepare_setup(&Setup {
+        id: "ask-refuse-repeat",
+        cli: ASKED_ONCE,
+        files: PLAIN,
+    });
+    let home = prepare_setup(&Setup {
+        id: "ask-refuse",
+        cli: OPEN,
+        files: PLAIN,
+    });
+    let sealed = prepare_setup(&Setup {
+        id: "ask-refuse-sealed",
+        cli: OPEN,
+        files: &[],
+    });
+    let quiet = prepare_setup(&Setup {
+        id: "ask-refuse-quiet",
+        cli: QUIET,
+        files: PLAIN,
+    });
+    let redact = prepare_setup(&Setup {
+        id: "ask-refuse-redaction",
+        cli: OPEN,
+        files: &[
+            (".plaintext", ""),
+            ("profile.yaml", "name: Synthetic Person\n"),
+        ],
+    });
+    for (label, at, argv) in [
+        (
+            "same question again",
+            &again,
+            &["work", "session", "ask", "sess-1", "an earlier question"][..],
+        ),
+        (
+            "command recheck",
+            &home,
+            &["work", "session", "ask", "sess-1", "q", "--recheck", "true"][..],
+        ),
+        (
+            "sealed folder",
+            &sealed,
+            &["work", "session", "ask", "sess-1", "q"][..],
+        ),
+        (
+            "quiet project",
+            &quiet,
+            &["work", "session", "ask", "sess-1", "q"][..],
+        ),
+        (
+            "redaction input",
+            &redact,
+            &["work", "session", "ask", "sess-1", "q"][..],
+        ),
+    ] {
+        assert!(
+            !assert_same(at, argv, false, &format!("{ASK} {label}")),
+            "{label} must refuse"
+        );
+    }
+}
+
+/// Negative control: two questions leave different day files, so the
+/// comparison would see a wrong write.
+#[test]
+fn the_ask_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "ask-control",
+        cli: OPEN,
+        files: PLAIN,
+    });
+    let one = observe(
+        &home,
+        &["work", "session", "ask", "sess-1", "first"],
+        &Side::Native,
+    );
+    let two = observe(
+        &home,
+        &["work", "session", "ask", "sess-1", "second"],
+        &Side::Python,
+    );
+    assert_eq!(one.code, Some(0));
+    assert_eq!(two.code, Some(0));
+    assert_ne!(one.stdout, two.stdout);
+    assert_ne!(one.files, two.files);
+}

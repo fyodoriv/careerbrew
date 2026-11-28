@@ -145,6 +145,7 @@ fn default_of(spec: &Spec) -> Option<Value> {
             }
         }
         (Json::Str(text), _) => Value::Text(text.clone()),
+        (Json::Array(items), _) if spec.many && items.is_empty() => Value::List(Vec::new()),
         _ => return None,
     })
 }

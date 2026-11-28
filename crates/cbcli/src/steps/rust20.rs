@@ -21,8 +21,10 @@
 //!   is 0 and no FSRS state is read. Any other state goes to Python.
 //! - `drill.answer`: it writes FSRS cards through py-fsrs's scheduler, and
 //!   `drill.speak` runs speech tools; no parity cases in this step yet.
-//! - `cards.explain-queue`: it reads the flags, skips, private cards and
-//!   lapse counts; no parity cases in this step yet.
+//! - `cards.explain-queue` is served here, not through the domain crate's
+//!   `explain_queue`: that one keeps cards in id order and JSON keys sorted,
+//!   while Python keeps deck-file order and insertion key order. A prompt
+//!   file with a carriage return (Python's universal newlines) refuses.
 //! - `import.notion`: it writes many files and the sensitive terms list.
 use super::Ctx;
 use crate::args::Parsed;
@@ -39,6 +41,7 @@ pub const COMMANDS: &[&str] = &[
     "cards.stats",
     "cards.unsuspend",
     "cards.public-check",
+    "cards.explain-queue",
     "library.list",
     "library.show",
     "drill.list",
@@ -83,6 +86,10 @@ fn serve(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "cards.stats" => {
             files.personal()?;
             cards_stats(&files)
+        }
+        "cards.explain-queue" => {
+            files.personal()?;
+            explain_queue_cmd(args, &files)
         }
         "library.list" => {
             files.personal()?;
@@ -930,6 +937,399 @@ fn public_check() -> Option<Outcome> {
         problems.len()
     ));
     ok(out, i32::from(!problems.is_empty()))
+}
+
+// ---------- explain queue ----------
+
+/// `public.PERSONAL_TOPICS`: behavioural answers never leave as hints.
+const PERSONAL_TOPICS: &[&str] = &[
+    "behavioural",
+    "behavioral",
+    "leadership",
+    "tech lead",
+    "business/product",
+];
+
+/// One explain-queue item, its keys in Python's insertion order.
+struct Item {
+    source_id: String,
+    question: String,
+    topic: String,
+    hint: String,
+    reason: String,
+    rewrite: Option<String>,
+    private: bool,
+}
+
+/// Python's `json.dumps` string form with `ensure_ascii=False`.
+fn json_text(text: &str, out: &mut String) {
+    out.push('"');
+    for ch in text.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            '\u{8}' => out.push_str("\\b"),
+            '\u{c}' => out.push_str("\\f"),
+            '\u{0}'..='\u{1f}' => out.push_str(&format!("\\u{:04x}", ch as u32)),
+            _ => out.push(ch),
+        }
+    }
+    out.push('"');
+}
+
+/// `json.dumps(items, indent=1, ensure_ascii=False)`.
+fn items_json(items: &[&Item]) -> String {
+    if items.is_empty() {
+        return "[]".into();
+    }
+    let mut out = String::from("[\n");
+    for (at, item) in items.iter().enumerate() {
+        let mut pairs = vec![
+            ("source_id", Some(item.source_id.as_str())),
+            ("question", Some(item.question.as_str())),
+            ("topic", Some(item.topic.as_str())),
+            ("hint", Some(item.hint.as_str())),
+            ("reason", Some(item.reason.as_str())),
+        ];
+        if let Some(rewrite) = &item.rewrite {
+            pairs.push(("rewrite", Some(rewrite.as_str())));
+        }
+        if item.private {
+            pairs.push(("private", None));
+        }
+        out.push_str(" {\n");
+        for (index, (key, value)) in pairs.iter().enumerate() {
+            out.push_str("  ");
+            json_text(key, &mut out);
+            out.push_str(": ");
+            match value {
+                Some(value) => json_text(value, &mut out),
+                None => out.push_str("true"),
+            }
+            out.push_str(if index + 1 < pairs.len() { ",\n" } else { "\n" });
+        }
+        out.push_str(if at + 1 < items.len() {
+            " },\n"
+        } else {
+            " }\n"
+        });
+    }
+    out.push(']');
+    out
+}
+
+/// `store.read_json(path, {}) or {}` that the queue only looks keys up in:
+/// a falsy value is empty, a plain map is kept, anything else refuses.
+fn lookup_map(value: Canon) -> Option<Canon> {
+    if falsy(&value) {
+        return Some(Canon::Map(Vec::new()));
+    }
+    plain_map(&value).then_some(value)
+}
+
+fn has_key(map: &Canon, key: &str) -> bool {
+    get(map, key).is_some()
+}
+
+/// `p.get("match") or [qhash(p["question"])]`, first item.
+fn source_of(card: &Canon) -> String {
+    texts(card, "match")
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| careerbrew_tutor::public::qhash(text(card, "question").unwrap_or("")))
+}
+
+/// `public.explain_queue()` in Python's order, or None when Python could
+/// read a file differently or crash on it.
+fn explain_queue(files: &Files) -> Option<(Vec<Item>, String)> {
+    use careerbrew_tutor::public::qhash;
+    use std::collections::{HashMap, HashSet};
+    let repo = repo()?;
+    let public_dir = public_dir()?;
+    // The public deck: the shapes `load`, `by_match`, `all_cards` and `lint`
+    // read, with no character Python and Rust split or strip differently.
+    let mut public = Vec::new();
+    for path in yaml_files(&public_dir)? {
+        for card in rows_of(&repo_yaml(&path)?, "cards")? {
+            for key in ["id", "question", "answer", "topic"] {
+                text(&card, key)?;
+            }
+            for key in ["id", "question", "answer", "explanation", "topic"] {
+                match get(&card, key) {
+                    None | Some(Canon::Null) => {}
+                    Some(Canon::Str(value)) if !odd_space(value) => {}
+                    Some(_) => return None,
+                }
+            }
+            if !texts_or_absent(&card, "tags") || !texts_or_absent(&card, "match") {
+                return None;
+            }
+            public.push(card);
+        }
+    }
+    let linted = careerbrew_tutor::public::load(&public_dir).ok()?;
+    if linted.len() != public.len()
+        || linted.iter().zip(&public).any(|(value, card)| {
+            careerbrew_tutor::text(careerbrew_tutor::field(value, "id"))
+                != text(card, "id").unwrap_or("")
+        })
+    {
+        return None;
+    }
+    // `prompt_version()`: Python's text read turns `\r` into `\n`.
+    let prompt = std::fs::read_to_string(repo.join("prompts/card-explainer.md")).ok()?;
+    if prompt.contains('\r') {
+        return None;
+    }
+    let version = careerbrew_tutor::digest(&prompt)[..8].to_owned();
+    // Private explanations.
+    let private = rows_of(&files.yaml("tutor/private-explanations.yaml")?, "cards")?;
+    for card in &private {
+        for key in ["id", "question", "topic"] {
+            text(card, key)?;
+        }
+        if !texts_or_absent(card, "match") {
+            return None;
+        }
+    }
+    let skip = lookup_map(files.json("tutor/public-skipped.json")?)?;
+    let flagged = lookup_map(files.json("tutor/explanation-flags.json")?)?;
+    // `_lapses()`: "again" reviews per card id.
+    let mut lapses: HashMap<String, usize> = HashMap::new();
+    for row in files.jsonl("tutor/card-reviews.jsonl")? {
+        if !plain_map(&row) {
+            return None;
+        }
+        if matches!(get(&row, "rating"), Some(Canon::Str(rating)) if rating == "again") {
+            *lapses.entry(text(&row, "card")?.to_owned()).or_default() += 1;
+        }
+    }
+    // `cards.all_cards()`: deck files in name order, a later id replacing
+    // an earlier one in place, then public cards the owner lacks.
+    let mut all: Vec<(String, Canon, String)> = Vec::new();
+    for path in yaml_files(&files.root.join("tutor/decks"))? {
+        let deck = path.file_stem()?.to_str()?.to_owned();
+        for card in rows_of(&files.yaml_at(&path)?, "cards")? {
+            for key in ["id", "question", "topic"] {
+                text(&card, key)?;
+            }
+            match get(&card, "answer") {
+                None | Some(Canon::Str(_)) => {}
+                Some(_) => return None,
+            }
+            let id = text(&card, "id")?.to_owned();
+            match all.iter_mut().find(|(known, _, _)| *known == id) {
+                Some((_, old, old_deck)) => {
+                    *old = card;
+                    old_deck.clone_from(&deck);
+                }
+                None => all.push((id, card, deck.clone())),
+            }
+        }
+    }
+    let mine: HashSet<String> = all
+        .iter()
+        .map(|(_, card, _)| qhash(text(card, "question").unwrap_or("")))
+        .collect();
+    for card in &public {
+        let mut hashes = texts(card, "match");
+        hashes.push(qhash(text(card, "question")?));
+        if hashes.iter().all(|hash| !mine.contains(hash)) {
+            let id = text(card, "id")?.to_owned();
+            match all.iter_mut().find(|(known, _, _)| *known == id) {
+                Some((_, old, deck)) => {
+                    *old = card.clone();
+                    *deck = "public".into();
+                }
+                None => all.push((id, card.clone(), "public".into())),
+            }
+        }
+    }
+    // `by_match() | {qhash(question): card}`.
+    let mut covered: HashMap<String, usize> = HashMap::new();
+    for (at, card) in public.iter().enumerate() {
+        for hash in texts(card, "match") {
+            covered.insert(hash, at);
+        }
+    }
+    for (at, card) in public.iter().enumerate() {
+        covered.insert(qhash(text(card, "question")?), at);
+    }
+    let private_done: HashSet<String> = private
+        .iter()
+        .flat_map(|card| texts(card, "match"))
+        .collect();
+    let mut items: Vec<Item> = Vec::new();
+    let mut seen = HashSet::new();
+    for (_, card, deck) in &all {
+        if deck == "public" {
+            continue;
+        }
+        let question = text(card, "question")?;
+        let topic = text(card, "topic")?;
+        let hash = qhash(question);
+        if !seen.insert(hash.clone()) {
+            continue;
+        }
+        if has_key(&skip, &hash) {
+            if !private_done.contains(&hash) {
+                items.push(Item {
+                    source_id: hash,
+                    question: question.to_owned(),
+                    topic: topic.to_owned(),
+                    hint: String::new(),
+                    reason: "personal: explain privately".into(),
+                    rewrite: None,
+                    private: true,
+                });
+            }
+            continue;
+        }
+        match covered.get(&hash) {
+            None => {
+                let personal =
+                    PERSONAL_TOPICS.contains(&careerbrew_tutor::casefold(topic).as_str());
+                let hint = if personal {
+                    String::new()
+                } else {
+                    text(card, "answer")
+                        .unwrap_or("")
+                        .chars()
+                        .take(1500)
+                        .collect()
+                };
+                items.push(Item {
+                    source_id: hash,
+                    question: question.to_owned(),
+                    topic: topic.to_owned(),
+                    hint,
+                    reason: "new".into(),
+                    rewrite: None,
+                    private: false,
+                });
+            }
+            Some(&at) if lapses.get(text(card, "id")?).copied().unwrap_or(0) >= 3 => {
+                let pub_card = &public[at];
+                items.push(Item {
+                    source_id: hash,
+                    question: text(pub_card, "question")?.to_owned(),
+                    topic: text(pub_card, "topic")?.to_owned(),
+                    hint: String::new(),
+                    reason: "learners keep failing it: make it clearer".into(),
+                    rewrite: Some(text(pub_card, "id")?.to_owned()),
+                    private: false,
+                });
+            }
+            Some(_) => {}
+        }
+    }
+    let rewrites =
+        |items: &[Item], id: &str| items.iter().any(|item| item.rewrite.as_deref() == Some(id));
+    for card in public.iter().chain(&private) {
+        let id = text(card, "id")?;
+        let Some(flag) = get(&flagged, id) else {
+            continue;
+        };
+        if rewrites(&items, id) {
+            continue;
+        }
+        if !plain_map(flag) {
+            return None;
+        }
+        let note = text(flag, "note")?;
+        items.push(Item {
+            source_id: source_of(card),
+            question: text(card, "question")?.to_owned(),
+            topic: text(card, "topic")?.to_owned(),
+            hint: String::new(),
+            reason: format!("a reader reported: {note}"),
+            rewrite: Some(id.to_owned()),
+            private: id.starts_with("me-"),
+        });
+    }
+    for (card, value) in public.iter().zip(&linted) {
+        let id = text(card, "id")?;
+        let current = matches!(get(card, "prompt"), Some(Canon::Str(prompt)) if *prompt == version);
+        let why = if current {
+            let problems = careerbrew_tutor::public::lint(value);
+            if problems.is_empty() {
+                String::new()
+            } else {
+                format!("fails lint: {}", problems.join("; "))
+            }
+        } else {
+            "written with an older prompt".into()
+        };
+        if !why.is_empty() && !rewrites(&items, id) {
+            items.push(Item {
+                source_id: source_of(card),
+                question: text(card, "question")?.to_owned(),
+                topic: text(card, "topic")?.to_owned(),
+                hint: String::new(),
+                reason: why,
+                rewrite: Some(id.to_owned()),
+                private: false,
+            });
+        }
+    }
+    let order = |item: &Item| u8::from(item.reason == "new") * 2;
+    items.sort_by(|a, b| {
+        order(a)
+            .cmp(&order(b))
+            .then_with(|| a.topic.cmp(&b.topic))
+            .then_with(|| a.question.cmp(&b.question))
+    });
+    Some((items, version))
+}
+
+/// `cmd_cards_explain_queue`.
+fn explain_queue_cmd(args: &Parsed, files: &Files) -> Option<Outcome> {
+    use crate::args::Value;
+    let count = args.int("count")?;
+    let offset = match args.get("offset") {
+        Value::Missing => 0,
+        Value::Int(offset) => *offset,
+        _ => return None,
+    };
+    let topic = match args.get("topic") {
+        Value::Missing => "",
+        Value::Text(topic) => topic.as_str(),
+        _ => return None,
+    };
+    // Python's negative slice bounds count from the end: not served.
+    let start = usize::try_from(offset).ok()?;
+    let count = usize::try_from(count).ok()?;
+    let (items, version) = explain_queue(files)?;
+    let mut out = String::new();
+    if args.flag("json") {
+        let folded = careerbrew_tutor::casefold(topic);
+        let shown: Vec<&Item> = items
+            .iter()
+            .filter(|item| topic.is_empty() || item.topic == folded)
+            .skip(start)
+            .take(count)
+            .collect();
+        out.push_str(&items_json(&shown));
+    } else {
+        let mut by: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
+        for item in &items {
+            *by.entry(item.reason.as_str()).or_default() += 1;
+        }
+        let parts: Vec<String> = by
+            .iter()
+            .map(|(reason, n)| format!("{reason}: {n}"))
+            .collect();
+        out.push_str(&format!(
+            "explain queue: {} card(s) {} · prompt {version}",
+            items.len(),
+            parts.join(", ")
+        ));
+    }
+    out.push('\n');
+    ok(out, 0)
 }
 
 // ---------- library ----------
