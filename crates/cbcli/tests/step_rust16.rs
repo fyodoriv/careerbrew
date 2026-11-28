@@ -1,5 +1,6 @@
 //! Parity cases for the `rust-16` native handlers: "day.wrap",
-//! "day.question.list" and "day.question.close".
+//! "day.question.list", "day.question.close", "day.loop" (status, add and
+//! stop) and "day.history".
 //!
 //! Each served case runs Python and the native binary in the same fresh
 //! synthetic home and compares stdout, exit code, data-root files (with
@@ -281,4 +282,229 @@ fn the_rust16_comparison_detects_a_planted_difference() {
     let moved = observe(&home, &["day", "wrap", "--at", "16:30"], &Side::Native);
     let held = observe(&home, &["day", "wrap", "--hold"], &Side::Python);
     assert_ne!(moved.stdout, held.stdout);
+}
+
+const LOOPS_FILE: &str = concat!(
+    "{\"inputs\": {}, \"last\": {\"status\": \"ok\", \"seconds\": 41}, ",
+    "\"loops\": [",
+    "{\"day\": \"2026-11-20\", \"id\": \"c1\", \"kind\": \"cron\", \"started\": \"2026-11-20T08:15\", ",
+    "\"step\": \"/standup\", \"stopped\": \"\"}, ",
+    "{\"day\": \"2026-11-18\", \"id\": \"m.old\", \"kind\": \"monitor\", \"started\": \"2026-11-18T10:00\", ",
+    "\"step\": \"\", \"stopped\": \"\"}, ",
+    "{\"day\": \"2026-11-19\", \"id\": \"a2\", \"kind\": \"agent\", \"started\": \"2026-11-19T11:00\", ",
+    "\"step\": \"\", \"stopped\": \"2026-11-19T12:00\"}], ",
+    "\"next_at\": \"2026-11-20T09:05:00+00:00\", \"passes\": [41, 50.5, 38]}"
+);
+
+const LOOPS: Setup = Setup {
+    id: "loops",
+    cli: &[],
+    files: &[(".plaintext", ""), ("day/loops.json", LOOPS_FILE)],
+};
+
+/// A stopped stamp `datetime.fromisoformat` reads but this handler does not.
+const ODD_LOOP: Setup = Setup {
+    id: "odd-loop",
+    cli: &[],
+    files: &[
+        (".plaintext", ""),
+        (
+            "day/loops.json",
+            "{\"loops\": [{\"day\": \"2026-11-20\", \"id\": \"c1\", \"kind\": \"cron\", \"started\": \"2026-11-20T08:15Z\", \"step\": \"\", \"stopped\": \"\"}]}",
+        ),
+    ],
+};
+
+const BAD_LOOPS: Setup = Setup {
+    id: "bad-loops",
+    cli: &[],
+    files: &[(".plaintext", ""), ("day/loops.json", "{\"loops\": {}}")],
+};
+
+const HISTORY_FILE: &str = concat!(
+    "{\"days\": {\"2026-11-10\": {\"/old\": {\"seconds\": 5, \"status\": \"done\"}}, ",
+    "\"2026-11-18\": {\"/careerbrew\": {\"seconds\": 30, \"status\": \"done\"}, ",
+    "\"/zeta\": {\"seconds\": 3700, \"status\": \"failed\"}, \"/alpha\": {\"seconds\": 90, \"status\": \"done\"}}, ",
+    "\"2026-11-19\": {\"/careerbrew\": {\"seconds\": 50, \"status\": \"done\"}, ",
+    "\"/alpha\": {\"seconds\": 150, \"status\": \"blocked\"}, \"/zeta\": {\"seconds\": null, \"status\": \"failed\"}}, ",
+    "\"2026-11-20\": {\"/careerbrew\": {\"seconds\": 41, \"status\": \"done\"}, ",
+    "\"/beta\": {\"seconds\": 1.5, \"status\": \"running\"}, \"junk\": 3}, \"2026-11-16\": []}}"
+);
+
+const HISTORY: Setup = Setup {
+    id: "history",
+    cli: &[],
+    files: &[(".plaintext", ""), ("day/work-history.json", HISTORY_FILE)],
+};
+
+/// Another file `plan.build()` may read (a project list): refused.
+const HISTORY_PROJECTS: Setup = Setup {
+    id: "history-projects",
+    cli: &[],
+    files: &[
+        (".plaintext", ""),
+        ("day/work-history.json", HISTORY_FILE),
+        ("work/projects.yaml", "projects: []\n"),
+    ],
+};
+
+/// A `work_steps` setting changes which steps keep their names: refused.
+const HISTORY_STEPS: Setup = Setup {
+    id: "history-steps",
+    cli: &[],
+    files: &[
+        (".plaintext", ""),
+        ("day/work-history.json", HISTORY_FILE),
+        ("settings.yaml", "work_steps: []\n"),
+    ],
+};
+
+/// `True` is an `int` in Python: refused rather than counted.
+const HISTORY_BOOL: Setup = Setup {
+    id: "history-bool",
+    cli: &[],
+    files: &[
+        (".plaintext", ""),
+        (
+            "day/work-history.json",
+            "{\"days\": {\"2026-11-20\": {\"/a\": {\"seconds\": true, \"status\": \"done\"}}}}",
+        ),
+    ],
+};
+
+#[test]
+fn day_loop_matches_python() {
+    strict(NOW);
+    let label = "day.loop";
+    for setup in [&PLAIN, &LOOPS] {
+        let home = prepare_setup(setup);
+        for args in [
+            &["day", "loop", "status"][..],
+            &["day", "loop", "status", "--json"],
+            &[
+                "day", "loop", "add", "--kind", "cron", "--id", "c9", "--step", "standup",
+            ],
+            &["day", "loop", "add", "--kind", "agent", "--id", "a.2"],
+            &[
+                "day",
+                "loop",
+                "add",
+                "--kind",
+                "session",
+                "--id",
+                "s:1",
+                "--step",
+                " /review ",
+            ],
+            &["day", "loop", "add", "--kind", "agent"],
+            &["day", "loop", "add", "--id", "x1"],
+            &["day", "loop", "add", "--kind", "agent", "--id", "bad id"],
+            &[
+                "day", "loop", "add", "--kind", "agent", "--id", "ok", "--step", "bad step",
+            ],
+            &[
+                "day", "loop", "add", "--kind", "agent", "--id", "ok", "--step", "a..b",
+            ],
+            &["day", "loop", "stop", "--id", "nope"],
+            &["day", "loop", "stop", "--id", "c1"],
+            &["day", "loop", "stop", "--id", "a2"],
+            &["day", "loop", "stop"],
+        ] {
+            assert_same(&home, args, true, label);
+        }
+    }
+}
+
+#[test]
+fn day_loop_refuses_what_it_cannot_match() {
+    strict(NOW);
+    let home = prepare_setup(&PLAIN);
+    // Long-running, subprocess or not ported actions stay on Python.
+    for action in ["pass", "run", "end", "catch-up"] {
+        refuses(&home, &["day", "loop", action], "day.loop");
+    }
+    // An id or step whose Python repr this handler does not spell.
+    refuses(
+        &home,
+        &["day", "loop", "add", "--kind", "agent", "--id", "it's"],
+        "day.loop",
+    );
+    refuses(
+        &home,
+        &[
+            "day",
+            "loop",
+            "add",
+            "--kind",
+            "agent",
+            "--id",
+            "ok",
+            "--step",
+            "caf\u{e9}",
+        ],
+        "day.loop",
+    );
+    refuses(&home, &["day", "loop", "stop", "--id", "it's"], "day.loop");
+    for setup in [&ODD_LOOP, &BAD_LOOPS, &REDACTION] {
+        let home = prepare_setup(setup);
+        refuses(&home, &["day", "loop", "status"], "day.loop");
+        refuses(
+            &home,
+            &["day", "loop", "add", "--kind", "cron", "--id", "c2"],
+            "day.loop",
+        );
+    }
+}
+
+#[test]
+fn day_history_matches_python() {
+    strict(NOW);
+    let label = "day.history";
+    for setup in [&PLAIN, &HISTORY] {
+        let home = prepare_setup(setup);
+        for args in [
+            &["day", "history"][..],
+            &["day", "history", "--json"],
+            &["day", "history", "--days", "2"],
+            &["day", "history", "--days", "1", "--json"],
+            &["day", "history", "--days", "120"],
+        ] {
+            assert_same(&home, args, true, label);
+        }
+    }
+}
+
+#[test]
+fn day_history_refuses_what_it_cannot_match() {
+    strict(NOW);
+    for setup in [&HISTORY_PROJECTS, &HISTORY_STEPS, &HISTORY_BOOL, &REDACTION] {
+        let home = prepare_setup(setup);
+        refuses(&home, &["day", "history"], "day.history");
+    }
+    let home = prepare_setup(&HISTORY);
+    for days in ["0", "121", "+3", "x"] {
+        refuses(&home, &["day", "history", "--days", days], "day.history");
+    }
+}
+
+/// Negative control: adding a loop and reading the empty status differ in
+/// output and in the files they leave.
+#[test]
+fn the_loop_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let home = prepare_setup(&PLAIN);
+    let added = observe(
+        &home,
+        &["day", "loop", "add", "--kind", "cron", "--id", "c1"],
+        &Side::Native,
+    );
+    let status = observe(&home, &["day", "loop", "status"], &Side::Python);
+    assert_ne!(added, status);
+    let short = observe(
+        &prepare_setup(&HISTORY),
+        &["day", "history", "--days", "1"],
+        &Side::Native,
+    );
+    let long = observe(&prepare_setup(&HISTORY), &["day", "history"], &Side::Python);
+    assert_ne!(short.stdout, long.stdout);
 }
