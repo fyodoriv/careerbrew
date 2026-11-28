@@ -1104,7 +1104,7 @@ struct Info<'a> {
     company_tips: Option<&'a Canon>,
     values: Option<&'a Canon>,
     remote_policy: Option<&'a Canon>,
-    local_presence: Option<&'a Canon>,
+    presence_local: Option<&'a Canon>,
     ai_policy: Option<&'a Canon>,
     ai_shared: Option<Canon>,
 }
@@ -1174,7 +1174,7 @@ fn render(info: &Info, src: &[(String, Pairs)], with_sources: bool) -> Option<St
         let c = cite(get(rp, "sources"), with_sources, src, o)?;
         lines.push(format!("Remote policy: {text}{c}"));
     }
-    if let Some(tp) = truthy_map(info.local_presence)? {
+    if let Some(tp) = truthy_map(info.presence_local)? {
         let value = text_or(tp, "value", "None")?;
         let note = text_or(tp, "note", "")?;
         let c = cite(get(tp, "sources"), with_sources, src, o)?;
@@ -1297,7 +1297,7 @@ fn interview(args: &Parsed, ctx: &Ctx, io: &Io) -> Option<Outcome> {
                 company_tips: get(c, "company_tips"),
                 values: get(c, "values_or_principles"),
                 remote_policy: get(c, "remote_policy"),
-                local_presence: get(c, "local_presence"),
+                presence_local: get(c, "local_presence"),
                 ai_policy: get(c, "ai_policy"),
                 ai_shared: None,
             }
@@ -1315,7 +1315,7 @@ fn interview(args: &Parsed, ctx: &Ctx, io: &Io) -> Option<Outcome> {
                 company_tips: None,
                 values: None,
                 remote_policy: None,
-                local_presence: None,
+                presence_local: None,
                 ai_policy: None,
                 ai_shared: Some(pt.shared),
             }
