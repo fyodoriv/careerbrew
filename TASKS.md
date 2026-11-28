@@ -507,6 +507,26 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
 
 ## P2
 
+- [ ] xtask observer test flake: the fake docker script cannot start
+  - **ID**: flake-observer-fake-docker-exec
+  - **Details**: PR 264 run 46118985093 (job 140899067936, ubuntu-24.04, 2026-11-28) failed `observer_probe::repair_controls::transport_t01_empty_cp_is_not_complete_evidence` at `xtask/src/observer_probe.rs:1020` with `cannot execute capture child` (`capture_actions.rs:750`, a spawn error); 110 of 111 tests passed and the PR changed only `TASKS.md`. The likely cause is Linux `ETXTBSY`: a test writes its fake docker script and runs it while a parallel test thread still holds a write handle from its own fork.
+  - **Files**: xtask/src/observer_probe.rs; xtask/src/capture_actions.rs
+  - **Hypothesis**: the spawn fails with `ETXTBSY` from a write handle leaked across a parallel fork; writing the script to a temp name, closing it, then renaming it into place drops spawn failures to 0.
+  - **Measurement**: log the spawn `io::Error` kind in the error, then run `cargo test -p careerbrew-xtask --bin careerbrew-xtask observer_probe` 50 times on a hosted Linux runner.
+  - **Success**: 0 of 50 runs fail to spawn the fake script.
+  - **Pivot**: if the error kind is not `ExecutableFileBusy`, retry the spawn once on that kind only and record the real cause here.
+  - **Anchor**: Luo et al. 2014, "An Empirical Analysis of Flaky Tests" (FSE; concurrency causes).
+
+- [ ] US-59 paint run: the PM page sends a draft save with no edit
+  - **ID**: pm-draft-autosave-race
+  - **Details**: Main run 46118046006 (job 140896166001, 2026-11-28) failed `tests/e2e/us-59-pm-update.sh` at "crowded disabled-control and gradient paint evidence" while all 4 Playwright paint tests passed. The read-only fixture `tests/safety/issue373_server.py` saw one `POST /api/pm/draft` (plus the allowed `/api/session` and `/api/timing`), recorded `forbidden business POST`, and the runner exited 2 with `server-boundary-or-close:crowded`. The same story passed on PR 263 and on the main run before it, with no web change between them, so the save is a timing race: the PM report saves its draft once although nobody typed.
+  - **Files**: web/src/views.tsx (PmReport); web/issue373/comfort-paint.spec.ts; tests/safety/issue373_server.py
+  - **Hypothesis**: the PM report sends a draft save when a fresh answer replaces the cached draft; saving only after an owner edit drops unasked draft saves to 0.
+  - **Measurement**: a Playwright test that loads the day log, waits for fresh data, and counts `POST /api/pm/draft` requests with no edit; plus the `us-59` failure count over 10 hosted runs.
+  - **Success**: 0 draft saves with no edit, and 0 of 10 hosted `us-59` runs fail on `server-boundary-or-close`.
+  - **Pivot**: if the save is needed to keep a cached draft, keep it and let the paint fixture answer `/api/pm/draft` with 204 without writing; record why in `docs/web.md`.
+  - **Anchor**: Luo et al. 2014, "An Empirical Analysis of Flaky Tests" (FSE; async wait and concurrency causes).
+
 - [ ] Exercise 052's complexity check cannot reject an O(n) walk
   - **ID**: exercise-052-reject-linear-walk
   - **Details**: In `knowledge/exercises/052-lowest-common-ancestor-of-a-binary-search-tree.yaml` a solution that walks every node first measured a slope of 1.01 (1.09 ms, 3.46 ms, 11.08 ms at 10,000, 31,623 and 100,000 nodes), but `_complexity` in `src/careerbrew/tutor/exercises.py` passes any run whose largest size takes under 50 ms, so it counts as `ok` against `O(log n)`. A memo keyed by a child node (the generator reuses the tree below each fresh root) would also escape the check. Larger trees cost CPU, which the hosted scaling limit cannot spare, so the fix is likely a lower floor for sublinear classes or a per-exercise floor.
