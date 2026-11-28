@@ -420,7 +420,18 @@ fn day_loop_refuses_what_it_cannot_match() {
     strict(NOW);
     let home = prepare_setup(&PLAIN);
     // Long-running, subprocess or not ported actions stay on Python.
-    for action in ["pass", "run", "end", "catch-up"] {
+    // `pass` and `run` print and store their wall time, so two Python runs
+    // differ: check only the native refusal for them.
+    for action in ["pass", "run"] {
+        let args = ["day", "loop", action];
+        let got = observe(&home, &args, &Side::Native);
+        assert_eq!(got.code, Some(64), "day.loop: {args:?} served");
+        assert!(
+            got.stdout.is_empty() && got.events.is_empty(),
+            "day.loop: {args:?}"
+        );
+    }
+    for action in ["end", "catch-up"] {
         refuses(&home, &["day", "loop", action], "day.loop");
     }
     // An id or step whose Python repr this handler does not spell.

@@ -387,6 +387,8 @@ timestamps and cargo's `Finished` lines:
 - The time goes to `cargo test --all` running its test binaries one after
   another. The fix is to run them in parallel: task `ci-rust-test-parallel`
   in `TASKS.md`.
+- The step passes `--no-fail-fast`, so one red run names every failing test
+  binary, not only the first one.
 
 The free options, scored:
 
