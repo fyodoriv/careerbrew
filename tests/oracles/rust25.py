@@ -192,6 +192,23 @@ def _wait(port: int, token: str, proc: subprocess.Popen[bytes], seconds: float =
     raise SystemExit("rust25 oracle: a server did not answer its ping in time")
 
 
+# The change version hashes the data root, and either server's cache warmer may
+# write there between the two reads. Ask again until both reads see one state.
+RACY_CASES = {"changes-ok"}
+RACY_TRIES = 10
+
+
+def _ask_both(case: dict[str, Any], token: str, py_port: int, rs_port: int) -> dict[str, Any]:
+    tries = RACY_TRIES if case["id"] in RACY_CASES else 1
+    answers: dict[str, Any] = {}
+    for attempt in range(tries):
+        answers = {name: normalize(case["id"], send_raw(port, request_bytes(case, port, token)), port) for name, port in (("python", py_port), ("native", rs_port))}
+        if answers["python"] == answers["native"] or attempt == tries - 1:
+            break
+        time.sleep(0.2)
+    return answers
+
+
 def run_forward(candidate: str) -> str:
     """Both servers as processes in one data root; every case goes to both."""
     root = home()
@@ -214,7 +231,7 @@ def run_forward(candidate: str) -> str:
         for case in fx["cases"]:
             apply_setup(root, case.get("setup"))
             try:
-                answers = {name: normalize(case["id"], send_raw(port, request_bytes(case, port, token)), port) for name, port in (("python", py_port), ("native", rs_port))}
+                answers = _ask_both(case, token, py_port, rs_port)
             finally:
                 clear_setup(root, case.get("setup"))
             out.append(line({"case": case["id"], "owner": case["owner"], **answers}))
