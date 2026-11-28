@@ -160,7 +160,8 @@ fn team_list_refuses_what_it_cannot_repeat() {
     let plugin = prepare_setup(&Setup {
         id: "team-plugin",
         cli: &[ADD_SAM],
-        files: &[("plugins.lock.json", "{}\n")],
+        // A valid empty lock: Python's `work team add` reads `plugins`.
+        files: &[("plugins.lock.json", "{\"plugins\": {}}\n")],
     });
     assert!(!assert_same(
         &plugin,
