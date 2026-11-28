@@ -646,3 +646,236 @@ fn the_comparison_detects_planted_differences_in_wave_two() {
     assert!(!open.stdout.contains("sess-done"), "{}", open.stdout);
     assert!(!all.stdout.contains("sess-old"), "{}", all.stdout);
 }
+
+// ---------- wave 4: work live start, cycle, status; notify check ----------
+
+const LIVE_START: &str = "work.live.start";
+const LIVE_CYCLE: &str = "work.live.cycle";
+const LIVE_STATUS: &str = "work.live.status";
+const NOTIFY_CHECK: &str = "notify.check";
+
+const STARTED_NO_SOURCES: &str = "{\"cursors\": {}, \"cycles\": 4, \"running\": true, \"started_at\": \"2026-11-20T08:00:00Z\"}\n";
+
+/// One file-adapter source: the feed then has a source, so these stay
+/// with Python.
+const SOURCES_YAML: &str = "sources:\n- name: chat\n  kind: chat\n  adapter: file\n  inbox: /nonexistent/synthetic-inbox.json\n";
+
+#[test]
+fn work_live_start_without_sources_matches_python() {
+    strict("2026-11-20T09:00:00");
+    for (id, files) in [
+        ("start-empty", &[][..]),
+        ("start-stopped", &[("work/live/state.json", STOPPED)][..]),
+    ] {
+        let home = prepare_setup(&Setup {
+            id,
+            cli: &[],
+            files,
+        });
+        assert_same(
+            &home,
+            &["work", "live", "start"],
+            true,
+            &format!("{LIVE_START} {id}"),
+        );
+    }
+}
+
+#[test]
+fn work_live_start_refuses_what_it_cannot_copy() {
+    strict("2026-11-20T09:00:00");
+    let config = prepare_setup(&Setup {
+        id: "start-config",
+        cli: &[],
+        files: &[("work/live-sources.yaml", SOURCES_YAML)],
+    });
+    assert!(!assert_same(
+        &config,
+        &["work", "live", "start"],
+        false,
+        &format!("{LIVE_START} config")
+    ));
+    let given = prepare_setup(&Setup {
+        id: "start-given",
+        cli: &[],
+        files: &[("synthetic-sources.yaml", SOURCES_YAML)],
+    });
+    let file = given.data.join("synthetic-sources.yaml");
+    let file = file.to_str().unwrap().to_owned();
+    assert!(!assert_same(
+        &given,
+        &["work", "live", "start", "--sources", &file],
+        false,
+        &format!("{LIVE_START} given")
+    ));
+}
+
+#[test]
+fn work_live_cycle_while_stopped_matches_python() {
+    strict("2026-11-20T09:00:00");
+    for (id, files) in [
+        ("cycle-never-started", &[][..]),
+        ("cycle-stopped", &[("work/live/state.json", STOPPED)][..]),
+        (
+            "cycle-stopped-sources",
+            &[
+                ("work/live/state.json", STOPPED),
+                ("work/live-sources.yaml", SOURCES_YAML),
+            ][..],
+        ),
+    ] {
+        let home = prepare_setup(&Setup {
+            id,
+            cli: &[],
+            files,
+        });
+        assert_same(
+            &home,
+            &["work", "live", "cycle"],
+            true,
+            &format!("{LIVE_CYCLE} {id}"),
+        );
+    }
+}
+
+#[test]
+fn work_live_cycle_refuses_a_running_feed() {
+    strict("2026-11-20T09:00:00");
+    for (id, files) in [
+        ("cycle-running", &[("work/live/state.json", RUNNING)][..]),
+        ("cycle-corrupt", &[("work/live/state.json", "[1, 2]\n")][..]),
+    ] {
+        let home = prepare_setup(&Setup {
+            id,
+            cli: &[],
+            files,
+        });
+        assert!(
+            !assert_same(
+                &home,
+                &["work", "live", "cycle"],
+                false,
+                &format!("{LIVE_CYCLE} {id}")
+            ),
+            "{id} must refuse"
+        );
+    }
+}
+
+#[test]
+fn work_live_status_without_sources_matches_python() {
+    strict("2026-11-20T09:00:00");
+    for (id, files) in [
+        ("status-empty", &[][..]),
+        (
+            "status-started",
+            &[("work/live/state.json", STARTED_NO_SOURCES)][..],
+        ),
+        ("status-stopped", &[("work/live/state.json", STOPPED)][..]),
+    ] {
+        let home = prepare_setup(&Setup {
+            id,
+            cli: &[],
+            files,
+        });
+        for argv in [
+            &["work", "live", "status"][..],
+            &["work", "live", "status", "--json"][..],
+        ] {
+            assert_same(&home, argv, true, &format!("{LIVE_STATUS} {id}"));
+        }
+    }
+}
+
+#[test]
+fn work_live_status_refuses_what_it_cannot_copy() {
+    strict("2026-11-20T09:00:00");
+    for (id, files) in [
+        (
+            "status-config",
+            &[("work/live-sources.yaml", SOURCES_YAML)][..],
+        ),
+        (
+            "status-cycles",
+            &[("work/live/cycles.jsonl", "{\"n\": 1}\n")][..],
+        ),
+        (
+            "status-last",
+            &[(
+                "work/live/state.json",
+                "{\"cycles\": 1, \"last\": {\"n\": 1}, \"running\": false}\n",
+            )][..],
+        ),
+    ] {
+        let home = prepare_setup(&Setup {
+            id,
+            cli: &[],
+            files,
+        });
+        assert!(
+            !assert_same(
+                &home,
+                &["work", "live", "status"],
+                false,
+                &format!("{LIVE_STATUS} {id}")
+            ),
+            "{id} must refuse"
+        );
+    }
+}
+
+const NOTIFY_OFF: &[&[&str]] = &[&["config", "set", "notify_events", "false"]];
+
+#[test]
+fn notify_check_while_off_matches_python() {
+    strict("2026-11-20T09:00:00");
+    for (id, cli) in [("check-default", &[][..]), ("check-off", NOTIFY_OFF)] {
+        let home = prepare_setup(&Setup {
+            id,
+            cli,
+            files: &[],
+        });
+        for argv in [&["notify", "check"][..], &["notify", "check", "--wait"][..]] {
+            assert_same(&home, argv, true, &format!("{NOTIFY_CHECK} {id}"));
+        }
+    }
+}
+
+#[test]
+fn notify_check_refuses_when_on() {
+    strict("2026-11-20T09:00:00");
+    let home = prepare_setup(&Setup {
+        id: "check-on",
+        cli: NOTIFY_ON,
+        files: &[],
+    });
+    assert!(!assert_same(
+        &home,
+        &["notify", "check"],
+        false,
+        &format!("{NOTIFY_CHECK} on")
+    ));
+}
+
+#[test]
+fn the_comparison_detects_planted_differences_in_wave_four() {
+    strict("2026-11-20T09:00:00");
+    let empty = prepare_setup(&Setup {
+        id: "control-w4-empty",
+        cli: &[],
+        files: &[],
+    });
+    let started = prepare_setup(&Setup {
+        id: "control-w4-started",
+        cli: &[],
+        files: &[("work/live/state.json", STARTED_NO_SOURCES)],
+    });
+    let native = observe(&empty, &["work", "live", "status"], &Side::Native);
+    let python = observe(&started, &["work", "live", "status"], &Side::Python);
+    assert_ne!(native, python);
+    assert!(native.stdout.starts_with("live feed: stopped; 0 cycle(s)"));
+    let start = observe(&empty, &["work", "live", "start"], &Side::Native);
+    let cycle = observe(&empty, &["work", "live", "cycle"], &Side::Native);
+    assert_ne!(start, cycle);
+    assert_eq!(start.code, Some(2));
+}

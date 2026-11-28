@@ -176,3 +176,54 @@ fn the_comparison_detects_a_planted_difference() {
     assert_eq!(short.stdout, long.stdout);
     assert_ne!(short.files, long.files);
 }
+
+// ---------- wave 4: work session open ----------
+
+const OPEN_CMD: &str = "work.session.open";
+
+const PROJECT: &[&[&str]] = &[&["work", "project", "add", "synth-proj"]];
+
+#[test]
+fn work_session_open_unknown_project_matches_python() {
+    strict(NOW);
+    for (id, cli) in [("open-no-projects", &[][..]), ("open-other", PROJECT)] {
+        let home = prepare_setup(&Setup {
+            id,
+            cli,
+            files: &[],
+        });
+        for argv in [
+            &["work", "session", "open", "ghost-proj"][..],
+            &["work", "session", "open", "ghost-proj", "--id", "sess-9"][..],
+            &["work", "session", "open", "ghost-proj", "--json"][..],
+        ] {
+            assert_same(&home, argv, true, &format!("{OPEN_CMD} {id}"));
+        }
+    }
+}
+
+#[test]
+fn work_session_open_refuses_a_known_project() {
+    strict(NOW);
+    let home = prepare_setup(&Setup {
+        id: "open-known",
+        cli: PROJECT,
+        files: &[],
+    });
+    for argv in [
+        &["work", "session", "open", "synth-proj"][..],
+        &["work", "session", "open", " synth-proj"][..],
+    ] {
+        assert!(
+            !assert_same(&home, argv, false, &format!("{OPEN_CMD} known")),
+            "{argv:?} must refuse"
+        );
+    }
+    let control = observe(
+        &home,
+        &["work", "session", "open", "ghost-proj"],
+        &Side::Native,
+    );
+    assert_eq!(control.code, Some(2));
+    assert!(control.stdout.starts_with("error: unknown project"));
+}

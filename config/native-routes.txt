@@ -113,9 +113,9 @@ work.feed.retriage python
 work.feed.links native
 work.feed.research python
 work.feed.open native
-work.live.start python
-work.live.cycle python
-work.live.status python
+work.live.start native
+work.live.cycle native
+work.live.status native
 work.live.stop native
 work.promise.list native
 work.promise.scan python
@@ -128,7 +128,7 @@ work.promise.dropped python
 work.promise.step python
 work.agent.event native
 work.agent.show python
-work.session.open python
+work.session.open native
 work.session.list native
 work.session.ask python
 work.session.handoff native
@@ -229,7 +229,7 @@ day.question.recheck python
 day.question.close native
 day.loop native
 notify.status native
-notify.check python
+notify.check native
 notify.list native
 notify.act native
 notify.open python
