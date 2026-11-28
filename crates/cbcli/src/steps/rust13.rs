@@ -19,6 +19,14 @@
 //! - `work feed mark` and `work feed research` with no feed events (their
 //!   `FeedError` lines).
 //!
+//! Wave 7 adds the `FeedError` lines Python prints before it reads or
+//! writes any feed data:
+//! - `work feed add FILE` with an input that has no events, or whose first
+//!   non-blank line can never be JSON (no `--plugin`, no `--source`),
+//! - `work feed transcript` with no `feed_tool_sources`, or with a tool map
+//!   and no transcript file,
+//! - `work feed cycle` with no required source anywhere.
+//!
 //! Every case also refuses when Python's `privacy.redact` would read an
 //! input (`Ctx::redact_inputs_present`).
 use super::Ctx;
@@ -45,6 +53,9 @@ pub const COMMANDS: &[&str] = &[
     "work.feed.retriage",
     "work.feed.mark",
     "work.feed.research",
+    "work.feed.add",
+    "work.feed.transcript",
+    "work.feed.cycle",
 ];
 
 const HIDDEN: &str =
@@ -74,6 +85,9 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "work.feed.retriage" => feed_retriage(ctx),
         "work.feed.mark" => feed_mark(args, ctx),
         "work.feed.research" => feed_research(args, ctx),
+        "work.feed.add" => feed_add(args, ctx),
+        "work.feed.transcript" => feed_transcript(args, ctx),
+        "work.feed.cycle" => feed_cycle(args, ctx),
         _ => None,
     }
 }
@@ -930,4 +944,145 @@ fn feed_research(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "feederror",
         &format!("no feed event {id} (see: careerbrew work feed links)"),
     )
+}
+
+// ---------- wave 7: the FeedError lines of work feed add, transcript and cycle ----------
+
+const NO_TOOL_MAP: &str = "no tool map (fix: careerbrew config set feed_tool_sources 'mcp__chat__*=chat, mcp__tickets__*=tickets')";
+const NO_TRANSCRIPT: &str =
+    "the transcript file does not exist (fix: pass the session's .jsonl file)";
+const NO_REQUIRED: &str =
+    "no required sources (fix: --require slack,jira,mail, or careerbrew config set feed_tool_sources)";
+const LINE_FIX: &str = "(fix: one JSON object per line with id, at, and title)";
+
+/// How many entries `config.get("feed_tool_sources")` has: 0 for no
+/// setting (the default `[]`) or an empty list, the count for a list of
+/// strings, None for any other value or a read error.
+fn tool_source_count(root: &Path) -> Option<usize> {
+    let path = root.join("settings.yaml");
+    if absent(&path) {
+        return Some(0);
+    }
+    let context = vault_context()?;
+    let data = context
+        .store()
+        .read_yaml(&path, Canon::Map(Vec::new()), false)
+        .ok()?;
+    let pairs = match &data {
+        Canon::Map(pairs) => pairs.as_slice(),
+        other if !truthy(other) => &[],
+        _ => return None,
+    };
+    match map_get(pairs, "feed_tool_sources").ok()? {
+        None => Some(0),
+        Some(Canon::List(items)) if items.iter().all(|i| matches!(i, Canon::Str(_))) => {
+            Some(items.len())
+        }
+        Some(_) => None,
+    }
+}
+
+/// `work feed transcript FILE`: `transcript.store` raises before it reads
+/// the file when no tool map is set, and before it reads anything else when
+/// the file is not there.
+fn feed_transcript(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let file = args.text("file")?;
+    let root = &ctx.root;
+    let tools = tool_source_count(root)?;
+    if tools == 0 {
+        make_dirs(root, &[])?;
+        return cli_error(ctx, "work.feed", "feederror", NO_TOOL_MAP);
+    }
+    // `Path.expanduser`, and `Path("")` (the current folder), go to Python.
+    if file.is_empty() || file.starts_with('~') || Path::new(file).is_file() {
+        return None;
+    }
+    make_dirs(root, &[])?;
+    cli_error(ctx, "work.feed", "feederror", NO_TRANSCRIPT)
+}
+
+/// `work feed cycle` when `feed.mark_cycle` finds no required source: no
+/// tool map, no owner live sources, no plugin, and a `--require` with no
+/// name in it.
+fn feed_cycle(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    // `[x.strip() for x in a.require.split(",") if x.strip()]` is empty.
+    if let Some(require) = args.text("require") {
+        if !require.chars().all(|c| matches!(c, ',' | ' ' | '\t')) {
+            return None;
+        }
+    }
+    let root = &ctx.root;
+    if !absent(&root.join("work/live-sources.yaml"))
+        || !absent(&root.join("plugins.lock.json"))
+        || !absent(&root.join("plugins"))
+    {
+        return None;
+    }
+    if tool_source_count(root)? != 0 {
+        return None;
+    }
+    make_dirs(root, &[])?;
+    cli_error(ctx, "work.feed", "feederror", NO_REQUIRED)
+}
+
+/// The first character of a text `json.loads` can read as a value (after
+/// its own whitespace): a string, an object, an array, `null`, `true`,
+/// `false`, `NaN`, `Infinity`, or a number.
+fn json_start(c: char) -> bool {
+    matches!(c, '"' | '{' | '[' | 'n' | 't' | 'f' | 'N' | 'I' | '-') || c.is_ascii_digit()
+}
+
+/// `work feed add FILE` (no `--plugin`, no `--source`): Python reads the
+/// file, `json.loads` of the whole text fails, and then either no line has
+/// an event ("no events in the input") or the first non-blank line is not
+/// JSON. Any input that could hold an event goes to Python.
+fn feed_add(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let file = args.text("file")?;
+    if args.text("plugin").is_some_and(|p| !p.is_empty())
+        || args.text("source").is_some_and(|s| !s.is_empty())
+    {
+        return None;
+    }
+    // `-` reads stdin; `~` is `expanduser`.
+    if file.is_empty() || file == "-" || file.starts_with('~') {
+        return None;
+    }
+    let meta = std::fs::metadata(file).ok()?;
+    if !meta.is_file() {
+        return None;
+    }
+    let text = String::from_utf8(std::fs::read(file).ok()?).ok()?;
+    // `read_text` turns `\r` into `\n`, and `str.splitlines` also splits
+    // on these; `str.strip` and `str.trim` differ on \x1c to \x1f.
+    if text.chars().any(|c| {
+        matches!(
+            c,
+            '\r' | '\u{0b}' | '\u{0c}' | '\u{1c}'..='\u{1f}' | '\u{85}' | '\u{2028}' | '\u{2029}'
+        )
+    }) {
+        return None;
+    }
+    let mut verdict = None;
+    for (n, line) in text.split('\n').enumerate() {
+        if line.trim().is_empty() {
+            // Blank to `str.strip`; JSON whitespace too only when it is
+            // spaces and tabs.
+            if line.chars().any(|c| c != ' ' && c != '\t') {
+                return None;
+            }
+            continue;
+        }
+        let first = line.trim_start_matches([' ', '\t']).chars().next()?;
+        if json_start(first) {
+            return None;
+        }
+        verdict = Some(n + 1);
+        break;
+    }
+    let message = match verdict {
+        Some(n) => format!("line {n}: not JSON {LINE_FIX}"),
+        None => format!("no events in the input {LINE_FIX}"),
+    };
+    make_dirs(&ctx.root, &[])?;
+    cli_error(ctx, "work.feed", "feederror", &message)
 }
