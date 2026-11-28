@@ -60,7 +60,7 @@ approvals.list native
 approvals.guidance native
 approvals.show native
 approvals.decide native
-teach.next python
+teach.next native
 teach.improvements native
 teach.feedback native
 exercises.check python

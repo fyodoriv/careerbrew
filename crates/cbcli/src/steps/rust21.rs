@@ -14,10 +14,14 @@
 //!
 //! Left in Python, with the reason:
 //! - `goals.set`: it replans the day (`day.planner.build`, rust-24).
-//! - `teach.next`: it needs the interview loops (rust-19) and every step
-//!   source; no parity cases in this step yet.
 //!
 //! Served only in part, with the reason:
+//! - `teach.next`: only the text form, and only for three steps: an
+//!   approval an agent waits on, no upcoming goal, and today's study time
+//!   used up (with no mistake log). `--json` stays in Python: its `started`
+//!   field is the wall clock. Every other step source (cards, lessons,
+//!   exercises, retries, card checks, resumes) and an interview goal with a
+//!   company (rust-19 loops) stay in Python too.
 //! - `goals.add-long-term`: only the refusal for a caller with no terminal
 //!   (agents). The owner's own write goes through `goals.set_long_term`,
 //!   which replans the day; that stays in Python.
@@ -37,6 +41,7 @@ use std::path::{Path, PathBuf};
 /// `config/native-routes.txt` and have a parity case in
 /// `crates/cbcli/tests/step_rust21.rs`.
 pub const COMMANDS: &[&str] = &[
+    "teach.next",
     "teach.feedback",
     "teach.improvements",
     "goals.add-long-term",
@@ -66,6 +71,7 @@ fn serve(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
     match name {
         "teach.feedback" => feedback(args, &vault),
         "teach.improvements" => improvements(&vault),
+        "teach.next" => teach_next(args, &vault),
         "goals.add-long-term" => not_owner(),
         _ => None,
     }
@@ -341,40 +347,46 @@ fn today(vault: &careerbrew_vault::transfer::Context) -> Option<String> {
         Err(_) => return None,
     };
     if zone_read {
-        let settings = vault
-            .store()
-            .read_yaml(&vault.root.join("settings.yaml"), Canon::Null, false)
-            .ok()?;
-        let configured = if falsy(&settings) {
-            None
-        } else if plain_map(&settings) {
-            match get(&settings, "timezone") {
-                None | Some(Canon::Null) => None,
-                Some(Canon::Str(name)) if name.is_empty() => None,
-                Some(Canon::Str(name)) => Some(name.clone()),
-                Some(_) => return None,
-            }
-        } else {
-            return None;
-        };
-        match configured {
-            Some(name) => {
-                if !zone_ok(&name, careerbrew_tutor::local_zone(&vault.root).name()) {
-                    return None;
-                }
-            }
-            None => {
-                let tz = std::env::var("TZ").unwrap_or_default();
-                let name = tz.trim_start_matches(':');
-                // An empty `TZ` reads `/etc/localtime` on both sides.
-                if !name.is_empty() && !zone_ok(name, careerbrew_tutor::system_zone().name()) {
-                    return None;
-                }
-            }
-        }
+        zone_valid(vault)?;
     }
     // A pin the domain crate cannot read panics: `run` makes it a refusal.
     Some(careerbrew_teacher::today(&vault.root).to_string())
+}
+
+/// `calendar.local_tz()` resolves the same zone on both sides, or None.
+fn zone_valid(vault: &careerbrew_vault::transfer::Context) -> Option<()> {
+    let settings = vault
+        .store()
+        .read_yaml(&vault.root.join("settings.yaml"), Canon::Null, false)
+        .ok()?;
+    let configured = if falsy(&settings) {
+        None
+    } else if plain_map(&settings) {
+        match get(&settings, "timezone") {
+            None | Some(Canon::Null) => None,
+            Some(Canon::Str(name)) if name.is_empty() => None,
+            Some(Canon::Str(name)) => Some(name.clone()),
+            Some(_) => return None,
+        }
+    } else {
+        return None;
+    };
+    match configured {
+        Some(name) => {
+            if !zone_ok(&name, careerbrew_tutor::local_zone(&vault.root).name()) {
+                return None;
+            }
+        }
+        None => {
+            let tz = std::env::var("TZ").unwrap_or_default();
+            let name = tz.trim_start_matches(':');
+            // An empty `TZ` reads `/etc/localtime` on both sides.
+            if !name.is_empty() && !zone_ok(name, careerbrew_tutor::system_zone().name()) {
+                return None;
+            }
+        }
+    }
+    Some(())
 }
 
 /// Days since 1970-01-01 for a strict `YYYY-MM-DD` calendar date.
@@ -552,4 +564,222 @@ fn goals_show(vault: &careerbrew_vault::transfer::Context) -> Option<Outcome> {
         }
     }
     ok(out, 0)
+}
+
+// ---------- teach next ----------
+
+/// `goals.load()["upcoming"]`: the queue (or a legacy `upcoming` goal) and
+/// `_current`'s pick, or None for any file Python could read differently.
+fn upcoming_goal(vault: &careerbrew_vault::transfer::Context) -> Option<Option<Goal>> {
+    let today = today(vault)?;
+    let data = vault
+        .store()
+        .read_yaml(&vault.root.join("goals.yaml"), Canon::Null, false)
+        .ok()?;
+    let data = if falsy(&data) {
+        Canon::Map(Vec::new())
+    } else if plain_map(&data) {
+        data
+    } else {
+        return None;
+    };
+    let mut queue = match get(&data, "queue") {
+        None | Some(Canon::Null) => match get(&data, "upcoming") {
+            Some(goal) if !falsy(goal) => vec![goal_of(goal)?],
+            _ => Vec::new(),
+        },
+        Some(Canon::List(items)) => items.iter().map(goal_of).collect::<Option<Vec<_>>>()?,
+        Some(_) => return None,
+    };
+    // `_current`: the nearest dated goal still ahead (the first of a tie),
+    // else the first undated one.
+    let mut upcoming: Option<usize> = None;
+    for (at, goal) in queue.iter().enumerate() {
+        let Some(date) = goal.date.as_deref() else {
+            continue;
+        };
+        if date < today.as_str() {
+            continue;
+        }
+        if upcoming.is_none_or(|best| date < queue[best].date.as_deref().unwrap_or_default()) {
+            upcoming = Some(at);
+        }
+    }
+    let upcoming = upcoming.or_else(|| queue.iter().position(|goal| goal.date.is_none()));
+    Some(upcoming.map(|at| queue.swap_remove(at)))
+}
+
+/// Text Python could print differently: a replacement character may stand
+/// for a lone surrogate Python's reader kept (and its print then fails).
+fn printable(text: &str) -> bool {
+    !text.contains('\u{fffd}')
+}
+
+/// `approvals.pending()[:1]` after `validate_records`, or None where Python
+/// raises or reads the file differently.
+fn first_pending(vault: &careerbrew_vault::transfer::Context) -> Option<Option<String>> {
+    let path = vault.root.join("approvals.json");
+    let data = vault.store().read_json(&path, Canon::Null, false).ok()?;
+    if falsy(&data) {
+        return Some(None);
+    }
+    let Canon::List(items) = data else {
+        return None;
+    };
+    let mut seen = std::collections::BTreeSet::new();
+    let mut first = None;
+    for item in &items {
+        if !plain_map(item) {
+            return None;
+        }
+        let id = text(item, "id")?;
+        let status = text(item, "status")?;
+        let title = text(item, "title")?;
+        text(item, "at")?;
+        if !["pending", "approved", "rejected"].contains(&status) {
+            return None;
+        }
+        if status != "pending" {
+            text(item, "decided_at")?;
+        }
+        if !seen.insert(id.to_owned()) {
+            return None;
+        }
+        if status == "pending" && first.is_none() {
+            first = Some(title.to_owned());
+        }
+    }
+    Some(first)
+}
+
+/// `int((goal or {}).get("minutes_per_day") or DEFAULT_MINUTES)`, for the
+/// value shapes Python and this read the same way.
+fn budget(goal: Option<&Goal>) -> Option<i64> {
+    let Some(goal) = goal else {
+        return Some(90);
+    };
+    match get(&goal.raw, "minutes_per_day") {
+        None | Some(Canon::Null) => Some(90),
+        Some(Canon::Int(minutes)) => {
+            let minutes: i64 = minutes.to_string().parse().ok()?;
+            Some(if minutes == 0 { 90 } else { minutes })
+        }
+        Some(_) => None,
+    }
+}
+
+/// `YYYY-MM-DDTHH:MM:SS` then `+HH:MM` or `Z`: the stamp form
+/// `teacher._record` writes, which Python's `fromisoformat` and RFC 3339
+/// read as the same instant.
+fn utc_stamp_shape(stamp: &str) -> bool {
+    let b = stamp.as_bytes();
+    let digits = |range: std::ops::Range<usize>| b[range].iter().all(u8::is_ascii_digit);
+    let base = b.len() >= 20
+        && digits(0..4)
+        && b[4] == b'-'
+        && digits(5..7)
+        && b[7] == b'-'
+        && digits(8..10)
+        && b[10] == b'T'
+        && digits(11..13)
+        && b[13] == b':'
+        && digits(14..16)
+        && b[16] == b':'
+        && digits(17..19)
+        && &stamp[17..19] < "60";
+    base && match &b[19..] {
+        [b'Z'] => true,
+        [sign, h1, h2, b':', m1, m2] => {
+            matches!(sign, b'+' | b'-')
+                && [h1, h2, m1, m2].iter().all(|d| d.is_ascii_digit())
+                && &stamp[20..22] < "24"
+                && &stamp[23..25] < "60"
+        }
+        _ => false,
+    }
+}
+
+/// `_today_minutes()`, with the checks `summary()` needs too (it reads
+/// every today row's `seconds` and `kind`), or None where Python raises or
+/// could count another day.
+fn today_minutes(vault: &careerbrew_vault::transfer::Context) -> Option<i64> {
+    zone_valid(vault)?;
+    let tz = careerbrew_tutor::local_zone(&vault.root);
+    let today = careerbrew_teacher::now_local(&vault.root)
+        .with_timezone(&tz)
+        .date_naive();
+    let rows = vault
+        .store()
+        .read_jsonl(&vault.root.join("teach/steps.jsonl"), false)
+        .ok()?;
+    let mut seconds: i64 = 0;
+    for row in &rows {
+        if !plain_map(row) {
+            return None;
+        }
+        let at = text(row, "at")?;
+        if !utc_stamp_shape(at) {
+            return None;
+        }
+        let at = careerbrew_tutor::parse_at(at).ok()?;
+        if at.with_timezone(&tz).date_naive() != today {
+            continue;
+        }
+        let Some(Canon::Int(value)) = get(row, "seconds") else {
+            return None;
+        };
+        text(row, "kind")?;
+        let value: i64 = value.to_string().parse().ok()?;
+        seconds = seconds.checked_add(value)?;
+    }
+    Some(seconds.div_euclid(60))
+}
+
+fn next_text(title: &str, why: &str) -> Option<Outcome> {
+    ok(format!("next: {title}\nwhy: {why}\n"), 0)
+}
+
+/// `careerbrew teach next` (text form), for the steps this serves.
+fn teach_next(args: &Parsed, vault: &careerbrew_vault::transfer::Context) -> Option<Outcome> {
+    // `started` is the wall clock: two runs never print the same JSON.
+    if args.flag("json") {
+        return None;
+    }
+    let goal = upcoming_goal(vault)?;
+    // `goals.focus(goal)` runs first; an interview loop is rust-19's.
+    if let Some(goal) = &goal {
+        focus_why(goal)?;
+    }
+    let budget = budget(goal.as_ref())?;
+    if let Some(title) = first_pending(vault)? {
+        if !printable(&title) {
+            return None;
+        }
+        return next_text(
+            &format!("Approve or reject: {title}"),
+            "An agent is waiting for your decision.",
+        );
+    }
+    let Some(goal) = goal else {
+        return next_text(
+            "Set a goal first",
+            "Lessons and exercises follow your upcoming goal, and none is set yet.",
+        );
+    };
+    // A mistake log (the repeat check, `summary`'s repeat rate) stays in Python.
+    if vault
+        .root
+        .join("tutor/mistakes.jsonl")
+        .symlink_metadata()
+        .is_ok()
+    {
+        return None;
+    }
+    if today_minutes(vault)? < budget || !printable(&goal.title) {
+        return None;
+    }
+    next_text(
+        "That is today's study time. Well done.",
+        &format!("You used your {budget} minutes for {}.", goal.title),
+    )
 }

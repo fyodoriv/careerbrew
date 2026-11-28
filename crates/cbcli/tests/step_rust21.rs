@@ -319,3 +319,170 @@ fn goals_show_output_follows_the_goal_file() {
         .contains("upcoming: Learn graphs [learn] \u{b7} 5 day(s) left \u{b7} 90 min/day\n"));
     assert!(b.stdout.contains("focus: the interview loop\n"));
 }
+
+const APPROVALS: &str = r#"[{"id": "a0", "title": "Old synthetic ask", "detail": "", "by": "agent", "at": "2026-11-19T08:00:00+00:00", "status": "approved", "note": "", "decided_at": "2026-11-19T09:00:00+00:00"}, {"id": "a1", "title": "Merge synthetic change ✓", "detail": "", "by": "agent", "at": "2026-11-20T08:00:00+00:00", "status": "pending", "note": ""}, {"id": "a2", "title": "Second ask", "detail": "", "by": "agent", "at": "2026-11-20T08:30:00+00:00", "status": "pending", "note": ""}]"#;
+const BAD_APPROVALS: &str = r#"[{"id": "a1", "title": "No stamp", "status": "pending"}]"#;
+const SHORT_GOAL: &str = "queue:
+- id: g
+  kind: learn
+  title: Learn graphs
+  topics: [graphs]
+  minutes_per_day: 10
+";
+const COMPANY_FREE: &str = "queue:
+- id: iv
+  kind: interview
+  title: Interview prep
+  company: null
+  minutes_per_day: 120
+";
+const STEPS: &str = "{\"at\": \"2026-11-19T08:00:00+00:00\", \"kind\": \"card\"}
+{\"at\": \"2026-11-20T08:00:00+00:00\", \"kind\": \"card\", \"outcome\": \"good\", \"ref\": \"c1\", \"rules\": \"x\", \"seconds\": 400}
+{\"at\": \"2026-11-20T08:30:00+00:00\", \"kind\": \"exercise\", \"outcome\": \"pass\", \"ref\": \"e1\", \"rules\": \"x\", \"seconds\": 230}
+";
+const TOKYO_STEPS: &str =
+    "{\"at\": \"2026-11-19T20:00:00+00:00\", \"kind\": \"card\", \"seconds\": 650}
+{\"at\": \"2026-11-19T14:00:00+00:00\", \"kind\": \"card\", \"seconds\": 5000}
+";
+const UTC: (&str, &str) = ("settings.yaml", "timezone: UTC\n");
+const BAD_MINUTES: &str = "queue:
+- id: g
+  kind: learn
+  title: Learn graphs
+  minutes_per_day: '10'
+";
+
+#[test]
+fn teach_next_matches_python() {
+    strict(NOW);
+    // Route key: "teach.next".
+    let served: [(&str, &'static [(&str, &str)]); 6] = [
+        ("next-empty", &[]),
+        ("next-approval", &[("approvals.json", APPROVALS)]),
+        (
+            "next-approval-goal",
+            &[("approvals.json", APPROVALS), ("goals.yaml", COMPANY_FREE)],
+        ),
+        ("next-none-pending", &[("approvals.json", "[]")]),
+        (
+            "next-done",
+            &[
+                UTC,
+                ("goals.yaml", SHORT_GOAL),
+                ("teach/steps.jsonl", STEPS),
+            ],
+        ),
+        (
+            "next-done-tokyo",
+            &[
+                ("settings.yaml", "timezone: Asia/Tokyo\n"),
+                ("goals.yaml", SHORT_GOAL),
+                ("teach/steps.jsonl", TOKYO_STEPS),
+            ],
+        ),
+    ];
+    for (id, files) in served {
+        let home = prepare_setup(&Setup {
+            id,
+            cli: &[],
+            files,
+        });
+        assert_same(&home, &["teach", "next"], true, id);
+    }
+    let encrypted = prepare_setup(&Setup {
+        id: "next-encrypted",
+        cli: &[&["machine", "set", "personal"], &["data", "encrypt"]],
+        files: &[("approvals.json", APPROVALS)],
+    });
+    assert_same(&encrypted, &["teach", "next"], true, "next-encrypted");
+    let json = Setup {
+        id: "next-json",
+        cli: &[],
+        files: &[],
+    };
+    // Python's JSON holds the wall clock (`started`), so two Python runs may
+    // differ: check only the native refusal here.
+    let json = prepare_setup(&json);
+    let native = common::observe(&json, &["teach", "next", "--json"], &common::Side::Native);
+    assert_eq!(native.code, Some(64), "teach.next --json served");
+    assert!(native.stdout.is_empty() && native.events.is_empty());
+    let refused: [(&str, &'static [(&str, &str)]); 9] = [
+        ("next-corp", &[CORPORATE]),
+        ("next-terms", &[TERMS, ("approvals.json", APPROVALS)]),
+        ("next-bad-approvals", &[("approvals.json", BAD_APPROVALS)]),
+        ("next-company", &[("goals.yaml", COMPANY)]),
+        ("next-bad-minutes", &[("goals.yaml", BAD_MINUTES)]),
+        ("next-below-budget", &[UTC, ("goals.yaml", SHORT_GOAL)]),
+        (
+            "next-mistakes",
+            &[
+                UTC,
+                ("goals.yaml", SHORT_GOAL),
+                ("teach/steps.jsonl", STEPS),
+                ("tutor/mistakes.jsonl", ""),
+            ],
+        ),
+        (
+            "next-naive-step",
+            &[
+                UTC,
+                ("goals.yaml", SHORT_GOAL),
+                (
+                    "teach/steps.jsonl",
+                    "{\"at\": \"2026-11-20T08:00:00\", \"kind\": \"card\", \"seconds\": 900}\n",
+                ),
+            ],
+        ),
+        ("next-bad-zone", &[BAD_ZONE, ("goals.yaml", SHORT_GOAL)]),
+    ];
+    for (id, files) in refused {
+        refuses(
+            &Setup {
+                id,
+                cli: &[],
+                files,
+            },
+            &["teach", "next"],
+            id,
+        );
+    }
+}
+
+/// Negative control: the comparison sees the approvals and step files.
+#[test]
+fn teach_next_output_follows_the_data() {
+    strict(NOW);
+    let empty = prepare_setup(&Setup {
+        id: "next-control-empty",
+        cli: &[],
+        files: &[],
+    });
+    let asked = prepare_setup(&Setup {
+        id: "next-control-asked",
+        cli: &[],
+        files: &[("approvals.json", APPROVALS)],
+    });
+    let done = prepare_setup(&Setup {
+        id: "next-control-done",
+        cli: &[],
+        files: &[
+            UTC,
+            ("goals.yaml", SHORT_GOAL),
+            ("teach/steps.jsonl", STEPS),
+        ],
+    });
+    let a = common::observe(&empty, &["teach", "next"], &common::Side::Native);
+    let b = common::observe(&asked, &["teach", "next"], &common::Side::Native);
+    let c = common::observe(&done, &["teach", "next"], &common::Side::Native);
+    assert_eq!(
+        a.stdout,
+        "next: Set a goal first\nwhy: Lessons and exercises follow your upcoming goal, and none is set yet.\n"
+    );
+    assert!(b
+        .stdout
+        .starts_with("next: Approve or reject: Merge synthetic change \u{2713}\n"));
+    assert_eq!(
+        c.stdout,
+        "next: That is today's study time. Well done.\nwhy: You used your 10 minutes for Learn graphs.\n"
+    );
+}
