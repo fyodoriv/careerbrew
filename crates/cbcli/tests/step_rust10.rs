@@ -895,3 +895,208 @@ fn work_comparison_detects_a_planted_difference() {
     assert!(renewed.stdout.starts_with("renewed file:notes.md"));
     assert_eq!(taken.code, Some(0));
 }
+
+// ---------- wave 4: claim list, agent show, draft show, draft replace ----------
+
+#[test]
+fn work_claim_list_and_agent_show_match_python() {
+    strict(NOW);
+    let sealed = work_setup();
+    let old = old_setup();
+    let empty = prepare_setup(&Setup {
+        id: "work-empty",
+        cli: &[],
+        files: &[],
+    });
+    // "work.claim.list": text and JSON, live and pruned claims, none held.
+    // "work.agent.show": text and JSON, running, quiet and done runs, none.
+    for home in [&sealed, &old, &empty] {
+        for (words, label) in [
+            (vec!["work", "claim", "list"], "work.claim.list: text"),
+            (
+                vec!["work", "claim", "list", "--json"],
+                "work.claim.list: json",
+            ),
+            (vec!["work", "agent", "show"], "work.agent.show: text"),
+            (
+                vec!["work", "agent", "show", "--json"],
+                "work.agent.show: json",
+            ),
+        ] {
+            check(home, &words, true, label);
+        }
+    }
+}
+
+const TARGET: &str = "C123/1700000000.000100";
+const HELD_SESSIONS: &str = r#"{"claims": [{"at": "2026-11-20T08:00:00+00:00", "resource": "slack-draft:C999/1", "session": "sess-7", "until": "2026-11-21T23:00:00+00:00"}], "sessions": [{"day": "2026-11-20", "ended": "", "id": "sess-7", "project": "synth", "started": "2026-11-20T08:00:00+00:00"}]}"#;
+
+fn draft_setup() -> Home {
+    prepare_setup(&Setup {
+        id: "draft-replace",
+        cli: &[],
+        files: &[
+            (".plaintext", ""),
+            ("in/draft.txt", "Thanks, merged it.\nI will follow up.\n"),
+            ("in/empty.txt", "  \n"),
+            (
+                "drafts/c283d17aeab8d626409a5aa3.txt",
+                "Saved reply for the synthetic chat.\n",
+            ),
+            ("drafts/5a732c310e01ae516185c138.txt", "An older draft.\n"),
+            ("work/sessions.json", HELD_SESSIONS),
+        ],
+    })
+}
+
+#[test]
+fn draft_show_and_replace_match_python() {
+    strict(NOW);
+    let home = draft_setup();
+    let draft = path(&home, "in/draft.txt");
+    let empty = path(&home, "in/empty.txt");
+    let missing = path(&home, "in/missing.txt");
+    // "draft.show": a saved draft, an overwritten one, none saved, a bad target.
+    // "draft.replace": replaced, new, JSON, an empty draft, a missing file,
+    // a bad target and a target another session claimed.
+    let cases: Vec<(Vec<&str>, &str)> = vec![
+        (vec!["draft", "show", "chat:a1"], "draft.show: saved"),
+        (vec!["draft", "show", TARGET], "draft.show: second saved"),
+        (vec!["draft", "show", "chat:none"], "draft.show: none saved"),
+        (vec!["draft", "show", " chat:a1 "], "draft.show: padded"),
+        (vec!["draft", "show", "a b"], "draft.show: bad target"),
+        (
+            vec!["draft", "replace", TARGET, "--file", &draft],
+            "draft.replace: replace a saved draft",
+        ),
+        (
+            vec!["draft", "replace", "C555/1", "--file", &draft, "--json"],
+            "draft.replace: a new draft as json",
+        ),
+        (
+            vec!["draft", "replace", TARGET, "--file", &empty],
+            "draft.replace: an empty draft",
+        ),
+        (
+            vec!["draft", "replace", TARGET, "--file", &missing],
+            "draft.replace: a missing file",
+        ),
+        (
+            vec!["draft", "replace", "a b", "--file", &draft],
+            "draft.replace: a bad target",
+        ),
+        (
+            vec!["draft", "replace", "C999/1", "--file", &draft],
+            "draft.replace: claimed by another session",
+        ),
+    ];
+    for (words, label) in cases {
+        check(&home, &words, true, label);
+    }
+}
+
+#[test]
+fn wave4_commands_refuse_what_they_do_not_port() {
+    strict(NOW);
+    let home = draft_setup();
+    let draft = path(&home, "in/draft.txt");
+    let refused: Vec<(Vec<&str>, &str)> = vec![
+        (
+            vec![
+                "draft",
+                "replace",
+                TARGET,
+                "--file",
+                &draft,
+                "--session",
+                "sess-7",
+            ],
+            "draft.replace: a session claims first",
+        ),
+        (
+            vec!["draft", "replace", "it's", "--file", &draft],
+            "draft.replace: a quote in the target",
+        ),
+        (
+            vec!["draft", "show", "it's"],
+            "draft.show: a quote in the target",
+        ),
+    ];
+    for (words, label) in refused {
+        assert!(!check(&home, &words, false, label), "{label}: served");
+    }
+    // An encrypted data root: the replace write is not ported.
+    let sealed = prepare_setup(&Setup {
+        id: "draft-sealed",
+        cli: &[],
+        files: &[("in/draft.txt", "Thanks.\n")],
+    });
+    let sealed_draft = path(&sealed, "in/draft.txt");
+    assert!(
+        !check(
+            &sealed,
+            &["draft", "replace", TARGET, "--file", &sealed_draft],
+            false,
+            "draft.replace: encrypted data root",
+        ),
+        "sealed: served"
+    );
+    let redacted = prepare_setup(&Setup {
+        id: "wave4-redaction",
+        cli: &[],
+        files: &[
+            (".plaintext", ""),
+            ("profile.yaml", "name: Synthetic Person\n"),
+        ],
+    });
+    for (words, label) in [
+        (
+            vec!["work", "claim", "list"],
+            "work.claim.list: redact inputs",
+        ),
+        (
+            vec!["work", "agent", "show"],
+            "work.agent.show: redact inputs",
+        ),
+        (
+            vec!["draft", "show", "chat:a1"],
+            "draft.show: redact inputs",
+        ),
+    ] {
+        assert!(!check(&redacted, &words, false, label), "{label}: served");
+    }
+    let bad = prepare_setup(&Setup {
+        id: "wave4-bad-records",
+        cli: &[],
+        files: &[
+            (".plaintext", ""),
+            ("work/sessions.json", "{\"claims\": [\n"),
+            ("work/agents/events.jsonl", "{\"agent\": 1}\n"),
+        ],
+    });
+    for (words, label) in [
+        (
+            vec!["work", "claim", "list"],
+            "work.claim.list: unreadable sessions",
+        ),
+        (
+            vec!["work", "agent", "show"],
+            "work.agent.show: an odd agent row",
+        ),
+    ] {
+        assert!(!check(&bad, &words, false, label), "{label}: served");
+    }
+}
+
+/// Negative control: two saved drafts of different length differ in
+/// stdout, so a wrong native answer could not pass as equal.
+#[test]
+fn draft_show_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let home = draft_setup();
+    let one = observe(&home, &["draft", "show", "chat:a1"], &Side::Native);
+    let two = observe(&home, &["draft", "show", TARGET], &Side::Python);
+    assert_ne!(one, two);
+    assert_eq!(one.code, Some(0));
+    assert!(one.stdout.starts_with("draft chat:a1:"));
+}
