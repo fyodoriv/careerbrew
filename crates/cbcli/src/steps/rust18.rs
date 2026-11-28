@@ -34,6 +34,7 @@ pub const COMMANDS: &[&str] = &[
     "ladder.levels",
     "ladder.import",
     "work.plan",
+    "work.standup",
 ];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
@@ -48,6 +49,7 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "ladder.levels" => ladder_levels(args, ctx),
         "ladder.import" => ladder_import(args, ctx),
         "work.plan" => work_plan(args, ctx),
+        "work.standup" => work_standup(args, ctx),
         _ => None,
     }
 }
@@ -889,6 +891,733 @@ fn emit_counts(ctx: &Ctx, event: &str, texts: &[(&str, &str)], counts: &[(&str, 
     for (key, value) in counts {
         pairs.push((key, value.to_string()));
     }
+    pairs.sort_by(|a, b| a.0.cmp(b.0));
+    let body: Vec<String> = pairs
+        .iter()
+        .map(|(key, value)| format!("{}: {value}", quote(key)))
+        .collect();
+    let line = format!("{{{}}}\n", body.join(", "));
+    let logs = ctx.root.join("logs");
+    if std::fs::create_dir_all(&logs).is_err() {
+        return;
+    }
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(logs.join("events.jsonl"))
+    {
+        let _ = file.write_all(line.as_bytes());
+    }
+}
+
+// ---------- work standup ----------
+//
+// `work standup` (issue #110) in the cases where Python's report holds no
+// action of yours: no `--rows`, `--talk`, `--extra` or `--proof` input, no
+// agent notes file, and no evidence or work-feed event inside the standup
+// window. Then every saved row is hidden and the page is the empty report.
+// Any other case (an action in the window, a time this reader cannot read
+// as `datetime.fromisoformat` does, a setting of another shape, a terminal)
+// goes to Python, before anything is written.
+
+/// `standup.CSS`, byte for byte.
+const STANDUP_CSS: &str = r#"
+:root { color-scheme: light dark; --fg: #1d1d1f; --muted: #6e6e73; --bg: #ffffff; --line: #e3e3e8; --accent: #2f6fde; --mine: #f2f6ff; }
+@media (prefers-color-scheme: dark) { :root { --fg: #f2f2f7; --muted: #a1a1a6; --bg: #1c1c1e; --line: #3a3a3c; --accent: #6ea8ff; --mine: #22283a; } }
+* { box-sizing: border-box; overflow-wrap: anywhere; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 1.6rem; margin: 0 0 4px; }
+h2 { font-size: 1.15rem; margin: 0 0 6px; }
+section { border-top: 1px solid var(--line); padding: 16px 12px; }
+section.mine { background: var(--mine); border-radius: 8px; }
+.talk { font-size: 1.05rem; margin: 0 0 6px; }
+.by { font-size: 0.875rem; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; color: var(--muted); white-space: nowrap; }
+.window, .status, .note, footer, time, .kinds, .repo, .via { color: var(--muted); }
+.status { margin: 0 0 8px; font-size: 0.95rem; }
+ul.evidence { margin: 0; padding-left: 18px; }
+li.action { margin: 4px 0; }
+.key { font: 0.8rem ui-monospace, SFMono-Regular, Menlo, monospace; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; margin-left: 4px; }
+.kinds, .repo, .via, time { font-size: 0.85rem; }
+ul.proofs { margin: 8px 0 0; padding-left: 18px; font-size: 0.9rem; }
+.proofs .source { color: var(--muted); }
+a { color: var(--accent); }
+footer { margin-top: 32px; font-size: 0.85rem; }
+"#;
+
+const STANDUP_HIDDEN: &str =
+    "titles hidden: stdout is not a terminal and no plugin policy allows agents to read business data";
+
+/// Conversations and calendar entries are not actions (`FEED_SKIP_KINDS`).
+const FEED_SKIP_KINDS: [&str; 5] = ["dm", "mention", "message", "mail", "meeting"];
+
+/// The standup settings `standup.window` reads, in the forms served here.
+struct StandupCfg {
+    days: Vec<i64>,
+    hh: u32,
+    mm: u32,
+    minutes: i64,
+    mode: &'static str,
+    tz: String,
+}
+
+/// The window `standup.window` returns, as the report prints it.
+struct StandupWindow {
+    start_naive: StandupNaive,
+    end_naive: StandupNaive,
+    start_ts: i64,
+    end_ts: i64,
+    end_day: String,
+    since: String,
+    until: String,
+    compares: String,
+    tz_name: String,
+}
+
+/// A wall time as `(seconds of the naive time read as UTC)`: Python
+/// compares two datetimes that share one `tzinfo` by their wall times.
+type StandupNaive = i64;
+
+/// The saved rows `standup.load_rows` reads: None when none were passed.
+struct StandupRows {
+    count: usize,
+    saved_at: String,
+}
+
+/// Text that is printable ASCII only, so every Python string operation on
+/// it (`split`, `strip`, `\d`, `json.dumps`, `yaml.safe_load`) agrees with
+/// the byte operations here.
+fn printable(text: &str) -> bool {
+    text.bytes().all(|b| (0x20..0x7f).contains(&b))
+}
+
+/// Python truthiness of a stored value; None for a float (refused).
+fn standup_truthy(value: Option<&Canon>) -> Option<bool> {
+    Some(match value {
+        None | Some(Canon::Null) => false,
+        Some(Canon::Bool(b)) => *b,
+        Some(Canon::Int(n)) => n.to_string() != "0",
+        Some(Canon::Float(_)) => return None,
+        Some(Canon::Str(s) | Canon::Date(s) | Canon::DateTime(s)) => !s.is_empty(),
+        Some(Canon::List(items)) => !items.is_empty(),
+        Some(Canon::Map(pairs)) => !pairs.is_empty(),
+    })
+}
+
+/// A map's value for `key`, or None (refuse) when the map holds a key that
+/// is not a string or holds `key` twice (`json.loads` keeps the last one).
+fn standup_get<'a>(pairs: &'a [(Canon, Canon)], key: &str) -> Option<Option<&'a Canon>> {
+    let mut found = None;
+    for (k, v) in pairs {
+        let Canon::Str(name) = k else {
+            return None;
+        };
+        if name == key {
+            if found.is_some() {
+                return None;
+            }
+            found = Some(v);
+        }
+    }
+    Some(found)
+}
+
+/// Every string in `value` is printable ASCII and no number is a float.
+fn plain_canon(value: &Canon) -> bool {
+    match value {
+        Canon::Null | Canon::Bool(_) | Canon::Int(_) => true,
+        Canon::Float(_) | Canon::Date(_) | Canon::DateTime(_) => false,
+        Canon::Str(s) => printable(s),
+        Canon::List(items) => items.iter().all(plain_canon),
+        Canon::Map(pairs) => pairs.iter().all(|(k, v)| plain_canon(k) && plain_canon(v)),
+    }
+}
+
+/// True when `pathlib.Path` prints `path` unchanged.
+fn plain_root(path: &str) -> bool {
+    !(path.is_empty()
+        || path.contains("//")
+        || path.contains("/./")
+        || path.contains("/../")
+        || path.starts_with("./")
+        || path.ends_with("/.")
+        || path.ends_with("/..")
+        || (path.len() > 1 && path.ends_with('/'))
+        || path == ".")
+}
+
+/// `standup.window`'s settings, or None for a value Python could read
+/// another way or crash on.
+fn standup_cfg(ctx: &Ctx) -> Option<StandupCfg> {
+    let settings = read_map_yaml(&ctx.root.join("settings.yaml"))?;
+    let falsy = |key: &str| !careerbrew_career::truthy(settings.get(key));
+    let days: Vec<i64> = match settings.get("standup_days") {
+        None => vec![0, 1, 2, 3, 4],
+        Some(value) => value
+            .as_array()?
+            .iter()
+            .map(|d| if d.is_boolean() { None } else { d.as_i64() })
+            .collect::<Option<_>>()?,
+    };
+    if days.is_empty() {
+        return None;
+    }
+    let time = match settings.get("standup_time") {
+        None => "10:00",
+        Some(value) => value.as_str()?,
+    };
+    let (h, m) = time.split_once(':')?;
+    let short =
+        |part: &str| (1..=2).contains(&part.len()) && part.bytes().all(|b| b.is_ascii_digit());
+    if !short(h) || !short(m) {
+        return None;
+    }
+    let (hh, mm): (u32, u32) = (h.parse().ok()?, m.parse().ok()?);
+    if hh > 23 || mm > 59 {
+        return None;
+    }
+    let minutes = match settings.get("standup_minutes") {
+        None => 15,
+        Some(value) if !value.is_boolean() => value.as_i64()?,
+        Some(_) => return None,
+    };
+    if !(0..=100_000).contains(&minutes) {
+        return None;
+    }
+    let mode = if falsy("standup_window") {
+        "previous-day"
+    } else {
+        match settings.get("standup_window")?.as_str()? {
+            "previous-day" => "previous-day",
+            "since-last" => "since-last",
+            _ => return None,
+        }
+    };
+    // Read on every build: `int(...)` and the `standup_me` and
+    // `project_priority` loops must not raise.
+    if let Some(value) = settings.get("standup_proof_minutes") {
+        if value.is_boolean() || value.as_i64().is_none() {
+            return None;
+        }
+    }
+    for key in ["standup_me", "project_priority"] {
+        let value = settings.get(key);
+        if careerbrew_career::truthy(value)
+            && !value.is_some_and(|v| v.is_array() || v.is_string() || v.is_object())
+        {
+            return None;
+        }
+    }
+    let tz = if falsy("standup_tz") {
+        zone_name(ctx)?
+    } else {
+        let name = settings.get("standup_tz")?.as_str()?;
+        let shape = name
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"_+-/".contains(&b));
+        if !shape || when::zone(name).is_err() {
+            return None;
+        }
+        name.to_owned()
+    };
+    Some(StandupCfg {
+        days,
+        hh,
+        mm,
+        minutes,
+        mode,
+        tz,
+    })
+}
+
+/// `standup.window(now)`, or None when Python would raise or when the
+/// start day has a UTC offset change (its wall time could read two ways).
+fn standup_window(ctx: &Ctx, cfg: &StandupCfg) -> Option<StandupWindow> {
+    let tz = when::zone(&cfg.tz).ok()?;
+    let end = when::into(&py_now(ctx)?, tz);
+    let end_naive = end.naive_local();
+    let end_wall = end_naive.and_utc().timestamp();
+    let mut day = end.date_naive();
+    if cfg.mode == "previous-day" {
+        day = day.pred_opt()?;
+    }
+    for _ in 0..15 {
+        let weekday: i64 = day.format("%u").to_string().parse::<i64>().ok()? - 1;
+        if cfg.days.contains(&weekday) {
+            let start_naive = day.and_hms_opt(cfg.hh, cfg.mm, 0)?;
+            let start_wall = start_naive.and_utc().timestamp();
+            if start_wall + cfg.minutes * 60 <= end_wall {
+                let start = when::attach(start_naive, tz);
+                let offsets: Vec<i32> = [day.and_hms_opt(0, 0, 0)?, day.and_hms_opt(23, 59, 59)?]
+                    .into_iter()
+                    .map(|naive| when::attach(naive, tz).offset().local_minus_utc())
+                    .collect();
+                if offsets
+                    .iter()
+                    .any(|o| *o != start.offset().local_minus_utc())
+                {
+                    return None;
+                }
+                let label = "%a %b %d, %H:%M";
+                return Some(StandupWindow {
+                    start_naive: start_wall,
+                    end_naive: end_wall,
+                    start_ts: start.timestamp(),
+                    end_ts: end.timestamp(),
+                    end_day: end.date_naive().to_string(),
+                    since: when::strftime(&start, label),
+                    until: when::strftime(&end, label),
+                    compares: when::strftime(&start, "%a %b %d"),
+                    tz_name: cfg.tz.clone(),
+                });
+            }
+        }
+        day = day.pred_opt()?;
+    }
+    None
+}
+
+/// Some(()) when `standup.parse_at(value)` is None or a time outside the
+/// window for sure; None (refuse) for a time inside it, within a second of
+/// its end (the clock here has whole seconds), or a form this reader does
+/// not read as `datetime.fromisoformat` does.
+fn standup_outside(value: Option<&Canon>, w: &StandupWindow) -> Option<()> {
+    let text = match value {
+        Some(Canon::Str(text)) => text,
+        other if !standup_truthy(other)? => return Some(()),
+        _ => return None,
+    };
+    if !printable(text) {
+        return None;
+    }
+    let text = text.trim_matches(' ').replace('Z', "+00:00");
+    if text.is_empty() {
+        return Some(());
+    }
+    let (naive, offset) = when::parse(&text).ok()?;
+    let (at, start, end) = match offset {
+        Some(offset) => (when::fixed(naive, offset).timestamp(), w.start_ts, w.end_ts),
+        None => (naive.and_utc().timestamp(), w.start_naive, w.end_naive),
+    };
+    if at < start || at > end + 1 {
+        Some(())
+    } else {
+        None
+    }
+}
+
+/// The rows of a JSONL store file, or None when a line break, a read or a
+/// row could read another way in Python.
+fn standup_jsonl(path: &Path) -> Option<Vec<Canon>> {
+    let context = careerbrew_vault::transfer::Context::from_env().ok()?;
+    let store = context.store();
+    let text = store
+        .read_text(path, Some(""), true)
+        .ok()?
+        .unwrap_or_default();
+    if text.chars().any(|c| {
+        matches!(
+            c,
+            '\r' | '\u{0b}'
+                | '\u{0c}'
+                | '\u{1c}'
+                | '\u{1d}'
+                | '\u{1e}'
+                | '\u{85}'
+                | '\u{2028}'
+                | '\u{2029}'
+        )
+    }) {
+        return None;
+    }
+    store.read_jsonl(path, true).ok()
+}
+
+/// No evidence item and no own feed event inside the window (what
+/// `standup.copies` returns is empty), or None.
+fn standup_no_copies(ctx: &Ctx, w: &StandupWindow) -> Option<()> {
+    let feed = standup_jsonl(&ctx.root.join("work/feed/events.jsonl"))?;
+    for row in &feed {
+        let Canon::Map(pairs) = row else {
+            return None;
+        };
+        // `feed.personal_ids()` reads ids and aliases of personal events.
+        if standup_truthy(standup_get(pairs, "personal")?)? {
+            return None;
+        }
+    }
+    for row in standup_jsonl(&ctx.root.join("work/evidence.jsonl"))? {
+        let Canon::Map(pairs) = &row else {
+            return None;
+        };
+        if standup_truthy(standup_get(pairs, "personal")?)? {
+            continue;
+        }
+        if matches!(
+            standup_get(pairs, "id")?,
+            Some(Canon::List(_) | Canon::Map(_))
+        ) {
+            return None; // `in set()` raises on an unhashable id
+        }
+        standup_outside(standup_get(pairs, "at")?, w)?;
+    }
+    for row in &feed {
+        let Canon::Map(pairs) = row else {
+            return None;
+        };
+        if !matches!(standup_get(pairs, "actor")?, Some(Canon::Str(a)) if a == "me") {
+            continue;
+        }
+        match standup_get(pairs, "kind")? {
+            Some(Canon::List(_) | Canon::Map(_)) => return None,
+            Some(Canon::Str(kind)) if FEED_SKIP_KINDS.contains(&kind.as_str()) => continue,
+            _ => {}
+        }
+        standup_outside(standup_get(pairs, "at")?, w)?;
+    }
+    Some(())
+}
+
+/// `" ".join(x.split())[:limit]` for printable ASCII.
+fn fold_ascii(text: &str, limit: usize) -> String {
+    let folded = text
+        .split(' ')
+        .filter(|p| !p.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    folded.chars().take(limit).collect()
+}
+
+/// `standup._words`: the folded words, or None when Python raises.
+fn standup_words(value: Option<&Canon>) -> Option<Vec<String>> {
+    let items: Vec<&str> = match value {
+        None | Some(Canon::Null) => return Some(Vec::new()),
+        Some(Canon::Str(s)) => vec![s],
+        Some(Canon::List(items)) => items
+            .iter()
+            .map(|x| match x {
+                Canon::Str(s) => Some(s.as_str()),
+                _ => None,
+            })
+            .collect::<Option<_>>()?,
+        Some(_) => return None,
+    };
+    Some(
+        items
+            .into_iter()
+            .filter(|x| !x.trim_matches(' ').is_empty())
+            .map(|x| fold_ascii(x, 120))
+            .collect(),
+    )
+}
+
+/// `^[A-Za-z][A-Za-z0-9]+` then (for a key) `-\d+`, on ASCII text.
+fn standup_prefix(text: &str) -> bool {
+    let b = text.as_bytes();
+    b.len() >= 2 && b[0].is_ascii_alphabetic() && b[1..].iter().all(u8::is_ascii_alphanumeric)
+}
+
+fn standup_key(text: &str) -> bool {
+    let Some((prefix, number)) = text.rsplit_once('-') else {
+        return false;
+    };
+    standup_prefix(prefix) && !number.is_empty() && number.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// `standup._row` raises nothing for this row.
+fn standup_row_ok(row: &Canon) -> Option<()> {
+    let Canon::Map(pairs) = row else {
+        return None;
+    };
+    let Some(Canon::Str(title)) = standup_get(pairs, "title")? else {
+        return None;
+    };
+    if !title.bytes().any(|b| b.is_ascii_alphanumeric()) {
+        return None;
+    }
+    if !matches!(standup_get(pairs, "mine")?, None | Some(Canon::Bool(_))) {
+        return None;
+    }
+    let mut keys = standup_words(standup_get(pairs, "keys")?)?;
+    keys.extend(standup_words(standup_get(pairs, "key")?)?);
+    if !keys.iter().all(|k| standup_key(k)) {
+        return None;
+    }
+    for key in ["repos", "repo", "aliases"] {
+        standup_words(standup_get(pairs, key)?)?;
+    }
+    Some(())
+}
+
+/// Outcome of reading `work/standup.json` as `standup.load_rows` does:
+/// Some(None) when it gives `{}`, Some(Some(rows)) for saved rows, and None
+/// when Python could raise or read it another way.
+fn standup_rows(ctx: &Ctx) -> Option<Option<StandupRows>> {
+    let path = ctx.root.join("work/standup.json");
+    if std::fs::symlink_metadata(&path).is_err() {
+        return Some(None);
+    }
+    let context = careerbrew_vault::transfer::Context::from_env().ok()?;
+    let data = context.store().read_json(&path, Canon::Null, true).ok()?;
+    if !plain_canon(&data) {
+        return None;
+    }
+    let Canon::Map(pairs) = &data else {
+        return Some(None);
+    };
+    let Some(Canon::List(rows)) = standup_get(pairs, "rows")? else {
+        // Python checks the key once more: a dict whose "rows" is not a
+        // list reads as no rows.
+        return Some(None);
+    };
+    if rows.len() > 300 {
+        return None;
+    }
+    let groups = standup_get(pairs, "groups")?;
+    if standup_truthy(groups)? {
+        return None; // groups are not served
+    }
+    for prefix in standup_words(standup_get(pairs, "ticket_projects")?)? {
+        if !standup_prefix(&prefix) {
+            return None;
+        }
+    }
+    for row in rows {
+        standup_row_ok(row)?;
+    }
+    let saved_at = match standup_get(pairs, "saved_at")? {
+        Some(Canon::Str(text)) => text.clone(),
+        other if !standup_truthy(other)? => String::new(),
+        _ => return None,
+    };
+    Some(Some(StandupRows {
+        count: rows.len(),
+        saved_at,
+    }))
+}
+
+/// `standup.updated(saved_at, w)`, for a saved time with an offset.
+fn standup_updated(saved_at: &str, w: &StandupWindow, cfg: &StandupCfg) -> Option<String> {
+    if saved_at.is_empty() {
+        return Some(String::new());
+    }
+    let b = saved_at.as_bytes();
+    if b.len() != 25 || !printable(saved_at) || b[10] != b'T' || !matches!(b[19], b'+' | b'-') {
+        return None;
+    }
+    let (naive, offset) = when::parse(saved_at).ok()?;
+    let at = when::into(&when::fixed(naive, offset?), when::zone(&cfg.tz).ok()?);
+    Some(if at.date_naive().to_string() == w.end_day {
+        format!("updated {}", when::strftime(&at, "%H:%M"))
+    } else {
+        format!("updated {}", when::strftime(&at, "%a %b %d, %H:%M"))
+    })
+}
+
+/// `html.escape(text, quote=True)`.
+fn html_escape(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&#x27;"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
+/// Some(()) when `path` is absent or a plain folder (Python's `mkdir`
+/// would then succeed); None otherwise.
+fn standup_dir_ok(path: &Path) -> Option<()> {
+    match std::fs::symlink_metadata(path) {
+        Err(_) => Some(()),
+        Ok(meta) if meta.is_dir() => Some(()),
+        Ok(_) => None,
+    }
+}
+
+/// `work standup`: the report, then the `cli.run` row Python writes for it
+/// (with `saves`, which the shared row has no field for).
+fn work_standup(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    let started = std::time::Instant::now();
+    let (stdout, code) = standup_report(args, ctx)?;
+    let ms = started.elapsed().as_millis().to_string();
+    let quote = |text: &str| {
+        let mut out = String::new();
+        crate::render::py_string(text, &mut out);
+        out
+    };
+    standup_emit(
+        ctx,
+        vec![
+            ("command", quote("work.standup")),
+            ("event", quote("cli.run")),
+            ("ms", ms),
+            ("saves", quote("standup")),
+            ("status", quote(if code == 0 { "ok" } else { "fail" })),
+            ("via", quote(ctx.env.caps.via)),
+        ],
+    );
+    Some(Outcome {
+        stdout,
+        stderr: String::new(),
+        code,
+        emit_event: false,
+    })
+}
+
+fn standup_report(args: &Parsed, ctx: &Ctx) -> Option<(String, i32)> {
+    // Inputs, and a terminal (titles may show), go to Python. (A `-` value
+    // never reaches here: the shared parser sends it to Python.)
+    let inputs = ["rows", "talk", "extra", "proof"]
+        .iter()
+        .any(|k| given(args, k).is_some());
+    if inputs || ctx.env.stdout_is_terminal {
+        return None;
+    }
+    let root = ctx.root.to_str()?;
+    if !plain_root(root) {
+        return None;
+    }
+    let cfg = standup_cfg(ctx)?;
+    let w = standup_window(ctx, &cfg)?;
+    let rows = standup_rows(ctx)?;
+    if std::fs::symlink_metadata(ctx.root.join("work/standup-notes.json")).is_ok() {
+        return None;
+    }
+    standup_no_copies(ctx, &w)?;
+    let updated = match &rows {
+        Some(saved) => standup_updated(&saved.saved_at, &w, &cfg)?,
+        None => String::new(),
+    };
+    for dir in ["work", "work/feed", "out"] {
+        standup_dir_ok(&ctx.root.join(dir))?;
+    }
+    let page = ctx.root.join("out/standup.html");
+    if let Ok(meta) = std::fs::symlink_metadata(&page) {
+        if !meta.is_file() {
+            return None;
+        }
+    }
+    let page_text = page.to_str()?.to_owned();
+
+    let hidden = rows.as_ref().map_or(0, |r| r.count);
+    let has_rows = hidden > 0;
+    let cleared = rows.as_ref().is_some_and(|r| r.count == 0);
+
+    let mut html: Vec<String> = vec![
+        "<!doctype html>".to_owned(),
+        "<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">".to_owned(),
+        format!(
+            "<title>Standup since {}</title><style>{STANDUP_CSS}</style></head><body><main>",
+            html_escape(&w.since)
+        ),
+        "<h1>Standup</h1>".to_owned(),
+        format!(
+            "<p class=\"window\">Compares against the {} standup: since {} until {} ({}) \u{b7} 0 actions of yours{}</p>",
+            html_escape(&w.compares),
+            html_escape(&w.since),
+            html_escape(&w.until),
+            html_escape(&w.tz_name),
+            if updated.is_empty() {
+                String::new()
+            } else {
+                format!(" \u{b7} {}", html_escape(&updated))
+            }
+        ),
+    ];
+    if cleared {
+        html.push("<p class=\"note\">No row passed the proof check.</p>".to_owned());
+    } else if !has_rows {
+        html.push("<p class=\"note\">No rows to report on yet: a plugin or an agent passes them with <code>careerbrew work standup --rows &lt;file.json|-&gt;</code>.</p>".to_owned());
+    }
+    if hidden > 0 {
+        html.push(format!(
+            "<p class=\"note\">{hidden} row{} with no update hidden.</p>",
+            if hidden == 1 { "" } else { "s" }
+        ));
+    }
+    html.push("<footer>Made by careerbrew from your local evidence and work feed. It holds business data: keep it on this machine, and delete it when you are done.</footer></main></body></html>".to_owned());
+    let html = html.join("\n") + "\n";
+
+    let mut out = format!(
+        "standup since {} ({}), until {}; compares against the {} standup (standup_window {})\n",
+        w.since, w.tz_name, w.until, w.compares, cfg.mode
+    );
+    let tail = |sep: &str, close: &str| {
+        if updated.is_empty() {
+            String::new()
+        } else {
+            format!("{sep}{updated}{close}")
+        }
+    };
+    if has_rows {
+        out.push_str(&format!(
+            "rows: 0 shown (0 yours, 0 matched by your work), {hidden} with no update hidden{}\n",
+            tail(", ", "")
+        ));
+    }
+    if cleared {
+        out.push_str(&format!(
+            "no row passed the proof check{}\n",
+            tail(" (", ")")
+        ));
+    } else if !has_rows {
+        out.push_str("no rows to report on yet: a plugin or an agent passes them with careerbrew work standup --rows <file.json|-> (title, status, owner, keys; see docs/plugins.md)\n");
+    }
+    out.push_str("your actions: 0 (0 on rows)\n");
+    out.push_str(&format!(
+        "page: {page_text} (or the Standup view in the web app)\n"
+    ));
+    if args.flag("show") {
+        out.push_str(STANDUP_HIDDEN);
+        out.push('\n');
+    }
+
+    // Every check has passed: the writes Python makes, in its order.
+    for dir in ["work", "work/feed", "out"] {
+        std::fs::create_dir_all(ctx.root.join(dir)).ok()?;
+    }
+    std::fs::write(&page, html).ok()?;
+    // The `work.standup` row of a report with no action and no proof.
+    standup_emit(
+        ctx,
+        vec![
+            ("actions", "0".to_owned()),
+            ("event", "\"work.standup\"".to_owned()),
+            ("failed", "0".to_owned()),
+            ("gated", "false".to_owned()),
+            ("hidden", hidden.to_string()),
+            ("on_rows", "0".to_owned()),
+            ("passed", "0".to_owned()),
+            ("rows", "0".to_owned()),
+            ("status", "\"ok\"".to_owned()),
+        ],
+    );
+    Some((out, 0))
+}
+
+/// Appends one event row whose values are JSON text already, with `ts`
+/// and `v`, keys sorted as `json.dumps(sort_keys=True)` writes them.
+fn standup_emit(ctx: &Ctx, fields: Vec<(&str, String)>) {
+    if !ctx.env.caps.events_on {
+        return;
+    }
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    let quote = |text: &str| {
+        let mut out = String::new();
+        crate::render::py_string(text, &mut out);
+        out
+    };
+    let mut pairs = fields;
+    pairs.push(("ts", quote(&crate::events::stamp(secs))));
+    pairs.push(("v", quote(crate::events::version())));
     pairs.sort_by(|a, b| a.0.cmp(b.0));
     let body: Vec<String> = pairs
         .iter()

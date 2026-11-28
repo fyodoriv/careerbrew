@@ -140,7 +140,7 @@ work.team.add native
 work.team.remove native
 work.team.list native
 work.team.feed native
-work.standup python
+work.standup native
 work.review-ask python
 work.focus python
 work.note native

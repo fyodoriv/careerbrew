@@ -1,6 +1,6 @@
 //! rust-18 native handlers: parity with the Python CLI in synthetic homes
 //! for "work.note", "work.gaps", "ladder.list", "ladder.levels",
-//! "ladder.import" and "work.plan".
+//! "ladder.import", "work.plan" and "work.standup".
 mod common;
 
 use common::*;
@@ -381,4 +381,180 @@ fn the_comparison_detects_a_planted_difference() {
     assert_ne!(a, b);
     assert!(a.stdout.contains("\"level\": \"senior\""));
     assert!(b.stdout.contains("\"level\": \"staff\""));
+}
+
+const PLAIN: (&str, &str) = (".plaintext", "");
+
+const ROWS: &str = "{\"rows\": [{\"title\": \"Synthetic export\", \"status\": \"In review\", \"owner\": \"me\", \"keys\": [\"SYN-12\"], \"repos\": [\"synthetic/shop\"], \"mine\": true}, {\"title\": \"Synthetic search\", \"key\": \"SYN-7\", \"aliases\": \"search\"}], \"groups\": [], \"ticket_projects\": [\"SYN\"], \"saved_at\": \"2026-11-20T08:40:00+00:00\"}";
+
+const ROWS_OLD: &str =
+    "{\"rows\": [{\"title\": \"Synthetic export\"}], \"saved_at\": \"2026-11-18T08:40:00+00:00\"}";
+
+const ROWS_CLEARED: &str = "{\"rows\": [], \"saved_at\": \"2026-11-20T08:40:00+00:00\"}";
+
+const ROWS_GROUPED: &str = "{\"rows\": [{\"title\": \"Synthetic export\"}], \"groups\": [{\"label\": \"Tooling\", \"repos\": [\"synthetic-tools\"]}]}";
+
+const EVIDENCE_OLD: &str = "{\"id\": \"note:1\", \"kind\": \"note\", \"title\": \"Synthetic old note\", \"at\": \"2026-11-10T10:00:00+00:00\"}\n{\"id\": \"note:2\", \"kind\": \"note\", \"title\": \"Synthetic naive note\", \"at\": \"2026-11-01T10:00\"}\n{\"id\": \"note:3\", \"kind\": \"note\", \"title\": \"Synthetic personal\", \"at\": \"2026-11-19T12:00:00+00:00\", \"personal\": true}\n";
+
+const FEED_QUIET: &str = "{\"id\": \"slack:1\", \"source\": \"slack\", \"kind\": \"dm\", \"actor\": \"me\", \"title\": \"Synthetic chat\", \"at\": \"2026-11-19T12:00:00+00:00\"}\n{\"id\": \"gh:1\", \"source\": \"github\", \"kind\": \"pr\", \"actor\": \"other\", \"title\": \"Synthetic review\", \"at\": \"2026-11-19T12:00:00+00:00\"}\n";
+
+const EVIDENCE_NEW: &str = "{\"id\": \"note:9\", \"kind\": \"note\", \"title\": \"Synthetic new note\", \"at\": \"2026-11-19T12:00:00+00:00\"}\n";
+
+/// A plaintext home whose `settings.yaml` is `settings`.
+fn standup_home(id: &'static str, settings: &'static str) -> Home {
+    let files: &'static [(&'static str, &'static str)] =
+        Box::leak(vec![("settings.yaml", settings), PLAIN].into_boxed_slice());
+    prepare_setup(&Setup {
+        id,
+        cli: &[],
+        files,
+    })
+}
+
+#[test]
+fn work_standup_matches_python() {
+    strict(NOW);
+    let empty = prepare_setup(&Setup {
+        id: "standup-empty",
+        cli: &[],
+        files: &[ZONE, PLAIN],
+    });
+    same(&empty, &["work", "standup"], "work.standup empty home");
+    same(
+        &empty,
+        &["work", "standup", "--show"],
+        "work.standup --show",
+    );
+    for (id, settings, label) in [
+        (
+            "standup-monday",
+            "timezone: Etc/UTC\nstandup_days: [0]\nstandup_time: '08:30'\n",
+            "work.standup Monday only",
+        ),
+        (
+            "standup-since-last",
+            "timezone: Etc/UTC\nstandup_window: since-last\nstandup_time: '08:00'\nstandup_minutes: 30\n",
+            "work.standup since-last today",
+        ),
+        (
+            "standup-zone",
+            "timezone: Etc/UTC\nstandup_tz: America/New_York\n",
+            "work.standup standup zone",
+        ),
+    ] {
+        same(&standup_home(id, settings), &["work", "standup"], label);
+    }
+    let rows = prepare_setup(&Setup {
+        id: "standup-rows",
+        cli: &[],
+        files: &[
+            ZONE,
+            PLAIN,
+            ("work/standup.json", ROWS),
+            ("work/evidence.jsonl", EVIDENCE_OLD),
+            ("work/feed/events.jsonl", FEED_QUIET),
+        ],
+    });
+    same(&rows, &["work", "standup"], "work.standup rows all hidden");
+    same(
+        &rows,
+        &["work", "standup", "--show"],
+        "work.standup rows --show",
+    );
+    let old = prepare_setup(&Setup {
+        id: "standup-rows-old",
+        cli: &[],
+        files: &[ZONE, PLAIN, ("work/standup.json", ROWS_OLD)],
+    });
+    same(
+        &old,
+        &["work", "standup"],
+        "work.standup rows saved days ago",
+    );
+    let cleared = prepare_setup(&Setup {
+        id: "standup-cleared",
+        cli: &[],
+        files: &[ZONE, PLAIN, ("work/standup.json", ROWS_CLEARED)],
+    });
+    same(&cleared, &["work", "standup"], "work.standup rows cleared");
+}
+
+#[test]
+fn work_standup_refuses_what_it_cannot_match() {
+    strict(NOW);
+    let new = prepare_setup(&Setup {
+        id: "standup-new-evidence",
+        cli: &[],
+        files: &[
+            ZONE,
+            PLAIN,
+            ("work/standup.json", ROWS),
+            ("work/evidence.jsonl", EVIDENCE_NEW),
+        ],
+    });
+    refused(
+        &new,
+        &["work", "standup"],
+        "work.standup evidence in the window",
+    );
+    let notes = prepare_setup(&Setup {
+        id: "standup-notes",
+        cli: &[],
+        files: &[
+            ZONE,
+            PLAIN,
+            ("work/standup.json", ROWS),
+            ("work/standup-notes.json", "{}"),
+        ],
+    });
+    refused(
+        &notes,
+        &["work", "standup"],
+        "work.standup agent notes file",
+    );
+    let grouped = prepare_setup(&Setup {
+        id: "standup-groups",
+        cli: &[],
+        files: &[ZONE, PLAIN, ("work/standup.json", ROWS_GROUPED)],
+    });
+    refused(&grouped, &["work", "standup"], "work.standup groups");
+    refused(
+        &grouped,
+        &["work", "standup", "--rows", "-", "--talk", "-"],
+        "work.standup two stdin inputs",
+    );
+    let input = prepare_setup(&Setup {
+        id: "standup-input",
+        cli: &[],
+        files: &[ZONE, PLAIN, ("rows.json", "[]")],
+    });
+    let file = input.data.join("rows.json").display().to_string();
+    refused(
+        &input,
+        &["work", "standup", "--rows", &file],
+        "work.standup --rows",
+    );
+}
+
+/// Negative control for "work.standup": another standup time gives another
+/// window, and the comparison sees it.
+#[test]
+fn work_standup_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let ten = prepare_setup(&Setup {
+        id: "standup-control-ten",
+        cli: &[],
+        files: &[ZONE, PLAIN],
+    });
+    let eight = standup_home(
+        "standup-control-eight",
+        "timezone: Etc/UTC\nstandup_time: '08:00'\n",
+    );
+    let args = ["work", "standup"];
+    let a = observe(&ten, &args, &Side::Native);
+    let b = observe(&eight, &args, &Side::Python);
+    assert_eq!(a.code, Some(0));
+    assert_ne!(a, b);
+    assert!(a.stdout.contains("10:00"));
+    assert!(b.stdout.contains("08:00"));
 }
