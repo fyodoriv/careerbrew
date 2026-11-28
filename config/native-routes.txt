@@ -219,7 +219,7 @@ day.run python
 day.update python
 day.check python
 day.start python
-day.history python
+day.history native
 day.render python
 day.end python
 day.wrap native
@@ -227,7 +227,7 @@ day.question.add python
 day.question.list native
 day.question.recheck python
 day.question.close native
-day.loop python
+day.loop native
 notify.status python
 notify.check python
 notify.list native

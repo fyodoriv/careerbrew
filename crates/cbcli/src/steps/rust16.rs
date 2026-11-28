@@ -1,6 +1,9 @@
 //! Native CLI handlers owned by `rust-16` (see `steps/mod.rs`): the work
-//! day's wrap-up control (`day wrap`) and its question records (`day
-//! question list`, `day question close`).
+//! day's wrap-up control (`day wrap`), its question records (`day
+//! question list`, `day question close`), the watch loop's records (`day
+//! loop status`, `add` and `stop`; every other action goes to Python) and
+//! the step history (`day history`, only in a home that holds nothing else
+//! its plan could read).
 //!
 //! Each handler calls the `careerbrew_workexec` / `careerbrew_workday`
 //! component and prints what `cli.py` prints. It refuses (exit 64, Python
@@ -22,7 +25,13 @@ use std::path::Path;
 /// The route keys this module serves. Each one must be routed `native` in
 /// `config/native-routes.txt` and have a parity case in
 /// `crates/cbcli/tests/step_rust16.rs`.
-pub const COMMANDS: &[&str] = &["day.wrap", "day.question.list", "day.question.close"];
+pub const COMMANDS: &[&str] = &[
+    "day.wrap",
+    "day.question.list",
+    "day.question.close",
+    "day.loop",
+    "day.history",
+];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
 pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
@@ -31,6 +40,8 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "day.wrap" => wrap(args, ctx),
         "day.question.list" => logged("day.question", question_list(args, ctx)?, ctx, started),
         "day.question.close" => logged("day.question", question_close(args, ctx)?, ctx, started),
+        "day.loop" => day_loop(args, ctx),
+        "day.history" => history(args, ctx),
         _ => None,
     }
 }
@@ -534,4 +545,706 @@ fn question_close(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         )),
         Err(_) => None,
     }
+}
+
+// ---------- day loop: Canon checks and Python spellings ----------
+
+use super::rust14::{get, list};
+
+/// True when `value` reads the same through `json.loads` and through the
+/// components' serde round trip, and `canon_json` spells it as Python
+/// does: text keys that never repeat, integers within i64, finite floats,
+/// and no YAML dates.
+fn plain_canon(value: &Canon) -> bool {
+    match value {
+        Canon::Null | Canon::Bool(_) | Canon::Str(_) => true,
+        Canon::Int(n) => n.to_string().parse::<i64>().is_ok(),
+        Canon::Float(f) => f.is_finite(),
+        Canon::Date(_) | Canon::DateTime(_) => false,
+        Canon::List(items) => items.iter().all(plain_canon),
+        Canon::Map(pairs) => {
+            let mut seen: Vec<&str> = Vec::new();
+            pairs.iter().all(|(k, v)| match k {
+                Canon::Str(key) if !seen.contains(&key.as_str()) => {
+                    seen.push(key);
+                    plain_canon(v)
+                }
+                _ => false,
+            })
+        }
+    }
+}
+
+/// `json.dumps(value)` (default separators, `ensure_ascii`) of a value
+/// `plain_canon` accepts, with each map's keys in stored order, as
+/// `json.loads` keeps them.
+fn canon_json(value: &Canon, out: &mut String) -> Option<()> {
+    match value {
+        Canon::List(items) => {
+            out.push('[');
+            for (i, item) in items.iter().enumerate() {
+                if i > 0 {
+                    out.push_str(", ");
+                }
+                canon_json(item, out)?;
+            }
+            out.push(']');
+        }
+        Canon::Map(pairs) => {
+            out.push('{');
+            for (i, (key, item)) in pairs.iter().enumerate() {
+                let Canon::Str(key) = key else {
+                    return None;
+                };
+                if i > 0 {
+                    out.push_str(", ");
+                }
+                crate::render::py_string(key, out);
+                out.push_str(": ");
+                canon_json(item, out)?;
+            }
+            out.push('}');
+        }
+        Canon::Str(text) => crate::render::py_string(text, out),
+        Canon::Date(_) | Canon::DateTime(_) => return None,
+        scalar => out.push_str(&careerbrew_vault::json_yaml::json_compact_python(scalar).ok()?),
+    }
+    Some(())
+}
+
+/// Python's `repr` of a text of printable ASCII with no quote or backslash
+/// (`'text'`); None for any other text.
+fn simple_repr(text: &str) -> Option<String> {
+    text.bytes()
+        .all(|b| (0x20..0x7f).contains(&b) && b != b'\'' && b != b'\\')
+        .then(|| format!("'{text}'"))
+}
+
+fn first_chars(text: &str, n: usize) -> String {
+    text.chars().take(n).collect()
+}
+
+/// A `YYYY-MM-DD` day that `date.fromisoformat` and the components accept.
+fn real_day(text: &str) -> bool {
+    day_form(text)
+        && text.get(..4) != Some("0000")
+        && careerbrew_workexec::parse_date(text).is_some()
+}
+
+/// A loop stamp that `datetime.fromisoformat` and the components' parser
+/// read the same way: `YYYY-MM-DDTHH:MM`, optional `:SS` then optional
+/// `.ffffff`, then nothing or `+HH:MM` / `-HH:MM`.
+fn loop_stamp(text: &str) -> bool {
+    let b = text.as_bytes();
+    if !text.is_ascii() || b.len() < 16 || b[10] != b'T' || !real_day(&text[..10]) {
+        return false;
+    }
+    let two = |i: usize, max: u8| {
+        b.len() >= i + 2
+            && b[i].is_ascii_digit()
+            && b[i + 1].is_ascii_digit()
+            && (b[i] - b'0') * 10 + (b[i + 1] - b'0') <= max
+    };
+    if !(two(11, 23) && b[13] == b':' && two(14, 59)) {
+        return false;
+    }
+    let mut at = 16;
+    if b.get(at) == Some(&b':') {
+        if !two(at + 1, 59) {
+            return false;
+        }
+        at += 3;
+        if b.get(at) == Some(&b'.') {
+            if b.len() < at + 7 || !b[at + 1..at + 7].iter().all(u8::is_ascii_digit) {
+                return false;
+            }
+            at += 7;
+        }
+    }
+    match &b[at..] {
+        [] => true,
+        [sign, ..] => {
+            (*sign == b'+' || *sign == b'-')
+                && b.len() == at + 6
+                && two(at + 1, 23)
+                && b[at + 3] == b':'
+                && two(at + 4, 59)
+        }
+    }
+}
+
+/// The loop store (`day/loops.json`, an empty map when missing) when
+/// Python's `watch._load` accepts it and the component reads it the same
+/// way; None for anything else (Python then prints its own error).
+fn loop_store(root: &Path) -> Option<Canon> {
+    // `paths.sub` makes the folder before Python reads the file.
+    std::fs::create_dir_all(root.join("day")).ok()?;
+    let state = super::rust14::read_json(root, "day/loops.json")?;
+    if !plain_canon(&state) || !matches!(state, Canon::Map(_)) {
+        return None;
+    }
+    if !matches!(get(&state, "passes"), None | Some(Canon::List(_)))
+        || !matches!(get(&state, "inputs"), None | Some(Canon::Map(_)))
+        || !matches!(get(&state, "loops"), None | Some(Canon::List(_)))
+    {
+        return None;
+    }
+    for lp in list(get(&state, "loops")).unwrap_or(&[]) {
+        let text = |key: &str| match get(lp, key) {
+            Some(Canon::Str(text)) => Some(text.as_str()),
+            _ => None,
+        };
+        let kind = text("kind")?;
+        let stopped = text("stopped")?;
+        if !careerbrew_workexec::watch::KINDS.contains(&kind)
+            || text("id")?.is_empty()
+            || text("step").is_none()
+            || !loop_stamp(text("started")?)
+            || !real_day(text("day")?)
+            || !(stopped.is_empty() || loop_stamp(stopped))
+        {
+            return None;
+        }
+    }
+    Some(state)
+}
+
+fn loop_text<'a>(lp: &'a Canon, key: &str) -> &'a str {
+    match get(lp, key) {
+        Some(Canon::Str(text)) => text,
+        _ => "",
+    }
+}
+
+/// `cli._loop_line`.
+fn loop_line(lp: &Canon) -> String {
+    let step = loop_text(lp, "step");
+    let step = if step.is_empty() {
+        String::new()
+    } else {
+        format!(" for {step}")
+    };
+    format!(
+        "{} {}{step} (since {} on {})",
+        loop_text(lp, "kind"),
+        loop_text(lp, "id"),
+        loop_text(lp, "started").get(11..16).unwrap_or(""),
+        loop_text(lp, "day")
+    )
+}
+
+/// The `cmd_day_loop` actions served here: `status`, `add` and `stop`.
+fn day_loop(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    // `say` redacts every line it prints.
+    if ctx.redact_inputs_present() {
+        return None;
+    }
+    let root = ctx.root.as_path();
+    let action = args.text("action")?;
+    if !matches!(action, "status" | "add" | "stop") {
+        return None;
+    }
+    pin_clock(root)?;
+    match action {
+        "status" => loop_status(args, root),
+        "add" => loop_add(args, root),
+        _ => loop_stop(args, root),
+    }
+}
+
+/// Python's truth value of a stored value.
+fn truthy(value: &Canon) -> bool {
+    match value {
+        Canon::Null | Canon::Bool(false) => false,
+        Canon::Str(text) => !text.is_empty(),
+        Canon::List(items) => !items.is_empty(),
+        Canon::Map(pairs) => !pairs.is_empty(),
+        Canon::Int(n) => n.to_string() != "0",
+        Canon::Float(f) => *f != 0.0,
+        _ => true,
+    }
+}
+
+fn loop_status(args: &Parsed, root: &Path) -> Option<Outcome> {
+    let state = loop_store(root)?;
+    let passes = list(get(&state, "passes")).unwrap_or(&[]);
+    let mut seconds = Vec::new();
+    for pass in passes {
+        match pass {
+            Canon::Int(n) => {
+                let value: i64 = n.to_string().parse().ok()?;
+                if value.abs() > 1 << 40 {
+                    return None;
+                }
+                seconds.push(value as f64);
+            }
+            Canon::Float(f) if f.abs() < 1e12 => seconds.push(*f),
+            _ => return None,
+        }
+    }
+    let interval = careerbrew_workexec::watch::interval(&seconds);
+    let next_at = match get(&state, "next_at") {
+        None => "",
+        Some(Canon::Str(text)) => text.as_str(),
+        Some(_) => return None,
+    };
+    let today = careerbrew_workday::today().to_string();
+    let running: Vec<&Canon> = list(get(&state, "loops"))
+        .unwrap_or(&[])
+        .iter()
+        .filter(|lp| loop_text(lp, "stopped").is_empty())
+        .collect();
+    let stale = |lp: &Canon| loop_text(lp, "day") < today.as_str();
+    let mut stdout = String::new();
+    if args.flag("json") {
+        let empty = Canon::Map(Vec::new());
+        let last = match get(&state, "last") {
+            Some(value) if truthy(value) => value,
+            _ => &empty,
+        };
+        let no_end = Canon::Str(String::new());
+        stdout.push_str("{\"passes\": ");
+        canon_json(&Canon::List(passes.to_vec()), &mut stdout)?;
+        stdout.push_str(&format!(", \"interval\": {interval}, \"next_at\": "));
+        crate::render::py_string(next_at, &mut stdout);
+        stdout.push_str(", \"last\": ");
+        canon_json(last, &mut stdout)?;
+        stdout.push_str(", \"ended\": ");
+        canon_json(get(&state, "ended").unwrap_or(&no_end), &mut stdout)?;
+        stdout.push_str(", \"running\": [");
+        for (i, lp) in running.iter().enumerate() {
+            if i > 0 {
+                stdout.push_str(", ");
+            }
+            for (j, key) in ["kind", "id", "step", "day"].iter().enumerate() {
+                stdout.push_str(if j == 0 { "{" } else { ", " });
+                crate::render::py_string(key, &mut stdout);
+                stdout.push_str(": ");
+                crate::render::py_string(loop_text(lp, key), &mut stdout);
+            }
+            stdout.push('}');
+        }
+        stdout.push_str("], \"stale\": [");
+        for (i, lp) in running.iter().filter(|lp| stale(lp)).enumerate() {
+            if i > 0 {
+                stdout.push_str(", ");
+            }
+            crate::render::py_string(loop_text(lp, "id"), &mut stdout);
+        }
+        stdout.push_str("]}\n");
+        return Some(out(stdout, 0));
+    }
+    let next: String = next_at.chars().skip(11).take(5).collect();
+    stdout.push_str(&format!(
+        "watch loop: {} measured pass(es), every {interval} s; next pass at {}; re-arm: careerbrew day loop pass\n",
+        passes.len(),
+        if next.is_empty() { "not armed" } else { &next }
+    ));
+    for lp in &running {
+        let mark = if stale(lp) {
+            "  [survived an earlier day]"
+        } else {
+            ""
+        };
+        stdout.push_str(&format!("  running {}{mark}\n", loop_line(lp)));
+    }
+    stdout.push_str(&format!(
+        "{} loop(s) running; end of day: careerbrew day loop end\n",
+        running.len()
+    ));
+    Some(out(stdout, 0))
+}
+
+/// `watch.LOOP_ID`, without the trailing newline Python's `$` lets
+/// through (a caller refuses an id with a newline first).
+fn loop_id_ok(id: &str) -> bool {
+    let b = id.as_bytes();
+    !b.is_empty()
+        && b.len() <= 64
+        && b[0].is_ascii_alphanumeric()
+        && b[1..]
+            .iter()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'.' | b'_' | b':' | b'-'))
+}
+
+fn loop_add(args: &Parsed, root: &Path) -> Option<Outcome> {
+    let kind = args.text("kind").unwrap_or("");
+    let id = args.text("id").unwrap_or("");
+    if kind.is_empty() || id.is_empty() {
+        return Some(fail(
+            "add needs --kind and --id: the loop's kind (cron, monitor, agent, session) and its tool's id",
+            "US-103",
+        ));
+    }
+    if id.contains('\n') {
+        return None;
+    }
+    if !loop_id_ok(id) {
+        let shown = simple_repr(&first_chars(id, 40))?;
+        return Some(fail(
+            &format!(
+                "loop id {shown}: use the tool's own id, 1 to 64 letters, digits, . _ : - (no spaces)"
+            ),
+            "US-103",
+        ));
+    }
+    let step = args.text("step").unwrap_or("");
+    if !step.is_empty() {
+        // Python strips with `str.strip()`; for printable ASCII that is spaces.
+        if !step.bytes().all(|b| (0x20..0x7f).contains(&b)) {
+            return None;
+        }
+        let name = step.trim_matches(' ');
+        let bare = name.strip_prefix('/').unwrap_or(name);
+        if !loop_id_ok(bare) || name.contains("..") {
+            let shown = simple_repr(&first_chars(name, 40))?;
+            return Some(fail(
+                &format!(
+                    "step {shown}: use a command or skill name such as /standup (letters, digits, . _ : -)"
+                ),
+                "US-103",
+            ));
+        }
+    }
+    loop_store(root)?;
+    careerbrew_workexec::watch::add(root, kind, id, step, "").ok()?;
+    Some(out(
+        format!("recorded {kind} {id}: end of day checks it stopped (careerbrew day loop end)\n"),
+        0,
+    ))
+}
+
+fn loop_stop(args: &Parsed, root: &Path) -> Option<Outcome> {
+    let id = args.text("id").unwrap_or("");
+    if id.is_empty() {
+        return Some(fail(
+            "stop needs --id: the loop's id from careerbrew day loop status",
+            "US-103",
+        ));
+    }
+    let state = loop_store(root)?;
+    let running = list(get(&state, "loops"))
+        .unwrap_or(&[])
+        .iter()
+        .filter(|lp| loop_text(lp, "id") == id && loop_text(lp, "stopped").is_empty())
+        .count();
+    let shown = simple_repr(&first_chars(id, 40));
+    if running == 0 && shown.is_none() {
+        return None;
+    }
+    match careerbrew_workexec::watch::stop(root, id, "", false) {
+        Ok(_) => Some(out(format!("stopped {id}\n"), 0)),
+        Err(error) if error.class == "WatchError" && running == 0 => Some(fail(
+            &format!(
+                "no running loop has id {} (careerbrew day loop status lists them)",
+                shown?
+            ),
+            "US-103",
+        )),
+        Err(_) => None,
+    }
+}
+
+// ---------- day history ----------
+
+/// True when every data-root file is one `day history` may meet here.
+/// With nothing else, Python's `plan.build()` declares only careerbrew's
+/// own step, raises nothing, and writes only two empty lock files.
+fn history_home_ok(root: &Path, dir: &Path) -> Option<()> {
+    for entry in std::fs::read_dir(dir).ok()? {
+        let path = entry.ok()?.path();
+        let kind = std::fs::symlink_metadata(&path).ok()?.file_type();
+        let rel = path.strip_prefix(root).ok()?.to_str()?.to_owned();
+        if kind.is_symlink() {
+            return None;
+        }
+        if kind.is_dir() {
+            history_home_ok(root, &path)?;
+            continue;
+        }
+        let known = rel.starts_with("logs/")
+            || matches!(
+                rel.as_str(),
+                ".plaintext"
+                    | "machine.yaml"
+                    | "settings.yaml"
+                    | "day/work-history.json"
+                    | "day/.work-history.json.lock"
+                    | "work/feed/.lock"
+            )
+            || (rel.starts_with("day/.pm-sent-") && rel.ends_with(".lock"));
+        if !known {
+            return None;
+        }
+    }
+    Some(())
+}
+
+/// Monday = 0, for a `YYYY-MM-DD` day.
+fn weekday(day: &str) -> Option<i64> {
+    let y: i64 = day.get(0..4)?.parse().ok()?;
+    let m: i64 = day.get(5..7)?.parse().ok()?;
+    let d: i64 = day.get(8..10)?.parse().ok()?;
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * ((m + 9) % 12) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    // 1970-01-01, day 0, was a Thursday.
+    Some((era * 146_097 + doe - 719_468 + 3).rem_euclid(7))
+}
+
+/// `timing.shown` for a duration that is present.
+fn shown(seconds: i64) -> String {
+    if seconds < 60 {
+        return format!("{seconds} s");
+    }
+    let minutes = careerbrew_workexec::round_half_even(seconds, 60);
+    if minutes < 60 {
+        format!("{minutes} min")
+    } else {
+        format!("{} h {} min", minutes / 60, minutes % 60)
+    }
+}
+
+#[derive(Default)]
+struct StepRuns {
+    name: String,
+    runs: i64,
+    ends: [i64; 3],
+    seconds: i64,
+    times: Vec<i64>,
+}
+
+const ENDS: [&str; 3] = ["done", "blocked", "failed"];
+
+/// An entry's `seconds` as `isinstance(seconds, int)` reads it, or Err for
+/// a value this handler does not serve (a bool, or a huge number).
+fn entry_seconds(entry: &Canon) -> Result<Option<i64>, ()> {
+    match get(entry, "seconds") {
+        Some(Canon::Bool(_)) => Err(()),
+        Some(Canon::Int(n)) => match n.to_string().parse::<i64>() {
+            Ok(v) if v.abs() < 1 << 40 => Ok(Some(v)),
+            _ => Err(()),
+        },
+        _ => Ok(None),
+    }
+}
+
+type DayRow<'a> = (&'a str, usize, [i64; 3], i64);
+
+fn history(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    if !business_hidden(ctx) {
+        return None;
+    }
+    let n_days = match args.get("days") {
+        crate::args::Value::Number(t) | crate::args::Value::Text(t)
+            if (1..=3).contains(&t.len()) && t.bytes().all(|b| b.is_ascii_digit()) =>
+        {
+            t.parse::<i64>().ok()?
+        }
+        _ => return None,
+    };
+    if !(1..=120).contains(&n_days) {
+        return None;
+    }
+    let root = ctx.root.as_path();
+    let settings = pin_clock(root)?;
+    if settings
+        .as_object()
+        .is_some_and(|map| map.keys().any(|key| key != "timezone"))
+    {
+        return None;
+    }
+    history_home_ok(root, root)?;
+    if root.join("machine.yaml").exists() {
+        super::rust14::read_yaml(root, "machine.yaml")?;
+    }
+    let data = super::rust14::read_json(root, "day/work-history.json")?;
+    if !plain_canon(&data) {
+        return None;
+    }
+    let today = careerbrew_workday::today();
+    let mut since = today;
+    for _ in 1..n_days {
+        since = since.pred_opt()?;
+    }
+    let (since, until) = (since.to_string(), today.to_string());
+    let stored: &[(Canon, Canon)] = match get(&data, "days") {
+        Some(Canon::Map(pairs)) => pairs,
+        _ => &[],
+    };
+    let mut days: Vec<(&str, &[(Canon, Canon)])> = Vec::new();
+    for (day, entries) in stored {
+        if let (Canon::Str(day), Canon::Map(entries)) = (day, entries) {
+            if since.as_str() <= day.as_str() && day.as_str() <= until.as_str() {
+                days.push((day, entries));
+            }
+        }
+    }
+    days.sort_by(|a, b| b.0.cmp(a.0));
+    let mut per: Vec<StepRuns> = Vec::new();
+    let mut day_rows: Vec<DayRow> = Vec::new();
+    for (day, pairs) in &days {
+        let entries: Vec<(&str, &Canon)> = pairs
+            .iter()
+            .filter_map(|(k, v)| match (k, v) {
+                (Canon::Str(k), Canon::Map(_)) => Some((k.as_str(), v)),
+                _ => None,
+            })
+            .collect();
+        let mut counts = [0; 3];
+        let mut took = 0;
+        for (step, entry) in &entries {
+            let status = match get(entry, "status") {
+                Some(Canon::Str(s)) => ENDS.iter().position(|end| end == s),
+                _ => None,
+            };
+            let secs = entry_seconds(entry).ok()?;
+            if let Some(i) = status {
+                counts[i] += 1;
+            }
+            took += secs.unwrap_or(0);
+            let at = match per.iter().position(|p| p.name == *step) {
+                Some(at) => at,
+                None => {
+                    per.push(StepRuns {
+                        name: (*step).to_owned(),
+                        ..StepRuns::default()
+                    });
+                    per.len() - 1
+                }
+            };
+            let p = &mut per[at];
+            p.runs += 1;
+            if let Some(i) = status {
+                p.ends[i] += 1;
+            }
+            if let Some(s) = secs {
+                p.seconds += s;
+                if status == Some(0) {
+                    p.times.push(s);
+                }
+            }
+        }
+        day_rows.push((day, entries.len(), counts, took));
+    }
+    // `timing.labels` with only careerbrew's own step declared: every other
+    // name becomes `other step <n>`, numbered in name order.
+    let mut names: Vec<&str> = per.iter().map(|p| p.name.as_str()).collect();
+    names.sort_unstable();
+    let mut n = 0;
+    let labels: Vec<(&str, String)> = names
+        .iter()
+        .map(|name| {
+            if *name == "/careerbrew" {
+                (*name, (*name).to_owned())
+            } else {
+                n += 1;
+                (*name, format!("other step {n}"))
+            }
+        })
+        .collect();
+    let mut steps: Vec<(String, &StepRuns, Option<i64>)> = per
+        .iter()
+        .map(|p| {
+            let label = labels
+                .iter()
+                .find(|(name, _)| *name == p.name)
+                .map_or_else(String::new, |(_, label)| label.clone());
+            let mut times = p.times.clone();
+            times.sort_unstable();
+            let k = times.len();
+            let median = match k {
+                0 => None,
+                _ if k % 2 == 1 => Some(times[k / 2]),
+                _ => Some(((times[k / 2 - 1] + times[k / 2]) as f64 / 2.0).trunc() as i64),
+            };
+            (label, p, median)
+        })
+        .collect();
+    steps.sort_by(|a, b| b.1.ends[2].cmp(&a.1.ends[2]).then_with(|| a.0.cmp(&b.0)));
+    let mut stdout = String::new();
+    if args.flag("json") {
+        stdout.push_str("{\"since\": ");
+        crate::render::py_string(&since, &mut stdout);
+        stdout.push_str(", \"until\": ");
+        crate::render::py_string(&until, &mut stdout);
+        stdout.push_str(", \"days\": [");
+        for (i, (day, count, ends, took)) in day_rows.iter().enumerate() {
+            if i > 0 {
+                stdout.push_str(", ");
+            }
+            stdout.push_str("{\"day\": ");
+            crate::render::py_string(day, &mut stdout);
+            stdout.push_str(&format!(
+                ", \"steps\": {count}, \"done\": {}, \"blocked\": {}, \"failed\": {}, \"seconds\": {took}}}",
+                ends[0], ends[1], ends[2]
+            ));
+        }
+        stdout.push_str("], \"steps\": [");
+        for (i, (label, p, median)) in steps.iter().enumerate() {
+            if i > 0 {
+                stdout.push_str(", ");
+            }
+            stdout.push_str("{\"step\": ");
+            crate::render::py_string(label, &mut stdout);
+            let median = median.map_or_else(|| "null".to_owned(), |m| m.to_string());
+            stdout.push_str(&format!(
+                ", \"runs\": {}, \"done\": {}, \"blocked\": {}, \"failed\": {}, \"seconds\": {}, \"median\": {median}}}",
+                p.runs, p.ends[0], p.ends[1], p.ends[2], p.seconds
+            ));
+        }
+        stdout.push_str("]}\n");
+    } else {
+        for (label, p, median) in &steps {
+            let mid = median.map_or_else(String::new, |m| format!(", median {}", shown(m)));
+            stdout.push_str(&format!(
+                "  {label:<24} {} run(s): {} done, {} blocked, {} failed{mid}\n",
+                p.runs, p.ends[0], p.ends[1], p.ends[2]
+            ));
+        }
+        for (day, count, ends, took) in &day_rows {
+            stdout.push_str(&format!(
+                "  {day}  {count} step(s): {} done, {} blocked, {} failed, {} of steps\n",
+                ends[0],
+                ends[1],
+                ends[2],
+                shown(*took)
+            ));
+        }
+        let most = steps
+            .iter()
+            .find(|(_, p, _)| p.ends[2] != 0)
+            .map_or_else(String::new, |(label, p, _)| {
+                format!("; fails most: {label} ({})", p.ends[2])
+            });
+        stdout.push_str(&format!(
+            "work day history {since} to {until}: {} day(s), {} step(s){most}\n",
+            day_rows.len(),
+            steps.len()
+        ));
+    }
+    // `plan.build()` holds the previous workday's sent-PM lock and the feed
+    // lock while it reads; both files stay behind, empty.
+    let mut prior = today;
+    for _ in 0..7 {
+        prior = prior.pred_opt()?;
+        if weekday(&prior.to_string())? < 5 {
+            break;
+        }
+    }
+    for rel in [
+        format!("day/.pm-sent-{prior}.lock"),
+        "work/feed/.lock".to_owned(),
+    ] {
+        let path = root.join(rel);
+        std::fs::create_dir_all(path.parent()?).ok()?;
+        std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .ok()?;
+    }
+    Some(out(stdout, 0))
 }
