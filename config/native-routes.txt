@@ -35,16 +35,8 @@ cards.grade python
 cards.add native
 cards.stats native
 cards.unsuspend native
-<<<<<<< HEAD
 cards.explain-queue native
-cards.publish python
-||||||| be70d621
-cards.explain-queue python
-cards.publish python
-=======
-cards.explain-queue python
 cards.publish native
->>>>>>> wave6/rust24
 cards.public-check native
 learn.list native
 learn.start python
@@ -138,7 +130,7 @@ work.agent.event native
 work.agent.show native
 work.session.open native
 work.session.list native
-work.session.ask python
+work.session.ask native
 work.session.handoff native
 work.session.end native
 work.claim.take native
