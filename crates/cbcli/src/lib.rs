@@ -7,6 +7,7 @@
 pub mod args;
 pub mod events;
 pub mod help;
+pub mod pyyaml;
 pub mod registry;
 pub mod render;
 pub mod routed;

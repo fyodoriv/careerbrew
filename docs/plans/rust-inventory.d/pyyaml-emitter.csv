@@ -1,0 +1,3 @@
+crates/cbcli/src/pyyaml.rs,keep-native,rust-00,native CLI: shared PyYAML safe_dump emitter (sort_keys=False allow_unicode=True) for store.write_yaml; uncertain values return None so Python runs
+crates/cbcli/tests/pyyaml_emitter.rs,keep-native,rust-00,native PyYAML emitter differential test: 24000 seeded synthetic values against real PyYAML
+tests/oracles/pyyaml_emitter.py,keep-native,rust-00,Synthetic Python oracle for the native PyYAML emitter differential test
