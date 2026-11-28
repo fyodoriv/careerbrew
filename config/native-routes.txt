@@ -120,9 +120,9 @@ work.live.stop native
 work.promise.list native
 work.promise.scan native
 work.promise.add native
-work.promise.outcomes python
-work.promise.accept python
-work.promise.stats python
+work.promise.outcomes native
+work.promise.accept native
+work.promise.stats native
 work.promise.done native
 work.promise.dropped native
 work.promise.step native
@@ -203,7 +203,7 @@ day.accept-all native
 day.dismiss-all native
 day.reopen native
 day.send python
-day.pm-sent python
+day.pm-sent native
 day.pm-grade python
 day.accept native
 day.dismiss native
