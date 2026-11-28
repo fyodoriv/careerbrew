@@ -245,7 +245,7 @@ indie.run python
 indie.end native
 peer.status python
 peer.experiment native
-review python
+review native
 draft.fit native
 draft.replace native
 draft.show native

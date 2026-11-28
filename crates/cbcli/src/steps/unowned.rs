@@ -1,6 +1,7 @@
 //! Native CLI handlers owned by `unowned` (see `steps/mod.rs`): the run
 //! page readers (`report latest`, `report list`) and the data folder
-//! commands (`data encrypt`, `data decrypt`, `data show`).
+//! commands (`data encrypt`, `data decrypt`, `data show`), and the outcome
+//! review (`review`) in a data folder that holds no outcome data yet.
 //!
 //! Each handler refuses (exit 64, Python runs it) before any write when a
 //! case could differ from Python:
@@ -31,6 +32,7 @@ pub const COMMANDS: &[&str] = &[
     "data.show",
     "report.public",
     "data.set",
+    "review",
 ];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
@@ -48,6 +50,7 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         "data.encrypt" => data_encrypt(ctx),
         "data.decrypt" => data_decrypt(args, ctx),
         "data.show" => data_show(args, ctx),
+        "review" => review(args, ctx),
         _ => None,
     }
 }
@@ -1373,3 +1376,698 @@ fn data_set(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         0,
     )
 }
+
+// ---------- the outcome review (`review.py`, `runs.review`) ----------
+//
+// Served only in a data folder that holds no outcome data: then every
+// metric `review.measure` computes is None, so every goal is `no-data`, and
+// the run is a fixed function of `config/goals.yaml`, the clock and the
+// `run_pages` setting. Anything else (any other file, `--html`, a goal
+// value this module cannot print as Python's `str`, run pages already
+// written) goes to Python.
+
+/// The keys of `review.measure()`, which `review.jsonl` stores (sorted).
+const MEASURED: &[&str] = &[
+    "want_agreement",
+    "readiness",
+    "retention",
+    "practice_pass_rate",
+    "promo_coverage",
+    "gap_closure",
+    "estimate_ratio",
+    "evidence_freshness_days",
+    "loops_sourced",
+    "prep_score",
+    "eligible_postings",
+    "interview_followup",
+    "plugin_setup_minutes",
+    "watcher_cpu_ms",
+    "suggestion_follow_rate",
+    "plan_done_rate",
+];
+
+/// The folders `review.measure` creates through `paths.sub`.
+const MEASURE_DIRS: &[&str] = &["jobs", "tutor", "work", "prep", "day"];
+
+/// The only files a served review may find: none holds outcome data.
+const REVIEW_FILES: &[&str] = &[
+    ".plaintext",
+    "settings.yaml",
+    "review.jsonl",
+    ".review.jsonl.lock",
+    "logs/events.jsonl",
+];
+
+/// The only folders a served review may find (each may be empty).
+const REVIEW_DIRS: &[&str] = &[
+    "logs",
+    "jobs",
+    "tutor",
+    "work",
+    "prep",
+    "day",
+    "out",
+    "out/reports",
+];
+
+/// True when the data folder holds only `REVIEW_FILES` and `REVIEW_DIRS`
+/// (no symlink, no other entry), and the `.plaintext` marker.
+fn fresh_review_home(root: &Path) -> bool {
+    fn walk(root: &Path, dir: &Path) -> bool {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return false;
+        };
+        for entry in entries {
+            let Ok(entry) = entry else {
+                return false;
+            };
+            let path = entry.path();
+            let Some(rel) = path.strip_prefix(root).ok().and_then(Path::to_str) else {
+                return false;
+            };
+            let Ok(meta) = std::fs::symlink_metadata(&path) else {
+                return false;
+            };
+            if meta.is_dir() {
+                if !REVIEW_DIRS.contains(&rel) || !walk(root, &path) {
+                    return false;
+                }
+            } else if !(meta.is_file() && REVIEW_FILES.contains(&rel)) {
+                return false;
+            }
+        }
+        true
+    }
+    let Ok(meta) = std::fs::symlink_metadata(root) else {
+        return false;
+    };
+    meta.is_dir()
+        && std::fs::symlink_metadata(root.join(".plaintext")).is_ok_and(|m| m.is_file())
+        && walk(root, root)
+}
+
+fn canon_get<'a>(map: &'a Canon, key: &str) -> Option<&'a Canon> {
+    let Canon::Map(pairs) = map else {
+        return None;
+    };
+    pairs
+        .iter()
+        .find(|(k, _)| matches!(k, Canon::Str(name) if name == key))
+        .map(|(_, v)| v)
+}
+
+/// `settings.yaml` as `config_io.read_settings` reads it. Served only with
+/// the two settings a fresh review reads (`run_pages`, `timezone`); returns
+/// the `run_pages` value (default on).
+fn review_settings(store: &careerbrew_vault::store::Store, root: &Path) -> Option<bool> {
+    let settings = match store
+        .read_yaml(&root.join("settings.yaml"), Canon::Map(Vec::new()), false)
+        .ok()?
+    {
+        Canon::Null => Canon::Map(Vec::new()),
+        value @ Canon::Map(_) => value,
+        _ => return None,
+    };
+    let Canon::Map(pairs) = &settings else {
+        return None;
+    };
+    let mut pages = true;
+    for (key, value) in pairs {
+        match (key, value) {
+            (Canon::Str(k), Canon::Bool(on)) if k == "run_pages" => pages = *on,
+            (Canon::Str(k), Canon::Null) if k == "timezone" => {}
+            (Canon::Str(k), Canon::Str(name)) if k == "timezone" => {
+                // Python raises on a zone it cannot load; the crates fall back to UTC.
+                if !name.is_empty() && careerbrew_feed::local_zone().name() != name {
+                    return None;
+                }
+            }
+            _ => return None,
+        }
+    }
+    Some(pages)
+}
+
+/// True for a month day that exists.
+fn real_day(year: u32, month: u32, day: u32) -> bool {
+    let leap = (year.is_multiple_of(4) && !year.is_multiple_of(100)) || year.is_multiple_of(400);
+    let last = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return false,
+    };
+    (1..=last).contains(&day)
+}
+
+/// `CAREERBREW_NOW` unset or empty (the wall clock), or
+/// `YYYY-MM-DDTHH:MM:SS` with no zone, `Z`, or `+HH:MM`/`-HH:MM`: forms
+/// Python's `fromisoformat` and `careerbrew_feed::now` read as one instant.
+fn review_clock_ok() -> bool {
+    let value = match std::env::var("CAREERBREW_NOW") {
+        Ok(value) => value,
+        Err(std::env::VarError::NotPresent) => return true,
+        Err(_) => return false,
+    };
+    if value.is_empty() {
+        return true;
+    }
+    let b = value.as_bytes();
+    if b.len() < 19 || !b.is_ascii() {
+        return false;
+    }
+    let num = |from: usize, to: usize| -> Option<u32> {
+        let part = &value[from..to];
+        if part.bytes().all(|c| c.is_ascii_digit()) {
+            part.parse().ok()
+        } else {
+            None
+        }
+    };
+    let shape = b[4] == b'-' && b[7] == b'-' && b[10] == b'T' && b[13] == b':' && b[16] == b':';
+    let (Some(year), Some(month), Some(day), Some(hour), Some(minute), Some(second)) = (
+        num(0, 4),
+        num(5, 7),
+        num(8, 10),
+        num(11, 13),
+        num(14, 16),
+        num(17, 19),
+    ) else {
+        return false;
+    };
+    let zone = &value[19..];
+    let zone_ok = match zone.len() {
+        0 => true,
+        1 => zone == "Z",
+        6 => {
+            let z = zone.as_bytes();
+            (z[0] == b'+' || z[0] == b'-')
+                && z[3] == b':'
+                && num(20, 22).is_some_and(|h| h < 24)
+                && num(23, 25).is_some_and(|m| m < 60)
+        }
+        _ => false,
+    };
+    shape
+        && zone_ok
+        && year >= 1
+        && real_day(year, month, day)
+        && hour < 24
+        && minute < 60
+        && second < 60
+}
+
+/// Python's `repr` of a float, or None where Rust and Python spell it
+/// differently (exponent forms, inf, nan).
+fn py_float(value: f64) -> Option<String> {
+    if !value.is_finite() || (value != 0.0 && !(1e-4..1e16).contains(&value.abs())) {
+        return None;
+    }
+    let text = format!("{value:?}");
+    (!text.contains('e')).then_some(text)
+}
+
+/// Python's `str` of a goal bound (`success`, `pivot`).
+fn bound_text(value: Option<&Canon>) -> Option<String> {
+    match value {
+        None | Some(Canon::Null) => Some("None".into()),
+        Some(Canon::Int(number)) => {
+            let text = number.to_string();
+            (text.len() < 4000).then_some(text)
+        }
+        Some(Canon::Float(number)) => py_float(*number),
+        _ => None,
+    }
+}
+
+struct Goal {
+    name: String,
+    success: String,
+    pivot: String,
+    higher_is_better: bool,
+}
+
+/// `review.goals()` with no `<data root>/goals.yaml`: the metrics of
+/// `config/goals.yaml` in file order.
+fn review_goals(repo: &Path) -> Option<Vec<Goal>> {
+    let text = std::fs::read_to_string(repo.join("config").join("goals.yaml")).ok()?;
+    let doc = careerbrew_vault::json_yaml::yaml_read(&text).ok()?;
+    let metrics = match &doc {
+        Canon::Null => return Some(Vec::new()),
+        Canon::Map(_) => match canon_get(&doc, "metrics") {
+            None => return Some(Vec::new()),
+            Some(value @ Canon::Map(_)) => value,
+            Some(_) => return None,
+        },
+        _ => return None,
+    };
+    let Canon::Map(pairs) = metrics else {
+        return None;
+    };
+    let mut out = Vec::new();
+    for (key, goal) in pairs {
+        let Canon::Str(name) = key else {
+            return None;
+        };
+        let simple = !name.is_empty()
+            && name.len() <= 64
+            && name
+                .bytes()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'_');
+        if !simple || !matches!(goal, Canon::Map(_)) {
+            return None;
+        }
+        let higher_is_better = match canon_get(goal, "higher_is_better") {
+            None => true,
+            Some(Canon::Bool(on)) => *on,
+            Some(_) => return None,
+        };
+        out.push(Goal {
+            name: name.clone(),
+            success: bound_text(canon_get(goal, "success"))?,
+            pivot: bound_text(canon_get(goal, "pivot"))?,
+            higher_is_better,
+        });
+    }
+    Some(out)
+}
+
+/// `html.escape(text)` (quote=True).
+fn html_esc(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&#x27;"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
+/// One `report.Item` (a fresh review has no `detail` and no `why`).
+struct PageItem {
+    id: String,
+    label: String,
+    evidence: String,
+    command: String,
+}
+
+fn page_item(id: &str, label: String, evidence: String, command: &str) -> PageItem {
+    PageItem {
+        id: id.into(),
+        label,
+        evidence,
+        command: command.into(),
+    }
+}
+
+fn item_html(item: &PageItem, kind: &str) -> String {
+    let mut out = String::from("<li>");
+    out.push_str(&html_esc(&item.label));
+    if !item.evidence.is_empty() {
+        out.push_str(&format!(
+            "<div class=\"muted small\">{}</div>",
+            html_esc(&item.evidence)
+        ));
+    }
+    if !item.command.is_empty() {
+        let label = if kind == "next" { "Run" } else { "Ran" };
+        out.push_str(&format!(
+            "<div class=\"fix\"><b>{label}:</b> <code>{}</code></div>",
+            html_esc(&item.command)
+        ));
+    }
+    out.push_str("</li>");
+    out
+}
+
+fn section_html(title: &str, kind: &str, items: &[PageItem], empty: &str) -> String {
+    let tag = if kind == "next" { "ol" } else { "ul" };
+    let body = if items.is_empty() {
+        format!("<p class=\"empty\">{}</p>", html_esc(empty))
+    } else {
+        let inner: String = items.iter().map(|it| item_html(it, kind)).collect();
+        format!("<{tag} class=\"items\">{inner}</{tag}>")
+    };
+    format!(
+        "<section class=\"{kind}\" aria-labelledby=\"h-{kind}\"><h2 id=\"h-{kind}\">{} <span class=\"count\">({})</span></h2>{body}</section>",
+        html_esc(title),
+        items.len()
+    )
+}
+
+const REVIEW_TITLE: &str = "Outcome review: KEEP, WATCH, PIVOT";
+
+/// The parts of a fresh review run that its page and summary show.
+struct ReviewRun<'a> {
+    at: &'a str,
+    id: &'a str,
+    headline: &'a str,
+    counts: &'a [(&'a str, usize)],
+    done: &'a [PageItem],
+    next: &'a [PageItem],
+}
+
+/// `report.render` for a fresh review run: no blockers, no logs.
+fn review_page(run: &ReviewRun, when: &str) -> String {
+    let kpis: String = run
+        .counts
+        .iter()
+        .map(|(k, v)| format!("<li><b>{v}</b>{}</li>", html_esc(&k.replace('_', " "))))
+        .collect();
+    let mut out = String::new();
+    out.push_str("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">");
+    out.push_str(&format!(
+        "<title>{}</title><style>{PAGE_CSS}</style></head><body><main>",
+        html_esc(REVIEW_TITLE)
+    ));
+    out.push_str(&format!(
+        "<h1>{}</h1><p class=\"muted small\">{} \u{b7} run <code>{}</code></p>",
+        html_esc(REVIEW_TITLE),
+        html_esc(when),
+        html_esc(run.id)
+    ));
+    out.push_str("<p class=\"status status-ok\" role=\"status\"><strong>Verdict:</strong> OK: nothing blocks</p>");
+    if !run.headline.is_empty() {
+        out.push_str(&format!(
+            "<p class=\"headline\">{}</p>",
+            html_esc(run.headline)
+        ));
+    }
+    out.push_str(&format!(
+        "<p class=\"small jump\"><a href=\"#h-blockers\">Blockers (0)</a> \u{b7} <a href=\"#h-next\">Next ({})</a> \u{b7} <a href=\"#h-done\">Done ({})</a></p>",
+        run.next.len(),
+        run.done.len()
+    ));
+    if !kpis.is_empty() {
+        out.push_str(&format!("<ul class=\"kpis\">{kpis}</ul>"));
+    }
+    out.push_str(&section_html("Blockers", "blockers", &[], "No blockers."));
+    out.push_str(&section_html(
+        "Next",
+        "next",
+        run.next,
+        "Nothing to do next.",
+    ));
+    out.push_str(&section_html(
+        "Done",
+        "done",
+        run.done,
+        "Nothing finished in this run.",
+    ));
+    out.push_str("<section class=\"commands\" aria-labelledby=\"h-commands\"><h2 id=\"h-commands\">Commands run</h2><ul class=\"items\"><li><code>careerbrew review</code></li></ul></section>");
+    out.push_str(&format!(
+        "<footer><p>Holds your own data. It stays on this machine: open it with <code>careerbrew open --report latest</code>; do not publish it.</p><p>Agents: <code>careerbrew report latest --json</code> gives the counts, ids, statuses, and commands, with no page text. careerbrew {}.</p></footer>",
+        html_esc(crate::events::version())
+    ));
+    out.push_str("</main></body></html>");
+    out
+}
+
+/// `report._clean` for careerbrew's own ASCII words (no redaction input).
+fn clean_text(text: &str) -> Json {
+    let joined = text.split_ascii_whitespace().collect::<Vec<_>>().join(" ");
+    Json::Str(joined.chars().take(300).collect())
+}
+
+fn json_int(value: usize) -> Json {
+    Json::Number(value.to_string())
+}
+
+/// `{f: _clean(item.f) for f in fields}` with the keys sorted.
+fn item_json(item: &PageItem, kind: &str) -> Json {
+    let mut pairs = vec![("command".to_owned(), clean_text(&item.command))];
+    if kind == "done" {
+        pairs.push(("evidence".to_owned(), clean_text(&item.evidence)));
+    }
+    pairs.push(("id".to_owned(), clean_text(&item.id)));
+    pairs.push(("label".to_owned(), clean_text(&item.label)));
+    Json::Object(pairs)
+}
+
+/// `json.dumps({**summary(r, page), "seq": 1}, indent=1, sort_keys=True)`.
+fn review_summary(run: &ReviewRun, page: &str) -> String {
+    let mut counts: Vec<(String, Json)> = run
+        .counts
+        .iter()
+        .map(|(k, v)| ((*k).to_owned(), json_int(*v)))
+        .collect();
+    counts.sort_by(|a, b| a.0.cmp(&b.0));
+    let summary = Json::Object(vec![
+        ("at".into(), Json::Str(run.at.into())),
+        ("blockers".into(), Json::Array(Vec::new())),
+        (
+            "commands".into(),
+            Json::Array(vec![clean_text("careerbrew review")]),
+        ),
+        ("counts".into(), Json::Object(counts)),
+        (
+            "done".into(),
+            Json::Array(run.done.iter().map(|it| item_json(it, "done")).collect()),
+        ),
+        ("headline".into(), clean_text(run.headline)),
+        ("id".into(), Json::Str(run.id.into())),
+        (
+            "next".into(),
+            Json::Array(run.next.iter().map(|it| item_json(it, "next")).collect()),
+        ),
+        ("page".into(), Json::Str(page.into())),
+        ("personal".into(), Json::Bool(true)),
+        ("run".into(), Json::Str("review".into())),
+        ("seq".into(), json_int(1)),
+        ("status".into(), Json::Str("ok".into())),
+        ("title".into(), clean_text(REVIEW_TITLE)),
+    ]);
+    crate::render::py_dumps(&summary)
+}
+
+/// `events.emit(event, **fields)`; a failed log write is ignored.
+fn emit_fields(root: &Path, event: &str, fields: &[(&str, Canon)]) {
+    let map = Canon::Map(
+        fields
+            .iter()
+            .map(|(k, v)| (Canon::Str((*k).into()), v.clone()))
+            .collect(),
+    );
+    let _ = careerbrew_vault::events::emit(
+        root,
+        std::env::var("CAREERBREW_EVENTS").ok().as_deref(),
+        event,
+        &map,
+        &NowClock,
+    );
+}
+
+fn canon_int(value: usize) -> Canon {
+    Canon::Int((value as u64).into())
+}
+
+/// The `review.jsonl` row `review.run` appends (`sort_keys=True`).
+fn review_row(at: &str, goals: &[Goal]) -> String {
+    let mut row = String::from("{\"at\": ");
+    crate::render::py_string(at, &mut row);
+    row.push_str(", \"status\": {");
+    let mut names: Vec<&str> = goals.iter().map(|g| g.name.as_str()).collect();
+    names.sort_unstable();
+    for (i, name) in names.iter().enumerate() {
+        if i > 0 {
+            row.push_str(", ");
+        }
+        crate::render::py_string(name, &mut row);
+        row.push_str(": \"no-data\"");
+    }
+    row.push_str("}, \"values\": {");
+    let mut measured = MEASURED.to_vec();
+    measured.sort_unstable();
+    for (i, name) in measured.iter().enumerate() {
+        if i > 0 {
+            row.push_str(", ");
+        }
+        crate::render::py_string(name, &mut row);
+        row.push_str(": null");
+    }
+    row.push_str("}}\n");
+    row
+}
+
+/// `store.append_jsonl` on a plaintext file: append under the file's lock.
+fn append_locked(root: &Path, name: &str, row: &str) -> Option<()> {
+    use std::io::Write;
+    let lock = std::fs::OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(root.join(format!(".{name}.lock")))
+        .ok()?;
+    lock.lock().ok()?;
+    let mut file = std::fs::OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(root.join(name))
+        .ok()?;
+    file.write_all(row.as_bytes()).ok()
+}
+
+/// `careerbrew review` (`cli.cmd_review`) in a data folder with no outcome
+/// data: every metric is `no-data`.
+fn review(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    if args.flag("html") || !fresh_review_home(&ctx.root) || !review_clock_ok() {
+        return None;
+    }
+    let context = careerbrew_vault::transfer::Context::from_env().ok()?;
+    let store = context.store();
+    if store.encryption_enabled() {
+        return None;
+    }
+    let pages = review_settings(&store, &ctx.root)?;
+    let goals = review_goals(&repo_root()?)?;
+    let root_text = shown_root(ctx)?;
+    let reports = reports_folder(ctx);
+    if pages && std::fs::read_dir(&reports).is_ok_and(|mut d| d.next().is_some()) {
+        return None; // earlier pages: their seq, ids and pruning stay with Python
+    }
+
+    let now = careerbrew_feed::now();
+    let at = now.format("%Y-%m-%dT%H:%M:%S%:z").to_string();
+    let n = goals.len();
+    let headline = format!("{n} metric(s): 0 KEEP, 0 WATCH, 0 PIVOT, {n} no data");
+    let mut done = vec![page_item(
+        "measure",
+        format!("Measured {n} outcome metric(s)"),
+        format!("0 KEEP, 0 WATCH, 0 PIVOT, {n} no data"),
+        "careerbrew review",
+    )];
+    for goal in &goals {
+        let (keep, pivot) = if goal.higher_is_better {
+            (">=", "<")
+        } else {
+            ("<=", ">")
+        };
+        done.push(page_item(
+            &goal.name,
+            format!("{}: no data yet", goal.name),
+            format!("keep {keep} {}, pivot {pivot} {}", goal.success, goal.pivot),
+            "",
+        ));
+    }
+    let next = vec![page_item(
+        "again",
+        "Measure again next week".into(),
+        String::new(),
+        "careerbrew review",
+    )];
+    let counts: [(&str, usize); 5] = [
+        ("metrics", n),
+        ("keep", 0),
+        ("watch", 0),
+        ("pivot", 0),
+        ("no_data", n),
+    ];
+    let digits: String = at[..19].chars().filter(char::is_ascii_digit).collect();
+    if digits.len() != 14 {
+        return None;
+    }
+    let id = format!("review-{}-{}", &digits[..8], &digits[8..14]);
+    let page_path = format!("{root_text}/out/reports/{id}.html");
+    let stdout = if pages {
+        format!(
+            "page: {page_path}\nreview: ok: {headline}; {} done, 0 blocker(s), 1 next action(s); next: careerbrew review (agents: careerbrew report latest --json)\n",
+            done.len()
+        )
+    } else {
+        goals
+            .iter()
+            .map(|g| format!("{:<8} {:<24} {:<8} \n", "no-data", g.name, "None"))
+            .collect()
+    };
+    let stdout = printable(stdout)?;
+    let run = ReviewRun {
+        at: &at,
+        id: &id,
+        headline: &headline,
+        counts: &counts,
+        done: &done,
+        next: &next,
+    };
+
+    // Every refusal is above; from here the run makes Python's writes.
+    let _ = std::fs::set_permissions(
+        &ctx.root,
+        std::os::unix::fs::PermissionsExt::from_mode(0o700),
+    );
+    for dir in MEASURE_DIRS {
+        std::fs::create_dir_all(ctx.root.join(dir)).ok()?;
+    }
+    append_locked(&ctx.root, "review.jsonl", &review_row(&at, &goals))?;
+    emit_fields(
+        &ctx.root,
+        "review.run",
+        &[
+            ("status", Canon::Str("ok".into())),
+            ("pivots", canon_int(0)),
+        ],
+    );
+    if pages {
+        std::fs::create_dir_all(&reports).ok()?;
+        let when = format!(
+            "{} {}, {}",
+            now.format("%a %b"),
+            now.format("%-d"),
+            now.format("%H:%M")
+        );
+        let html = review_page(&run, &when);
+        let data = review_summary(&run, &page_path);
+        std::fs::write(reports.join(format!("{id}.html")), &html).ok()?;
+        std::fs::write(reports.join(format!("{id}.json")), &data).ok()?;
+        std::fs::write(reports.join("latest.html"), &html).ok()?;
+        std::fs::write(reports.join("latest.json"), &data).ok()?;
+        emit_fields(
+            &ctx.root,
+            "report.write",
+            &[
+                ("command", Canon::Str("review".into())),
+                ("status", Canon::Str("ok".into())),
+                ("done", canon_int(done.len())),
+                ("blockers", canon_int(0)),
+                ("next", canon_int(1)),
+            ],
+        );
+    }
+    ok(stdout, 0)
+}
+
+/// `report.CSS`, byte for byte.
+const PAGE_CSS: &str = r##"
+:root{color-scheme:light;--bg:#fcfcfb;--text:#0b0b0b;--muted:#52514e;--line:#e4e3df;--code-bg:#f2f1ee;
+--good:#0a7a0a;--bad:#c62f2e;--accent:#2a78d6;--good-bg:#e9f5e9;--bad-bg:#fbeaea}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#1a1a19;--text:#f0efec;
+--muted:#c3c2b7;--line:#3a3936;--code-bg:#2c2b29;--good:#5cc05c;--bad:#ee7b7a;--accent:#5a9fec;--good-bg:#1f2e1f;--bad-bg:#3a2424}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#1a1a19;--text:#f0efec;--muted:#c3c2b7;--line:#3a3936;--code-bg:#2c2b29;
+--good:#5cc05c;--bad:#ee7b7a;--accent:#5a9fec;--good-bg:#1f2e1f;--bad-bg:#3a2424}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 -apple-system,system-ui,"Segoe UI",sans-serif}
+main{max-width:860px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:28px 0 8px}
+.muted{color:var(--muted)}.small{font-size:13px}
+.status{display:inline-block;font-weight:600;padding:2px 10px;border-radius:999px;margin:8px 0}
+.status-ok{background:var(--good-bg);color:var(--good)}.status-blocked{background:var(--bad-bg);color:var(--bad)}
+.kpis{display:flex;flex-wrap:wrap;gap:8px 24px;margin:12px 0 4px;padding:0;list-style:none}
+.kpis b{display:block;font-size:22px;line-height:1.2}
+.items{padding-left:22px;margin:0}
+.items>li{margin:0 0 12px;padding-left:4px;overflow-wrap:anywhere;font-weight:600}
+.items>li>div{font-weight:400}
+.commands .items>li{font-weight:400}
+.count{font-size:13px;color:var(--muted);font-weight:400}
+code,pre{font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--code-bg);border-radius:6px}
+code{padding:1px 6px;overflow-wrap:anywhere;word-break:break-word}
+pre{padding:10px 12px;white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0 0}
+.fix{margin-top:2px}.fix b,a{color:var(--accent)}
+.blockers .items>li{color:var(--bad)}.blockers .items>li>div{color:var(--text)}
+.empty{color:var(--muted);margin:0}
+details{margin:6px 0;border-top:1px solid var(--line);padding-top:6px}summary{cursor:pointer}
+footer{margin-top:32px;padding-top:12px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+"##;
