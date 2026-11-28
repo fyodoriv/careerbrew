@@ -1,7 +1,8 @@
 //! Parity cases for the `rust-16` native handlers: "day.wrap",
 //! "day.question.list", "day.question.close", "day.loop" (status, add and
-//! stop), "day.history", "work.promise.done", "work.promise.dropped" and
-//! "work.promise.step".
+//! stop), "day.history", "work.promise.done", "work.promise.dropped",
+//! "work.promise.step", "work.promise.scan" (nothing new) and
+//! "work.promise.add" (its errors).
 //!
 //! Each served case runs Python and the native binary in the same fresh
 //! synthetic home and compares stdout, exit code, data-root files (with
@@ -687,4 +688,257 @@ fn the_promise_comparison_detects_a_planted_difference() {
         &Side::Python,
     );
     assert_ne!(done.files, dropped.files);
+}
+
+// ---------- work promise scan and add (wave 6) ----------
+
+/// Own sent events: ev-1 (kept with text, tracked below), ev-2 (kept, no
+/// text), ev-3 from someone else, ev-4 personal, ev-5 a page, ev-6 not kept.
+const FEED_EVENTS: &str = concat!(
+    "{\"actor\": \"me\", \"at\": \"2026-11-19T10:00:00Z\", \"channel\": \"eng\", \"id\": \"ev-1\", \"kind\": \"message\", \"source\": \"slack\"}\n",
+    "{\"actor\": \"me\", \"at\": \"2026-11-19T10:05:00Z\", \"id\": \"ev-2\", \"kind\": \"dm\", \"source\": \"slack\"}\n",
+    "{\"actor\": \"other\", \"at\": \"2026-11-19T10:06:00Z\", \"from\": \"Sam\", \"id\": \"ev-3\", \"kind\": \"message\", \"source\": \"slack\"}\n",
+    "{\"actor\": \"me\", \"at\": \"2026-11-19T10:07:00Z\", \"id\": \"ev-4\", \"kind\": \"dm\", \"personal\": true, \"source\": \"slack\"}\n",
+    "\n",
+    "{\"actor\": \"me\", \"at\": \"2026-11-19T10:08:00Z\", \"id\": \"ev-5\", \"kind\": \"page\", \"source\": \"slack\"}\n",
+    "{\"actor\": \"me\", \"at\": \"2026-11-19T10:09:00Z\", \"id\": \"ev-6\", \"kind\": \"reply\", \"source\": \"slack\"}\n",
+);
+
+const FEED_ORIGINALS: &str = concat!(
+    "{\"id\": \"ev-1\", \"text\": \"I'll send the synthetic report tomorrow\"}\n",
+    "{\"id\": \"ev-2\", \"text\": \"\"}\n",
+    "{\"id\": \"ev-3\", \"text\": \"I will look at it today\"}\n",
+    "{\"id\": \"ev-4\", \"text\": \"I'll call home tomorrow\"}\n",
+);
+
+/// `name_for("ev-1")` is tracked already; `safe_dump` writes exactly this.
+const TRACKED_YAML: &str = "projects:\n  promise-e8bd59a7:\n    kind: promise\n    title: Send the synthetic report\n  synthetic-proj:\n    title: Plain\n";
+
+const FEED_TRACKED: Setup = Setup {
+    id: "feed-tracked",
+    cli: &[],
+    files: &[
+        (".plaintext", ""),
+        ("work/feed/events.jsonl", FEED_EVENTS),
+        ("work/feed/originals.jsonl", FEED_ORIGINALS),
+        ("work/projects.yaml", TRACKED_YAML),
+    ],
+};
+
+/// The same feed with nothing tracked: a scan would make a new record.
+const FEED_NEW: Setup = Setup {
+    id: "feed-new",
+    cli: &[],
+    files: &[
+        (".plaintext", ""),
+        ("work/feed/events.jsonl", FEED_EVENTS),
+        ("work/feed/originals.jsonl", FEED_ORIGINALS),
+    ],
+};
+
+/// Kept events with no own candidate, one line ending in `\r\n`.
+const FEED_CRLF: Setup = Setup {
+    id: "feed-crlf",
+    cli: &[],
+    files: &[
+        (".plaintext", ""),
+        (
+            "work/feed/events.jsonl",
+            "{\"actor\": \"other\", \"id\": \"ev-3\", \"kind\": \"message\"}\r\n",
+        ),
+        ("work/feed/originals.jsonl", FEED_ORIGINALS),
+    ],
+};
+
+const FEED_REDACTION: Setup = Setup {
+    id: "feed-redaction",
+    cli: &[],
+    files: &[
+        (".plaintext", ""),
+        ("profile.yaml", "name: Synthetic Person\n"),
+        ("work/feed/events.jsonl", FEED_EVENTS),
+        ("work/feed/originals.jsonl", FEED_ORIGINALS),
+        ("work/projects.yaml", TRACKED_YAML),
+    ],
+};
+
+/// The tracked feed in a folder with no `.plaintext` marker.
+const FEED_SEALED: Setup = Setup {
+    id: "feed-sealed",
+    cli: &[],
+    files: &[
+        ("work/feed/events.jsonl", FEED_EVENTS),
+        ("work/feed/originals.jsonl", FEED_ORIGINALS),
+        ("work/projects.yaml", TRACKED_YAML),
+    ],
+};
+
+const SEALED_EMPTY: Setup = Setup {
+    id: "sealed-empty",
+    cli: &[],
+    files: &[],
+};
+
+/// The native binary refuses (exit 64) with no output, no event row and no
+/// file change. For a case Python serves by writing a record with a random
+/// id, where two Python runs differ.
+fn native_refuses(home: &Home, args: &[&str], label: &str) {
+    restore(home);
+    let mut before = Vec::new();
+    walk(&home.data, &home.data, &mut before);
+    before.sort();
+    let got = observe(home, args, &Side::Native);
+    assert_eq!(got.code, Some(64), "{label}: {args:?} served");
+    assert!(
+        got.stdout.is_empty() && got.events.is_empty(),
+        "{label}: {args:?}"
+    );
+    assert_eq!(got.files, before, "{label}: {args:?} wrote");
+}
+
+#[test]
+fn work_promise_scan_matches_python() {
+    strict(NOW);
+    let label = "work.promise.scan";
+    let args = &["work", "promise", "scan"];
+    for setup in [&PLAIN, &FEED_TRACKED, &SEALED_EMPTY] {
+        assert_same(&prepare_setup(setup), args, true, label);
+    }
+}
+
+#[test]
+fn work_promise_scan_refuses_what_it_cannot_match() {
+    strict(NOW);
+    let label = "work.promise.scan";
+    let args = &["work", "promise", "scan"];
+    for setup in [&FEED_CRLF, &FEED_REDACTION, &FEED_SEALED] {
+        refuses(&prepare_setup(setup), args, label);
+    }
+    // A new promise: Python writes a record with a random id.
+    native_refuses(&prepare_setup(&FEED_NEW), args, label);
+}
+
+#[test]
+fn work_promise_add_errors_match_python() {
+    strict(NOW);
+    let label = "work.promise.add";
+    let cases: [&[&str]; 11] = [
+        &["work", "promise", "add", "send it", "--due", "tomorrow"],
+        &["work", "promise", "add", "send it", "--due", "2026/11/03"],
+        &["work", "promise", "add", "send it", "--due", " 2026-11-3 "],
+        &["work", "promise", "add", "send it", "--due", "2026-13-01"],
+        &["work", "promise", "add", "send it", "--due", "0000-01-01"],
+        &["work", "promise", "add", "send it", "--due", "   "],
+        &[
+            "work", "promise", "add", "send it", "--due", "nope", "--link", "ftp://x",
+        ],
+        &[
+            "work",
+            "promise",
+            "add",
+            "send it",
+            "--link",
+            "ftp://example.com/x",
+        ],
+        &["work", "promise", "add", "   "],
+        &["work", "promise", "add", "", "--parent", "missing-proj"],
+        &[
+            "work",
+            "promise",
+            "add",
+            "send it",
+            "--parent",
+            "missing-proj",
+            "--to",
+            "Sam",
+        ],
+    ];
+    for setup in [&PLAIN, &PROMISES, &FEED_TRACKED] {
+        let home = prepare_setup(setup);
+        for args in cases {
+            assert_same(&home, args, true, label);
+        }
+    }
+}
+
+#[test]
+fn work_promise_add_refuses_what_it_cannot_match() {
+    strict(NOW);
+    let label = "work.promise.add";
+    // An error `say` would redact, a quote `repr` escapes, and project files
+    // this module does not read (flow style, sealed).
+    refuses(
+        &prepare_setup(&PROMISES_REDACTION),
+        &["work", "promise", "add", "x", "--due", "tomorrow"],
+        label,
+    );
+    refuses(
+        &prepare_setup(&PLAIN),
+        &["work", "promise", "add", "x", "--due", "it's"],
+        label,
+    );
+    refuses(
+        &prepare_setup(&PROMISES_FLOW),
+        &["work", "promise", "add", "   "],
+        label,
+    );
+    refuses(
+        &prepare_setup(&PROMISES_SEALED),
+        &["work", "promise", "add", "x", "--parent", "missing-proj"],
+        label,
+    );
+    // Valid adds write a record with a random `incarnation_id`.
+    let home = prepare_setup(&PROMISES);
+    for args in [
+        &["work", "promise", "add", "send the synthetic report"][..],
+        &["work", "promise", "add", "x", "--due", "2026-11-23"],
+        &["work", "promise", "add", "x", "--due", "20261123"],
+        &["work", "promise", "add", "x", "--parent", "synthetic-proj"],
+    ] {
+        native_refuses(&home, args, label);
+    }
+}
+
+/// Negative control: two add errors print different lines, a blank text
+/// makes the lock file a due-day error does not, and a scan of another
+/// feed prints another count.
+#[test]
+fn the_promise_add_and_scan_comparison_detects_a_planted_difference() {
+    strict(NOW);
+    let home = prepare_setup(&PROMISES);
+    let due = observe(
+        &home,
+        &["work", "promise", "add", "x", "--due", "tomorrow"],
+        &Side::Native,
+    );
+    let blank = observe(&home, &["work", "promise", "add", "   "], &Side::Python);
+    assert_ne!(due.stdout, blank.stdout);
+    assert_ne!(due.files, blank.files);
+    let empty = observe(
+        &prepare_setup(&PLAIN),
+        &["work", "promise", "scan"],
+        &Side::Native,
+    );
+    let tracked = observe(
+        &prepare_setup(&FEED_TRACKED),
+        &["work", "promise", "scan"],
+        &Side::Python,
+    );
+    assert_ne!(empty.stdout, tracked.stdout);
+}
+
+/// "day.handoff" stays with Python: its two optional positionals (section,
+/// text) are a form the argument reader never accepts, so every argv is
+/// refused before a handler could run.
+#[test]
+fn day_handoff_is_refused_before_any_handler() {
+    strict(NOW);
+    let home = prepare_setup(&PLAIN);
+    for args in [
+        &["day", "handoff", "show"][..],
+        &["day", "handoff", "add", "lessons", "synthetic lesson"],
+    ] {
+        let got = observe(&home, args, &Side::Native);
+        assert_eq!(got.code, Some(64), "{args:?}");
+    }
 }

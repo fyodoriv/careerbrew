@@ -6,7 +6,10 @@
 //! its plan could read), and closing a promise or recording one of its
 //! steps (`work promise done`, `dropped` and `step`, only in a plaintext
 //! data folder whose `work/projects.yaml` is exactly what PyYAML's
-//! `safe_dump` writes for the value read back).
+//! `safe_dump` writes for the value read back), a promise scan that tracks
+//! nothing new (`work promise scan`), and the errors of `work promise add`
+//! (a new promise record holds a random `incarnation_id`, so every add
+//! that would write one goes to Python).
 //!
 //! Each handler calls the `careerbrew_workexec` / `careerbrew_workday`
 //! component and prints what `cli.py` prints. It refuses (exit 64, Python
@@ -37,6 +40,8 @@ pub const COMMANDS: &[&str] = &[
     "work.promise.done",
     "work.promise.dropped",
     "work.promise.step",
+    "work.promise.scan",
+    "work.promise.add",
 ];
 
 /// Runs one of `COMMANDS`; None refuses (exit 64) and Python runs it.
@@ -61,6 +66,8 @@ pub fn run(name: &str, args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
             started,
         ),
         "work.promise.step" => logged("work.promise", promise_step(args, ctx)?, ctx, started),
+        "work.promise.scan" => logged("work.promise", promise_scan(ctx)?, ctx, started),
+        "work.promise.add" => logged("work.promise", promise_add(args, ctx)?, ctx, started),
         _ => None,
     }
 }
@@ -1621,4 +1628,189 @@ fn promise_step(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
         format!("promise {name}: {which} recorded; next: {next}\n"),
         0,
     ))
+}
+
+// ---------- work promise scan and add (wave 6) ----------
+
+/// `promises.KINDS`: the own event kinds a promise can come from.
+const PROMISE_KINDS: [&str; 7] = [
+    "dm", "message", "mention", "reply", "mail", "comment", "event",
+];
+
+/// Python's truth value of a value read from JSON.
+fn json_truthy(value: Option<&Value>) -> bool {
+    match value {
+        None => false,
+        Some(v) if v.is_null() => false,
+        Some(v) => {
+            if let Some(b) = v.as_bool() {
+                b
+            } else if let Some(s) = v.as_str() {
+                !s.is_empty()
+            } else if let Some(items) = v.as_array() {
+                !items.is_empty()
+            } else if let Some(map) = v.as_object() {
+                !map.is_empty()
+            } else {
+                v.as_f64().is_some_and(|n| n != 0.0)
+            }
+        }
+    }
+}
+
+/// `store.read_jsonl(path)` as objects, read the way Python reads it; None
+/// (refuse) for a line separator `str.splitlines` splits on and this
+/// reader does not, a line either side could parse differently, or a row
+/// that is not an object.
+fn feed_rows(store: &careerbrew_vault::store::Store, path: &Path) -> Option<Vec<Value>> {
+    if std::fs::symlink_metadata(path).is_ok_and(|meta| !meta.is_file()) {
+        return None;
+    }
+    let text = store
+        .read_text(path, Some(""), true)
+        .ok()?
+        .unwrap_or_default();
+    if text.contains([
+        '\r', '\u{b}', '\u{c}', '\u{1c}', '\u{1d}', '\u{1e}', '\u{1f}', '\u{85}', '\u{2028}',
+        '\u{2029}',
+    ]) {
+        return None;
+    }
+    let mut rows = Vec::new();
+    for line in text.split('\n') {
+        if line.trim_matches(py_space).is_empty() {
+            continue;
+        }
+        let row = careerbrew_vault::json_yaml::json_read(line).ok()?;
+        if !matches!(row, Canon::Map(_)) || !plain_canon(&row) {
+            return None;
+        }
+        rows.push(careerbrew_setup::value::from_canon(&row));
+    }
+    Some(rows)
+}
+
+/// `promises.candidate(row)`: an own, sent, non-personal event.
+fn promise_candidate(row: &Value) -> bool {
+    row.get("actor").and_then(Value::as_str) == Some("me")
+        && row
+            .get("kind")
+            .and_then(Value::as_str)
+            .is_some_and(|kind| PROMISE_KINDS.contains(&kind))
+        && !json_truthy(row.get("personal"))
+        && row.get("source").and_then(Value::as_str) != Some("pagerduty")
+}
+
+/// `work promise scan` when it tracks nothing new: every own event whose
+/// original is kept is tracked already (or has no text). An event that
+/// could become a new promise would write a record with a random id, so
+/// that run goes to Python.
+fn promise_scan(ctx: &Ctx) -> Option<Outcome> {
+    // The line holds only counts, but `say` redacts it.
+    if ctx.redact_inputs_present() {
+        return None;
+    }
+    let root = ctx.root.as_path();
+    let context = careerbrew_vault::transfer::Context::from_env().ok()?;
+    let store = context.store();
+    // `{o["id"]: o for o in ...}`: the last row with an id wins.
+    let mut originals: std::collections::BTreeMap<String, Value> = Default::default();
+    for row in feed_rows(&store, &root.join("work/feed/originals.jsonl"))? {
+        let id = row.get("id")?.as_str()?.to_owned();
+        originals.insert(id, row);
+    }
+    let mut kept = 0usize;
+    let mut pairs: Vec<String> = Vec::new();
+    for row in feed_rows(&store, &root.join("work/feed/events.jsonl"))? {
+        if !promise_candidate(&row) {
+            continue;
+        }
+        let id = row.get("id")?.as_str()?;
+        let Some(original) = originals.get(id) else {
+            continue;
+        };
+        kept += 1;
+        if json_truthy(original.get("text")) {
+            pairs.push(id.to_owned());
+        }
+    }
+    if !pairs.is_empty() {
+        let projects = projects_load(&store, &root.join("work/projects.yaml"))?;
+        for id in &pairs {
+            let name = careerbrew_projects::promises::name_for(id);
+            pget(&projects, &name).ok()??;
+        }
+    }
+    Some(out(
+        format!("promises: 0 new from {kept} sent message(s) still kept\n"),
+        0,
+    ))
+}
+
+/// `work promise add` where it fails: a due day `date.fromisoformat` is
+/// sure to reject, a link that is not http(s), an empty text or an unknown
+/// parent. Every other add writes a new record (with a random
+/// `incarnation_id`) and goes to Python.
+fn promise_add(args: &Parsed, ctx: &Ctx) -> Option<Outcome> {
+    // The error lines echo what the caller typed; `say` redacts them.
+    if ctx.redact_inputs_present() {
+        return None;
+    }
+    let title = args.text("text")?;
+    let due = args.text("due").unwrap_or("");
+    let link = args.text("link").unwrap_or("");
+    let parent = args.text("parent").unwrap_or("");
+    if !due.is_empty() {
+        // Python 3.12 reads only 7, 8 or 10 characters, each a digit, `-`
+        // or the week mark `W`; of the rest, only a `YYYY-MM-DD` that is no
+        // real day is sure to fail here.
+        let day = due.trim_matches(py_space);
+        let invalid = !matches!(day.chars().count(), 7 | 8 | 10)
+            || day
+                .chars()
+                .any(|c| !(c.is_ascii_digit() || matches!(c, '-' | 'W' | 'w')))
+            || (day_form(day) && !real_day(day));
+        if !invalid {
+            return None;
+        }
+        let shown = simple_repr(due)?;
+        return Some(fail(
+            &format!("the due day looks like 2026-11-03, not {shown}"),
+            "US-99",
+        ));
+    }
+    if !link.is_empty() && !(link.starts_with("https://") || link.starts_with("http://")) {
+        return Some(fail("a promise's link is an http(s) link", "US-99"));
+    }
+    // Python reads the clock and the projects, then takes the lock and fails
+    // inside `add_promise`.
+    let root = ctx.root.as_path();
+    pin_clock(root)?;
+    let context = careerbrew_vault::transfer::Context::from_env().ok()?;
+    let path = root.join("work/projects.yaml");
+    let projects = projects_load(&context.store(), &path)?;
+    let problem = if title.chars().all(py_space) {
+        "a promise needs one line of text: what you promised".to_owned()
+    } else if !parent.is_empty() && pget(&projects, parent).ok()?.is_none() {
+        let mut names: Vec<&str> = projects
+            .iter()
+            .filter_map(|(k, _)| match k {
+                Canon::Str(name) => Some(name.as_str()),
+                _ => None,
+            })
+            .collect();
+        names.sort_unstable();
+        let have = if names.is_empty() {
+            "none yet".to_owned()
+        } else {
+            names.join(", ")
+        };
+        format!(
+            "unknown project {parent} (fix: `careerbrew work project add {parent}`; have: {have})"
+        )
+    } else {
+        return None;
+    };
+    projects_lock(&path)?;
+    Some(fail(&problem, "US-99"))
 }

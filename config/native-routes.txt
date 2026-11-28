@@ -126,8 +126,8 @@ work.live.cycle native
 work.live.status native
 work.live.stop native
 work.promise.list native
-work.promise.scan python
-work.promise.add python
+work.promise.scan native
+work.promise.add native
 work.promise.outcomes python
 work.promise.accept python
 work.promise.stats python
