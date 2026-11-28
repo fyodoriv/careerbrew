@@ -149,3 +149,25 @@ def test_the_drawing_workflow_keeps_the_hosted_safety_rules():
     assert uses and all(f"uses: {use}\n" in gate for use in uses), uses
     assert "npx playwright install --with-deps chromium" in text and "npx playwright install --with-deps chromium" in gate
     assert 'scripts/visual-pictures.sh draw "$UPDATE"' in text
+
+
+def test_a_failed_gate_part_prints_the_pictures_and_page_text_of_each_failed_visual_test(tmp_path):
+    out = tmp_path / "web/test-results/us-75-visual-stories/us-24-next-step-phone"
+    out.mkdir(parents=True)
+    (out / "next-step-actual.png").write_bytes(PNG)
+    (out / "next-step-diff.png").write_bytes(PNG + b"\0")
+    (out / "error-context.md").write_text('- heading "Next step"\n')
+    (out / "trace.zip").write_bytes(b"not printed")
+    done = _run(tmp_path, "failures")
+    assert done.returncode == 0, done.stderr
+    assert "printed 3 file(s)" in done.stdout
+    assert f"visual-failure-begin web/test-results/us-75-visual-stories/us-24-next-step-phone/next-step-actual.png {hashlib.sha256(PNG).hexdigest()}" in done.stdout
+    assert '- heading "Next step"' in done.stdout
+    assert "trace.zip" not in done.stdout  # a trace is never printed: only the pictures and the page text
+    gate = (ROOT / ".github/workflows/gate-part.yml").read_text()
+    assert "run: scripts/visual-pictures.sh failures" in gate and "upload-artifact" not in gate
+
+
+def test_no_test_results_folder_prints_nothing(tmp_path):
+    done = _run(tmp_path, "failures")
+    assert done.returncode == 0 and "no visual test failed" in done.stdout

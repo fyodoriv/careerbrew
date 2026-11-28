@@ -8,6 +8,8 @@
 #   scripts/visual-pictures.sh fetch <run-id>           on your machine: write the pictures of that run here
 #   scripts/visual-pictures.sh fetch --log <file>       the same, from a saved `gh run view <run-id> --log`
 #   scripts/visual-pictures.sh print <picture>...       print pictures the way `draw` does (paths from the repo root)
+#   scripts/visual-pictures.sh failures                 after a failed gate part: print each failed visual test's
+#                                                       actual, expected and diff picture and its page text
 set -euo pipefail
 # VISUAL_PICTURES_ROOT: tests point the script at a scratch folder.
 ROOT="${VISUAL_PICTURES_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -27,6 +29,27 @@ print_pictures() {
     base64 < "$ROOT/$path" | tr -d '\n' | fold -w 1000
     printf '\nvisual-picture-end %s\n' "$path"
   done
+}
+
+# A failed comparison leaves its pictures and the page's text (error-context.md) under web/test-results. The gate
+# uploads no artifact (docs/ci.md), so they travel in the log too, as `visual-failure-begin <path> <sha256>` blocks.
+# They show synthetic test data only. Decode one block: base64 --decode of the lines between begin and end.
+failures() {
+  local path n=0
+  cd "$ROOT"
+  [ -d web/test-results ] || { echo "visual-pictures: no web/test-results folder: no visual test failed"; return 0; }
+  while IFS= read -r path; do
+    n=$((n + 1))
+    case "$path" in
+      *.md) printf 'visual-failure-text-begin %s\n' "$path"; cat "$path"; printf '\nvisual-failure-text-end %s\n' "$path" ;;
+      *)
+        printf 'visual-failure-begin %s %s\n' "$path" "$(sha "$path")"
+        base64 < "$path" | tr -d '\n' | fold -w 1000
+        printf '\nvisual-failure-end %s\n' "$path"
+        ;;
+    esac
+  done < <(find web/test-results -type f \( -name '*-actual.png' -o -name '*-expected.png' -o -name '*-diff.png' -o -name 'error-context.md' \) | LC_ALL=C sort)
+  echo "visual-pictures: printed $n file(s) of failed visual tests"
 }
 
 draw() {
@@ -112,5 +135,6 @@ case "${1:-}" in
   draw) shift; draw "$@" ;;
   fetch) shift; fetch "$@" ;;
   print) shift; print_pictures "$@" ;;
-  *) sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  failures) shift; failures ;;
+  *) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

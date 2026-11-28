@@ -138,3 +138,36 @@ def test_the_native_server_never_prints_the_token(candidate: Path, tmp_path: Pat
         out, err = proc.communicate(timeout=10)
     assert "careerbrew web app (native): http://127.0.0.1:" in line
     assert "synthetic-pinned-token" not in line + out + err
+
+
+def _oracle_module():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("rust25_oracle", ORACLE)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_a_change_version_that_moves_between_the_two_reads_is_asked_again(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Main run 46069583483 (macos-15): the warmer moved the version between the two reads.
+    oracle = _oracle_module()
+    versions = iter(["1c289a00699ac47e", "a9e03c8d06456a02", "a9e03c8d06456a02", "a9e03c8d06456a02"])
+    monkeypatch.setattr(oracle, "send_raw", lambda port, data: b"")
+    monkeypatch.setattr(oracle, "request_bytes", lambda case, port, token: b"")
+    monkeypatch.setattr(oracle, "normalize", lambda case_id, raw, port: {"body": {"version": next(versions)}})
+    monkeypatch.setattr(oracle.time, "sleep", lambda seconds: None)
+    answers = oracle._ask_both({"id": "changes-ok"}, "t", 1, 2)
+    assert answers["python"] == answers["native"] == {"body": {"version": "a9e03c8d06456a02"}}
+
+
+def test_a_stable_case_is_asked_once_so_a_real_difference_still_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    oracle = _oracle_module()
+    calls = []
+    monkeypatch.setattr(oracle, "send_raw", lambda port, data: b"")
+    monkeypatch.setattr(oracle, "request_bytes", lambda case, port, token: b"")
+    monkeypatch.setattr(oracle, "normalize", lambda case_id, raw, port: calls.append(port) or {"port": port})
+    answers = oracle._ask_both({"id": "today-ok"}, "t", 1, 2)
+    assert calls == [1, 2]
+    assert answers["python"] != answers["native"]
