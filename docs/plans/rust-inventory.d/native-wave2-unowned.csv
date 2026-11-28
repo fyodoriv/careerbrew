@@ -1,0 +1,1 @@
+crates/cbcli/tests/step_unowned.rs,keep-native,rust-00,native CLI parity cases for the unowned report latest and list and data encrypt and decrypt and show handlers: served cases; refused inputs; negative control
