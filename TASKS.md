@@ -856,6 +856,16 @@ written before the work starts. Calendar work lives in `RECURRING.md`.
   - **Pivot**: under 40% after 4 weeks: drop the connector read and keep typed values.
   - **Anchor**: Ries 2011 (innovation accounting); Basili, Caldiera & Rombach 1994 (GQM).
 
+- [ ] Type-check the Playwright spec folders in the web gate
+  - **ID**: web-spec-typecheck-gap
+  - **Details**: `npm run typecheck` covers only `web/src` (`web/tsconfig.app.json` includes `src`) and `vite.config.ts`. The Playwright specs in `web/e2e/`, `web/visual/` and `web/issue373/` are never type-checked, so a plain `tsc` on `web/issue373/pm-cut.spec.ts` already fails on main: `reducedMotion` is not a known key in `test.use`. Found on 2026-11-28 while fixing the US-59 draft-save flake (PR 269). Steps: (1) add a `tsconfig.e2e.json` that includes the three spec folders and run it from `npm run typecheck`; (2) fix each error it reports (for `pm-cut.spec.ts`, move `reducedMotion` into `contextOptions`, as the AGENTS.md row of 2026-11-05 says).
+  - **Files**: web/package.json; web/tsconfig.e2e.json; web/issue373/pm-cut.spec.ts
+  - **Hypothesis**: type errors in the spec folders go from unseen to 0, because the gate checks them.
+  - **Measurement**: `cd web && npx tsc -p tsconfig.e2e.json --noEmit; echo rc=$?`
+  - **Success**: rc=0, and `npm run typecheck` fails on a planted type error in a spec file.
+  - **Pivot**: if the specs need more than 20 type fixes, type-check only `web/issue373/` first and file the rest as their own task.
+  - **Anchor**: Gao, Bird and Barr 2017, "To Type or Not to Type" (ICSE): static types catch about 15% of public bugs.
+
 - [ ] Find why story US-72 can miss its 15 s wait on the hosted macOS job
   - **ID**: us-72-macos-timing-miss
   - **Details**: On 2026-11-14 the hosted `gate (macos-15)` job failed once on the control inventory (story US-72, `web/e2e/controls.spec.ts`, the `heading(...)` helper): the heading "Sign in to careerbrew" was not found after 15000 ms; the run ended `1 failed`, `195 passed`. A rerun of that job on the same commit passed, the pull request changed no web code, and the Linux job passed. So far this is one event; the cause is not known. Do not raise the timeout first. Steps. (1) Count: list failed `gate (macos-15)` jobs with `gh run list --workflow ci.yml --status failure` and read each log (`gh run view <id> --log-failed`) for the same line. (2) If it shows again, find which visit failed (the test walks many views; add the visit name to the failure message) and whether the page was still loading, signed out, or slow. (3) Fix the cause in the test or the app, with a test that fails before the fix. A rerun is the answer for a single event: `gh run rerun <id> --failed`.

@@ -80,6 +80,11 @@ struct Io<'a> {
 }
 
 impl Io<'_> {
+    /// The data store of this context.
+    fn store(&self) -> careerbrew_vault::store::Store<'_> {
+        self.ctx.store()
+    }
+
     /// `paths.sub(*parts)`: the parent folder is made even for a read.
     fn sub(&self, parts: &[&str]) -> Option<PathBuf> {
         let mut path = self.ctx.root.clone();
@@ -1929,7 +1934,7 @@ fn prep_check(args: &Parsed, ctx: &Ctx, io: &Io) -> Option<Outcome> {
     let level = args.int("level")?;
     let top = args.int("top")?;
     let json = args.flag("json");
-    if io.ctx.store().encryption_enabled() {
+    if io.store().encryption_enabled() {
         return None;
     }
     let mut answers = load_answers(args)?;
@@ -2194,7 +2199,7 @@ fn prep_check(args: &Parsed, ctx: &Ctx, io: &Io) -> Option<Outcome> {
 /// `used_companies` and `pass_rates` cannot raise.
 fn pass_rates(io: &Io) -> Option<Vec<(&'static str, usize, f64)>> {
     let path = io.sub(&["jobs", "applications.jsonl"])?;
-    let rows = io.ctx.store().read_jsonl(&path, true).ok()?;
+    let rows = io.store().read_jsonl(&path, true).ok()?;
     let mut latest: Vec<(String, Canon, Vec<String>)> = Vec::new();
     for row in rows {
         let Canon::Map(fields) = row else {
@@ -2334,7 +2339,7 @@ fn plan_json(value: &Canon) -> Option<J> {
 /// stays Python (the Want score is float work this module does not redo).
 fn jobs_strategy(args: &Parsed, ctx: &Ctx, io: &Io) -> Option<Outcome> {
     let json = args.flag("json");
-    if io.ctx.store().encryption_enabled() || !plain_path(ctx.root.to_str()?) {
+    if io.store().encryption_enabled() || !plain_path(ctx.root.to_str()?) {
         return None;
     }
     profile_ok(io, &ctx.root)?;
